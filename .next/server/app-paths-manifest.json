@@ -1,0 +1,9 @@
+{
+  "/page": "app/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/api/stats/route": "app/api/stats/route.js",
+  "/api/honourroll/route": "app/api/honourroll/route.js",
+  "/api/playerprofile/route": "app/api/playerprofile/route.js",
+  "/api/players/route": "app/api/players/route.js",
+  "/api/allTimeStats/route": "app/api/allTimeStats/route.js"
+}

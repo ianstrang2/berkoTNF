@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. 
+/// Visit https://pris.ly/d/check-constraints for more info.
+model matches {
+  match_id       Int              @id @default(autoincrement())
+  match_date     DateTime         @db.Date
+  team_a_score   Int
+  team_b_score   Int
+  created_at     DateTime?        @default(now()) @db.Timestamp(6)
+  player_matches player_matches[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. 
+/// Visit https://pris.ly/d/check-constraints for more info.
+model player_matches {
+  player_match_id Int      @id @default(autoincrement())
+  player_id       Int?
+  match_id        Int?
+  team            String?  @db.Char(1)
+  goals           Int?     @default(0)
+  clean_sheet     Boolean? @default(false)
+  heavy_win       Boolean? @default(false)
+  heavy_loss      Boolean? @default(false)
+  result          String?  @db.VarChar
+  fantasy_points  Int?
+  matches         matches? @relation(fields: [match_id], references: [match_id], onDelete: NoAction, onUpdate: NoAction)
+  players         players? @relation(fields: [player_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model players {
+  player_id      Int              @id @default(autoincrement())
+  name           String           @db.VarChar(100)
+  join_date      DateTime?        @default(dbgenerated("CURRENT_DATE")) @db.Date
+  is_ringer      Boolean          @default(false)
+  is_retired     Boolean?         @default(false)
+  player_matches player_matches[]
+}

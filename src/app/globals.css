@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Table styles */
+.sticky {
+  position: sticky;
+  position: -webkit-sticky;
+}
+
+.overflow-auto {
+  overflow: auto;
+  max-height: calc(100vh - 200px);
+}
+
+thead {
+  position: sticky !important;
+  top: 0;
+  z-index: 50;
+  background-color: white;
+}
+
+th {
+  background-color: white;
+}
+
+/* Keep existing overflow-x-auto styles */
+.overflow-x-auto {
+  overflow-x: auto;
+  position: relative;
+}
