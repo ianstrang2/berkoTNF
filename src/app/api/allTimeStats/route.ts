@@ -9,6 +9,13 @@ const serializeData = (data) => {
 
 export async function GET(request: NextRequest) {
   try {
+
+    // Log the DATABASE_URL to ensure it's picked up correctly
+    console.log('DATABASE_URL:', process.env.DATABASE_URL);
+
+    // Check Prisma Client is initialized and log it
+    console.log('Prisma Client Initialized:', prisma);
+
     const allTimeStats = await prisma.$queryRaw`
       WITH player_stats AS (
         SELECT 
