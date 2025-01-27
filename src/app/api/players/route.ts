@@ -7,10 +7,6 @@ const serializeData = (data) => {
   ));
 };
 
-// Add caching headers to prevent multiple requests
-export const dynamic = 'force-dynamic'; // defaults to force-static
-export const revalidate = 30; // revalidate the data at most every 30 seconds
-
 export async function GET(request: NextRequest) {
   try {
     const cacheKey = 'players-list';

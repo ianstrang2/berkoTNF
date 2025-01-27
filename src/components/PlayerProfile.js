@@ -22,13 +22,12 @@ const PlayerProfile = ({ id }) => {
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
-        const response = await fetch('/api/players');
+        const response = await fetch('/api/players'); // Updated endpoint
         if (!response.ok) {
           throw new Error('Failed to fetch players');
         }
         const data = await response.json();
-        // Filter out players marked as is_ringer
-        setPlayers(data.data.filter(player => !player.is_ringer));
+        setPlayers(data.data); // Set the players list
       } catch (error) {
         console.error('Error fetching players:', error);
       }
@@ -42,7 +41,7 @@ const PlayerProfile = ({ id }) => {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/playerprofile?id=${selectedPlayerId}`);
+        const response = await fetch(`/api/playerprofile?id=${selectedPlayerId}`); // Updated endpoint
         if (!response.ok) {
           throw new Error(`Failed to fetch profile: ${response.statusText}`);
         }

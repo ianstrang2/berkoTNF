@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     console.log('Fetching profile for ID:', numericId);
 
     // Fetch player profile using a complex SQL query
-    const playerProfile = await prisma.$queryRaw`
+    const playerProfile: any[] = await prisma.$queryRaw`
       WITH 
         player_stats AS (
           SELECT 
@@ -196,34 +196,6 @@ export async function GET(request: Request) {
         error: 'Failed to fetch player profile',
         details: error instanceof Error ? error.message : 'Unknown error occurred',
       },
-      { status: 500 }
-    );
-  }
-}
-
-// Fetch all players for the dropdown (excluding ringers)
-export async function GET_PLAYERS(request: Request) {
-  try {
-    console.log("Fetching all players...");
-
-    // Fetch all players from the database, excluding ringers
-    const players = await prisma.$queryRaw`
-      SELECT DISTINCT 
-        players.player_id as id,
-        players.name
-      FROM players
-      WHERE is_ringer = false
-      ORDER BY name ASC
-    `;
-
-    console.log('Players fetched:', players); // Debugging: Log the fetched players
-
-    // Return the players data under the "data" key
-    return NextResponse.json({ data: players });
-  } catch (error) {
-    console.error('Database Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch players' },
       { status: 500 }
     );
   }

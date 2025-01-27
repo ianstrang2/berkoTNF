@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-static';  // Ensures the route is statically exported
+export const revalidate = 30;           // Revalidate every 30 seconds (adjust as needed)
+
 export async function GET() {
   try {
     console.log('Attempting to fetch matches...')

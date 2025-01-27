@@ -1,7 +1,7 @@
-const CHUNK_PUBLIC_PATH = "server/app/api/players/route.js";
-const runtime = require("../../../chunks/[turbopack]_runtime.js");
-runtime.loadChunk("server/chunks/node_modules_next_b0b694._.js");
-runtime.loadChunk("server/chunks/[root of the server]__a91f31._.js");
-runtime.loadChunk("server/chunks/_ffe75d._.js");
-runtime.getOrInstantiateRuntimeModule("[project]/.next-internal/server/app/api/players/route/actions.js [app-rsc] (ecmascript)", CHUNK_PUBLIC_PATH);
-module.exports = runtime.getOrInstantiateRuntimeModule("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/src/app/api/players/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)", CHUNK_PUBLIC_PATH).exports;
+(()=>{var e={};e.id=664,e.ids=[664],e.modules={846:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},4870:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},3295:e=>{"use strict";e.exports=require("next/dist/server/app-render/after-task-async-storage.external.js")},9294:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-async-storage.external.js")},3033:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-unit-async-storage.external.js")},6244:(e,r,t)=>{"use strict";t.r(r),t.d(r,{patchFetch:()=>m,routeModule:()=>d,serverHooks:()=>y,workAsyncStorage:()=>c,workUnitAsyncStorage:()=>x});var s={};t.r(s),t.d(s,{GET:()=>l});var a=t(2706),i=t(8203),n=t(5994),o=t(9187),p=t(5600);let u=e=>JSON.parse(JSON.stringify(e,(e,r)=>"bigint"==typeof r?Number(r):r));async function l(e){try{let e=await p.z.$queryRaw`
+      SELECT DISTINCT 
+        players.player_id as id,
+        players.name
+      FROM players
+      ORDER BY name ASC
+    `,r=o.NextResponse.json({data:u(e)});return r.headers.set("Cache-Control","public, s-maxage=30, stale-while-revalidate=59"),r}catch(e){return console.error("Database Error:",e),o.NextResponse.json({error:"Failed to fetch players"},{status:500})}}let d=new a.AppRouteRouteModule({definition:{kind:i.RouteKind.APP_ROUTE,page:"/api/players/route",pathname:"/api/players",filename:"route",bundlePath:"app/api/players/route"},resolvedPagePath:"C:\\Users\\Ian\\BerkoTNF\\src\\app\\api\\players\\route.ts",nextConfigOutput:"",userland:s}),{workAsyncStorage:c,workUnitAsyncStorage:x,serverHooks:y}=d;function m(){return(0,n.patchFetch)({workAsyncStorage:c,workUnitAsyncStorage:x})}},6487:()=>{},8335:()=>{},5600:(e,r,t)=>{"use strict";t.d(r,{z:()=>a});let s=require("@prisma/client"),a=global.prisma||new s.PrismaClient({log:["query"]})}};var r=require("../../../webpack-runtime.js");r.C(e);var t=e=>r(r.s=e),s=r.X(0,[638,452],()=>t(6244));module.exports=s})();

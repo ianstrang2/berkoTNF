@@ -56,7 +56,7 @@ export async function PUT(request: Request) {
         is_ringer,
         is_retired, // Updating the is_retired field
       },
-    });ol
+    });
     return NextResponse.json({ data: player });
   } catch (error) {
     return NextResponse.json(
