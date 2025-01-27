@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "npm run prisma:generate && next build --no-lint",  // Run prisma generate before next build
     "start": "next start",
     "lint": "next lint",
-    "clean": "rimraf .next && rimraf node_modules/.cache"
+    "clean": "rimraf .next && rimraf node_modules/.cache",
+    "prisma:generate": "prisma generate"  // Added script to generate Prisma client
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
