@@ -2,7 +2,11 @@
     "builds": [
       {
         "src": "package.json",
-        "use": "@vercel/next"
+        "use": "@vercel/next",
+        "config": {
+          "buildCommand": "npx prisma migrate deploy && next build"
+        }
       }
     ]
   }
+  
