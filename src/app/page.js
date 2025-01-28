@@ -13,7 +13,7 @@ console.log('AdminPanel:', AdminPanel);
 console.log('AdminLayout:', AdminLayout);
 
 export default function Home() {
-  const [currentView, setCurrentView] = useState('current-half');
+  const [currentView, setCurrentView] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
   const goHome = () => {
