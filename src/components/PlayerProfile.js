@@ -22,16 +22,17 @@ const PlayerProfile = ({ id }) => {
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
-        const response = await fetch('/api/players'); // Updated endpoint
-        if (!response.ok) {
-          throw new Error('Failed to fetch players');
-        }
+        const response = await fetch('/api/admin/players');
         const data = await response.json();
-        setPlayers(data.data); // Set the players list
+        if (data.data) {
+          const filteredPlayers = data.data.filter(player => !player.is_ringer); // Exclude ringers
+          setPlayers(filteredPlayers);
+        }
       } catch (error) {
-        console.error('Error fetching players:', error);
+        setError('Failed to fetch players');
       }
     };
+    
 
     fetchPlayers();
   }, []);
@@ -136,7 +137,7 @@ const PlayerProfile = ({ id }) => {
         >
           {Array.isArray(players) && players.length > 0 ? (
             players.map((player) => (
-              <option key={player.id} value={player.id}>
+              <option key={player.player_id} value={player.player_id}>
                 {player.name}
               </option>
             ))
