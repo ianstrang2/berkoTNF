@@ -8,12 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table/table";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "./ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 
 const CurrentHalfSeason = () => {
   const [loading, setLoading] = useState(true);
@@ -23,12 +18,13 @@ const CurrentHalfSeason = () => {
     formData: []
   });
 
+  const [activeTab, setActiveTab] = useState("performance");
+
   const getCurrentHalf = () => {
-    // Temporarily subtract one year for testing - REMOVE THIS LINE LATER
     const now = new Date(new Date().setFullYear(new Date().getFullYear()));
     const year = now.getFullYear();
-    const isFirstHalf = now.getMonth() < 6; // Before July (0-based months)
-    
+    const isFirstHalf = now.getMonth() < 6;
+
     return {
       year,
       half: isFirstHalf ? 1 : 2,
@@ -46,25 +42,20 @@ const CurrentHalfSeason = () => {
 
         const response = await fetch('/api/stats', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            startDate: currentPeriod.startDate,
-            endDate: currentPeriod.endDate
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ startDate: currentPeriod.startDate, endDate: currentPeriod.endDate })
         });
-        
+
         console.log('API Response:', response.status);
         const result = await response.json();
         console.log('API Data:', result);
-        
+
         if (result.data) {
           setStats(result.data);
         } else {
           console.error('No data received from API');
         }
-        
+
         setLoading(false);
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -226,32 +217,25 @@ const form = stats.formData.find(f => f.name === player.name)
       <h2 className="text-2xl font-bold mb-6">
         Current Half-Season Performance - {getCurrentHalf().description}
       </h2>
-      
-      {/* Desktop view - side by side */}
-      <div className="hidden md:flex gap-8">
-        <div className="flex-1">
-          {renderMainStats()}
-        </div>
-        <div className="flex-1">
-          {renderGoalStats()}
-        </div>
-      </div>
 
-      {/* Mobile view - tabs */}
+      {/* Desktop view */}
+      <div className="hidden md:flex gap-8">
+  <div className="flex-1">{renderMainStats()}</div>
+  <div className="flex-1">{renderGoalStats()}</div> {/* ✅ Now goal stats will show in desktop */}
+</div>
+
+      {/* ✅ Mobile view - fixed tabs */}
       <div className="md:hidden">
-        <Tabs defaultValue="performance">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="performance">Points</TabsTrigger>
-            <TabsTrigger value="goals">Goals</TabsTrigger>
-          </TabsList>
-          <TabsContent value="performance">
-            {renderMainStats()}
-          </TabsContent>
-          <TabsContent value="goals">
-            {renderGoalStats()}
-          </TabsContent>
-        </Tabs>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+  <TabsList>
+    <TabsTrigger triggerValue="performance">Points</TabsTrigger>
+    <TabsTrigger triggerValue="goals">Goals</TabsTrigger>
+  </TabsList>
+  <TabsContent triggerValue="performance">{renderMainStats()}</TabsContent>
+  <TabsContent triggerValue="goals">{renderGoalStats()}</TabsContent>
+</Tabs>
+</div>
+
     </div>
   );
 };

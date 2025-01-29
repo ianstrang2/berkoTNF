@@ -1,4 +1,3 @@
-'use client';
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -23,6 +22,7 @@ const OverallSeasonPerformance = () => {
     formData: []
   });
   const [selectedYear, setSelectedYear] = useState(2025);
+  const [activeTab, setActiveTab] = useState("performance");  // Match the working component
   const yearOptions = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011];
 
   const getGreenColor = (value, max) => {
@@ -171,49 +171,45 @@ const OverallSeasonPerformance = () => {
     </div>
   );
 
+  const handleTabChange = (value) => {
+    console.log('Tab changed to:', value);
+    setCurrentTab(value);
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
 
   return (
-<div className="p-4">
-  <div className="flex flex-wrap items-center gap-4 mb-6">
-    <h2 className="text-2xl font-bold">Overall Season Performance</h2>
-    <select 
-      value={selectedYear}
-      onChange={(e) => setSelectedYear(Number(e.target.value))}
-      className="border rounded-md px-3 py-2 bg-white shadow hover:bg-gray-50"
-    >
-      {yearOptions.map(year => (
-        <option key={year} value={year}>{year}</option>
-      ))}
-    </select>
-  </div>
-
-      
-      {/* Desktop view - side by side */}
-      <div className="hidden md:flex gap-8">
-        <div className="flex-1">
-          {renderMainStats()}
-        </div>
-        <div className="flex-1">
-          {renderGoalStats()}
-        </div>
+    <div className="p-4">
+      <div className="flex flex-wrap items-center gap-4 mb-6">
+        <h2 className="text-2xl font-bold">Overall Season Performance</h2>
+        <select 
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+          className="border rounded-md px-3 py-2 bg-white shadow hover:bg-gray-50"
+        >
+          {yearOptions.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Mobile view - tabs */}
+      {/* Desktop view */}
+      <div className="hidden md:flex gap-8">
+        <div className="flex-1">{renderMainStats()}</div>
+        <div className="flex-1">{renderGoalStats()}</div>
+      </div>
+
+      {/* Mobile view - matching the working component's structure */}
       <div className="md:hidden">
-        <Tabs defaultValue="performance">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="performance">Points</TabsTrigger>
-            <TabsTrigger value="goals">Goals</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger triggerValue="performance">Points</TabsTrigger>
+            <TabsTrigger triggerValue="goals">Goals</TabsTrigger>
           </TabsList>
-          <TabsContent value="performance">
-            {renderMainStats()}
-          </TabsContent>
-          <TabsContent value="goals">
-            {renderGoalStats()}
-          </TabsContent>
+          <TabsContent triggerValue="performance">{renderMainStats()}</TabsContent>
+          <TabsContent triggerValue="goals">{renderGoalStats()}</TabsContent>
         </Tabs>
       </div>
     </div>

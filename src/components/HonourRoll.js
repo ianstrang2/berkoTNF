@@ -1,4 +1,3 @@
-'use client';
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -22,6 +21,7 @@ const HonourRoll = () => {
     topScorers: [],
     records: null
   });
+  const [activeTab, setActiveTab] = useState("seasonal");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -208,23 +208,21 @@ const HonourRoll = () => {
         {renderRecords()}
       </div>
 
-      {/* Mobile view */}
+      {/* Mobile view - using controlled tabs pattern */}
       <div className="md:hidden">
-        <Tabs defaultValue="seasonal">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="seasonal">Season Honours</TabsTrigger>
-            <TabsTrigger value="records">Records</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger triggerValue="seasonal">Season Honours</TabsTrigger>
+            <TabsTrigger triggerValue="records">Records</TabsTrigger>
           </TabsList>
-          <TabsContent value="seasonal">
+          <TabsContent triggerValue="seasonal">
             {renderSeasonalHonours()}
           </TabsContent>
-          <TabsContent value="records">
+          <TabsContent triggerValue="records">
             {renderRecords()}
           </TabsContent>
         </Tabs>
       </div>
-
-
     </div>
   );
 };
