@@ -57,7 +57,6 @@ export async function GET() {
       FROM yearly_stats ys1
       GROUP BY year
       ORDER BY year DESC`;
-    console.log('seasonWinners data:', seasonWinners);
 
     // Top Goalscorers by Season
     const topScorers = await prisma.$queryRaw`
@@ -92,7 +91,6 @@ export async function GET() {
       FROM season_goals sg1
       GROUP BY year
       ORDER BY year DESC`;
-    console.log('topScorers data:', topScorers);
 
     // Record Holders
     const records = await prisma.$queryRaw`
@@ -229,46 +227,77 @@ export async function GET() {
       SELECT 
         jsonb_build_object(
           'most_goals_in_game', (
-            SELECT jsonb_build_object(
-              'name', name,
-              'goals', goals,
-              'date', match_date::text,
-              'score', CASE 
-                WHEN team = 'A' THEN team_a_score || '-' || team_b_score
-                ELSE team_b_score || '-' || team_a_score
-              END
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'name', name,
+                'goals', goals,
+                'date', match_date::text,
+                'score', CASE 
+                  WHEN team = 'A' THEN team_a_score || '-' || team_b_score
+                  ELSE team_b_score || '-' || team_a_score
+                END
+              )
             )
-            FROM game_goals
-            WHERE rn = 1
+            FROM (
+              SELECT *,
+                RANK() OVER (ORDER BY goals DESC) as rank
+              FROM game_goals
+            ) ranked
+            WHERE rank = 1
           ),
           'streaks', (
             SELECT jsonb_object_agg(
               type,
               jsonb_build_object(
-                'name', name,
-                'streak', streak,
-                'start_date', streak_start::text,
-                'end_date', streak_end::text
+                'holders', (
+                  SELECT jsonb_agg(
+                    jsonb_build_object(
+                      'name', name,
+                      'streak', streak,
+                      'start_date', streak_start::text,
+                      'end_date', streak_end::text
+                    )
+                  )
+                  FROM (
+                    SELECT 
+                      name, streak, streak_start, streak_end,
+                      RANK() OVER (PARTITION BY type ORDER BY streak DESC) as rank
+                    FROM streaks s2
+                    WHERE s2.type = s1.type
+                    ORDER BY streak DESC
+                  ) ranked
+                  WHERE rank = 1
+                )
               )
             )
             FROM (
-              SELECT DISTINCT ON (type)
-                type, name, streak, streak_start, streak_end
+              SELECT DISTINCT type
               FROM streaks
-              ORDER BY type, streak DESC
-            ) s
+            ) s1
           ),
           'consecutive_goals', (
             SELECT jsonb_build_object(
-              'name', name,
-              'streak', streak,
-              'start_date', streak_start::text,
-              'end_date', streak_end::text
+              'holders', (
+                SELECT jsonb_agg(
+                  jsonb_build_object(
+                    'name', name,
+                    'streak', streak,
+                    'start_date', streak_start::text,
+                    'end_date', streak_end::text
+                  )
+                )
+                FROM (
+                  SELECT 
+                    name, streak, streak_start, streak_end,
+                    RANK() OVER (ORDER BY streak DESC) as rank
+                  FROM consecutive_goals
+                  ORDER BY streak DESC
+                ) ranked
+                WHERE rank = 1
+              )
             )
-            FROM consecutive_goals
           )
         ) as records`;
-    console.log('records data:', records);
 
     const response = { 
       data: {
@@ -277,7 +306,6 @@ export async function GET() {
         records: serializeData(records)
       }
     };
-    console.log('Final response:', response);
 
     return NextResponse.json(response);
 
