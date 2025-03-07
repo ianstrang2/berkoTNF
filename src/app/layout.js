@@ -14,7 +14,7 @@ export default function RootLayout({ children }) {
         <BootstrapLoader /> {/* 👈 Load Bootstrap JS only on client */}
         <nav className="navbar navbar-expand-lg navbar-dark bg-dark p-3">
           <div className="container-fluid">
-            <a className="navbar-brand" href="#">My App</a>
+            <a className="navbar-brand" href="/">Berko TNF</a>
             <button
               className="navbar-toggler"
               type="button"
@@ -26,13 +26,10 @@ export default function RootLayout({ children }) {
             <div className="collapse navbar-collapse" id="navbarNav">
               <ul className="navbar-nav ms-auto">
                 <li className="nav-item">
-                  <a className="nav-link active" href="#">Home</a>
+                  <a className="nav-link active" href="/">Home</a>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">About</a>
-                </li>
-                <li className="nav-item">
-                  <a className="nav-link" href="#">Contact</a>
+                  <a className="nav-link" href="/admin">Admin</a>
                 </li>
               </ul>
             </div>
