@@ -1,17 +1,6 @@
-import { Geist_Sans, Geist_Mono } from "next/font/google";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.css";
 import BootstrapLoader from "./bootstrap"; 
-
-const geistSans = Geist_Sans({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata = {
   title: "Berko TNF Stats",
@@ -21,9 +10,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-light`}
-      >
+      <body className="antialiased bg-light">
         <BootstrapLoader /> {/* 👈 Load Bootstrap JS only on client */}
         <nav className="navbar navbar-expand-lg navbar-dark bg-dark p-3">
           <div className="container-fluid">
