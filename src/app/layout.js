@@ -1,9 +1,9 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Sans, Geist_Mono } from "next/font/google";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.css";
 import BootstrapLoader from "./bootstrap"; 
 
-const geistSans = Geist({
+const geistSans = Geist_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
@@ -24,7 +24,7 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-light`}
       >
-        <BootstrapLoader />
+        <BootstrapLoader /> {/* 👈 Load Bootstrap JS only on client */}
         <nav className="navbar navbar-expand-lg navbar-dark bg-dark p-3">
           <div className="container-fluid">
             <a className="navbar-brand" href="#">My App</a>
