@@ -72,7 +72,7 @@ const CurrentHalfSeason = () => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Player</TableHead>
+            <TableHead className="min-w-[150px] whitespace-nowrap">Player</TableHead>
             <TableHead className="text-center">P</TableHead>
             <TableHead className="text-center">W</TableHead>
             <TableHead className="text-center">D</TableHead>
@@ -88,56 +88,25 @@ const CurrentHalfSeason = () => {
         </TableHeader>
         <TableBody>
           {stats.seasonStats.map((player, index) => {
-const form = stats.formData.find(f => f.name === player.name)
-              ?.last_5_games?.split(', ') || [];
+            const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
             const losses = player.games_played - player.wins - player.draws;
-            
             return (
               <TableRow key={index}>
-                <TableCell className="font-medium">{player.name}</TableCell>
+                <TableCell className="font-medium whitespace-nowrap">{player.name}</TableCell>
                 <TableCell className="text-center">{player.games_played}</TableCell>
-                <TableCell className={`text-center bg-green-${player.wins >= 10 ? '600' : 
-                  player.wins >= 7 ? '500' : 
-                  player.wins >= 4 ? '400' : 
-                  player.wins >= 1 ? '300' : '200'}`}>
-                  {player.wins}
-                </TableCell>
+                <TableCell className={`text-center bg-green-${player.wins >= 10 ? '600' : player.wins >= 7 ? '500' : player.wins >= 4 ? '400' : player.wins >= 1 ? '300' : '200'}`}>{player.wins}</TableCell>
                 <TableCell className="text-center">{player.draws}</TableCell>
-                <TableCell className={`text-center bg-red-${losses >= 10 ? '600' : 
-                  losses >= 7 ? '500' : 
-                  losses >= 4 ? '400' : 
-                  losses >= 1 ? '300' : '200'}`}>
-                  {losses}
-                </TableCell>
+                <TableCell className={`text-center bg-red-${losses >= 10 ? '600' : losses >= 7 ? '500' : losses >= 4 ? '400' : losses >= 1 ? '300' : '200'}`}>{losses}</TableCell>
                 <TableCell className="text-center">{player.goals}</TableCell>
-                <TableCell className={`text-center bg-green-${player.heavy_wins >= 5 ? '600' : 
-                  player.heavy_wins >= 3 ? '500' : 
-                  player.heavy_wins >= 1 ? '400' : '200'}`}>
-                  {player.heavy_wins}
-                </TableCell>
-                <TableCell className={`text-center bg-red-${player.heavy_losses >= 5 ? '600' : 
-                  player.heavy_losses >= 3 ? '500' : 
-                  player.heavy_losses >= 1 ? '400' : '200'}`}>
-                  {player.heavy_losses}
-                </TableCell>
-                <TableCell className={`text-center bg-green-${player.clean_sheets >= 5 ? '600' : 
-                  player.clean_sheets >= 3 ? '500' : 
-                  player.clean_sheets >= 1 ? '400' : '200'}`}>
-                  {player.clean_sheets}
-                </TableCell>
+                <TableCell className={`text-center bg-green-${player.heavy_wins >= 5 ? '600' : player.heavy_wins >= 3 ? '500' : player.heavy_wins >= 1 ? '400' : '200'}`}>{player.heavy_wins}</TableCell>
+                <TableCell className={`text-center bg-red-${player.heavy_losses >= 5 ? '600' : player.heavy_losses >= 3 ? '500' : player.heavy_losses >= 1 ? '400' : '200'}`}>{player.heavy_losses}</TableCell>
+                <TableCell className={`text-center bg-green-${player.clean_sheets >= 5 ? '600' : player.clean_sheets >= 3 ? '500' : player.clean_sheets >= 1 ? '400' : '200'}`}>{player.clean_sheets}</TableCell>
                 <TableCell className="text-center">{player.win_percentage}%</TableCell>
                 <TableCell className="text-center font-bold">{player.fantasy_points}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     {form.map((result, i) => (
-                      <span
-                        key={i}
-                        className={`inline-block w-6 h-6 text-center rounded ${
-                          result.includes('W') ? 'bg-green-500' :
-                          result === 'D' ? 'bg-yellow-500' :
-                          'bg-red-500'
-                        } text-white`}
-                      >
+                      <span key={i} className={`inline-block w-6 h-6 text-center rounded ${result.includes('W') ? 'bg-green-500' : result === 'D' ? 'bg-yellow-500' : 'bg-red-500'} text-white`}>
                         {result.replace('H', '')}
                       </span>
                     ))}
@@ -157,7 +126,7 @@ const form = stats.formData.find(f => f.name === player.name)
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Player</TableHead>
+            <TableHead className="min-w-[150px] whitespace-nowrap">Player</TableHead>
             <TableHead className="text-center">Goals</TableHead>
             <TableHead className="text-center">MPG</TableHead>
             <TableHead className="text-center w-48">Last 5</TableHead>
@@ -166,37 +135,16 @@ const form = stats.formData.find(f => f.name === player.name)
         <TableBody>
           {stats.goalStats.map((player, index) => (
             <TableRow key={index}>
-              <TableCell className="font-medium">{player.name}</TableCell>
+              <TableCell className="font-medium whitespace-nowrap">{player.name}</TableCell>
               <TableCell className="text-center">{player.total_goals}</TableCell>
-              <TableCell 
-                className={`text-center ${
-                  player.minutes_per_goal <= 60 ? 'bg-green-600' :
-                  player.minutes_per_goal <= 90 ? 'bg-green-500' :
-                  player.minutes_per_goal <= 120 ? 'bg-green-300' :
-                  ''
-                }`}
-              >
-                {player.minutes_per_goal}
-              </TableCell>
+              <TableCell className={`text-center ${player.minutes_per_goal <= 60 ? 'bg-green-600' : player.minutes_per_goal <= 90 ? 'bg-green-500' : player.minutes_per_goal <= 120 ? 'bg-green-300' : ''}`}>{player.minutes_per_goal}</TableCell>
               <TableCell>
                 <div className="flex gap-1">
                   {player.last_five_games?.split(',').map((goals, i) => {
                     const goalCount = parseInt(goals);
                     const maxGoals = Math.max(...stats.goalStats.map(p => p.max_goals_in_game));
-                    
                     return (
-                      <span
-                        key={i}
-                        className={`inline-block w-6 h-6 text-center rounded ${
-                          goalCount === 0 ? 'bg-gray-200' :
-                          goalCount === maxGoals ? 'bg-yellow-500' :
-                          goalCount === maxGoals - 1 ? 'bg-yellow-400' :
-                          goalCount === maxGoals - 2 ? 'bg-yellow-300' :
-                          'bg-yellow-200'
-                        } text-black`}
-                      >
-                        {goals || ''}
-                      </span>
+                      <span key={i} className={`inline-block w-6 h-6 text-center rounded ${goalCount === 0 ? 'bg-gray-200' : goalCount === maxGoals ? 'bg-yellow-500' : goalCount === maxGoals - 1 ? 'bg-yellow-400' : goalCount === maxGoals - 2 ? 'bg-yellow-300' : 'bg-yellow-200'} text-black`}>{goals || ''}</span>
                     );
                   })}
                 </div>
@@ -220,22 +168,21 @@ const form = stats.formData.find(f => f.name === player.name)
 
       {/* Desktop view */}
       <div className="hidden md:flex gap-8">
-  <div className="flex-1">{renderMainStats()}</div>
-  <div className="flex-1">{renderGoalStats()}</div> {/* ✅ Now goal stats will show in desktop */}
-</div>
+        <div className="flex-1">{renderMainStats()}</div>
+        <div className="flex-1">{renderGoalStats()}</div>
+      </div>
 
-      {/* ✅ Mobile view - fixed tabs */}
+      {/* Mobile view */}
       <div className="md:hidden">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-  <TabsList>
-    <TabsTrigger triggerValue="performance">Points</TabsTrigger>
-    <TabsTrigger triggerValue="goals">Goals</TabsTrigger>
-  </TabsList>
-  <TabsContent triggerValue="performance">{renderMainStats()}</TabsContent>
-  <TabsContent triggerValue="goals">{renderGoalStats()}</TabsContent>
-</Tabs>
-</div>
-
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger triggerValue="performance">Points</TabsTrigger>
+            <TabsTrigger triggerValue="goals">Goals</TabsTrigger>
+          </TabsList>
+          <TabsContent triggerValue="performance">{renderMainStats()}</TabsContent>
+          <TabsContent triggerValue="goals">{renderGoalStats()}</TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };
