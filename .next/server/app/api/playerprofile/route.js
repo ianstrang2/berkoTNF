@@ -1,144 +1,139 @@
-/*
- * ATTENTION: An "eval-source-map" devtool has been used.
- * This devtool is neither made for production nor for readable output files.
- * It uses "eval()" calls to create a separate source file with attached SourceMaps in the browser devtools.
- * If you are trying to read the output file, select a different devtool (https://webpack.js.org/configuration/devtool/)
- * or disable the default devtool with "devtool: false".
- * If you are looking for production-ready output files, see mode: "production" (https://webpack.js.org/configuration/mode/).
- */
-(() => {
-var exports = {};
-exports.id = "app/api/playerprofile/route";
-exports.ids = ["app/api/playerprofile/route"];
-exports.modules = {
-
-/***/ "@prisma/client":
-/*!*********************************!*\
-  !*** external "@prisma/client" ***!
-  \*********************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("@prisma/client");
-
-/***/ }),
-
-/***/ "next/dist/compiled/next-server/app-page.runtime.dev.js":
-/*!*************************************************************************!*\
-  !*** external "next/dist/compiled/next-server/app-page.runtime.dev.js" ***!
-  \*************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/compiled/next-server/app-page.runtime.dev.js");
-
-/***/ }),
-
-/***/ "next/dist/compiled/next-server/app-route.runtime.dev.js":
-/*!**************************************************************************!*\
-  !*** external "next/dist/compiled/next-server/app-route.runtime.dev.js" ***!
-  \**************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/compiled/next-server/app-route.runtime.dev.js");
-
-/***/ }),
-
-/***/ "../app-render/after-task-async-storage.external":
-/*!***********************************************************************************!*\
-  !*** external "next/dist/server/app-render/after-task-async-storage.external.js" ***!
-  \***********************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/server/app-render/after-task-async-storage.external.js");
-
-/***/ }),
-
-/***/ "../app-render/work-async-storage.external":
-/*!*****************************************************************************!*\
-  !*** external "next/dist/server/app-render/work-async-storage.external.js" ***!
-  \*****************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/server/app-render/work-async-storage.external.js");
-
-/***/ }),
-
-/***/ "./work-unit-async-storage.external":
-/*!**********************************************************************************!*\
-  !*** external "next/dist/server/app-render/work-unit-async-storage.external.js" ***!
-  \**********************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/server/app-render/work-unit-async-storage.external.js");
-
-/***/ }),
-
-/***/ "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fapi%2Fplayerprofile%2Froute&page=%2Fapi%2Fplayerprofile%2Froute&appPaths=&pagePath=private-next-app-dir%2Fapi%2Fplayerprofile%2Froute.ts&appDir=C%3A%5CUsers%5CIan%5CBerkoTNF%5Csrc%5Capp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=C%3A%5CUsers%5CIan%5CBerkoTNF&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D!":
-/*!*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fapi%2Fplayerprofile%2Froute&page=%2Fapi%2Fplayerprofile%2Froute&appPaths=&pagePath=private-next-app-dir%2Fapi%2Fplayerprofile%2Froute.ts&appDir=C%3A%5CUsers%5CIan%5CBerkoTNF%5Csrc%5Capp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=C%3A%5CUsers%5CIan%5CBerkoTNF&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D! ***!
-  \*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   patchFetch: () => (/* binding */ patchFetch),\n/* harmony export */   routeModule: () => (/* binding */ routeModule),\n/* harmony export */   serverHooks: () => (/* binding */ serverHooks),\n/* harmony export */   workAsyncStorage: () => (/* binding */ workAsyncStorage),\n/* harmony export */   workUnitAsyncStorage: () => (/* binding */ workUnitAsyncStorage)\n/* harmony export */ });\n/* harmony import */ var next_dist_server_route_modules_app_route_module_compiled__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! next/dist/server/route-modules/app-route/module.compiled */ \"(rsc)/./node_modules/next/dist/server/route-modules/app-route/module.compiled.js\");\n/* harmony import */ var next_dist_server_route_modules_app_route_module_compiled__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(next_dist_server_route_modules_app_route_module_compiled__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var next_dist_server_route_kind__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! next/dist/server/route-kind */ \"(rsc)/./node_modules/next/dist/server/route-kind.js\");\n/* harmony import */ var next_dist_server_lib_patch_fetch__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! next/dist/server/lib/patch-fetch */ \"(rsc)/./node_modules/next/dist/server/lib/patch-fetch.js\");\n/* harmony import */ var next_dist_server_lib_patch_fetch__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(next_dist_server_lib_patch_fetch__WEBPACK_IMPORTED_MODULE_2__);\n/* harmony import */ var C_Users_Ian_BerkoTNF_src_app_api_playerprofile_route_ts__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./src/app/api/playerprofile/route.ts */ \"(rsc)/./src/app/api/playerprofile/route.ts\");\n\n\n\n\n// We inject the nextConfigOutput here so that we can use them in the route\n// module.\nconst nextConfigOutput = \"\"\nconst routeModule = new next_dist_server_route_modules_app_route_module_compiled__WEBPACK_IMPORTED_MODULE_0__.AppRouteRouteModule({\n    definition: {\n        kind: next_dist_server_route_kind__WEBPACK_IMPORTED_MODULE_1__.RouteKind.APP_ROUTE,\n        page: \"/api/playerprofile/route\",\n        pathname: \"/api/playerprofile\",\n        filename: \"route\",\n        bundlePath: \"app/api/playerprofile/route\"\n    },\n    resolvedPagePath: \"C:\\\\Users\\\\Ian\\\\BerkoTNF\\\\src\\\\app\\\\api\\\\playerprofile\\\\route.ts\",\n    nextConfigOutput,\n    userland: C_Users_Ian_BerkoTNF_src_app_api_playerprofile_route_ts__WEBPACK_IMPORTED_MODULE_3__\n});\n// Pull out the exports that we need to expose from the module. This should\n// be eliminated when we've moved the other routes to the new format. These\n// are used to hook into the route.\nconst { workAsyncStorage, workUnitAsyncStorage, serverHooks } = routeModule;\nfunction patchFetch() {\n    return (0,next_dist_server_lib_patch_fetch__WEBPACK_IMPORTED_MODULE_2__.patchFetch)({\n        workAsyncStorage,\n        workUnitAsyncStorage\n    });\n}\n\n\n//# sourceMappingURL=app-route.js.map//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9ub2RlX21vZHVsZXMvbmV4dC9kaXN0L2J1aWxkL3dlYnBhY2svbG9hZGVycy9uZXh0LWFwcC1sb2FkZXIvaW5kZXguanM/bmFtZT1hcHAlMkZhcGklMkZwbGF5ZXJwcm9maWxlJTJGcm91dGUmcGFnZT0lMkZhcGklMkZwbGF5ZXJwcm9maWxlJTJGcm91dGUmYXBwUGF0aHM9JnBhZ2VQYXRoPXByaXZhdGUtbmV4dC1hcHAtZGlyJTJGYXBpJTJGcGxheWVycHJvZmlsZSUyRnJvdXRlLnRzJmFwcERpcj1DJTNBJTVDVXNlcnMlNUNJYW4lNUNCZXJrb1RORiU1Q3NyYyU1Q2FwcCZwYWdlRXh0ZW5zaW9ucz10c3gmcGFnZUV4dGVuc2lvbnM9dHMmcGFnZUV4dGVuc2lvbnM9anN4JnBhZ2VFeHRlbnNpb25zPWpzJnJvb3REaXI9QyUzQSU1Q1VzZXJzJTVDSWFuJTVDQmVya29UTkYmaXNEZXY9dHJ1ZSZ0c2NvbmZpZ1BhdGg9dHNjb25maWcuanNvbiZiYXNlUGF0aD0mYXNzZXRQcmVmaXg9Jm5leHRDb25maWdPdXRwdXQ9JnByZWZlcnJlZFJlZ2lvbj0mbWlkZGxld2FyZUNvbmZpZz1lMzAlM0QhIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7O0FBQStGO0FBQ3ZDO0FBQ3FCO0FBQ2dCO0FBQzdGO0FBQ0E7QUFDQTtBQUNBLHdCQUF3Qix5R0FBbUI7QUFDM0M7QUFDQSxjQUFjLGtFQUFTO0FBQ3ZCO0FBQ0E7QUFDQTtBQUNBO0FBQ0EsS0FBSztBQUNMO0FBQ0E7QUFDQSxZQUFZO0FBQ1osQ0FBQztBQUNEO0FBQ0E7QUFDQTtBQUNBLFFBQVEsc0RBQXNEO0FBQzlEO0FBQ0EsV0FBVyw0RUFBVztBQUN0QjtBQUNBO0FBQ0EsS0FBSztBQUNMO0FBQzBGOztBQUUxRiIsInNvdXJjZXMiOlsiIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IEFwcFJvdXRlUm91dGVNb2R1bGUgfSBmcm9tIFwibmV4dC9kaXN0L3NlcnZlci9yb3V0ZS1tb2R1bGVzL2FwcC1yb3V0ZS9tb2R1bGUuY29tcGlsZWRcIjtcbmltcG9ydCB7IFJvdXRlS2luZCB9IGZyb20gXCJuZXh0L2Rpc3Qvc2VydmVyL3JvdXRlLWtpbmRcIjtcbmltcG9ydCB7IHBhdGNoRmV0Y2ggYXMgX3BhdGNoRmV0Y2ggfSBmcm9tIFwibmV4dC9kaXN0L3NlcnZlci9saWIvcGF0Y2gtZmV0Y2hcIjtcbmltcG9ydCAqIGFzIHVzZXJsYW5kIGZyb20gXCJDOlxcXFxVc2Vyc1xcXFxJYW5cXFxcQmVya29UTkZcXFxcc3JjXFxcXGFwcFxcXFxhcGlcXFxccGxheWVycHJvZmlsZVxcXFxyb3V0ZS50c1wiO1xuLy8gV2UgaW5qZWN0IHRoZSBuZXh0Q29uZmlnT3V0cHV0IGhlcmUgc28gdGhhdCB3ZSBjYW4gdXNlIHRoZW0gaW4gdGhlIHJvdXRlXG4vLyBtb2R1bGUuXG5jb25zdCBuZXh0Q29uZmlnT3V0cHV0ID0gXCJcIlxuY29uc3Qgcm91dGVNb2R1bGUgPSBuZXcgQXBwUm91dGVSb3V0ZU1vZHVsZSh7XG4gICAgZGVmaW5pdGlvbjoge1xuICAgICAgICBraW5kOiBSb3V0ZUtpbmQuQVBQX1JPVVRFLFxuICAgICAgICBwYWdlOiBcIi9hcGkvcGxheWVycHJvZmlsZS9yb3V0ZVwiLFxuICAgICAgICBwYXRobmFtZTogXCIvYXBpL3BsYXllcnByb2ZpbGVcIixcbiAgICAgICAgZmlsZW5hbWU6IFwicm91dGVcIixcbiAgICAgICAgYnVuZGxlUGF0aDogXCJhcHAvYXBpL3BsYXllcnByb2ZpbGUvcm91dGVcIlxuICAgIH0sXG4gICAgcmVzb2x2ZWRQYWdlUGF0aDogXCJDOlxcXFxVc2Vyc1xcXFxJYW5cXFxcQmVya29UTkZcXFxcc3JjXFxcXGFwcFxcXFxhcGlcXFxccGxheWVycHJvZmlsZVxcXFxyb3V0ZS50c1wiLFxuICAgIG5leHRDb25maWdPdXRwdXQsXG4gICAgdXNlcmxhbmRcbn0pO1xuLy8gUHVsbCBvdXQgdGhlIGV4cG9ydHMgdGhhdCB3ZSBuZWVkIHRvIGV4cG9zZSBmcm9tIHRoZSBtb2R1bGUuIFRoaXMgc2hvdWxkXG4vLyBiZSBlbGltaW5hdGVkIHdoZW4gd2UndmUgbW92ZWQgdGhlIG90aGVyIHJvdXRlcyB0byB0aGUgbmV3IGZvcm1hdC4gVGhlc2Vcbi8vIGFyZSB1c2VkIHRvIGhvb2sgaW50byB0aGUgcm91dGUuXG5jb25zdCB7IHdvcmtBc3luY1N0b3JhZ2UsIHdvcmtVbml0QXN5bmNTdG9yYWdlLCBzZXJ2ZXJIb29rcyB9ID0gcm91dGVNb2R1bGU7XG5mdW5jdGlvbiBwYXRjaEZldGNoKCkge1xuICAgIHJldHVybiBfcGF0Y2hGZXRjaCh7XG4gICAgICAgIHdvcmtBc3luY1N0b3JhZ2UsXG4gICAgICAgIHdvcmtVbml0QXN5bmNTdG9yYWdlXG4gICAgfSk7XG59XG5leHBvcnQgeyByb3V0ZU1vZHVsZSwgd29ya0FzeW5jU3RvcmFnZSwgd29ya1VuaXRBc3luY1N0b3JhZ2UsIHNlcnZlckhvb2tzLCBwYXRjaEZldGNoLCAgfTtcblxuLy8jIHNvdXJjZU1hcHBpbmdVUkw9YXBwLXJvdXRlLmpzLm1hcCJdLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VSb290IjoiIn0=\n//# sourceURL=webpack-internal:///(rsc)/./node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fapi%2Fplayerprofile%2Froute&page=%2Fapi%2Fplayerprofile%2Froute&appPaths=&pagePath=private-next-app-dir%2Fapi%2Fplayerprofile%2Froute.ts&appDir=C%3A%5CUsers%5CIan%5CBerkoTNF%5Csrc%5Capp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=C%3A%5CUsers%5CIan%5CBerkoTNF&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D!\n");
-
-/***/ }),
-
-/***/ "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true!":
-/*!******************************************************************************************************!*\
-  !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true! ***!
-  \******************************************************************************************************/
-/***/ (() => {
-
-
-
-/***/ }),
-
-/***/ "(ssr)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true!":
-/*!******************************************************************************************************!*\
-  !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true! ***!
-  \******************************************************************************************************/
-/***/ (() => {
-
-
-
-/***/ }),
-
-/***/ "(rsc)/./src/app/api/playerprofile/route.ts":
-/*!********************************************!*\
-  !*** ./src/app/api/playerprofile/route.ts ***!
-  \********************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   GET: () => (/* binding */ GET)\n/* harmony export */ });\n/* harmony import */ var next_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! next/server */ \"(rsc)/./node_modules/next/dist/api/server.js\");\n/* harmony import */ var _lib_prisma__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @/lib/prisma */ \"(rsc)/./src/lib/prisma.ts\");\n\n\n// Fetch player profile by ID\nasync function GET(request) {\n    try {\n        console.log(\"Fetching player profile...\");\n        // Extract player ID from query parameters\n        const { searchParams } = new URL(request.url);\n        const id = searchParams.get('id');\n        // Validate the ID\n        if (!id) {\n            console.error(\"Error: No ID provided in request\");\n            return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json({\n                error: 'No ID provided'\n            }, {\n                status: 400\n            });\n        }\n        const numericId = parseInt(id, 10);\n        console.log('Fetching profile for ID:', numericId);\n        // Fetch player profile using a complex SQL query\n        const playerProfile = await _lib_prisma__WEBPACK_IMPORTED_MODULE_1__.prisma.$queryRaw`\r\n      WITH \r\n        player_stats AS (\r\n          SELECT \r\n            p.player_id,\r\n            p.name,\r\n            COUNT(pm.match_id) as games_played,\r\n            SUM(\r\n              CASE \r\n                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30\r\n                WHEN pm.result = 'win' THEN 20\r\n                WHEN pm.result = 'draw' THEN 10\r\n                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20\r\n                WHEN pm.result = 'loss' THEN -10\r\n                ELSE 0 END\r\n            ) as fantasy_points,\r\n            MAX(pm.goals) as most_goals,\r\n            (\r\n              SELECT m2.match_date::text\r\n              FROM player_matches pm2\r\n              JOIN matches m2 ON pm2.match_id = m2.match_id\r\n              WHERE pm2.player_id = p.player_id AND pm2.goals = (\r\n                SELECT MAX(pm3.goals)\r\n                FROM player_matches pm3\r\n                WHERE pm3.player_id = p.player_id\r\n              )\r\n              LIMIT 1\r\n            ) as most_goals_date\r\n          FROM players p\r\n          LEFT JOIN player_matches pm ON p.player_id = pm.player_id\r\n          WHERE p.player_id = ${numericId}\r\n          GROUP BY p.player_id, p.name\r\n        ),\r\n        streaks AS (\r\n          WITH numbered_matches AS (\r\n            SELECT \r\n              pm.player_id,\r\n              m.match_date,\r\n              pm.result,\r\n              ROW_NUMBER() OVER (PARTITION BY pm.player_id ORDER BY m.match_date) as match_num\r\n            FROM player_matches pm\r\n            JOIN matches m ON pm.match_id = m.match_id\r\n            WHERE pm.player_id = ${numericId}\r\n          ),\r\n          win_gaps AS (\r\n            SELECT \r\n              player_id,\r\n              match_date,\r\n              match_num,\r\n              match_num - ROW_NUMBER() OVER (ORDER BY match_date) as grp\r\n            FROM numbered_matches\r\n            WHERE result = 'win'\r\n          ),\r\n          undefeated_gaps AS (\r\n            SELECT \r\n              player_id,\r\n              match_date,\r\n              match_num,\r\n              match_num - ROW_NUMBER() OVER (ORDER BY match_date) as grp\r\n            FROM numbered_matches\r\n            WHERE result != 'loss'\r\n          ),\r\n          win_streak AS (\r\n            SELECT \r\n              player_id,\r\n              COUNT(*) as streak,\r\n              MIN(match_date) as start_date,\r\n              MAX(match_date) as end_date\r\n            FROM win_gaps\r\n            GROUP BY player_id, grp\r\n          ),\r\n          undefeated_streak AS (\r\n            SELECT \r\n              player_id,\r\n              COUNT(*) as streak,\r\n              MIN(match_date) as start_date,\r\n              MAX(match_date) as end_date\r\n            FROM undefeated_gaps\r\n            GROUP BY player_id, grp\r\n          )\r\n          SELECT \r\n            ws.player_id,\r\n            MAX(ws.streak) as win_streak,\r\n            MIN(ws.start_date)::text as win_streak_start,\r\n            MAX(ws.end_date)::text as win_streak_end,\r\n            MAX(us.streak) as undefeated_streak,\r\n            MIN(us.start_date)::text as undefeated_streak_start,\r\n            MAX(us.end_date)::text as undefeated_streak_end\r\n          FROM win_streak ws\r\n          CROSS JOIN undefeated_streak us\r\n          WHERE ws.player_id = us.player_id\r\n          GROUP BY ws.player_id\r\n        ),\r\n        yearly_stats AS (\r\n          SELECT \r\n            pm.player_id,\r\n            EXTRACT(YEAR FROM m.match_date)::integer as year,\r\n            COUNT(*) as games_played,\r\n            SUM(pm.goals) as goals_scored,\r\n            SUM(\r\n              CASE \r\n                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30\r\n                WHEN pm.result = 'win' THEN 20\r\n                WHEN pm.result = 'draw' THEN 10\r\n                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20\r\n                WHEN pm.result = 'loss' THEN -10\r\n                ELSE 0 END\r\n            ) as fantasy_points,\r\n            ROUND(COUNT(*) * 60.0 / NULLIF(SUM(pm.goals), 0), 1) as minutes_per_goal,\r\n            ROUND(SUM(\r\n              CASE \r\n                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30\r\n                WHEN pm.result = 'win' THEN 20\r\n                WHEN pm.result = 'draw' THEN 10\r\n                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20\r\n                WHEN pm.result = 'loss' THEN -10\r\n                ELSE 0 END\r\n            ) / COUNT(*), 1) as points_per_game\r\n          FROM player_matches pm\r\n          JOIN matches m ON pm.match_id = m.match_id\r\n          WHERE pm.player_id = ${numericId}\r\n          GROUP BY pm.player_id, EXTRACT(YEAR FROM m.match_date)\r\n          ORDER BY year DESC\r\n        )\r\n      SELECT \r\n        ps.*, \r\n        s.win_streak, \r\n        s.win_streak_start, \r\n        s.win_streak_end, \r\n        s.undefeated_streak, \r\n        s.undefeated_streak_start, \r\n        s.undefeated_streak_end,\r\n        (\r\n          SELECT json_agg(ys.*)\r\n          FROM yearly_stats ys\r\n        ) as yearly_stats\r\n      FROM player_stats ps\r\n      LEFT JOIN streaks s ON ps.player_id = s.player_id;\r\n    `;\n        // Handle case where player is not found\n        if (!playerProfile || playerProfile.length === 0) {\n            console.warn('Player not found for ID:', numericId);\n            return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json({\n                error: 'Player not found'\n            }, {\n                status: 404\n            });\n        }\n        // Serialize the profile data (convert BigInt to numbers/strings)\n        const serializedProfile = {\n            ...playerProfile[0],\n            games_played: Number(playerProfile[0].games_played),\n            fantasy_points: Number(playerProfile[0].fantasy_points),\n            most_goals: Number(playerProfile[0].most_goals),\n            win_streak: Number(playerProfile[0].win_streak),\n            undefeated_streak: Number(playerProfile[0].undefeated_streak),\n            yearly_stats: playerProfile[0].yearly_stats?.map((stat)=>({\n                    year: Number(stat.year),\n                    games_played: Number(stat.games_played),\n                    goals_scored: Number(stat.goals_scored),\n                    fantasy_points: Number(stat.fantasy_points),\n                    minutes_per_goal: Number(stat.minutes_per_goal) || 'N/A',\n                    points_per_game: Number(stat.points_per_game) || 'N/A'\n                })),\n            win_streak_dates: `${playerProfile[0].win_streak_start} to ${playerProfile[0].win_streak_end}`,\n            undefeated_streak_dates: `${playerProfile[0].undefeated_streak_start} to ${playerProfile[0].undefeated_streak_end}`\n        };\n        // Return the serialized profile\n        return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json({\n            profile: serializedProfile\n        });\n    } catch (error) {\n        console.error('Database Error:', error);\n        return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json({\n            error: 'Failed to fetch player profile',\n            details: error instanceof Error ? error.message : 'Unknown error occurred'\n        }, {\n            status: 500\n        });\n    }\n}\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9zcmMvYXBwL2FwaS9wbGF5ZXJwcm9maWxlL3JvdXRlLnRzIiwibWFwcGluZ3MiOiI7Ozs7OztBQUEyQztBQUNMO0FBRXRDLDZCQUE2QjtBQUN0QixlQUFlRSxJQUFJQyxPQUFnQjtJQUN4QyxJQUFJO1FBQ0ZDLFFBQVFDLEdBQUcsQ0FBQztRQUVaLDBDQUEwQztRQUMxQyxNQUFNLEVBQUVDLFlBQVksRUFBRSxHQUFHLElBQUlDLElBQUlKLFFBQVFLLEdBQUc7UUFDNUMsTUFBTUMsS0FBS0gsYUFBYUksR0FBRyxDQUFDO1FBRTVCLGtCQUFrQjtRQUNsQixJQUFJLENBQUNELElBQUk7WUFDUEwsUUFBUU8sS0FBSyxDQUFDO1lBQ2QsT0FBT1gscURBQVlBLENBQUNZLElBQUksQ0FBQztnQkFBRUQsT0FBTztZQUFpQixHQUFHO2dCQUFFRSxRQUFRO1lBQUk7UUFDdEU7UUFFQSxNQUFNQyxZQUFZQyxTQUFTTixJQUFJO1FBQy9CTCxRQUFRQyxHQUFHLENBQUMsNEJBQTRCUztRQUV4QyxpREFBaUQ7UUFDakQsTUFBTUUsZ0JBQXVCLE1BQU1mLCtDQUFNQSxDQUFDZ0IsU0FBUyxDQUFDOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OEJBOEIxQixFQUFFSCxVQUFVOzs7Ozs7Ozs7Ozs7aUNBWVQsRUFBRUEsVUFBVTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OytCQThFZCxFQUFFQSxVQUFVOzs7Ozs7Ozs7Ozs7Ozs7Ozs7SUFrQnZDLENBQUM7UUFFRCx3Q0FBd0M7UUFDeEMsSUFBSSxDQUFDRSxpQkFBaUJBLGNBQWNFLE1BQU0sS0FBSyxHQUFHO1lBQ2hEZCxRQUFRZSxJQUFJLENBQUMsNEJBQTRCTDtZQUN6QyxPQUFPZCxxREFBWUEsQ0FBQ1ksSUFBSSxDQUFDO2dCQUFFRCxPQUFPO1lBQW1CLEdBQUc7Z0JBQUVFLFFBQVE7WUFBSTtRQUN4RTtRQUVBLGlFQUFpRTtRQUNqRSxNQUFNTyxvQkFBb0I7WUFDeEIsR0FBR0osYUFBYSxDQUFDLEVBQUU7WUFDbkJLLGNBQWNDLE9BQU9OLGFBQWEsQ0FBQyxFQUFFLENBQUNLLFlBQVk7WUFDbERFLGdCQUFnQkQsT0FBT04sYUFBYSxDQUFDLEVBQUUsQ0FBQ08sY0FBYztZQUN0REMsWUFBWUYsT0FBT04sYUFBYSxDQUFDLEVBQUUsQ0FBQ1EsVUFBVTtZQUM5Q0MsWUFBWUgsT0FBT04sYUFBYSxDQUFDLEVBQUUsQ0FBQ1MsVUFBVTtZQUM5Q0MsbUJBQW1CSixPQUFPTixhQUFhLENBQUMsRUFBRSxDQUFDVSxpQkFBaUI7WUFDNURDLGNBQWNYLGFBQWEsQ0FBQyxFQUFFLENBQUNXLFlBQVksRUFBRUMsSUFBSUMsQ0FBQUEsT0FBUztvQkFDeERDLE1BQU1SLE9BQU9PLEtBQUtDLElBQUk7b0JBQ3RCVCxjQUFjQyxPQUFPTyxLQUFLUixZQUFZO29CQUN0Q1UsY0FBY1QsT0FBT08sS0FBS0UsWUFBWTtvQkFDdENSLGdCQUFnQkQsT0FBT08sS0FBS04sY0FBYztvQkFDMUNTLGtCQUFrQlYsT0FBT08sS0FBS0csZ0JBQWdCLEtBQUs7b0JBQ25EQyxpQkFBaUJYLE9BQU9PLEtBQUtJLGVBQWUsS0FBSztnQkFDbkQ7WUFDQUMsa0JBQWtCLEdBQUdsQixhQUFhLENBQUMsRUFBRSxDQUFDbUIsZ0JBQWdCLENBQUMsSUFBSSxFQUFFbkIsYUFBYSxDQUFDLEVBQUUsQ0FBQ29CLGNBQWMsRUFBRTtZQUM5RkMseUJBQXlCLEdBQUdyQixhQUFhLENBQUMsRUFBRSxDQUFDc0IsdUJBQXVCLENBQUMsSUFBSSxFQUFFdEIsYUFBYSxDQUFDLEVBQUUsQ0FBQ3VCLHFCQUFxQixFQUFFO1FBQ3JIO1FBRUEsZ0NBQWdDO1FBQ2hDLE9BQU92QyxxREFBWUEsQ0FBQ1ksSUFBSSxDQUFDO1lBQUU0QixTQUFTcEI7UUFBa0I7SUFFeEQsRUFBRSxPQUFPVCxPQUFPO1FBQ2RQLFFBQVFPLEtBQUssQ0FBQyxtQkFBbUJBO1FBQ2pDLE9BQU9YLHFEQUFZQSxDQUFDWSxJQUFJLENBQ3RCO1lBQ0VELE9BQU87WUFDUDhCLFNBQVM5QixpQkFBaUIrQixRQUFRL0IsTUFBTWdDLE9BQU8sR0FBRztRQUNwRCxHQUNBO1lBQUU5QixRQUFRO1FBQUk7SUFFbEI7QUFDRiIsInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxJYW5cXEJlcmtvVE5GXFxzcmNcXGFwcFxcYXBpXFxwbGF5ZXJwcm9maWxlXFxyb3V0ZS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBOZXh0UmVzcG9uc2UgfSBmcm9tICduZXh0L3NlcnZlcic7XHJcbmltcG9ydCB7IHByaXNtYSB9IGZyb20gJ0AvbGliL3ByaXNtYSc7XHJcblxyXG4vLyBGZXRjaCBwbGF5ZXIgcHJvZmlsZSBieSBJRFxyXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gR0VUKHJlcXVlc3Q6IFJlcXVlc3QpIHtcclxuICB0cnkge1xyXG4gICAgY29uc29sZS5sb2coXCJGZXRjaGluZyBwbGF5ZXIgcHJvZmlsZS4uLlwiKTtcclxuXHJcbiAgICAvLyBFeHRyYWN0IHBsYXllciBJRCBmcm9tIHF1ZXJ5IHBhcmFtZXRlcnNcclxuICAgIGNvbnN0IHsgc2VhcmNoUGFyYW1zIH0gPSBuZXcgVVJMKHJlcXVlc3QudXJsKTtcclxuICAgIGNvbnN0IGlkID0gc2VhcmNoUGFyYW1zLmdldCgnaWQnKTtcclxuXHJcbiAgICAvLyBWYWxpZGF0ZSB0aGUgSURcclxuICAgIGlmICghaWQpIHtcclxuICAgICAgY29uc29sZS5lcnJvcihcIkVycm9yOiBObyBJRCBwcm92aWRlZCBpbiByZXF1ZXN0XCIpO1xyXG4gICAgICByZXR1cm4gTmV4dFJlc3BvbnNlLmpzb24oeyBlcnJvcjogJ05vIElEIHByb3ZpZGVkJyB9LCB7IHN0YXR1czogNDAwIH0pO1xyXG4gICAgfVxyXG5cclxuICAgIGNvbnN0IG51bWVyaWNJZCA9IHBhcnNlSW50KGlkLCAxMCk7XHJcbiAgICBjb25zb2xlLmxvZygnRmV0Y2hpbmcgcHJvZmlsZSBmb3IgSUQ6JywgbnVtZXJpY0lkKTtcclxuXHJcbiAgICAvLyBGZXRjaCBwbGF5ZXIgcHJvZmlsZSB1c2luZyBhIGNvbXBsZXggU1FMIHF1ZXJ5XHJcbiAgICBjb25zdCBwbGF5ZXJQcm9maWxlOiBhbnlbXSA9IGF3YWl0IHByaXNtYS4kcXVlcnlSYXdgXHJcbiAgICAgIFdJVEggXHJcbiAgICAgICAgcGxheWVyX3N0YXRzIEFTIChcclxuICAgICAgICAgIFNFTEVDVCBcclxuICAgICAgICAgICAgcC5wbGF5ZXJfaWQsXHJcbiAgICAgICAgICAgIHAubmFtZSxcclxuICAgICAgICAgICAgQ09VTlQocG0ubWF0Y2hfaWQpIGFzIGdhbWVzX3BsYXllZCxcclxuICAgICAgICAgICAgU1VNKFxyXG4gICAgICAgICAgICAgIENBU0UgXHJcbiAgICAgICAgICAgICAgICBXSEVOIHBtLnJlc3VsdCA9ICd3aW4nIEFORCBwbS5oZWF2eV93aW4gPSB0cnVlIFRIRU4gMzBcclxuICAgICAgICAgICAgICAgIFdIRU4gcG0ucmVzdWx0ID0gJ3dpbicgVEhFTiAyMFxyXG4gICAgICAgICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnZHJhdycgVEhFTiAxMFxyXG4gICAgICAgICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnbG9zcycgQU5EIHBtLmhlYXZ5X2xvc3MgPSB0cnVlIFRIRU4gLTIwXHJcbiAgICAgICAgICAgICAgICBXSEVOIHBtLnJlc3VsdCA9ICdsb3NzJyBUSEVOIC0xMFxyXG4gICAgICAgICAgICAgICAgRUxTRSAwIEVORFxyXG4gICAgICAgICAgICApIGFzIGZhbnRhc3lfcG9pbnRzLFxyXG4gICAgICAgICAgICBNQVgocG0uZ29hbHMpIGFzIG1vc3RfZ29hbHMsXHJcbiAgICAgICAgICAgIChcclxuICAgICAgICAgICAgICBTRUxFQ1QgbTIubWF0Y2hfZGF0ZTo6dGV4dFxyXG4gICAgICAgICAgICAgIEZST00gcGxheWVyX21hdGNoZXMgcG0yXHJcbiAgICAgICAgICAgICAgSk9JTiBtYXRjaGVzIG0yIE9OIHBtMi5tYXRjaF9pZCA9IG0yLm1hdGNoX2lkXHJcbiAgICAgICAgICAgICAgV0hFUkUgcG0yLnBsYXllcl9pZCA9IHAucGxheWVyX2lkIEFORCBwbTIuZ29hbHMgPSAoXHJcbiAgICAgICAgICAgICAgICBTRUxFQ1QgTUFYKHBtMy5nb2FscylcclxuICAgICAgICAgICAgICAgIEZST00gcGxheWVyX21hdGNoZXMgcG0zXHJcbiAgICAgICAgICAgICAgICBXSEVSRSBwbTMucGxheWVyX2lkID0gcC5wbGF5ZXJfaWRcclxuICAgICAgICAgICAgICApXHJcbiAgICAgICAgICAgICAgTElNSVQgMVxyXG4gICAgICAgICAgICApIGFzIG1vc3RfZ29hbHNfZGF0ZVxyXG4gICAgICAgICAgRlJPTSBwbGF5ZXJzIHBcclxuICAgICAgICAgIExFRlQgSk9JTiBwbGF5ZXJfbWF0Y2hlcyBwbSBPTiBwLnBsYXllcl9pZCA9IHBtLnBsYXllcl9pZFxyXG4gICAgICAgICAgV0hFUkUgcC5wbGF5ZXJfaWQgPSAke251bWVyaWNJZH1cclxuICAgICAgICAgIEdST1VQIEJZIHAucGxheWVyX2lkLCBwLm5hbWVcclxuICAgICAgICApLFxyXG4gICAgICAgIHN0cmVha3MgQVMgKFxyXG4gICAgICAgICAgV0lUSCBudW1iZXJlZF9tYXRjaGVzIEFTIChcclxuICAgICAgICAgICAgU0VMRUNUIFxyXG4gICAgICAgICAgICAgIHBtLnBsYXllcl9pZCxcclxuICAgICAgICAgICAgICBtLm1hdGNoX2RhdGUsXHJcbiAgICAgICAgICAgICAgcG0ucmVzdWx0LFxyXG4gICAgICAgICAgICAgIFJPV19OVU1CRVIoKSBPVkVSIChQQVJUSVRJT04gQlkgcG0ucGxheWVyX2lkIE9SREVSIEJZIG0ubWF0Y2hfZGF0ZSkgYXMgbWF0Y2hfbnVtXHJcbiAgICAgICAgICAgIEZST00gcGxheWVyX21hdGNoZXMgcG1cclxuICAgICAgICAgICAgSk9JTiBtYXRjaGVzIG0gT04gcG0ubWF0Y2hfaWQgPSBtLm1hdGNoX2lkXHJcbiAgICAgICAgICAgIFdIRVJFIHBtLnBsYXllcl9pZCA9ICR7bnVtZXJpY0lkfVxyXG4gICAgICAgICAgKSxcclxuICAgICAgICAgIHdpbl9nYXBzIEFTIChcclxuICAgICAgICAgICAgU0VMRUNUIFxyXG4gICAgICAgICAgICAgIHBsYXllcl9pZCxcclxuICAgICAgICAgICAgICBtYXRjaF9kYXRlLFxyXG4gICAgICAgICAgICAgIG1hdGNoX251bSxcclxuICAgICAgICAgICAgICBtYXRjaF9udW0gLSBST1dfTlVNQkVSKCkgT1ZFUiAoT1JERVIgQlkgbWF0Y2hfZGF0ZSkgYXMgZ3JwXHJcbiAgICAgICAgICAgIEZST00gbnVtYmVyZWRfbWF0Y2hlc1xyXG4gICAgICAgICAgICBXSEVSRSByZXN1bHQgPSAnd2luJ1xyXG4gICAgICAgICAgKSxcclxuICAgICAgICAgIHVuZGVmZWF0ZWRfZ2FwcyBBUyAoXHJcbiAgICAgICAgICAgIFNFTEVDVCBcclxuICAgICAgICAgICAgICBwbGF5ZXJfaWQsXHJcbiAgICAgICAgICAgICAgbWF0Y2hfZGF0ZSxcclxuICAgICAgICAgICAgICBtYXRjaF9udW0sXHJcbiAgICAgICAgICAgICAgbWF0Y2hfbnVtIC0gUk9XX05VTUJFUigpIE9WRVIgKE9SREVSIEJZIG1hdGNoX2RhdGUpIGFzIGdycFxyXG4gICAgICAgICAgICBGUk9NIG51bWJlcmVkX21hdGNoZXNcclxuICAgICAgICAgICAgV0hFUkUgcmVzdWx0ICE9ICdsb3NzJ1xyXG4gICAgICAgICAgKSxcclxuICAgICAgICAgIHdpbl9zdHJlYWsgQVMgKFxyXG4gICAgICAgICAgICBTRUxFQ1QgXHJcbiAgICAgICAgICAgICAgcGxheWVyX2lkLFxyXG4gICAgICAgICAgICAgIENPVU5UKCopIGFzIHN0cmVhayxcclxuICAgICAgICAgICAgICBNSU4obWF0Y2hfZGF0ZSkgYXMgc3RhcnRfZGF0ZSxcclxuICAgICAgICAgICAgICBNQVgobWF0Y2hfZGF0ZSkgYXMgZW5kX2RhdGVcclxuICAgICAgICAgICAgRlJPTSB3aW5fZ2Fwc1xyXG4gICAgICAgICAgICBHUk9VUCBCWSBwbGF5ZXJfaWQsIGdycFxyXG4gICAgICAgICAgKSxcclxuICAgICAgICAgIHVuZGVmZWF0ZWRfc3RyZWFrIEFTIChcclxuICAgICAgICAgICAgU0VMRUNUIFxyXG4gICAgICAgICAgICAgIHBsYXllcl9pZCxcclxuICAgICAgICAgICAgICBDT1VOVCgqKSBhcyBzdHJlYWssXHJcbiAgICAgICAgICAgICAgTUlOKG1hdGNoX2RhdGUpIGFzIHN0YXJ0X2RhdGUsXHJcbiAgICAgICAgICAgICAgTUFYKG1hdGNoX2RhdGUpIGFzIGVuZF9kYXRlXHJcbiAgICAgICAgICAgIEZST00gdW5kZWZlYXRlZF9nYXBzXHJcbiAgICAgICAgICAgIEdST1VQIEJZIHBsYXllcl9pZCwgZ3JwXHJcbiAgICAgICAgICApXHJcbiAgICAgICAgICBTRUxFQ1QgXHJcbiAgICAgICAgICAgIHdzLnBsYXllcl9pZCxcclxuICAgICAgICAgICAgTUFYKHdzLnN0cmVhaykgYXMgd2luX3N0cmVhayxcclxuICAgICAgICAgICAgTUlOKHdzLnN0YXJ0X2RhdGUpOjp0ZXh0IGFzIHdpbl9zdHJlYWtfc3RhcnQsXHJcbiAgICAgICAgICAgIE1BWCh3cy5lbmRfZGF0ZSk6OnRleHQgYXMgd2luX3N0cmVha19lbmQsXHJcbiAgICAgICAgICAgIE1BWCh1cy5zdHJlYWspIGFzIHVuZGVmZWF0ZWRfc3RyZWFrLFxyXG4gICAgICAgICAgICBNSU4odXMuc3RhcnRfZGF0ZSk6OnRleHQgYXMgdW5kZWZlYXRlZF9zdHJlYWtfc3RhcnQsXHJcbiAgICAgICAgICAgIE1BWCh1cy5lbmRfZGF0ZSk6OnRleHQgYXMgdW5kZWZlYXRlZF9zdHJlYWtfZW5kXHJcbiAgICAgICAgICBGUk9NIHdpbl9zdHJlYWsgd3NcclxuICAgICAgICAgIENST1NTIEpPSU4gdW5kZWZlYXRlZF9zdHJlYWsgdXNcclxuICAgICAgICAgIFdIRVJFIHdzLnBsYXllcl9pZCA9IHVzLnBsYXllcl9pZFxyXG4gICAgICAgICAgR1JPVVAgQlkgd3MucGxheWVyX2lkXHJcbiAgICAgICAgKSxcclxuICAgICAgICB5ZWFybHlfc3RhdHMgQVMgKFxyXG4gICAgICAgICAgU0VMRUNUIFxyXG4gICAgICAgICAgICBwbS5wbGF5ZXJfaWQsXHJcbiAgICAgICAgICAgIEVYVFJBQ1QoWUVBUiBGUk9NIG0ubWF0Y2hfZGF0ZSk6OmludGVnZXIgYXMgeWVhcixcclxuICAgICAgICAgICAgQ09VTlQoKikgYXMgZ2FtZXNfcGxheWVkLFxyXG4gICAgICAgICAgICBTVU0ocG0uZ29hbHMpIGFzIGdvYWxzX3Njb3JlZCxcclxuICAgICAgICAgICAgU1VNKFxyXG4gICAgICAgICAgICAgIENBU0UgXHJcbiAgICAgICAgICAgICAgICBXSEVOIHBtLnJlc3VsdCA9ICd3aW4nIEFORCBwbS5oZWF2eV93aW4gPSB0cnVlIFRIRU4gMzBcclxuICAgICAgICAgICAgICAgIFdIRU4gcG0ucmVzdWx0ID0gJ3dpbicgVEhFTiAyMFxyXG4gICAgICAgICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnZHJhdycgVEhFTiAxMFxyXG4gICAgICAgICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnbG9zcycgQU5EIHBtLmhlYXZ5X2xvc3MgPSB0cnVlIFRIRU4gLTIwXHJcbiAgICAgICAgICAgICAgICBXSEVOIHBtLnJlc3VsdCA9ICdsb3NzJyBUSEVOIC0xMFxyXG4gICAgICAgICAgICAgICAgRUxTRSAwIEVORFxyXG4gICAgICAgICAgICApIGFzIGZhbnRhc3lfcG9pbnRzLFxyXG4gICAgICAgICAgICBST1VORChDT1VOVCgqKSAqIDYwLjAgLyBOVUxMSUYoU1VNKHBtLmdvYWxzKSwgMCksIDEpIGFzIG1pbnV0ZXNfcGVyX2dvYWwsXHJcbiAgICAgICAgICAgIFJPVU5EKFNVTShcclxuICAgICAgICAgICAgICBDQVNFIFxyXG4gICAgICAgICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnd2luJyBBTkQgcG0uaGVhdnlfd2luID0gdHJ1ZSBUSEVOIDMwXHJcbiAgICAgICAgICAgICAgICBXSEVOIHBtLnJlc3VsdCA9ICd3aW4nIFRIRU4gMjBcclxuICAgICAgICAgICAgICAgIFdIRU4gcG0ucmVzdWx0ID0gJ2RyYXcnIFRIRU4gMTBcclxuICAgICAgICAgICAgICAgIFdIRU4gcG0ucmVzdWx0ID0gJ2xvc3MnIEFORCBwbS5oZWF2eV9sb3NzID0gdHJ1ZSBUSEVOIC0yMFxyXG4gICAgICAgICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnbG9zcycgVEhFTiAtMTBcclxuICAgICAgICAgICAgICAgIEVMU0UgMCBFTkRcclxuICAgICAgICAgICAgKSAvIENPVU5UKCopLCAxKSBhcyBwb2ludHNfcGVyX2dhbWVcclxuICAgICAgICAgIEZST00gcGxheWVyX21hdGNoZXMgcG1cclxuICAgICAgICAgIEpPSU4gbWF0Y2hlcyBtIE9OIHBtLm1hdGNoX2lkID0gbS5tYXRjaF9pZFxyXG4gICAgICAgICAgV0hFUkUgcG0ucGxheWVyX2lkID0gJHtudW1lcmljSWR9XHJcbiAgICAgICAgICBHUk9VUCBCWSBwbS5wbGF5ZXJfaWQsIEVYVFJBQ1QoWUVBUiBGUk9NIG0ubWF0Y2hfZGF0ZSlcclxuICAgICAgICAgIE9SREVSIEJZIHllYXIgREVTQ1xyXG4gICAgICAgIClcclxuICAgICAgU0VMRUNUIFxyXG4gICAgICAgIHBzLiosIFxyXG4gICAgICAgIHMud2luX3N0cmVhaywgXHJcbiAgICAgICAgcy53aW5fc3RyZWFrX3N0YXJ0LCBcclxuICAgICAgICBzLndpbl9zdHJlYWtfZW5kLCBcclxuICAgICAgICBzLnVuZGVmZWF0ZWRfc3RyZWFrLCBcclxuICAgICAgICBzLnVuZGVmZWF0ZWRfc3RyZWFrX3N0YXJ0LCBcclxuICAgICAgICBzLnVuZGVmZWF0ZWRfc3RyZWFrX2VuZCxcclxuICAgICAgICAoXHJcbiAgICAgICAgICBTRUxFQ1QganNvbl9hZ2coeXMuKilcclxuICAgICAgICAgIEZST00geWVhcmx5X3N0YXRzIHlzXHJcbiAgICAgICAgKSBhcyB5ZWFybHlfc3RhdHNcclxuICAgICAgRlJPTSBwbGF5ZXJfc3RhdHMgcHNcclxuICAgICAgTEVGVCBKT0lOIHN0cmVha3MgcyBPTiBwcy5wbGF5ZXJfaWQgPSBzLnBsYXllcl9pZDtcclxuICAgIGA7XHJcblxyXG4gICAgLy8gSGFuZGxlIGNhc2Ugd2hlcmUgcGxheWVyIGlzIG5vdCBmb3VuZFxyXG4gICAgaWYgKCFwbGF5ZXJQcm9maWxlIHx8IHBsYXllclByb2ZpbGUubGVuZ3RoID09PSAwKSB7XHJcbiAgICAgIGNvbnNvbGUud2FybignUGxheWVyIG5vdCBmb3VuZCBmb3IgSUQ6JywgbnVtZXJpY0lkKTtcclxuICAgICAgcmV0dXJuIE5leHRSZXNwb25zZS5qc29uKHsgZXJyb3I6ICdQbGF5ZXIgbm90IGZvdW5kJyB9LCB7IHN0YXR1czogNDA0IH0pO1xyXG4gICAgfVxyXG5cclxuICAgIC8vIFNlcmlhbGl6ZSB0aGUgcHJvZmlsZSBkYXRhIChjb252ZXJ0IEJpZ0ludCB0byBudW1iZXJzL3N0cmluZ3MpXHJcbiAgICBjb25zdCBzZXJpYWxpemVkUHJvZmlsZSA9IHtcclxuICAgICAgLi4ucGxheWVyUHJvZmlsZVswXSxcclxuICAgICAgZ2FtZXNfcGxheWVkOiBOdW1iZXIocGxheWVyUHJvZmlsZVswXS5nYW1lc19wbGF5ZWQpLFxyXG4gICAgICBmYW50YXN5X3BvaW50czogTnVtYmVyKHBsYXllclByb2ZpbGVbMF0uZmFudGFzeV9wb2ludHMpLFxyXG4gICAgICBtb3N0X2dvYWxzOiBOdW1iZXIocGxheWVyUHJvZmlsZVswXS5tb3N0X2dvYWxzKSxcclxuICAgICAgd2luX3N0cmVhazogTnVtYmVyKHBsYXllclByb2ZpbGVbMF0ud2luX3N0cmVhayksXHJcbiAgICAgIHVuZGVmZWF0ZWRfc3RyZWFrOiBOdW1iZXIocGxheWVyUHJvZmlsZVswXS51bmRlZmVhdGVkX3N0cmVhayksXHJcbiAgICAgIHllYXJseV9zdGF0czogcGxheWVyUHJvZmlsZVswXS55ZWFybHlfc3RhdHM/Lm1hcChzdGF0ID0+ICh7XHJcbiAgICAgICAgeWVhcjogTnVtYmVyKHN0YXQueWVhciksXHJcbiAgICAgICAgZ2FtZXNfcGxheWVkOiBOdW1iZXIoc3RhdC5nYW1lc19wbGF5ZWQpLFxyXG4gICAgICAgIGdvYWxzX3Njb3JlZDogTnVtYmVyKHN0YXQuZ29hbHNfc2NvcmVkKSxcclxuICAgICAgICBmYW50YXN5X3BvaW50czogTnVtYmVyKHN0YXQuZmFudGFzeV9wb2ludHMpLFxyXG4gICAgICAgIG1pbnV0ZXNfcGVyX2dvYWw6IE51bWJlcihzdGF0Lm1pbnV0ZXNfcGVyX2dvYWwpIHx8ICdOL0EnLFxyXG4gICAgICAgIHBvaW50c19wZXJfZ2FtZTogTnVtYmVyKHN0YXQucG9pbnRzX3Blcl9nYW1lKSB8fCAnTi9BJyxcclxuICAgICAgfSkpLFxyXG4gICAgICB3aW5fc3RyZWFrX2RhdGVzOiBgJHtwbGF5ZXJQcm9maWxlWzBdLndpbl9zdHJlYWtfc3RhcnR9IHRvICR7cGxheWVyUHJvZmlsZVswXS53aW5fc3RyZWFrX2VuZH1gLFxyXG4gICAgICB1bmRlZmVhdGVkX3N0cmVha19kYXRlczogYCR7cGxheWVyUHJvZmlsZVswXS51bmRlZmVhdGVkX3N0cmVha19zdGFydH0gdG8gJHtwbGF5ZXJQcm9maWxlWzBdLnVuZGVmZWF0ZWRfc3RyZWFrX2VuZH1gXHJcbiAgICB9O1xyXG5cclxuICAgIC8vIFJldHVybiB0aGUgc2VyaWFsaXplZCBwcm9maWxlXHJcbiAgICByZXR1cm4gTmV4dFJlc3BvbnNlLmpzb24oeyBwcm9maWxlOiBzZXJpYWxpemVkUHJvZmlsZSB9KTtcclxuXHJcbiAgfSBjYXRjaCAoZXJyb3IpIHtcclxuICAgIGNvbnNvbGUuZXJyb3IoJ0RhdGFiYXNlIEVycm9yOicsIGVycm9yKTtcclxuICAgIHJldHVybiBOZXh0UmVzcG9uc2UuanNvbihcclxuICAgICAge1xyXG4gICAgICAgIGVycm9yOiAnRmFpbGVkIHRvIGZldGNoIHBsYXllciBwcm9maWxlJyxcclxuICAgICAgICBkZXRhaWxzOiBlcnJvciBpbnN0YW5jZW9mIEVycm9yID8gZXJyb3IubWVzc2FnZSA6ICdVbmtub3duIGVycm9yIG9jY3VycmVkJyxcclxuICAgICAgfSxcclxuICAgICAgeyBzdGF0dXM6IDUwMCB9XHJcbiAgICApO1xyXG4gIH1cclxufSJdLCJuYW1lcyI6WyJOZXh0UmVzcG9uc2UiLCJwcmlzbWEiLCJHRVQiLCJyZXF1ZXN0IiwiY29uc29sZSIsImxvZyIsInNlYXJjaFBhcmFtcyIsIlVSTCIsInVybCIsImlkIiwiZ2V0IiwiZXJyb3IiLCJqc29uIiwic3RhdHVzIiwibnVtZXJpY0lkIiwicGFyc2VJbnQiLCJwbGF5ZXJQcm9maWxlIiwiJHF1ZXJ5UmF3IiwibGVuZ3RoIiwid2FybiIsInNlcmlhbGl6ZWRQcm9maWxlIiwiZ2FtZXNfcGxheWVkIiwiTnVtYmVyIiwiZmFudGFzeV9wb2ludHMiLCJtb3N0X2dvYWxzIiwid2luX3N0cmVhayIsInVuZGVmZWF0ZWRfc3RyZWFrIiwieWVhcmx5X3N0YXRzIiwibWFwIiwic3RhdCIsInllYXIiLCJnb2Fsc19zY29yZWQiLCJtaW51dGVzX3Blcl9nb2FsIiwicG9pbnRzX3Blcl9nYW1lIiwid2luX3N0cmVha19kYXRlcyIsIndpbl9zdHJlYWtfc3RhcnQiLCJ3aW5fc3RyZWFrX2VuZCIsInVuZGVmZWF0ZWRfc3RyZWFrX2RhdGVzIiwidW5kZWZlYXRlZF9zdHJlYWtfc3RhcnQiLCJ1bmRlZmVhdGVkX3N0cmVha19lbmQiLCJwcm9maWxlIiwiZGV0YWlscyIsIkVycm9yIiwibWVzc2FnZSJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///(rsc)/./src/app/api/playerprofile/route.ts\n");
-
-/***/ }),
-
-/***/ "(rsc)/./src/lib/prisma.ts":
-/*!***************************!*\
-  !*** ./src/lib/prisma.ts ***!
-  \***************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   prisma: () => (/* binding */ prisma)\n/* harmony export */ });\n/* harmony import */ var _prisma_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @prisma/client */ \"@prisma/client\");\n/* harmony import */ var _prisma_client__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_prisma_client__WEBPACK_IMPORTED_MODULE_0__);\n\nconst globalForPrisma = global;\nconst prisma = globalForPrisma.prisma || new _prisma_client__WEBPACK_IMPORTED_MODULE_0__.PrismaClient({\n    log: [\n        'query'\n    ]\n});\nif (true) globalForPrisma.prisma = prisma;\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9zcmMvbGliL3ByaXNtYS50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7QUFBNkM7QUFFN0MsTUFBTUMsa0JBQWtCQztBQUVqQixNQUFNQyxTQUNYRixnQkFBZ0JFLE1BQU0sSUFDdEIsSUFBSUgsd0RBQVlBLENBQUM7SUFDZkksS0FBSztRQUFDO0tBQVE7QUFDaEIsR0FBRTtBQUVKLElBQUlDLElBQXFDLEVBQUVKLGdCQUFnQkUsTUFBTSxHQUFHQSIsInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxJYW5cXEJlcmtvVE5GXFxzcmNcXGxpYlxccHJpc21hLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFByaXNtYUNsaWVudCB9IGZyb20gJ0BwcmlzbWEvY2xpZW50J1xyXG5cclxuY29uc3QgZ2xvYmFsRm9yUHJpc21hID0gZ2xvYmFsIGFzIHVua25vd24gYXMgeyBwcmlzbWE6IFByaXNtYUNsaWVudCB9XHJcblxyXG5leHBvcnQgY29uc3QgcHJpc21hID1cclxuICBnbG9iYWxGb3JQcmlzbWEucHJpc21hIHx8XHJcbiAgbmV3IFByaXNtYUNsaWVudCh7XHJcbiAgICBsb2c6IFsncXVlcnknXSxcclxuICB9KVxyXG5cclxuaWYgKHByb2Nlc3MuZW52Lk5PREVfRU5WICE9PSAncHJvZHVjdGlvbicpIGdsb2JhbEZvclByaXNtYS5wcmlzbWEgPSBwcmlzbWEiXSwibmFtZXMiOlsiUHJpc21hQ2xpZW50IiwiZ2xvYmFsRm9yUHJpc21hIiwiZ2xvYmFsIiwicHJpc21hIiwibG9nIiwicHJvY2VzcyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///(rsc)/./src/lib/prisma.ts\n");
-
-/***/ })
-
-};
-;
-
-// load runtime
-var __webpack_require__ = require("../../../webpack-runtime.js");
-__webpack_require__.C(exports);
-var __webpack_exec__ = (moduleId) => (__webpack_require__(__webpack_require__.s = moduleId))
-var __webpack_exports__ = __webpack_require__.X(0, ["vendor-chunks/next"], () => (__webpack_exec__("(rsc)/./node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fapi%2Fplayerprofile%2Froute&page=%2Fapi%2Fplayerprofile%2Froute&appPaths=&pagePath=private-next-app-dir%2Fapi%2Fplayerprofile%2Froute.ts&appDir=C%3A%5CUsers%5CIan%5CBerkoTNF%5Csrc%5Capp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=C%3A%5CUsers%5CIan%5CBerkoTNF&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D!")));
-module.exports = __webpack_exports__;
-
-})();
+(()=>{var e={};e.id=932,e.ids=[932],e.modules={846:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},4870:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},3295:e=>{"use strict";e.exports=require("next/dist/server/app-render/after-task-async-storage.external.js")},9294:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-async-storage.external.js")},3033:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-unit-async-storage.external.js")},6464:(e,a,t)=>{"use strict";t.r(a),t.d(a,{patchFetch:()=>E,routeModule:()=>l,serverHooks:()=>u,workAsyncStorage:()=>i,workUnitAsyncStorage:()=>o});var s={};t.r(s),t.d(s,{GET:()=>m});var r=t(2706),p=t(8203),_=t(5994),n=t(9187),d=t(5600);async function m(e){try{console.log("Fetching player profile...");let{searchParams:a}=new URL(e.url),t=a.get("id");if(!t)return console.error("Error: No ID provided in request"),n.NextResponse.json({error:"No ID provided"},{status:400});let s=parseInt(t,10);console.log("Fetching profile for ID:",s);let r=await d.z.$queryRaw`
+      WITH 
+        player_stats AS (
+          SELECT 
+            p.player_id,
+            p.name,
+            COUNT(pm.match_id) as games_played,
+            SUM(
+              CASE 
+                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                WHEN pm.result = 'win' THEN 20
+                WHEN pm.result = 'draw' THEN 10
+                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                WHEN pm.result = 'loss' THEN -10
+                ELSE 0 END
+            ) as fantasy_points,
+            MAX(pm.goals) as most_goals,
+            (
+              SELECT m2.match_date::text
+              FROM player_matches pm2
+              JOIN matches m2 ON pm2.match_id = m2.match_id
+              WHERE pm2.player_id = p.player_id AND pm2.goals = (
+                SELECT MAX(pm3.goals)
+                FROM player_matches pm3
+                WHERE pm3.player_id = p.player_id
+              )
+              LIMIT 1
+            ) as most_goals_date
+          FROM players p
+          LEFT JOIN player_matches pm ON p.player_id = pm.player_id
+          WHERE p.player_id = ${s}
+          GROUP BY p.player_id, p.name
+        ),
+        streaks AS (
+          WITH numbered_matches AS (
+            SELECT 
+              pm.player_id,
+              m.match_date,
+              pm.result,
+              ROW_NUMBER() OVER (PARTITION BY pm.player_id ORDER BY m.match_date) as match_num
+            FROM player_matches pm
+            JOIN matches m ON pm.match_id = m.match_id
+            WHERE pm.player_id = ${s}
+          ),
+          win_gaps AS (
+            SELECT 
+              player_id,
+              match_date,
+              match_num,
+              match_num - ROW_NUMBER() OVER (ORDER BY match_date) as grp
+            FROM numbered_matches
+            WHERE result = 'win'
+          ),
+          undefeated_gaps AS (
+            SELECT 
+              player_id,
+              match_date,
+              match_num,
+              match_num - ROW_NUMBER() OVER (ORDER BY match_date) as grp
+            FROM numbered_matches
+            WHERE result != 'loss'
+          ),
+          win_streak AS (
+            SELECT 
+              player_id,
+              COUNT(*) as streak,
+              MIN(match_date) as start_date,
+              MAX(match_date) as end_date
+            FROM win_gaps
+            GROUP BY player_id, grp
+          ),
+          undefeated_streak AS (
+            SELECT 
+              player_id,
+              COUNT(*) as streak,
+              MIN(match_date) as start_date,
+              MAX(match_date) as end_date
+            FROM undefeated_gaps
+            GROUP BY player_id, grp
+          )
+          SELECT 
+            ws.player_id,
+            MAX(ws.streak) as win_streak,
+            MIN(ws.start_date)::text as win_streak_start,
+            MAX(ws.end_date)::text as win_streak_end,
+            MAX(us.streak) as undefeated_streak,
+            MIN(us.start_date)::text as undefeated_streak_start,
+            MAX(us.end_date)::text as undefeated_streak_end
+          FROM win_streak ws
+          CROSS JOIN undefeated_streak us
+          WHERE ws.player_id = us.player_id
+          GROUP BY ws.player_id
+        ),
+        yearly_stats AS (
+          SELECT 
+            pm.player_id,
+            EXTRACT(YEAR FROM m.match_date)::integer as year,
+            COUNT(*) as games_played,
+            SUM(pm.goals) as goals_scored,
+            SUM(
+              CASE 
+                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                WHEN pm.result = 'win' THEN 20
+                WHEN pm.result = 'draw' THEN 10
+                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                WHEN pm.result = 'loss' THEN -10
+                ELSE 0 END
+            ) as fantasy_points,
+            ROUND(COUNT(*) * 60.0 / NULLIF(SUM(pm.goals), 0), 1) as minutes_per_goal,
+            ROUND(SUM(
+              CASE 
+                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                WHEN pm.result = 'win' THEN 20
+                WHEN pm.result = 'draw' THEN 10
+                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                WHEN pm.result = 'loss' THEN -10
+                ELSE 0 END
+            ) / COUNT(*), 1) as points_per_game
+          FROM player_matches pm
+          JOIN matches m ON pm.match_id = m.match_id
+          WHERE pm.player_id = ${s}
+          GROUP BY pm.player_id, EXTRACT(YEAR FROM m.match_date)
+          ORDER BY year DESC
+        )
+      SELECT 
+        ps.*, 
+        s.win_streak, 
+        s.win_streak_start, 
+        s.win_streak_end, 
+        s.undefeated_streak, 
+        s.undefeated_streak_start, 
+        s.undefeated_streak_end,
+        (
+          SELECT json_agg(ys.*)
+          FROM yearly_stats ys
+        ) as yearly_stats
+      FROM player_stats ps
+      LEFT JOIN streaks s ON ps.player_id = s.player_id;
+    `;if(!r||0===r.length)return console.warn("Player not found for ID:",s),n.NextResponse.json({error:"Player not found"},{status:404});let p={...r[0],games_played:Number(r[0].games_played),fantasy_points:Number(r[0].fantasy_points),most_goals:Number(r[0].most_goals),win_streak:Number(r[0].win_streak),undefeated_streak:Number(r[0].undefeated_streak),yearly_stats:r[0].yearly_stats?.map(e=>({year:Number(e.year),games_played:Number(e.games_played),goals_scored:Number(e.goals_scored),fantasy_points:Number(e.fantasy_points),minutes_per_goal:Number(e.minutes_per_goal)||"N/A",points_per_game:Number(e.points_per_game)||"N/A"})),win_streak_dates:`${r[0].win_streak_start} to ${r[0].win_streak_end}`,undefeated_streak_dates:`${r[0].undefeated_streak_start} to ${r[0].undefeated_streak_end}`};return n.NextResponse.json({profile:p})}catch(e){return console.error("Database Error:",e),n.NextResponse.json({error:"Failed to fetch player profile",details:e instanceof Error?e.message:"Unknown error occurred"},{status:500})}}let l=new r.AppRouteRouteModule({definition:{kind:p.RouteKind.APP_ROUTE,page:"/api/playerprofile/route",pathname:"/api/playerprofile",filename:"route",bundlePath:"app/api/playerprofile/route"},resolvedPagePath:"C:\\Users\\Ian\\BerkoTNF\\src\\app\\api\\playerprofile\\route.ts",nextConfigOutput:"",userland:s}),{workAsyncStorage:i,workUnitAsyncStorage:o,serverHooks:u}=l;function E(){return(0,_.patchFetch)({workAsyncStorage:i,workUnitAsyncStorage:o})}},6487:()=>{},8335:()=>{},5600:(e,a,t)=>{"use strict";t.d(a,{z:()=>r});let s=require("@prisma/client"),r=global.prisma||new s.PrismaClient({log:["query"]})}};var a=require("../../../webpack-runtime.js");a.C(e);var t=e=>a(a.s=e),s=a.X(0,[638,452],()=>t(6464));module.exports=s})();

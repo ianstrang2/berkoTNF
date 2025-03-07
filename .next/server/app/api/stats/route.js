@@ -1,144 +1,121 @@
-/*
- * ATTENTION: An "eval-source-map" devtool has been used.
- * This devtool is neither made for production nor for readable output files.
- * It uses "eval()" calls to create a separate source file with attached SourceMaps in the browser devtools.
- * If you are trying to read the output file, select a different devtool (https://webpack.js.org/configuration/devtool/)
- * or disable the default devtool with "devtool: false".
- * If you are looking for production-ready output files, see mode: "production" (https://webpack.js.org/configuration/mode/).
- */
-(() => {
-var exports = {};
-exports.id = "app/api/stats/route";
-exports.ids = ["app/api/stats/route"];
-exports.modules = {
-
-/***/ "@prisma/client":
-/*!*********************************!*\
-  !*** external "@prisma/client" ***!
-  \*********************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("@prisma/client");
-
-/***/ }),
-
-/***/ "next/dist/compiled/next-server/app-page.runtime.dev.js":
-/*!*************************************************************************!*\
-  !*** external "next/dist/compiled/next-server/app-page.runtime.dev.js" ***!
-  \*************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/compiled/next-server/app-page.runtime.dev.js");
-
-/***/ }),
-
-/***/ "next/dist/compiled/next-server/app-route.runtime.dev.js":
-/*!**************************************************************************!*\
-  !*** external "next/dist/compiled/next-server/app-route.runtime.dev.js" ***!
-  \**************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/compiled/next-server/app-route.runtime.dev.js");
-
-/***/ }),
-
-/***/ "../app-render/after-task-async-storage.external":
-/*!***********************************************************************************!*\
-  !*** external "next/dist/server/app-render/after-task-async-storage.external.js" ***!
-  \***********************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/server/app-render/after-task-async-storage.external.js");
-
-/***/ }),
-
-/***/ "../app-render/work-async-storage.external":
-/*!*****************************************************************************!*\
-  !*** external "next/dist/server/app-render/work-async-storage.external.js" ***!
-  \*****************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/server/app-render/work-async-storage.external.js");
-
-/***/ }),
-
-/***/ "./work-unit-async-storage.external":
-/*!**********************************************************************************!*\
-  !*** external "next/dist/server/app-render/work-unit-async-storage.external.js" ***!
-  \**********************************************************************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("next/dist/server/app-render/work-unit-async-storage.external.js");
-
-/***/ }),
-
-/***/ "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fapi%2Fstats%2Froute&page=%2Fapi%2Fstats%2Froute&appPaths=&pagePath=private-next-app-dir%2Fapi%2Fstats%2Froute.ts&appDir=C%3A%5CUsers%5CIan%5CBerkoTNF%5Csrc%5Capp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=C%3A%5CUsers%5CIan%5CBerkoTNF&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D!":
-/*!*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fapi%2Fstats%2Froute&page=%2Fapi%2Fstats%2Froute&appPaths=&pagePath=private-next-app-dir%2Fapi%2Fstats%2Froute.ts&appDir=C%3A%5CUsers%5CIan%5CBerkoTNF%5Csrc%5Capp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=C%3A%5CUsers%5CIan%5CBerkoTNF&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D! ***!
-  \*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   patchFetch: () => (/* binding */ patchFetch),\n/* harmony export */   routeModule: () => (/* binding */ routeModule),\n/* harmony export */   serverHooks: () => (/* binding */ serverHooks),\n/* harmony export */   workAsyncStorage: () => (/* binding */ workAsyncStorage),\n/* harmony export */   workUnitAsyncStorage: () => (/* binding */ workUnitAsyncStorage)\n/* harmony export */ });\n/* harmony import */ var next_dist_server_route_modules_app_route_module_compiled__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! next/dist/server/route-modules/app-route/module.compiled */ \"(rsc)/./node_modules/next/dist/server/route-modules/app-route/module.compiled.js\");\n/* harmony import */ var next_dist_server_route_modules_app_route_module_compiled__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(next_dist_server_route_modules_app_route_module_compiled__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var next_dist_server_route_kind__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! next/dist/server/route-kind */ \"(rsc)/./node_modules/next/dist/server/route-kind.js\");\n/* harmony import */ var next_dist_server_lib_patch_fetch__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! next/dist/server/lib/patch-fetch */ \"(rsc)/./node_modules/next/dist/server/lib/patch-fetch.js\");\n/* harmony import */ var next_dist_server_lib_patch_fetch__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(next_dist_server_lib_patch_fetch__WEBPACK_IMPORTED_MODULE_2__);\n/* harmony import */ var C_Users_Ian_BerkoTNF_src_app_api_stats_route_ts__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./src/app/api/stats/route.ts */ \"(rsc)/./src/app/api/stats/route.ts\");\n\n\n\n\n// We inject the nextConfigOutput here so that we can use them in the route\n// module.\nconst nextConfigOutput = \"\"\nconst routeModule = new next_dist_server_route_modules_app_route_module_compiled__WEBPACK_IMPORTED_MODULE_0__.AppRouteRouteModule({\n    definition: {\n        kind: next_dist_server_route_kind__WEBPACK_IMPORTED_MODULE_1__.RouteKind.APP_ROUTE,\n        page: \"/api/stats/route\",\n        pathname: \"/api/stats\",\n        filename: \"route\",\n        bundlePath: \"app/api/stats/route\"\n    },\n    resolvedPagePath: \"C:\\\\Users\\\\Ian\\\\BerkoTNF\\\\src\\\\app\\\\api\\\\stats\\\\route.ts\",\n    nextConfigOutput,\n    userland: C_Users_Ian_BerkoTNF_src_app_api_stats_route_ts__WEBPACK_IMPORTED_MODULE_3__\n});\n// Pull out the exports that we need to expose from the module. This should\n// be eliminated when we've moved the other routes to the new format. These\n// are used to hook into the route.\nconst { workAsyncStorage, workUnitAsyncStorage, serverHooks } = routeModule;\nfunction patchFetch() {\n    return (0,next_dist_server_lib_patch_fetch__WEBPACK_IMPORTED_MODULE_2__.patchFetch)({\n        workAsyncStorage,\n        workUnitAsyncStorage\n    });\n}\n\n\n//# sourceMappingURL=app-route.js.map//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9ub2RlX21vZHVsZXMvbmV4dC9kaXN0L2J1aWxkL3dlYnBhY2svbG9hZGVycy9uZXh0LWFwcC1sb2FkZXIvaW5kZXguanM/bmFtZT1hcHAlMkZhcGklMkZzdGF0cyUyRnJvdXRlJnBhZ2U9JTJGYXBpJTJGc3RhdHMlMkZyb3V0ZSZhcHBQYXRocz0mcGFnZVBhdGg9cHJpdmF0ZS1uZXh0LWFwcC1kaXIlMkZhcGklMkZzdGF0cyUyRnJvdXRlLnRzJmFwcERpcj1DJTNBJTVDVXNlcnMlNUNJYW4lNUNCZXJrb1RORiU1Q3NyYyU1Q2FwcCZwYWdlRXh0ZW5zaW9ucz10c3gmcGFnZUV4dGVuc2lvbnM9dHMmcGFnZUV4dGVuc2lvbnM9anN4JnBhZ2VFeHRlbnNpb25zPWpzJnJvb3REaXI9QyUzQSU1Q1VzZXJzJTVDSWFuJTVDQmVya29UTkYmaXNEZXY9dHJ1ZSZ0c2NvbmZpZ1BhdGg9dHNjb25maWcuanNvbiZiYXNlUGF0aD0mYXNzZXRQcmVmaXg9Jm5leHRDb25maWdPdXRwdXQ9JnByZWZlcnJlZFJlZ2lvbj0mbWlkZGxld2FyZUNvbmZpZz1lMzAlM0QhIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7O0FBQStGO0FBQ3ZDO0FBQ3FCO0FBQ1E7QUFDckY7QUFDQTtBQUNBO0FBQ0Esd0JBQXdCLHlHQUFtQjtBQUMzQztBQUNBLGNBQWMsa0VBQVM7QUFDdkI7QUFDQTtBQUNBO0FBQ0E7QUFDQSxLQUFLO0FBQ0w7QUFDQTtBQUNBLFlBQVk7QUFDWixDQUFDO0FBQ0Q7QUFDQTtBQUNBO0FBQ0EsUUFBUSxzREFBc0Q7QUFDOUQ7QUFDQSxXQUFXLDRFQUFXO0FBQ3RCO0FBQ0E7QUFDQSxLQUFLO0FBQ0w7QUFDMEY7O0FBRTFGIiwic291cmNlcyI6WyIiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgQXBwUm91dGVSb3V0ZU1vZHVsZSB9IGZyb20gXCJuZXh0L2Rpc3Qvc2VydmVyL3JvdXRlLW1vZHVsZXMvYXBwLXJvdXRlL21vZHVsZS5jb21waWxlZFwiO1xuaW1wb3J0IHsgUm91dGVLaW5kIH0gZnJvbSBcIm5leHQvZGlzdC9zZXJ2ZXIvcm91dGUta2luZFwiO1xuaW1wb3J0IHsgcGF0Y2hGZXRjaCBhcyBfcGF0Y2hGZXRjaCB9IGZyb20gXCJuZXh0L2Rpc3Qvc2VydmVyL2xpYi9wYXRjaC1mZXRjaFwiO1xuaW1wb3J0ICogYXMgdXNlcmxhbmQgZnJvbSBcIkM6XFxcXFVzZXJzXFxcXElhblxcXFxCZXJrb1RORlxcXFxzcmNcXFxcYXBwXFxcXGFwaVxcXFxzdGF0c1xcXFxyb3V0ZS50c1wiO1xuLy8gV2UgaW5qZWN0IHRoZSBuZXh0Q29uZmlnT3V0cHV0IGhlcmUgc28gdGhhdCB3ZSBjYW4gdXNlIHRoZW0gaW4gdGhlIHJvdXRlXG4vLyBtb2R1bGUuXG5jb25zdCBuZXh0Q29uZmlnT3V0cHV0ID0gXCJcIlxuY29uc3Qgcm91dGVNb2R1bGUgPSBuZXcgQXBwUm91dGVSb3V0ZU1vZHVsZSh7XG4gICAgZGVmaW5pdGlvbjoge1xuICAgICAgICBraW5kOiBSb3V0ZUtpbmQuQVBQX1JPVVRFLFxuICAgICAgICBwYWdlOiBcIi9hcGkvc3RhdHMvcm91dGVcIixcbiAgICAgICAgcGF0aG5hbWU6IFwiL2FwaS9zdGF0c1wiLFxuICAgICAgICBmaWxlbmFtZTogXCJyb3V0ZVwiLFxuICAgICAgICBidW5kbGVQYXRoOiBcImFwcC9hcGkvc3RhdHMvcm91dGVcIlxuICAgIH0sXG4gICAgcmVzb2x2ZWRQYWdlUGF0aDogXCJDOlxcXFxVc2Vyc1xcXFxJYW5cXFxcQmVya29UTkZcXFxcc3JjXFxcXGFwcFxcXFxhcGlcXFxcc3RhdHNcXFxccm91dGUudHNcIixcbiAgICBuZXh0Q29uZmlnT3V0cHV0LFxuICAgIHVzZXJsYW5kXG59KTtcbi8vIFB1bGwgb3V0IHRoZSBleHBvcnRzIHRoYXQgd2UgbmVlZCB0byBleHBvc2UgZnJvbSB0aGUgbW9kdWxlLiBUaGlzIHNob3VsZFxuLy8gYmUgZWxpbWluYXRlZCB3aGVuIHdlJ3ZlIG1vdmVkIHRoZSBvdGhlciByb3V0ZXMgdG8gdGhlIG5ldyBmb3JtYXQuIFRoZXNlXG4vLyBhcmUgdXNlZCB0byBob29rIGludG8gdGhlIHJvdXRlLlxuY29uc3QgeyB3b3JrQXN5bmNTdG9yYWdlLCB3b3JrVW5pdEFzeW5jU3RvcmFnZSwgc2VydmVySG9va3MgfSA9IHJvdXRlTW9kdWxlO1xuZnVuY3Rpb24gcGF0Y2hGZXRjaCgpIHtcbiAgICByZXR1cm4gX3BhdGNoRmV0Y2goe1xuICAgICAgICB3b3JrQXN5bmNTdG9yYWdlLFxuICAgICAgICB3b3JrVW5pdEFzeW5jU3RvcmFnZVxuICAgIH0pO1xufVxuZXhwb3J0IHsgcm91dGVNb2R1bGUsIHdvcmtBc3luY1N0b3JhZ2UsIHdvcmtVbml0QXN5bmNTdG9yYWdlLCBzZXJ2ZXJIb29rcywgcGF0Y2hGZXRjaCwgIH07XG5cbi8vIyBzb3VyY2VNYXBwaW5nVVJMPWFwcC1yb3V0ZS5qcy5tYXAiXSwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///(rsc)/./node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fapi%2Fstats%2Froute&page=%2Fapi%2Fstats%2Froute&appPaths=&pagePath=private-next-app-dir%2Fapi%2Fstats%2Froute.ts&appDir=C%3A%5CUsers%5CIan%5CBerkoTNF%5Csrc%5Capp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=C%3A%5CUsers%5CIan%5CBerkoTNF&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D!\n");
-
-/***/ }),
-
-/***/ "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true!":
-/*!******************************************************************************************************!*\
-  !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true! ***!
-  \******************************************************************************************************/
-/***/ (() => {
-
-
-
-/***/ }),
-
-/***/ "(ssr)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true!":
-/*!******************************************************************************************************!*\
-  !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true! ***!
-  \******************************************************************************************************/
-/***/ (() => {
-
-
-
-/***/ }),
-
-/***/ "(rsc)/./src/app/api/stats/route.ts":
-/*!************************************!*\
-  !*** ./src/app/api/stats/route.ts ***!
-  \************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   POST: () => (/* binding */ POST)\n/* harmony export */ });\n/* harmony import */ var next_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! next/server */ \"(rsc)/./node_modules/next/dist/api/server.js\");\n/* harmony import */ var _lib_prisma__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @/lib/prisma */ \"(rsc)/./src/lib/prisma.ts\");\n\n\nconst serializeData = (data)=>{\n    return JSON.parse(JSON.stringify(data, (_, value)=>typeof value === 'bigint' ? Number(value) : value));\n};\nasync function POST(request) {\n    console.log('API route hit');\n    try {\n        const body = await request.json();\n        console.log('Received request body:', body);\n        if (!body || !body.startDate || !body.endDate) {\n            console.error('Invalid request body:', body);\n            return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json({\n                error: 'Invalid request body - missing dates'\n            }, {\n                status: 400\n            });\n        }\n        const { startDate, endDate } = body;\n        console.log('About to execute queries with dates:', startDate, endDate);\n        // Season Stats Query\n        const seasonStats = await _lib_prisma__WEBPACK_IMPORTED_MODULE_1__.prisma.$queryRaw`\r\n    SELECT \r\n      p.name,\r\n      COUNT(*) as games_played,\r\n      COUNT(CASE WHEN pm.result = 'win' THEN 1 END) as wins,\r\n      COUNT(CASE WHEN pm.result = 'draw' THEN 1 END) as draws,\r\n      SUM(pm.goals) as goals,\r\n      COUNT(CASE WHEN pm.heavy_win = true THEN 1 END) as heavy_wins,\r\n      COUNT(CASE WHEN pm.heavy_loss = true THEN 1 END) as heavy_losses,\r\n      COUNT(CASE \r\n        WHEN (pm.team = 'A' AND m.team_b_score = 0) OR \r\n             (pm.team = 'B' AND m.team_a_score = 0) \r\n        THEN 1 \r\n      END) as clean_sheets,\r\n      CAST(\r\n        (COUNT(CASE WHEN pm.result = 'win' THEN 1 END)::float * 100 / NULLIF(COUNT(*), 0)) \r\n        AS DECIMAL(5,1)\r\n      ) as win_percentage,\r\n      SUM(\r\n        CASE \r\n          WHEN pm.result = 'win' AND pm.heavy_win = true AND \r\n               ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))\r\n          THEN 40  -- Heavy Win + Clean Sheet\r\n          WHEN pm.result = 'win' AND pm.heavy_win = true \r\n          THEN 30  -- Heavy Win\r\n          WHEN pm.result = 'win' AND \r\n               ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))\r\n          THEN 30  -- Win + Clean Sheet\r\n          WHEN pm.result = 'win' \r\n          THEN 20  -- Win\r\n          WHEN pm.result = 'draw' AND \r\n               ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))\r\n          THEN 20  -- Draw + Clean Sheet\r\n          WHEN pm.result = 'draw' \r\n          THEN 10  -- Draw\r\n          WHEN pm.result = 'loss' AND pm.heavy_loss = true \r\n          THEN -20 -- Heavy Loss\r\n          WHEN pm.result = 'loss' \r\n          THEN -10 -- Loss\r\n          ELSE 0\r\n        END\r\n      ) as fantasy_points\r\n    FROM players p\r\n    JOIN player_matches pm ON p.player_id = pm.player_id\r\n    JOIN matches m ON pm.match_id = m.match_id\r\n    WHERE m.match_date >= ${startDate}::date\r\n    AND m.match_date <= ${endDate}::date\r\n    AND p.is_ringer = 'NO'\r\n    GROUP BY p.name\r\n    ORDER BY fantasy_points DESC\r\n  `;\n        console.log('Season stats query completed');\n        // Goal Stats Query with Last 5 Games\n        const goalStats = await _lib_prisma__WEBPACK_IMPORTED_MODULE_1__.prisma.$queryRaw`\r\n    WITH player_totals AS (\r\n      SELECT \r\n        p.player_id,\r\n        p.name,\r\n        SUM(pm.goals) as total_goals,\r\n        ROUND(COUNT(*) * 60.0 / NULLIF(SUM(pm.goals), 0)) as minutes_per_goal\r\n      FROM players p\r\n      JOIN player_matches pm ON p.player_id = pm.player_id\r\n      JOIN matches m ON pm.match_id = m.match_id\r\n      WHERE m.match_date >= ${startDate}::date\r\n      AND m.match_date <= ${endDate}::date\r\n      AND p.is_ringer = 'NO'\r\n      GROUP BY p.player_id, p.name\r\n      HAVING SUM(pm.goals) > 0\r\n    ),\r\n    recent_games AS (\r\n      SELECT \r\n        p.player_id,\r\n        pm.goals,\r\n        ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as game_number\r\n      FROM players p\r\n      JOIN player_matches pm ON p.player_id = pm.player_id\r\n      JOIN matches m ON pm.match_id = m.match_id\r\n      WHERE m.match_date >= ${startDate}::date\r\n      AND m.match_date <= ${endDate}::date\r\n      AND p.is_ringer = 'NO'\r\n    )\r\n    SELECT \r\n      pt.*,\r\n      STRING_AGG(\r\n        CASE \r\n          WHEN rg.goals = 0 THEN ''\r\n          ELSE rg.goals::text \r\n        END,\r\n        ',' ORDER BY game_number\r\n      ) as last_five_games,\r\n      MAX(rg.goals) as max_goals_in_game\r\n    FROM player_totals pt\r\n    LEFT JOIN recent_games rg ON pt.player_id = rg.player_id AND rg.game_number <= 5\r\n    GROUP BY pt.player_id, pt.name, pt.total_goals, pt.minutes_per_goal\r\n    ORDER BY pt.total_goals DESC, pt.minutes_per_goal ASC\r\n  `;\n        console.log('Goal stats query completed');\n        // Form Data Query (Last 5 Games)\n        const formData = await _lib_prisma__WEBPACK_IMPORTED_MODULE_1__.prisma.$queryRaw`\r\n      WITH recent_games AS (\r\n        SELECT \r\n          p.player_id,\r\n          p.name,\r\n          m.match_date,\r\n          CASE \r\n            WHEN pm.result = 'win' AND pm.heavy_win = true THEN 'HW'\r\n            WHEN pm.result = 'win' THEN 'W'\r\n            WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN 'HL'\r\n            WHEN pm.result = 'loss' THEN 'L'\r\n            ELSE 'D'\r\n          END as result,\r\n          ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as game_number\r\n        FROM players p\r\n        JOIN player_matches pm ON p.player_id = pm.player_id\r\n        JOIN matches m ON pm.match_id = m.match_id\r\n        WHERE m.match_date >= ${startDate}::date\r\n        AND m.match_date <= ${endDate}::date\r\n        AND p.is_ringer = 'NO'\r\n      )\r\n      SELECT \r\n        name,\r\n        STRING_AGG(result, ', ' ORDER BY game_number) as last_5_games\r\n      FROM recent_games\r\n      WHERE game_number <= 5\r\n      GROUP BY player_id, name\r\n      ORDER BY name\r\n    `;\n        console.log('Form data query completed');\n        const responseData = {\n            data: {\n                seasonStats: serializeData(seasonStats),\n                goalStats: serializeData(goalStats),\n                formData: serializeData(formData)\n            }\n        };\n        console.log('About to send response:', responseData);\n        return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json(responseData);\n    } catch (error) {\n        console.error('Detailed error:', {\n            message: error.message,\n            stack: error.stack,\n            name: error.name\n        });\n        return next_server__WEBPACK_IMPORTED_MODULE_0__.NextResponse.json({\n            error: 'Failed to fetch stats',\n            details: error instanceof Error ? error.message : 'Unknown error'\n        }, {\n            status: 500\n        });\n    }\n}\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9zcmMvYXBwL2FwaS9zdGF0cy9yb3V0ZS50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7QUFBd0Q7QUFDbEI7QUFFdEMsTUFBTUUsZ0JBQWdCLENBQUNDO0lBQ3JCLE9BQU9DLEtBQUtDLEtBQUssQ0FBQ0QsS0FBS0UsU0FBUyxDQUFDSCxNQUFNLENBQUNJLEdBQUdDLFFBQ3pDLE9BQU9BLFVBQVUsV0FBV0MsT0FBT0QsU0FBU0E7QUFFaEQ7QUFFTyxlQUFlRSxLQUFLQyxPQUFvQjtJQUM3Q0MsUUFBUUMsR0FBRyxDQUFDO0lBRVosSUFBSTtRQUNGLE1BQU1DLE9BQU8sTUFBTUgsUUFBUUksSUFBSTtRQUMvQkgsUUFBUUMsR0FBRyxDQUFDLDBCQUEwQkM7UUFFdEMsSUFBSSxDQUFDQSxRQUFRLENBQUNBLEtBQUtFLFNBQVMsSUFBSSxDQUFDRixLQUFLRyxPQUFPLEVBQUU7WUFDN0NMLFFBQVFNLEtBQUssQ0FBQyx5QkFBeUJKO1lBQ3ZDLE9BQU9kLHFEQUFZQSxDQUFDZSxJQUFJLENBQ3RCO2dCQUFFRyxPQUFPO1lBQXVDLEdBQ2hEO2dCQUFFQyxRQUFRO1lBQUk7UUFFbEI7UUFFQSxNQUFNLEVBQUVILFNBQVMsRUFBRUMsT0FBTyxFQUFFLEdBQUdIO1FBQy9CRixRQUFRQyxHQUFHLENBQUMsd0NBQXdDRyxXQUFXQztRQUUvRCxxQkFBcUI7UUFDckIsTUFBTUcsY0FBYyxNQUFNbkIsK0NBQU1BLENBQUNvQixTQUFTLENBQUM7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzswQkE2Q3JCLEVBQUVMLFVBQVU7d0JBQ2QsRUFBRUMsUUFBUTs7OztFQUloQyxDQUFDO1FBQ0NMLFFBQVFDLEdBQUcsQ0FBQztRQUVaLHFDQUFxQztRQUNyQyxNQUFNUyxZQUFZLE1BQU1yQiwrQ0FBTUEsQ0FBQ29CLFNBQVMsQ0FBQzs7Ozs7Ozs7Ozs0QkFVakIsRUFBRUwsVUFBVTswQkFDZCxFQUFFQyxRQUFROzs7Ozs7Ozs7Ozs7OzRCQWFSLEVBQUVELFVBQVU7MEJBQ2QsRUFBRUMsUUFBUTs7Ozs7Ozs7Ozs7Ozs7Ozs7RUFpQmxDLENBQUM7UUFDQ0wsUUFBUUMsR0FBRyxDQUFDO1FBRVosaUNBQWlDO1FBQ2pDLE1BQU1VLFdBQVcsTUFBTXRCLCtDQUFNQSxDQUFDb0IsU0FBUyxDQUFDOzs7Ozs7Ozs7Ozs7Ozs7Ozs4QkFpQmQsRUFBRUwsVUFBVTs0QkFDZCxFQUFFQyxRQUFROzs7Ozs7Ozs7O0lBVWxDLENBQUM7UUFDREwsUUFBUUMsR0FBRyxDQUFDO1FBRVosTUFBTVcsZUFBZTtZQUNuQnJCLE1BQU07Z0JBQ0ppQixhQUFhbEIsY0FBY2tCO2dCQUMzQkUsV0FBV3BCLGNBQWNvQjtnQkFDekJDLFVBQVVyQixjQUFjcUI7WUFDMUI7UUFDRjtRQUNBWCxRQUFRQyxHQUFHLENBQUMsMkJBQTJCVztRQUV2QyxPQUFPeEIscURBQVlBLENBQUNlLElBQUksQ0FBQ1M7SUFFM0IsRUFBRSxPQUFPTixPQUFPO1FBQ2ROLFFBQVFNLEtBQUssQ0FBQyxtQkFBbUI7WUFDL0JPLFNBQVNQLE1BQU1PLE9BQU87WUFDdEJDLE9BQU9SLE1BQU1RLEtBQUs7WUFDbEJDLE1BQU1ULE1BQU1TLElBQUk7UUFDbEI7UUFDQSxPQUFPM0IscURBQVlBLENBQUNlLElBQUksQ0FDdEI7WUFBRUcsT0FBTztZQUF5QlUsU0FBU1YsaUJBQWlCVyxRQUFRWCxNQUFNTyxPQUFPLEdBQUc7UUFBZ0IsR0FDcEc7WUFBRU4sUUFBUTtRQUFJO0lBRWxCO0FBQ0YiLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSWFuXFxCZXJrb1RORlxcc3JjXFxhcHBcXGFwaVxcc3RhdHNcXHJvdXRlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IE5leHRSZXF1ZXN0LCBOZXh0UmVzcG9uc2UgfSBmcm9tICduZXh0L3NlcnZlcic7XHJcbmltcG9ydCB7IHByaXNtYSB9IGZyb20gJ0AvbGliL3ByaXNtYSc7XHJcblxyXG5jb25zdCBzZXJpYWxpemVEYXRhID0gKGRhdGEpID0+IHtcclxuICByZXR1cm4gSlNPTi5wYXJzZShKU09OLnN0cmluZ2lmeShkYXRhLCAoXywgdmFsdWUpID0+XHJcbiAgICB0eXBlb2YgdmFsdWUgPT09ICdiaWdpbnQnID8gTnVtYmVyKHZhbHVlKSA6IHZhbHVlXHJcbiAgKSk7XHJcbn07XHJcblxyXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gUE9TVChyZXF1ZXN0OiBOZXh0UmVxdWVzdCkge1xyXG4gIGNvbnNvbGUubG9nKCdBUEkgcm91dGUgaGl0Jyk7XHJcbiAgXHJcbiAgdHJ5IHtcclxuICAgIGNvbnN0IGJvZHkgPSBhd2FpdCByZXF1ZXN0Lmpzb24oKTtcclxuICAgIGNvbnNvbGUubG9nKCdSZWNlaXZlZCByZXF1ZXN0IGJvZHk6JywgYm9keSk7XHJcblxyXG4gICAgaWYgKCFib2R5IHx8ICFib2R5LnN0YXJ0RGF0ZSB8fCAhYm9keS5lbmREYXRlKSB7XHJcbiAgICAgIGNvbnNvbGUuZXJyb3IoJ0ludmFsaWQgcmVxdWVzdCBib2R5OicsIGJvZHkpO1xyXG4gICAgICByZXR1cm4gTmV4dFJlc3BvbnNlLmpzb24oXHJcbiAgICAgICAgeyBlcnJvcjogJ0ludmFsaWQgcmVxdWVzdCBib2R5IC0gbWlzc2luZyBkYXRlcycgfSxcclxuICAgICAgICB7IHN0YXR1czogNDAwIH1cclxuICAgICAgKTtcclxuICAgIH1cclxuXHJcbiAgICBjb25zdCB7IHN0YXJ0RGF0ZSwgZW5kRGF0ZSB9ID0gYm9keTtcclxuICAgIGNvbnNvbGUubG9nKCdBYm91dCB0byBleGVjdXRlIHF1ZXJpZXMgd2l0aCBkYXRlczonLCBzdGFydERhdGUsIGVuZERhdGUpO1xyXG5cclxuICAgIC8vIFNlYXNvbiBTdGF0cyBRdWVyeVxyXG4gICAgY29uc3Qgc2Vhc29uU3RhdHMgPSBhd2FpdCBwcmlzbWEuJHF1ZXJ5UmF3YFxyXG4gICAgU0VMRUNUIFxyXG4gICAgICBwLm5hbWUsXHJcbiAgICAgIENPVU5UKCopIGFzIGdhbWVzX3BsYXllZCxcclxuICAgICAgQ09VTlQoQ0FTRSBXSEVOIHBtLnJlc3VsdCA9ICd3aW4nIFRIRU4gMSBFTkQpIGFzIHdpbnMsXHJcbiAgICAgIENPVU5UKENBU0UgV0hFTiBwbS5yZXN1bHQgPSAnZHJhdycgVEhFTiAxIEVORCkgYXMgZHJhd3MsXHJcbiAgICAgIFNVTShwbS5nb2FscykgYXMgZ29hbHMsXHJcbiAgICAgIENPVU5UKENBU0UgV0hFTiBwbS5oZWF2eV93aW4gPSB0cnVlIFRIRU4gMSBFTkQpIGFzIGhlYXZ5X3dpbnMsXHJcbiAgICAgIENPVU5UKENBU0UgV0hFTiBwbS5oZWF2eV9sb3NzID0gdHJ1ZSBUSEVOIDEgRU5EKSBhcyBoZWF2eV9sb3NzZXMsXHJcbiAgICAgIENPVU5UKENBU0UgXHJcbiAgICAgICAgV0hFTiAocG0udGVhbSA9ICdBJyBBTkQgbS50ZWFtX2Jfc2NvcmUgPSAwKSBPUiBcclxuICAgICAgICAgICAgIChwbS50ZWFtID0gJ0InIEFORCBtLnRlYW1fYV9zY29yZSA9IDApIFxyXG4gICAgICAgIFRIRU4gMSBcclxuICAgICAgRU5EKSBhcyBjbGVhbl9zaGVldHMsXHJcbiAgICAgIENBU1QoXHJcbiAgICAgICAgKENPVU5UKENBU0UgV0hFTiBwbS5yZXN1bHQgPSAnd2luJyBUSEVOIDEgRU5EKTo6ZmxvYXQgKiAxMDAgLyBOVUxMSUYoQ09VTlQoKiksIDApKSBcclxuICAgICAgICBBUyBERUNJTUFMKDUsMSlcclxuICAgICAgKSBhcyB3aW5fcGVyY2VudGFnZSxcclxuICAgICAgU1VNKFxyXG4gICAgICAgIENBU0UgXHJcbiAgICAgICAgICBXSEVOIHBtLnJlc3VsdCA9ICd3aW4nIEFORCBwbS5oZWF2eV93aW4gPSB0cnVlIEFORCBcclxuICAgICAgICAgICAgICAgKChwbS50ZWFtID0gJ0EnIEFORCBtLnRlYW1fYl9zY29yZSA9IDApIE9SIChwbS50ZWFtID0gJ0InIEFORCBtLnRlYW1fYV9zY29yZSA9IDApKVxyXG4gICAgICAgICAgVEhFTiA0MCAgLS0gSGVhdnkgV2luICsgQ2xlYW4gU2hlZXRcclxuICAgICAgICAgIFdIRU4gcG0ucmVzdWx0ID0gJ3dpbicgQU5EIHBtLmhlYXZ5X3dpbiA9IHRydWUgXHJcbiAgICAgICAgICBUSEVOIDMwICAtLSBIZWF2eSBXaW5cclxuICAgICAgICAgIFdIRU4gcG0ucmVzdWx0ID0gJ3dpbicgQU5EIFxyXG4gICAgICAgICAgICAgICAoKHBtLnRlYW0gPSAnQScgQU5EIG0udGVhbV9iX3Njb3JlID0gMCkgT1IgKHBtLnRlYW0gPSAnQicgQU5EIG0udGVhbV9hX3Njb3JlID0gMCkpXHJcbiAgICAgICAgICBUSEVOIDMwICAtLSBXaW4gKyBDbGVhbiBTaGVldFxyXG4gICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnd2luJyBcclxuICAgICAgICAgIFRIRU4gMjAgIC0tIFdpblxyXG4gICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnZHJhdycgQU5EIFxyXG4gICAgICAgICAgICAgICAoKHBtLnRlYW0gPSAnQScgQU5EIG0udGVhbV9iX3Njb3JlID0gMCkgT1IgKHBtLnRlYW0gPSAnQicgQU5EIG0udGVhbV9hX3Njb3JlID0gMCkpXHJcbiAgICAgICAgICBUSEVOIDIwICAtLSBEcmF3ICsgQ2xlYW4gU2hlZXRcclxuICAgICAgICAgIFdIRU4gcG0ucmVzdWx0ID0gJ2RyYXcnIFxyXG4gICAgICAgICAgVEhFTiAxMCAgLS0gRHJhd1xyXG4gICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnbG9zcycgQU5EIHBtLmhlYXZ5X2xvc3MgPSB0cnVlIFxyXG4gICAgICAgICAgVEhFTiAtMjAgLS0gSGVhdnkgTG9zc1xyXG4gICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnbG9zcycgXHJcbiAgICAgICAgICBUSEVOIC0xMCAtLSBMb3NzXHJcbiAgICAgICAgICBFTFNFIDBcclxuICAgICAgICBFTkRcclxuICAgICAgKSBhcyBmYW50YXN5X3BvaW50c1xyXG4gICAgRlJPTSBwbGF5ZXJzIHBcclxuICAgIEpPSU4gcGxheWVyX21hdGNoZXMgcG0gT04gcC5wbGF5ZXJfaWQgPSBwbS5wbGF5ZXJfaWRcclxuICAgIEpPSU4gbWF0Y2hlcyBtIE9OIHBtLm1hdGNoX2lkID0gbS5tYXRjaF9pZFxyXG4gICAgV0hFUkUgbS5tYXRjaF9kYXRlID49ICR7c3RhcnREYXRlfTo6ZGF0ZVxyXG4gICAgQU5EIG0ubWF0Y2hfZGF0ZSA8PSAke2VuZERhdGV9OjpkYXRlXHJcbiAgICBBTkQgcC5pc19yaW5nZXIgPSAnTk8nXHJcbiAgICBHUk9VUCBCWSBwLm5hbWVcclxuICAgIE9SREVSIEJZIGZhbnRhc3lfcG9pbnRzIERFU0NcclxuICBgO1xyXG4gICAgY29uc29sZS5sb2coJ1NlYXNvbiBzdGF0cyBxdWVyeSBjb21wbGV0ZWQnKTtcclxuXHJcbiAgICAvLyBHb2FsIFN0YXRzIFF1ZXJ5IHdpdGggTGFzdCA1IEdhbWVzXHJcbiAgICBjb25zdCBnb2FsU3RhdHMgPSBhd2FpdCBwcmlzbWEuJHF1ZXJ5UmF3YFxyXG4gICAgV0lUSCBwbGF5ZXJfdG90YWxzIEFTIChcclxuICAgICAgU0VMRUNUIFxyXG4gICAgICAgIHAucGxheWVyX2lkLFxyXG4gICAgICAgIHAubmFtZSxcclxuICAgICAgICBTVU0ocG0uZ29hbHMpIGFzIHRvdGFsX2dvYWxzLFxyXG4gICAgICAgIFJPVU5EKENPVU5UKCopICogNjAuMCAvIE5VTExJRihTVU0ocG0uZ29hbHMpLCAwKSkgYXMgbWludXRlc19wZXJfZ29hbFxyXG4gICAgICBGUk9NIHBsYXllcnMgcFxyXG4gICAgICBKT0lOIHBsYXllcl9tYXRjaGVzIHBtIE9OIHAucGxheWVyX2lkID0gcG0ucGxheWVyX2lkXHJcbiAgICAgIEpPSU4gbWF0Y2hlcyBtIE9OIHBtLm1hdGNoX2lkID0gbS5tYXRjaF9pZFxyXG4gICAgICBXSEVSRSBtLm1hdGNoX2RhdGUgPj0gJHtzdGFydERhdGV9OjpkYXRlXHJcbiAgICAgIEFORCBtLm1hdGNoX2RhdGUgPD0gJHtlbmREYXRlfTo6ZGF0ZVxyXG4gICAgICBBTkQgcC5pc19yaW5nZXIgPSAnTk8nXHJcbiAgICAgIEdST1VQIEJZIHAucGxheWVyX2lkLCBwLm5hbWVcclxuICAgICAgSEFWSU5HIFNVTShwbS5nb2FscykgPiAwXHJcbiAgICApLFxyXG4gICAgcmVjZW50X2dhbWVzIEFTIChcclxuICAgICAgU0VMRUNUIFxyXG4gICAgICAgIHAucGxheWVyX2lkLFxyXG4gICAgICAgIHBtLmdvYWxzLFxyXG4gICAgICAgIFJPV19OVU1CRVIoKSBPVkVSIChQQVJUSVRJT04gQlkgcC5wbGF5ZXJfaWQgT1JERVIgQlkgbS5tYXRjaF9kYXRlIEFTQykgYXMgZ2FtZV9udW1iZXJcclxuICAgICAgRlJPTSBwbGF5ZXJzIHBcclxuICAgICAgSk9JTiBwbGF5ZXJfbWF0Y2hlcyBwbSBPTiBwLnBsYXllcl9pZCA9IHBtLnBsYXllcl9pZFxyXG4gICAgICBKT0lOIG1hdGNoZXMgbSBPTiBwbS5tYXRjaF9pZCA9IG0ubWF0Y2hfaWRcclxuICAgICAgV0hFUkUgbS5tYXRjaF9kYXRlID49ICR7c3RhcnREYXRlfTo6ZGF0ZVxyXG4gICAgICBBTkQgbS5tYXRjaF9kYXRlIDw9ICR7ZW5kRGF0ZX06OmRhdGVcclxuICAgICAgQU5EIHAuaXNfcmluZ2VyID0gJ05PJ1xyXG4gICAgKVxyXG4gICAgU0VMRUNUIFxyXG4gICAgICBwdC4qLFxyXG4gICAgICBTVFJJTkdfQUdHKFxyXG4gICAgICAgIENBU0UgXHJcbiAgICAgICAgICBXSEVOIHJnLmdvYWxzID0gMCBUSEVOICcnXHJcbiAgICAgICAgICBFTFNFIHJnLmdvYWxzOjp0ZXh0IFxyXG4gICAgICAgIEVORCxcclxuICAgICAgICAnLCcgT1JERVIgQlkgZ2FtZV9udW1iZXJcclxuICAgICAgKSBhcyBsYXN0X2ZpdmVfZ2FtZXMsXHJcbiAgICAgIE1BWChyZy5nb2FscykgYXMgbWF4X2dvYWxzX2luX2dhbWVcclxuICAgIEZST00gcGxheWVyX3RvdGFscyBwdFxyXG4gICAgTEVGVCBKT0lOIHJlY2VudF9nYW1lcyByZyBPTiBwdC5wbGF5ZXJfaWQgPSByZy5wbGF5ZXJfaWQgQU5EIHJnLmdhbWVfbnVtYmVyIDw9IDVcclxuICAgIEdST1VQIEJZIHB0LnBsYXllcl9pZCwgcHQubmFtZSwgcHQudG90YWxfZ29hbHMsIHB0Lm1pbnV0ZXNfcGVyX2dvYWxcclxuICAgIE9SREVSIEJZIHB0LnRvdGFsX2dvYWxzIERFU0MsIHB0Lm1pbnV0ZXNfcGVyX2dvYWwgQVNDXHJcbiAgYDtcclxuICAgIGNvbnNvbGUubG9nKCdHb2FsIHN0YXRzIHF1ZXJ5IGNvbXBsZXRlZCcpO1xyXG5cclxuICAgIC8vIEZvcm0gRGF0YSBRdWVyeSAoTGFzdCA1IEdhbWVzKVxyXG4gICAgY29uc3QgZm9ybURhdGEgPSBhd2FpdCBwcmlzbWEuJHF1ZXJ5UmF3YFxyXG4gICAgICBXSVRIIHJlY2VudF9nYW1lcyBBUyAoXHJcbiAgICAgICAgU0VMRUNUIFxyXG4gICAgICAgICAgcC5wbGF5ZXJfaWQsXHJcbiAgICAgICAgICBwLm5hbWUsXHJcbiAgICAgICAgICBtLm1hdGNoX2RhdGUsXHJcbiAgICAgICAgICBDQVNFIFxyXG4gICAgICAgICAgICBXSEVOIHBtLnJlc3VsdCA9ICd3aW4nIEFORCBwbS5oZWF2eV93aW4gPSB0cnVlIFRIRU4gJ0hXJ1xyXG4gICAgICAgICAgICBXSEVOIHBtLnJlc3VsdCA9ICd3aW4nIFRIRU4gJ1cnXHJcbiAgICAgICAgICAgIFdIRU4gcG0ucmVzdWx0ID0gJ2xvc3MnIEFORCBwbS5oZWF2eV9sb3NzID0gdHJ1ZSBUSEVOICdITCdcclxuICAgICAgICAgICAgV0hFTiBwbS5yZXN1bHQgPSAnbG9zcycgVEhFTiAnTCdcclxuICAgICAgICAgICAgRUxTRSAnRCdcclxuICAgICAgICAgIEVORCBhcyByZXN1bHQsXHJcbiAgICAgICAgICBST1dfTlVNQkVSKCkgT1ZFUiAoUEFSVElUSU9OIEJZIHAucGxheWVyX2lkIE9SREVSIEJZIG0ubWF0Y2hfZGF0ZSBBU0MpIGFzIGdhbWVfbnVtYmVyXHJcbiAgICAgICAgRlJPTSBwbGF5ZXJzIHBcclxuICAgICAgICBKT0lOIHBsYXllcl9tYXRjaGVzIHBtIE9OIHAucGxheWVyX2lkID0gcG0ucGxheWVyX2lkXHJcbiAgICAgICAgSk9JTiBtYXRjaGVzIG0gT04gcG0ubWF0Y2hfaWQgPSBtLm1hdGNoX2lkXHJcbiAgICAgICAgV0hFUkUgbS5tYXRjaF9kYXRlID49ICR7c3RhcnREYXRlfTo6ZGF0ZVxyXG4gICAgICAgIEFORCBtLm1hdGNoX2RhdGUgPD0gJHtlbmREYXRlfTo6ZGF0ZVxyXG4gICAgICAgIEFORCBwLmlzX3JpbmdlciA9ICdOTydcclxuICAgICAgKVxyXG4gICAgICBTRUxFQ1QgXHJcbiAgICAgICAgbmFtZSxcclxuICAgICAgICBTVFJJTkdfQUdHKHJlc3VsdCwgJywgJyBPUkRFUiBCWSBnYW1lX251bWJlcikgYXMgbGFzdF81X2dhbWVzXHJcbiAgICAgIEZST00gcmVjZW50X2dhbWVzXHJcbiAgICAgIFdIRVJFIGdhbWVfbnVtYmVyIDw9IDVcclxuICAgICAgR1JPVVAgQlkgcGxheWVyX2lkLCBuYW1lXHJcbiAgICAgIE9SREVSIEJZIG5hbWVcclxuICAgIGA7XHJcbiAgICBjb25zb2xlLmxvZygnRm9ybSBkYXRhIHF1ZXJ5IGNvbXBsZXRlZCcpO1xyXG5cclxuICAgIGNvbnN0IHJlc3BvbnNlRGF0YSA9IHtcclxuICAgICAgZGF0YToge1xyXG4gICAgICAgIHNlYXNvblN0YXRzOiBzZXJpYWxpemVEYXRhKHNlYXNvblN0YXRzKSxcclxuICAgICAgICBnb2FsU3RhdHM6IHNlcmlhbGl6ZURhdGEoZ29hbFN0YXRzKSxcclxuICAgICAgICBmb3JtRGF0YTogc2VyaWFsaXplRGF0YShmb3JtRGF0YSlcclxuICAgICAgfVxyXG4gICAgfTtcclxuICAgIGNvbnNvbGUubG9nKCdBYm91dCB0byBzZW5kIHJlc3BvbnNlOicsIHJlc3BvbnNlRGF0YSk7XHJcblxyXG4gICAgcmV0dXJuIE5leHRSZXNwb25zZS5qc29uKHJlc3BvbnNlRGF0YSk7XHJcblxyXG4gIH0gY2F0Y2ggKGVycm9yKSB7XHJcbiAgICBjb25zb2xlLmVycm9yKCdEZXRhaWxlZCBlcnJvcjonLCB7XHJcbiAgICAgIG1lc3NhZ2U6IGVycm9yLm1lc3NhZ2UsXHJcbiAgICAgIHN0YWNrOiBlcnJvci5zdGFjayxcclxuICAgICAgbmFtZTogZXJyb3IubmFtZVxyXG4gICAgfSk7XHJcbiAgICByZXR1cm4gTmV4dFJlc3BvbnNlLmpzb24oXHJcbiAgICAgIHsgZXJyb3I6ICdGYWlsZWQgdG8gZmV0Y2ggc3RhdHMnLCBkZXRhaWxzOiBlcnJvciBpbnN0YW5jZW9mIEVycm9yID8gZXJyb3IubWVzc2FnZSA6ICdVbmtub3duIGVycm9yJyB9LFxyXG4gICAgICB7IHN0YXR1czogNTAwIH1cclxuICAgICk7XHJcbiAgfVxyXG59Il0sIm5hbWVzIjpbIk5leHRSZXNwb25zZSIsInByaXNtYSIsInNlcmlhbGl6ZURhdGEiLCJkYXRhIiwiSlNPTiIsInBhcnNlIiwic3RyaW5naWZ5IiwiXyIsInZhbHVlIiwiTnVtYmVyIiwiUE9TVCIsInJlcXVlc3QiLCJjb25zb2xlIiwibG9nIiwiYm9keSIsImpzb24iLCJzdGFydERhdGUiLCJlbmREYXRlIiwiZXJyb3IiLCJzdGF0dXMiLCJzZWFzb25TdGF0cyIsIiRxdWVyeVJhdyIsImdvYWxTdGF0cyIsImZvcm1EYXRhIiwicmVzcG9uc2VEYXRhIiwibWVzc2FnZSIsInN0YWNrIiwibmFtZSIsImRldGFpbHMiLCJFcnJvciJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///(rsc)/./src/app/api/stats/route.ts\n");
-
-/***/ }),
-
-/***/ "(rsc)/./src/lib/prisma.ts":
-/*!***************************!*\
-  !*** ./src/lib/prisma.ts ***!
-  \***************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   prisma: () => (/* binding */ prisma)\n/* harmony export */ });\n/* harmony import */ var _prisma_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @prisma/client */ \"@prisma/client\");\n/* harmony import */ var _prisma_client__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_prisma_client__WEBPACK_IMPORTED_MODULE_0__);\n\nconst globalForPrisma = global;\nconst prisma = globalForPrisma.prisma || new _prisma_client__WEBPACK_IMPORTED_MODULE_0__.PrismaClient({\n    log: [\n        'query'\n    ]\n});\nif (true) globalForPrisma.prisma = prisma;\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9zcmMvbGliL3ByaXNtYS50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7QUFBNkM7QUFFN0MsTUFBTUMsa0JBQWtCQztBQUVqQixNQUFNQyxTQUNYRixnQkFBZ0JFLE1BQU0sSUFDdEIsSUFBSUgsd0RBQVlBLENBQUM7SUFDZkksS0FBSztRQUFDO0tBQVE7QUFDaEIsR0FBRTtBQUVKLElBQUlDLElBQXFDLEVBQUVKLGdCQUFnQkUsTUFBTSxHQUFHQSIsInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxJYW5cXEJlcmtvVE5GXFxzcmNcXGxpYlxccHJpc21hLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFByaXNtYUNsaWVudCB9IGZyb20gJ0BwcmlzbWEvY2xpZW50J1xyXG5cclxuY29uc3QgZ2xvYmFsRm9yUHJpc21hID0gZ2xvYmFsIGFzIHVua25vd24gYXMgeyBwcmlzbWE6IFByaXNtYUNsaWVudCB9XHJcblxyXG5leHBvcnQgY29uc3QgcHJpc21hID1cclxuICBnbG9iYWxGb3JQcmlzbWEucHJpc21hIHx8XHJcbiAgbmV3IFByaXNtYUNsaWVudCh7XHJcbiAgICBsb2c6IFsncXVlcnknXSxcclxuICB9KVxyXG5cclxuaWYgKHByb2Nlc3MuZW52Lk5PREVfRU5WICE9PSAncHJvZHVjdGlvbicpIGdsb2JhbEZvclByaXNtYS5wcmlzbWEgPSBwcmlzbWEiXSwibmFtZXMiOlsiUHJpc21hQ2xpZW50IiwiZ2xvYmFsRm9yUHJpc21hIiwiZ2xvYmFsIiwicHJpc21hIiwibG9nIiwicHJvY2VzcyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///(rsc)/./src/lib/prisma.ts\n");
-
-/***/ })
-
-};
-;
-
-// load runtime
-var __webpack_require__ = require("../../../webpack-runtime.js");
-__webpack_require__.C(exports);
-var __webpack_exec__ = (moduleId) => (__webpack_require__(__webpack_require__.s = moduleId))
-var __webpack_exports__ = __webpack_require__.X(0, ["vendor-chunks/next"], () => (__webpack_exec__("(rsc)/./node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fapi%2Fstats%2Froute&page=%2Fapi%2Fstats%2Froute&appPaths=&pagePath=private-next-app-dir%2Fapi%2Fstats%2Froute.ts&appDir=C%3A%5CUsers%5CIan%5CBerkoTNF%5Csrc%5Capp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=C%3A%5CUsers%5CIan%5CBerkoTNF&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D!")));
-module.exports = __webpack_exports__;
-
-})();
+(()=>{var e={};e.id=967,e.ids=[967],e.modules={846:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},4870:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},3295:e=>{"use strict";e.exports=require("next/dist/server/app-render/after-task-async-storage.external.js")},9294:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-async-storage.external.js")},3033:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-unit-async-storage.external.js")},2702:(e,a,t)=>{"use strict";t.r(a),t.d(a,{patchFetch:()=>u,routeModule:()=>N,serverHooks:()=>d,workAsyncStorage:()=>_,workUnitAsyncStorage:()=>E});var s={};t.r(s),t.d(s,{POST:()=>i});var r=t(2706),m=t(8203),p=t(5994),o=t(9187),l=t(5600);let n=e=>JSON.parse(JSON.stringify(e,(e,a)=>"bigint"==typeof a?Number(a):a));async function i(e){console.log("API route hit");try{let a=await e.json();if(console.log("Received request body:",a),!a||!a.startDate||!a.endDate)return console.error("Invalid request body:",a),o.NextResponse.json({error:"Invalid request body - missing dates"},{status:400});let{startDate:t,endDate:s}=a;console.log("About to execute queries with dates:",t,s);let r=await l.z.$queryRaw`
+    SELECT 
+      p.name,
+      COUNT(*) as games_played,
+      COUNT(CASE WHEN pm.result = 'win' THEN 1 END) as wins,
+      COUNT(CASE WHEN pm.result = 'draw' THEN 1 END) as draws,
+      SUM(pm.goals) as goals,
+      COUNT(CASE WHEN pm.heavy_win = true THEN 1 END) as heavy_wins,
+      COUNT(CASE WHEN pm.heavy_loss = true THEN 1 END) as heavy_losses,
+      COUNT(CASE 
+        WHEN (pm.team = 'A' AND m.team_b_score = 0) OR 
+             (pm.team = 'B' AND m.team_a_score = 0) 
+        THEN 1 
+      END) as clean_sheets,
+      CAST(
+        (COUNT(CASE WHEN pm.result = 'win' THEN 1 END)::float * 100 / NULLIF(COUNT(*), 0)) 
+        AS DECIMAL(5,1)
+      ) as win_percentage,
+      SUM(
+        CASE 
+          WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+               ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+          THEN 40  -- Heavy Win + Clean Sheet
+          WHEN pm.result = 'win' AND pm.heavy_win = true 
+          THEN 30  -- Heavy Win
+          WHEN pm.result = 'win' AND 
+               ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+          THEN 30  -- Win + Clean Sheet
+          WHEN pm.result = 'win' 
+          THEN 20  -- Win
+          WHEN pm.result = 'draw' AND 
+               ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+          THEN 20  -- Draw + Clean Sheet
+          WHEN pm.result = 'draw' 
+          THEN 10  -- Draw
+          WHEN pm.result = 'loss' AND pm.heavy_loss = true 
+          THEN -20 -- Heavy Loss
+          WHEN pm.result = 'loss' 
+          THEN -10 -- Loss
+          ELSE 0
+        END
+      ) as fantasy_points
+    FROM players p
+    JOIN player_matches pm ON p.player_id = pm.player_id
+    JOIN matches m ON pm.match_id = m.match_id
+    WHERE m.match_date >= ${t}::date
+    AND m.match_date <= ${s}::date
+    AND p.is_ringer = 'NO'
+    GROUP BY p.name
+    ORDER BY fantasy_points DESC
+  `;console.log("Season stats query completed");let m=await l.z.$queryRaw`
+    WITH player_totals AS (
+      SELECT 
+        p.player_id,
+        p.name,
+        SUM(pm.goals) as total_goals,
+        ROUND(COUNT(*) * 60.0 / NULLIF(SUM(pm.goals), 0)) as minutes_per_goal
+      FROM players p
+      JOIN player_matches pm ON p.player_id = pm.player_id
+      JOIN matches m ON pm.match_id = m.match_id
+      WHERE m.match_date >= ${t}::date
+      AND m.match_date <= ${s}::date
+      AND p.is_ringer = 'NO'
+      GROUP BY p.player_id, p.name
+      HAVING SUM(pm.goals) > 0
+    ),
+    recent_games AS (
+      SELECT 
+        p.player_id,
+        pm.goals,
+        ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as game_number
+      FROM players p
+      JOIN player_matches pm ON p.player_id = pm.player_id
+      JOIN matches m ON pm.match_id = m.match_id
+      WHERE m.match_date >= ${t}::date
+      AND m.match_date <= ${s}::date
+      AND p.is_ringer = 'NO'
+    )
+    SELECT 
+      pt.*,
+      STRING_AGG(
+        CASE 
+          WHEN rg.goals = 0 THEN ''
+          ELSE rg.goals::text 
+        END,
+        ',' ORDER BY game_number
+      ) as last_five_games,
+      MAX(rg.goals) as max_goals_in_game
+    FROM player_totals pt
+    LEFT JOIN recent_games rg ON pt.player_id = rg.player_id AND rg.game_number <= 5
+    GROUP BY pt.player_id, pt.name, pt.total_goals, pt.minutes_per_goal
+    ORDER BY pt.total_goals DESC, pt.minutes_per_goal ASC
+  `;console.log("Goal stats query completed");let p=await l.z.$queryRaw`
+      WITH recent_games AS (
+        SELECT 
+          p.player_id,
+          p.name,
+          m.match_date,
+          CASE 
+            WHEN pm.result = 'win' AND pm.heavy_win = true THEN 'HW'
+            WHEN pm.result = 'win' THEN 'W'
+            WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN 'HL'
+            WHEN pm.result = 'loss' THEN 'L'
+            ELSE 'D'
+          END as result,
+          ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as game_number
+        FROM players p
+        JOIN player_matches pm ON p.player_id = pm.player_id
+        JOIN matches m ON pm.match_id = m.match_id
+        WHERE m.match_date >= ${t}::date
+        AND m.match_date <= ${s}::date
+        AND p.is_ringer = 'NO'
+      )
+      SELECT 
+        name,
+        STRING_AGG(result, ', ' ORDER BY game_number) as last_5_games
+      FROM recent_games
+      WHERE game_number <= 5
+      GROUP BY player_id, name
+      ORDER BY name
+    `;console.log("Form data query completed");let i={data:{seasonStats:n(r),goalStats:n(m),formData:n(p)}};return console.log("About to send response:",i),o.NextResponse.json(i)}catch(e){return console.error("Detailed error:",{message:e.message,stack:e.stack,name:e.name}),o.NextResponse.json({error:"Failed to fetch stats",details:e instanceof Error?e.message:"Unknown error"},{status:500})}}let N=new r.AppRouteRouteModule({definition:{kind:m.RouteKind.APP_ROUTE,page:"/api/stats/route",pathname:"/api/stats",filename:"route",bundlePath:"app/api/stats/route"},resolvedPagePath:"C:\\Users\\Ian\\BerkoTNF\\src\\app\\api\\stats\\route.ts",nextConfigOutput:"",userland:s}),{workAsyncStorage:_,workUnitAsyncStorage:E,serverHooks:d}=N;function u(){return(0,p.patchFetch)({workAsyncStorage:_,workUnitAsyncStorage:E})}},6487:()=>{},8335:()=>{},5600:(e,a,t)=>{"use strict";t.d(a,{z:()=>r});let s=require("@prisma/client"),r=global.prisma||new s.PrismaClient({log:["query"]})}};var a=require("../../../webpack-runtime.js");a.C(e);var t=e=>a(a.s=e),s=a.X(0,[638,452],()=>t(2702));module.exports=s})();
