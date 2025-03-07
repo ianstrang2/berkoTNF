@@ -79,10 +79,10 @@ const OverallSeasonPerformance = () => {
       <div>
         <h3 className="text-xl font-semibold mb-4">Points Leaderboard</h3>
         <div className="table-responsive">
-          <table className="table table-hover">
+          <table className="table table-striped table-hover">
             <thead className="bg-dark text-white">
               <tr>
-                <th style={{ minWidth: '150px' }}>Player</th>
+                <th style={{ minWidth: '150px', whiteSpace: 'nowrap' }}>Player</th>
                 <th style={{ width: '50px', textAlign: 'center' }}>P</th>
                 <th style={{ width: '50px', textAlign: 'center' }}>W</th>
                 <th style={{ width: '50px', textAlign: 'center' }}>D</th>
@@ -101,23 +101,23 @@ const OverallSeasonPerformance = () => {
                 
                 return (
                   <tr key={index}>
-                    <td className="font-medium">{player.name}</td>
+                    <td style={{ whiteSpace: 'nowrap' }} className="font-medium">{player.name}</td>
                     <td className="text-center">{player.games_played}</td>
-                    <td className={`text-center ${getGreenColor(player.wins, maxWins)}`}>
+                    <td className={`text-center ${player.wins > maxWins * 0.6 ? 'table-success' : ''}`}>
                       {player.wins}
                     </td>
                     <td className="text-center">{player.draws}</td>
-                    <td className={`text-center ${getRedColor(losses, maxLosses)}`}>
+                    <td className={`text-center ${losses > maxLosses * 0.6 ? 'table-danger' : ''}`}>
                       {losses}
                     </td>
                     <td className="text-center">{player.goals}</td>
-                    <td className={`text-center ${getGreenColor(player.heavy_wins, maxHeavyWins)}`}>
+                    <td className={`text-center ${player.heavy_wins > maxHeavyWins * 0.6 ? 'table-success' : ''}`}>
                       {player.heavy_wins}
                     </td>
-                    <td className={`text-center ${getRedColor(player.heavy_losses, maxHeavyLosses)}`}>
+                    <td className={`text-center ${player.heavy_losses > maxHeavyLosses * 0.6 ? 'table-danger' : ''}`}>
                       {player.heavy_losses}
                     </td>
-                    <td className={`text-center ${getGreenColor(player.clean_sheets, maxCleanSheets)}`}>
+                    <td className={`text-center ${player.clean_sheets > maxCleanSheets * 0.6 ? 'table-success' : ''}`}>
                       {player.clean_sheets}
                     </td>
                     <td className="text-center">{player.win_percentage}%</td>
@@ -136,10 +136,10 @@ const OverallSeasonPerformance = () => {
     <div>
       <h3 className="text-xl font-semibold mb-4">Goalscoring Leaderboard</h3>
       <div className="table-responsive">
-        <table className="table table-hover">
+        <table className="table table-striped table-hover">
           <thead className="bg-dark text-white">
             <tr>
-              <th style={{ minWidth: '150px' }}>Player</th>
+              <th style={{ minWidth: '150px', whiteSpace: 'nowrap' }}>Player</th>
               <th style={{ width: '70px', textAlign: 'center' }}>Goals</th>
               <th style={{ width: '70px', textAlign: 'center' }}>MPG</th>
             </tr>
@@ -147,16 +147,14 @@ const OverallSeasonPerformance = () => {
           <tbody>
             {stats.goalStats.map((player, index) => (
               <tr key={index}>
-                <td className="font-medium">{player.name}</td>
+                <td style={{ whiteSpace: 'nowrap' }} className="font-medium">{player.name}</td>
                 <td className="text-center">{player.total_goals}</td>
-                <td 
-                  className={`text-center ${
-                    player.minutes_per_goal <= 60 ? 'bg-green-600' :
-                    player.minutes_per_goal <= 90 ? 'bg-green-500' :
-                    player.minutes_per_goal <= 120 ? 'bg-green-300' :
-                    ''
-                  }`}
-                >
+                <td className={`text-center ${
+                  player.minutes_per_goal <= 60 ? 'table-success' :
+                  player.minutes_per_goal <= 90 ? 'table-success' :
+                  player.minutes_per_goal <= 120 ? 'table-success' :
+                  ''
+                }`}>
                   {player.minutes_per_goal}
                 </td>
               </tr>
