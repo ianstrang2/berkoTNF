@@ -1,12 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table/table";
 import { 
   Tabs, 
   TabsContent, 
@@ -86,54 +78,56 @@ const OverallSeasonPerformance = () => {
     return (
       <div>
         <h3 className="text-xl font-semibold mb-4">Points Leaderboard</h3>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Player</TableHead>
-              <TableHead className="text-center">P</TableHead>
-              <TableHead className="text-center">W</TableHead>
-              <TableHead className="text-center">D</TableHead>
-              <TableHead className="text-center">L</TableHead>
-              <TableHead className="text-center">Goals</TableHead>
-              <TableHead className="text-center">Heavy W</TableHead>
-              <TableHead className="text-center">Heavy L</TableHead>
-              <TableHead className="text-center">Clean Sheet</TableHead>
-              <TableHead className="text-center">Win %</TableHead>
-              <TableHead className="text-center">Points</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {stats.seasonStats.map((player, index) => {
-              const losses = player.games_played - player.wins - player.draws;
-              
-              return (
-                <TableRow key={index} className="hover:bg-gray-50">
-                  <TableCell className="font-medium">{player.name}</TableCell>
-                  <TableCell className="text-center">{player.games_played}</TableCell>
-                  <TableCell className={`text-center ${getGreenColor(player.wins, maxWins)}`}>
-                    {player.wins}
-                  </TableCell>
-                  <TableCell className="text-center">{player.draws}</TableCell>
-                  <TableCell className={`text-center ${getRedColor(losses, maxLosses)}`}>
-                    {losses}
-                  </TableCell>
-                  <TableCell className="text-center">{player.goals}</TableCell>
-                  <TableCell className={`text-center ${getGreenColor(player.heavy_wins, maxHeavyWins)}`}>
-                    {player.heavy_wins}
-                  </TableCell>
-                  <TableCell className={`text-center ${getRedColor(player.heavy_losses, maxHeavyLosses)}`}>
-                    {player.heavy_losses}
-                  </TableCell>
-                  <TableCell className={`text-center ${getGreenColor(player.clean_sheets, maxCleanSheets)}`}>
-                    {player.clean_sheets}
-                  </TableCell>
-                  <TableCell className="text-center">{player.win_percentage}%</TableCell>
-                  <TableCell className="text-center font-bold">{player.fantasy_points}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <div className="table-responsive">
+          <table className="table table-hover">
+            <thead className="bg-dark text-white">
+              <tr>
+                <th style={{ minWidth: '150px' }}>Player</th>
+                <th style={{ width: '50px', textAlign: 'center' }}>P</th>
+                <th style={{ width: '50px', textAlign: 'center' }}>W</th>
+                <th style={{ width: '50px', textAlign: 'center' }}>D</th>
+                <th style={{ width: '50px', textAlign: 'center' }}>L</th>
+                <th style={{ width: '70px', textAlign: 'center' }}>Goals</th>
+                <th style={{ width: '80px', textAlign: 'center' }}>Heavy W</th>
+                <th style={{ width: '80px', textAlign: 'center' }}>Heavy L</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>Clean Sheet</th>
+                <th style={{ width: '80px', textAlign: 'center' }}>Win %</th>
+                <th style={{ width: '70px', textAlign: 'center' }}>Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.seasonStats.map((player, index) => {
+                const losses = player.games_played - player.wins - player.draws;
+                
+                return (
+                  <tr key={index}>
+                    <td className="font-medium">{player.name}</td>
+                    <td className="text-center">{player.games_played}</td>
+                    <td className={`text-center ${getGreenColor(player.wins, maxWins)}`}>
+                      {player.wins}
+                    </td>
+                    <td className="text-center">{player.draws}</td>
+                    <td className={`text-center ${getRedColor(losses, maxLosses)}`}>
+                      {losses}
+                    </td>
+                    <td className="text-center">{player.goals}</td>
+                    <td className={`text-center ${getGreenColor(player.heavy_wins, maxHeavyWins)}`}>
+                      {player.heavy_wins}
+                    </td>
+                    <td className={`text-center ${getRedColor(player.heavy_losses, maxHeavyLosses)}`}>
+                      {player.heavy_losses}
+                    </td>
+                    <td className={`text-center ${getGreenColor(player.clean_sheets, maxCleanSheets)}`}>
+                      {player.clean_sheets}
+                    </td>
+                    <td className="text-center">{player.win_percentage}%</td>
+                    <td className="text-center font-bold">{player.fantasy_points}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   };
@@ -141,33 +135,35 @@ const OverallSeasonPerformance = () => {
   const renderGoalStats = () => (
     <div>
       <h3 className="text-xl font-semibold mb-4">Goalscoring Leaderboard</h3>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Player</TableHead>
-            <TableHead className="text-center">Goals</TableHead>
-            <TableHead className="text-center">MPG</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {stats.goalStats.map((player, index) => (
-            <TableRow key={index} className="hover:bg-gray-50">
-              <TableCell className="font-medium">{player.name}</TableCell>
-              <TableCell className="text-center">{player.total_goals}</TableCell>
-              <TableCell 
-                className={`text-center ${
-                  player.minutes_per_goal <= 60 ? 'bg-green-600' :
-                  player.minutes_per_goal <= 90 ? 'bg-green-500' :
-                  player.minutes_per_goal <= 120 ? 'bg-green-300' :
-                  ''
-                }`}
-              >
-                {player.minutes_per_goal}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <div className="table-responsive">
+        <table className="table table-hover">
+          <thead className="bg-dark text-white">
+            <tr>
+              <th style={{ minWidth: '150px' }}>Player</th>
+              <th style={{ width: '70px', textAlign: 'center' }}>Goals</th>
+              <th style={{ width: '70px', textAlign: 'center' }}>MPG</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.goalStats.map((player, index) => (
+              <tr key={index}>
+                <td className="font-medium">{player.name}</td>
+                <td className="text-center">{player.total_goals}</td>
+                <td 
+                  className={`text-center ${
+                    player.minutes_per_goal <= 60 ? 'bg-green-600' :
+                    player.minutes_per_goal <= 90 ? 'bg-green-500' :
+                    player.minutes_per_goal <= 120 ? 'bg-green-300' :
+                    ''
+                  }`}
+                >
+                  {player.minutes_per_goal}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 
