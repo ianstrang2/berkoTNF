@@ -1,27 +1,21 @@
 {
-  "..\\node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
-    "id": 35203,
+  "app\\bootstrap.js -> bootstrap/dist/js/bootstrap.bundle.min.js": {
+    "id": 8451,
     "files": [
-      "static/chunks/203.215f7ebb412294c3.js"
-    ]
-  },
-  "..\\node_modules\\next\\dist\\client\\index.js -> ../pages/_error": {
-    "id": 86218,
-    "files": [
-      "static/chunks/218.ee5bb437b51df9be.js"
+      "static/chunks/451.a3d287a9ec74bc0a.js"
     ]
   },
   "components\\admin\\AdminPanel.js -> @/components/admin/MatchManager": {
-    "id": 89505,
+    "id": 9165,
     "files": [
-      "static/chunks/253.6798f8b01735dde3.js",
-      "static/chunks/505.1ca8197dca1222bb.js"
+      "static/chunks/424.0d73deaa22dbb32b.js",
+      "static/chunks/288.01c13ee6e3f0aaec.js"
     ]
   },
   "components\\admin\\AdminPanel.js -> @/components/admin/PlayerManager": {
-    "id": 76771,
+    "id": 1972,
     "files": [
-      "static/chunks/771.7c69002c3d484305.js"
+      "static/chunks/972.8b573b1c4d42229d.js"
     ]
   }
 }

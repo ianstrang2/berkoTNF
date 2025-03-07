@@ -62,7 +62,7 @@ const CurrentHalfSeason = () => {
         setLoading(false);
       }
     };
-
+git 
     fetchData();
   }, []);
 

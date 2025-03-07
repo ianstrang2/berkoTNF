@@ -24,7 +24,7 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-light`}
       >
-        <BootstrapLoader /> {/* 👈 Load Bootstrap JS only on client */}
+        <BootstrapLoader />
         <nav className="navbar navbar-expand-lg navbar-dark bg-dark p-3">
           <div className="container-fluid">
             <a className="navbar-brand" href="#">My App</a>

@@ -1,4 +1,4 @@
-(()=>{var e={};e.id=967,e.ids=[967],e.modules={846:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},4870:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},3295:e=>{"use strict";e.exports=require("next/dist/server/app-render/after-task-async-storage.external.js")},9294:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-async-storage.external.js")},3033:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-unit-async-storage.external.js")},2702:(e,a,t)=>{"use strict";t.r(a),t.d(a,{patchFetch:()=>u,routeModule:()=>N,serverHooks:()=>d,workAsyncStorage:()=>_,workUnitAsyncStorage:()=>E});var s={};t.r(s),t.d(s,{POST:()=>i});var r=t(2706),m=t(8203),p=t(5994),o=t(9187),l=t(5600);let n=e=>JSON.parse(JSON.stringify(e,(e,a)=>"bigint"==typeof a?Number(a):a));async function i(e){console.log("API route hit");try{let a=await e.json();if(console.log("Received request body:",a),!a||!a.startDate||!a.endDate)return console.error("Invalid request body:",a),o.NextResponse.json({error:"Invalid request body - missing dates"},{status:400});let{startDate:t,endDate:s}=a;console.log("About to execute queries with dates:",t,s);let r=await l.z.$queryRaw`
+"use strict";(()=>{var e={};e.id=961,e.ids=[961],e.modules={399:e=>{e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},517:e=>{e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},9895:(e,a,t)=>{t.r(a),t.d(a,{originalPathname:()=>u,patchFetch:()=>c,requestAsyncStorage:()=>_,routeModule:()=>i,serverHooks:()=>d,staticGenerationAsyncStorage:()=>E});var s={};t.r(s),t.d(s,{POST:()=>N});var r=t(9303),m=t(8716),p=t(670),o=t(7070),l=t(728);let n=e=>JSON.parse(JSON.stringify(e,(e,a)=>"bigint"==typeof a?Number(a):a));async function N(e){console.log("API route hit");try{let a=await e.json();if(console.log("Received request body:",a),!a||!a.startDate||!a.endDate)return console.error("Invalid request body:",a),o.NextResponse.json({error:"Invalid request body - missing dates"},{status:400});let{startDate:t,endDate:s}=a;console.log("About to execute queries with dates:",t,s);let r=await l._.$queryRaw`
     SELECT 
       p.name,
       COUNT(*) as games_played,
@@ -48,7 +48,7 @@
     AND p.is_ringer = 'NO'
     GROUP BY p.name
     ORDER BY fantasy_points DESC
-  `;console.log("Season stats query completed");let m=await l.z.$queryRaw`
+  `;console.log("Season stats query completed");let m=await l._.$queryRaw`
     WITH player_totals AS (
       SELECT 
         p.player_id,
@@ -90,7 +90,7 @@
     LEFT JOIN recent_games rg ON pt.player_id = rg.player_id AND rg.game_number <= 5
     GROUP BY pt.player_id, pt.name, pt.total_goals, pt.minutes_per_goal
     ORDER BY pt.total_goals DESC, pt.minutes_per_goal ASC
-  `;console.log("Goal stats query completed");let p=await l.z.$queryRaw`
+  `;console.log("Goal stats query completed");let p=await l._.$queryRaw`
       WITH recent_games AS (
         SELECT 
           p.player_id,
@@ -118,4 +118,4 @@
       WHERE game_number <= 5
       GROUP BY player_id, name
       ORDER BY name
-    `;console.log("Form data query completed");let i={data:{seasonStats:n(r),goalStats:n(m),formData:n(p)}};return console.log("About to send response:",i),o.NextResponse.json(i)}catch(e){return console.error("Detailed error:",{message:e.message,stack:e.stack,name:e.name}),o.NextResponse.json({error:"Failed to fetch stats",details:e instanceof Error?e.message:"Unknown error"},{status:500})}}let N=new r.AppRouteRouteModule({definition:{kind:m.RouteKind.APP_ROUTE,page:"/api/stats/route",pathname:"/api/stats",filename:"route",bundlePath:"app/api/stats/route"},resolvedPagePath:"C:\\Users\\Ian\\BerkoTNF\\src\\app\\api\\stats\\route.ts",nextConfigOutput:"",userland:s}),{workAsyncStorage:_,workUnitAsyncStorage:E,serverHooks:d}=N;function u(){return(0,p.patchFetch)({workAsyncStorage:_,workUnitAsyncStorage:E})}},6487:()=>{},8335:()=>{},5600:(e,a,t)=>{"use strict";t.d(a,{z:()=>r});let s=require("@prisma/client"),r=global.prisma||new s.PrismaClient({log:["query"]})}};var a=require("../../../webpack-runtime.js");a.C(e);var t=e=>a(a.s=e),s=a.X(0,[638,452],()=>t(2702));module.exports=s})();
+    `;console.log("Form data query completed");let N={data:{seasonStats:n(r),goalStats:n(m),formData:n(p)}};return console.log("About to send response:",N),o.NextResponse.json(N)}catch(e){return console.error("Detailed error:",{message:e.message,stack:e.stack,name:e.name}),o.NextResponse.json({error:"Failed to fetch stats",details:e instanceof Error?e.message:"Unknown error"},{status:500})}}let i=new r.AppRouteRouteModule({definition:{kind:m.x.APP_ROUTE,page:"/api/stats/route",pathname:"/api/stats",filename:"route",bundlePath:"app/api/stats/route"},resolvedPagePath:"C:\\Users\\Ian\\BerkoTNF\\src\\app\\api\\stats\\route.ts",nextConfigOutput:"",userland:s}),{requestAsyncStorage:_,staticGenerationAsyncStorage:E,serverHooks:d}=i,u="/api/stats/route";function c(){return(0,p.patchFetch)({serverHooks:d,staticGenerationAsyncStorage:E})}},728:(e,a,t)=>{t.d(a,{_:()=>r});let s=require("@prisma/client"),r=global.prisma||new s.PrismaClient({log:["query"]})}};var a=require("../../../webpack-runtime.js");a.C(e);var t=e=>a(a.s=e),s=a.X(0,[948,972],()=>t(9895));module.exports=s})();

@@ -1,4 +1,4 @@
-(()=>{var e={};e.id=404,e.ids=[404],e.modules={846:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},4870:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},3295:e=>{"use strict";e.exports=require("next/dist/server/app-render/after-task-async-storage.external.js")},9294:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-async-storage.external.js")},3033:e=>{"use strict";e.exports=require("next/dist/server/app-render/work-unit-async-storage.external.js")},5490:(e,a,s)=>{"use strict";s.r(a),s.d(a,{patchFetch:()=>i,routeModule:()=>R,serverHooks:()=>d,workAsyncStorage:()=>l,workUnitAsyncStorage:()=>c});var t={};s.r(t),s.d(t,{GET:()=>p});var r=s(2706),m=s(8203),E=s(5994),n=s(9187),_=s(5600);let o=e=>JSON.parse(JSON.stringify(e,(e,a)=>"bigint"==typeof a?Number(a):a));async function p(){try{console.log("Starting honour roll data fetch...");let e=await _.z.$queryRaw`
+"use strict";(()=>{var e={};e.id=781,e.ids=[781],e.modules={399:e=>{e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},517:e=>{e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},5156:(e,a,s)=>{s.r(a),s.d(a,{originalPathname:()=>i,patchFetch:()=>O,requestAsyncStorage:()=>l,routeModule:()=>R,serverHooks:()=>d,staticGenerationAsyncStorage:()=>c});var t={};s.r(t),s.d(t,{GET:()=>p});var r=s(9303),m=s(8716),E=s(670),n=s(7070),_=s(728);let o=e=>JSON.parse(JSON.stringify(e,(e,a)=>"bigint"==typeof a?Number(a):a));async function p(){try{console.log("Starting honour roll data fetch...");let e=await _._.$queryRaw`
       WITH yearly_stats AS (
         SELECT 
           p.name,
@@ -42,7 +42,7 @@
         ) as winners
       FROM yearly_stats ys1
       GROUP BY year
-      ORDER BY year DESC`,a=await _.z.$queryRaw`
+      ORDER BY year DESC`,a=await _._.$queryRaw`
       WITH season_goals AS (
         SELECT 
           p.name,
@@ -73,7 +73,7 @@
         ) as scorers
       FROM season_goals sg1
       GROUP BY year
-      ORDER BY year DESC`,s=await _.z.$queryRaw`
+      ORDER BY year DESC`,s=await _._.$queryRaw`
       WITH 
         game_goals AS (
           SELECT 
@@ -277,4 +277,4 @@
               )
             )
           )
-        ) as records`,t={data:{seasonWinners:o(e),topScorers:o(a),records:o(s)}};return n.NextResponse.json(t)}catch(e){return console.error("Database Error:",e),n.NextResponse.json({error:"Failed to fetch honour roll data",details:e},{status:500})}}let R=new r.AppRouteRouteModule({definition:{kind:m.RouteKind.APP_ROUTE,page:"/api/honourroll/route",pathname:"/api/honourroll",filename:"route",bundlePath:"app/api/honourroll/route"},resolvedPagePath:"C:\\Users\\Ian\\BerkoTNF\\src\\app\\api\\honourroll\\route.ts",nextConfigOutput:"",userland:t}),{workAsyncStorage:l,workUnitAsyncStorage:c,serverHooks:d}=R;function i(){return(0,E.patchFetch)({workAsyncStorage:l,workUnitAsyncStorage:c})}},6487:()=>{},8335:()=>{},5600:(e,a,s)=>{"use strict";s.d(a,{z:()=>r});let t=require("@prisma/client"),r=global.prisma||new t.PrismaClient({log:["query"]})}};var a=require("../../../webpack-runtime.js");a.C(e);var s=e=>a(a.s=e),t=a.X(0,[638,452],()=>s(5490));module.exports=t})();
+        ) as records`,t={data:{seasonWinners:o(e),topScorers:o(a),records:o(s)}};return n.NextResponse.json(t)}catch(e){return console.error("Database Error:",e),n.NextResponse.json({error:"Failed to fetch honour roll data",details:e},{status:500})}}let R=new r.AppRouteRouteModule({definition:{kind:m.x.APP_ROUTE,page:"/api/honourroll/route",pathname:"/api/honourroll",filename:"route",bundlePath:"app/api/honourroll/route"},resolvedPagePath:"C:\\Users\\Ian\\BerkoTNF\\src\\app\\api\\honourroll\\route.ts",nextConfigOutput:"",userland:t}),{requestAsyncStorage:l,staticGenerationAsyncStorage:c,serverHooks:d}=R,i="/api/honourroll/route";function O(){return(0,E.patchFetch)({serverHooks:d,staticGenerationAsyncStorage:c})}},728:(e,a,s)=>{s.d(a,{_:()=>r});let t=require("@prisma/client"),r=global.prisma||new t.PrismaClient({log:["query"]})}};var a=require("../../../webpack-runtime.js");a.C(e);var s=e=>a(a.s=e),t=a.X(0,[948,972],()=>s(5156));module.exports=t})();
