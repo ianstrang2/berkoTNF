@@ -162,7 +162,7 @@ const CurrentHalfSeason = () => {
   }
 
   return (
-    <div className="container-fluid p-4">
+    <div className="w-full">
       <h2 className={styles.arcadeTitle}>
         Current Half-Season Performance - {getCurrentHalf().description}
       </h2>
@@ -174,7 +174,7 @@ const CurrentHalfSeason = () => {
       </div>
 
       {/* Mobile view */}
-      <div className="d-md-none">
+      <div className="d-md-none w-full">
         <div className={styles.arcadeContainer}>
           <ul className="nav nav-tabs mb-3" role="tablist">
             <li className="nav-item" role="presentation">
@@ -194,11 +194,11 @@ const CurrentHalfSeason = () => {
               </button>
             </li>
           </ul>
-          <div className="tab-content">
-            <div className={`tab-pane fade ${activeTab === 'performance' ? 'show active' : ''}`}>
+          <div className="tab-content w-full">
+            <div className={`tab-pane fade ${activeTab === 'performance' ? 'show active' : ''} w-full`}>
               {renderMainStats()}
             </div>
-            <div className={`tab-pane fade ${activeTab === 'goals' ? 'show active' : ''}`}>
+            <div className={`tab-pane fade ${activeTab === 'goals' ? 'show active' : ''} w-full`}>
               {renderGoalStats()}
             </div>
           </div>

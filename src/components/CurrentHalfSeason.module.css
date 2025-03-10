@@ -6,6 +6,7 @@
   border-radius: 4px;
   padding: 1rem;
   margin-bottom: 2rem;
+  width: 100%;
 }
 
 .arcadeTitle {
@@ -26,16 +27,41 @@
 }
 
 @media (max-width: 768px) {
+  .arcadeContainer {
+    padding: 0.5rem;
+    width: 100vw;
+    margin: 0;
+    border-radius: 0;
+  }
+
   .arcadeTable {
     font-size: 9px;
     width: 100%;
-    table-layout: fixed;
   }
   
   .arcadeTable th,
   .arcadeTable td {
-    padding: 0.4rem;
+    padding: 0.3rem 0.2rem;
     white-space: normal;
+  }
+
+  /* Adjust column widths for mobile */
+  .arcadeTable th[style*="minWidth: '150px'"],
+  .arcadeTable th[style*="width: '150px'"] {
+    width: 80px !important;
+  }
+
+  .arcadeTable th[style*="width: '50px'"] {
+    width: 30px !important;
+  }
+
+  .arcadeTable th[style*="width: '70px'"],
+  .arcadeTable th[style*="width: '80px'"] {
+    width: 40px !important;
+  }
+
+  .arcadeTable th[style*="width: '100px'"] {
+    width: 50px !important;
   }
 
   .arcadeTitle {
