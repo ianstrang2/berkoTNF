@@ -35,6 +35,7 @@ export async function GET() {
         JOIN player_matches pm ON p.player_id = pm.player_id
         JOIN matches m ON pm.match_id = m.match_id
         WHERE p.is_ringer = false  -- Exclude ringers
+        AND EXTRACT(YEAR FROM m.match_date) < 2025  -- Exclude current year
         GROUP BY p.name, EXTRACT(YEAR FROM m.match_date)
         HAVING COUNT(*) >= 10
       )
@@ -69,6 +70,7 @@ export async function GET() {
         JOIN player_matches pm ON p.player_id = pm.player_id
         JOIN matches m ON pm.match_id = m.match_id
         WHERE p.is_ringer = false  -- Exclude ringers
+        AND EXTRACT(YEAR FROM m.match_date) < 2025  -- Exclude current year
         GROUP BY p.name, EXTRACT(YEAR FROM m.match_date)
         HAVING SUM(pm.goals) > 0
       )
