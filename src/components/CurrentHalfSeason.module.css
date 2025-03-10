@@ -22,20 +22,28 @@
   color: white;
   font-family: 'Press Start 2P', cursive;
   font-size: 14px;
+  table-layout: fixed;
 }
 
 @media (max-width: 768px) {
   .arcadeTable {
     font-size: 9px;
+    width: 100%;
+    table-layout: fixed;
   }
   
   .arcadeTable th,
   .arcadeTable td {
     padding: 0.4rem;
+    white-space: normal;
   }
 
   .arcadeTitle {
     font-size: 14px;
+  }
+
+  .playerName {
+    white-space: normal !important;
   }
 }
 
