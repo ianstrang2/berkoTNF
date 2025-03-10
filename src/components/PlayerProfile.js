@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import styles from './PlayerProfile.module.css';
 
 // Placeholder Card components
 const Card = ({ children }) => <div className="border rounded-lg shadow-sm p-4">{children}</div>;
@@ -10,39 +10,36 @@ const CardTitle = ({ children }) => <h2 className="text-xl font-semibold">{child
 const CardContent = ({ children }) => <div className="mt-4">{children}</div>;
 
 const PlayerProfile = ({ id }) => {
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [selectedYear, setSelectedYear] = useState(null);
-  const [selectedStat, setSelectedStat] = useState('Games Played'); // Default stat to display
-  const [selectedPlayerId, setSelectedPlayerId] = useState(id); // Default to the passed player ID
-  const [players, setPlayers] = useState([]); // State to hold the list of players
+  const [selectedStat, setSelectedStat] = useState('Games Played');
+  const [selectedPlayerId, setSelectedPlayerId] = useState(id);
+  const [players, setPlayers] = useState([]);
 
-  // Fetch players, excluding ringers
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
         const response = await fetch('/api/admin/players');
         const data = await response.json();
         if (data.data) {
-          const filteredPlayers = data.data.filter(player => !player.is_ringer); // Exclude ringers
+          const filteredPlayers = data.data.filter(player => !player.is_ringer);
           setPlayers(filteredPlayers);
         }
       } catch (error) {
         setError('Failed to fetch players');
       }
     };
-    
 
     fetchPlayers();
   }, []);
 
-  // Fetch player profile
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/playerprofile?id=${selectedPlayerId}`); // Updated endpoint
+        const response = await fetch(`/api/playerprofile?id=${selectedPlayerId}`);
         if (!response.ok) {
           throw new Error(`Failed to fetch profile: ${response.statusText}`);
         }
@@ -50,7 +47,7 @@ const PlayerProfile = ({ id }) => {
         if (data && data.profile) {
           const profileData = {
             ...data.profile,
-            yearly_stats: data.profile.yearly_stats || [], // Default to an empty array if yearly_stats is undefined
+            yearly_stats: data.profile.yearly_stats || [],
           };
           setProfile(profileData);
           if (profileData.yearly_stats.length > 0) {
@@ -72,24 +69,20 @@ const PlayerProfile = ({ id }) => {
     }
   }, [selectedPlayerId]);
 
-  // Helper function for streak colors
   const getStreakColor = (streak) => {
-    if (streak >= 5) return 'text-green-600';
-    if (streak >= 3) return 'text-green-500';
-    if (streak >= 2) return 'text-yellow-500';
-    return 'text-gray-600';
+    if (streak >= 5) return styles.success;
+    if (streak >= 3) return styles.warning;
+    return '';
   };
 
-  // Stat options for the dropdown
   const statOptions = [
     'Games Played',
     'Goals Scored',
     'Minutes Per Goal',
-    'Points per Game',
+    'Points Per Game',
     'Fantasy Points'
   ];
 
-  // Prepare chart data based on the selected stat
   const yearlyPerformanceData = profile?.yearly_stats.map(year => {
     const minutesPerGoal = (year.games_played * 60) / (year.goals_scored || 1);
     const pointsPerGame = year.fantasy_points / (year.games_played || 1);
@@ -104,173 +97,183 @@ const PlayerProfile = ({ id }) => {
     };
   }).reverse();
 
-  const selectedYearStats = profile?.yearly_stats.find(y => y.year === selectedYear) || {};
-
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return <div className={`${styles.arcadeContainer} text-center`}>
+      <div className={styles.arcadeTitle}>Loading...</div>
+    </div>;
   }
 
   if (error) {
-    return <div className="text-red-500">Error: {error}</div>;
+    return <div className={`${styles.arcadeContainer} text-center`}>
+      <div className={styles.danger}>{error}</div>
+    </div>;
   }
 
   if (!profile || !profile.yearly_stats) {
-    return <div>No profile data found</div>;
+    return <div className={`${styles.arcadeContainer} text-center`}>
+      <div className={styles.warning}>No profile data found</div>
+    </div>;
   }
 
   if (!Array.isArray(profile.yearly_stats) || profile.yearly_stats.length === 0) {
-    return <div>No yearly stats available</div>;
+    return <div className={`${styles.arcadeContainer} text-center`}>
+      <div className={styles.warning}>No yearly stats available</div>
+    </div>;
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-4">
       {/* Player Selection Dropdown */}
-      <div className="flex items-center gap-4 mb-6">
-        <label htmlFor="player-select" className="block text-sm font-medium text-gray-700">
-          Select Player
-        </label>
-        <select
-          id="player-select"
-          value={selectedPlayerId}
-          onChange={(e) => setSelectedPlayerId(Number(e.target.value))}
-          className="block w-48 px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-        >
-          {Array.isArray(players) && players.length > 0 ? (
-            players.map((player) => (
-              <option key={player.player_id} value={player.player_id}>
-                {player.name}
-              </option>
-            ))
-          ) : (
-            <option value="">No players available</option>
-          )}
-        </select>
+      <div className={styles.arcadeContainer}>
+        <div className="flex items-center gap-4 mb-6">
+          <label htmlFor="player-select" className={styles.arcadeSubtitle}>
+            Select Player
+          </label>
+          <select
+            id="player-select"
+            value={selectedPlayerId}
+            onChange={(e) => setSelectedPlayerId(Number(e.target.value))}
+            className={styles.arcadeSelect}
+          >
+            {Array.isArray(players) && players.length > 0 ? (
+              players.map((player) => (
+                <option key={player.player_id} value={player.player_id}>
+                  {player.name}
+                </option>
+              ))
+            ) : (
+              <option value="">No players available</option>
+            )}
+          </select>
+        </div>
       </div>
 
-      {/* Player Profile Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{profile.name}'s Profile</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold mb-2">Games Played</h3>
-              <p className="text-2xl">{profile.games_played}</p>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold mb-2">Fantasy Points</h3>
-              <p className="text-2xl">{profile.fantasy_points}</p>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold mb-2">Most Goals in a Game</h3>
-              <p className="text-2xl">{profile.most_goals}</p>
-              <p className="text-sm text-gray-600">{profile.most_goals_date}</p>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold mb-2">Longest Win Streak</h3>
-              <p className={`text-2xl ${getStreakColor(profile.win_streak)}`}>
-                {profile.win_streak} games
-              </p>
-              <p className="text-sm text-gray-600">{profile.win_streak_dates}</p>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold mb-2">Longest Undefeated Streak</h3>
-              <p className={`text-2xl ${getStreakColor(profile.undefeated_streak)}`}>
-                {profile.undefeated_streak} games
-              </p>
-              <p className="text-sm text-gray-600">{profile.undefeated_streak_dates}</p>
-            </div>
+      {/* Player Profile Overview */}
+      <div className={styles.arcadeContainer}>
+        <h2 className={styles.arcadeTitle}>{profile.name}'s Profile</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className={styles.arcadeCard}>
+            <h3 className={styles.arcadeSubtitle}>Games Played</h3>
+            <p className={styles.arcadeValue}>{profile.games_played}</p>
           </div>
-        </CardContent>
-      </Card>
+          <div className={styles.arcadeCard}>
+            <h3 className={styles.arcadeSubtitle}>Fantasy Points</h3>
+            <p className={styles.arcadeValue}>{profile.fantasy_points}</p>
+          </div>
+          <div className={styles.arcadeCard}>
+            <h3 className={styles.arcadeSubtitle}>Most Goals in a Game</h3>
+            <p className={styles.arcadeValue}>{profile.most_goals}</p>
+            <p className={styles.arcadeDate}>{profile.most_goals_date}</p>
+          </div>
+          <div className={styles.arcadeCard}>
+            <h3 className={styles.arcadeSubtitle}>Longest Win Streak</h3>
+            <p className={`${styles.arcadeValue} ${getStreakColor(profile.win_streak)}`}>
+              {profile.win_streak} games
+            </p>
+            <p className={styles.arcadeDate}>{profile.win_streak_dates}</p>
+          </div>
+          <div className={styles.arcadeCard}>
+            <h3 className={styles.arcadeSubtitle}>Longest Undefeated Streak</h3>
+            <p className={`${styles.arcadeValue} ${getStreakColor(profile.undefeated_streak)}`}>
+              {profile.undefeated_streak} games
+            </p>
+            <p className={styles.arcadeDate}>{profile.undefeated_streak_dates}</p>
+          </div>
+        </div>
+      </div>
 
-      {/* Performance Over Time Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Performance Over Time</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 mb-4">
-            <label htmlFor="stat-select" className="block text-sm font-medium text-gray-700">
-              Select Stat to Display
-            </label>
-            <select
-              id="stat-select"
-              value={selectedStat}
-              onChange={(e) => setSelectedStat(e.target.value)}
-              className="block w-48 px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+      {/* Performance Over Time */}
+      <div className={styles.arcadeContainer}>
+        <h3 className={styles.arcadeTitle}>Performance Over Time</h3>
+        <div className="flex items-center gap-4 mb-4">
+          <label htmlFor="stat-select" className={styles.arcadeSubtitle}>
+            Select Stat to Display
+          </label>
+          <select
+            id="stat-select"
+            value={selectedStat}
+            onChange={(e) => setSelectedStat(e.target.value)}
+            className={styles.arcadeSelect}
+          >
+            {statOptions.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+        <div className="h-96 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={yearlyPerformanceData}
+              margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 5,
+              }}
             >
-              {statOptions.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-          <div className="h-96 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={yearlyPerformanceData}
-                margin={{
-                  top: 20,
-                  right: 30,
-                  left: 20,
-                  bottom: 5,
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 255, 255, 0.2)" />
+              <XAxis dataKey="year" stroke="#00ffff" />
+              <YAxis stroke="#00ffff" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  border: '2px solid #00ffff',
+                  borderRadius: '4px',
+                  color: '#00ffff'
                 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey={selectedStat.toLowerCase().replace(/ /g, '_')} fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+              />
+              <Legend wrapperStyle={{ color: '#00ffff' }} />
+              <Bar
+                dataKey={selectedStat.toLowerCase().replace(/ /g, '_')}
+                fill="#ff00ff"
+                stroke="#00ffff"
+                strokeWidth={1}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
-      {/* Yearly Statistics Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Yearly Statistics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Year</TableHead>
-                <TableHead className="text-right">Games</TableHead>
-                <TableHead className="text-right">Goals</TableHead>
-                <TableHead className="text-right">Mins/Goal</TableHead>
-                <TableHead className="text-right">Points/Game</TableHead>
-                <TableHead className="text-right">Fantasy Points</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      {/* Yearly Statistics */}
+      <div className={styles.arcadeContainer}>
+        <h3 className={styles.arcadeTitle}>Yearly Statistics</h3>
+        <div className="table-responsive">
+          <table className={styles.arcadeTable}>
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Games</th>
+                <th>Goals</th>
+                <th>Mins/Goal</th>
+                <th>Points/Game</th>
+                <th>Fantasy Points</th>
+              </tr>
+            </thead>
+            <tbody>
               {profile.yearly_stats.map((year) => {
                 const minutesPerGoal = (year.games_played * 60) / (year.goals_scored || 1);
                 const pointsPerGame = year.fantasy_points / (year.games_played || 1);
 
                 return (
-                  <TableRow
+                  <tr
                     key={year.year}
-                    className={selectedYear === year.year ? 'bg-gray-100' : ''}
+                    className={selectedYear === year.year ? styles.selectedRow : ''}
                     onClick={() => setSelectedYear(year.year)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <TableCell>{year.year}</TableCell>
-                    <TableCell className="text-right">{year.games_played}</TableCell>
-                    <TableCell className="text-right">{year.goals_scored}</TableCell>
-                    <TableCell className="text-right">{minutesPerGoal.toFixed(1)}</TableCell>
-                    <TableCell className="text-right">{pointsPerGame.toFixed(1)}</TableCell>
-                    <TableCell className="text-right">{year.fantasy_points}</TableCell>
-                  </TableRow>
+                    <td>{year.year}</td>
+                    <td>{year.games_played}</td>
+                    <td>{year.goals_scored}</td>
+                    <td>{Math.round(minutesPerGoal)}</td>
+                    <td>{pointsPerGame.toFixed(1)}</td>
+                    <td>{year.fantasy_points}</td>
+                  </tr>
                 );
               })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

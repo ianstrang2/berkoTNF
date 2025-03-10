@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "./ui/tabs";
+import styles from './HonourRoll.module.css';
 
 const HonourRoll = () => {
   const [loading, setLoading] = useState(true);
@@ -22,10 +17,8 @@ const HonourRoll = () => {
         const result = await response.json();
         
         if (result.data) {
-          // Get the inner records object and flatten the structure
           const recordsData = result.data.records[0]?.records;
           
-          // Modify streaks to match the component's expected format
           const modifiedData = {
             ...result.data,
             records: {
@@ -52,11 +45,11 @@ const HonourRoll = () => {
   }, []);
 
   const renderSeasonalHonours = () => (
-    <div>
-      <h3 className="text-xl font-semibold mb-4">Season Winners</h3>
+    <div className={styles.arcadeContainer}>
+      <h3 className={styles.arcadeTitle}>Season Winners</h3>
       <div className="table-responsive">
-        <table className="table table-hover">
-          <thead className="bg-dark text-white">
+        <table className={styles.arcadeTable}>
+          <thead>
             <tr>
               <th style={{ width: '80px' }}>Year</th>
               <th style={{ minWidth: '150px' }}>Champion</th>
@@ -72,13 +65,13 @@ const HonourRoll = () => {
               return (
                 <tr key={season.year}>
                   <td>{season.year}</td>
-                  <td className="font-bold">{season.winners.winner}</td>
+                  <td className={styles.playerName}>{season.winners.winner}</td>
                   <td>{season.winners.winner_points}</td>
                   <td>
                     {season.winners.runners_up?.map(runner => 
                       `${runner.name} (${runner.points})`).join(', ')}
                   </td>
-                  <td className="font-bold">{scorerData?.winner}</td>
+                  <td className={styles.playerName}>{scorerData?.winner}</td>
                   <td>{scorerData?.winner_goals}</td>
                 </tr>
               );
@@ -95,11 +88,11 @@ const HonourRoll = () => {
     };
 
     return (
-      <div>
-        <h3 className="text-xl font-semibold mb-4">TNF Records</h3>
+      <div className={styles.arcadeContainer}>
+        <h3 className={styles.arcadeTitle}>TNF Records</h3>
         <div className="table-responsive">
-          <table className="table table-hover">
-            <thead className="bg-dark text-white">
+          <table className={styles.arcadeTable}>
+            <thead>
               <tr>
                 <th style={{ minWidth: '150px' }}>Record</th>
                 <th style={{ minWidth: '150px' }}>Player(s)</th>
@@ -113,13 +106,13 @@ const HonourRoll = () => {
                   {data.records.most_goals_in_game && (
                     <tr>
                       <td>Most Goals in a Game</td>
-                      <td className="font-bold">
+                      <td className={styles.playerName}>
                         {formatNames(data.records.most_goals_in_game)}
                       </td>
                       <td>
                         {data.records.most_goals_in_game[0].goals} goals
                       </td>
-                      <td>
+                      <td className={styles.dateText}>
                         {data.records.most_goals_in_game.map((record, index) => (
                           <div key={index}>
                             {record.name}: {new Date(record.date).toLocaleDateString()}
@@ -137,11 +130,11 @@ const HonourRoll = () => {
                          streakType === 'No Win Streak' ? 'Longest Streak Without a Win' :
                          'Longest Undefeated Streak'}
                       </td>
-                      <td className="font-bold">
+                      <td className={styles.playerName}>
                         {formatNames(streakData.holders)}
                       </td>
                       <td>{streakData.holders[0].streak} games</td>
-                      <td>
+                      <td className={styles.dateText}>
                         {streakData.holders.map((holder, index) => (
                           <div key={index}>
                             {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
@@ -155,11 +148,11 @@ const HonourRoll = () => {
                   {data.records.consecutive_goals && (
                     <tr>
                       <td>Most Consecutive Games Scoring</td>
-                      <td className="font-bold">
+                      <td className={styles.playerName}>
                         {formatNames(data.records.consecutive_goals.holders)}
                       </td>
                       <td>{data.records.consecutive_goals.holders[0].streak} games</td>
-                      <td>
+                      <td className={styles.dateText}>
                         {data.records.consecutive_goals.holders.map((holder, index) => (
                           <div key={index}>
                             {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
@@ -179,12 +172,14 @@ const HonourRoll = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className={`${styles.arcadeContainer} text-center`}>
+      <div className={styles.arcadeTitle}>Loading...</div>
+    </div>;
   }
 
   return (
     <div className="p-4">
-      <h2 className="text-2xl font-bold mb-6">Hall of Fame</h2>
+      <h2 className={styles.arcadeTitle}>Hall of Fame</h2>
       
       {/* Desktop view */}
       <div className="hidden md:flex flex-col gap-8">
@@ -192,20 +187,25 @@ const HonourRoll = () => {
         {renderRecords()}
       </div>
 
-      {/* Mobile view - using controlled tabs pattern */}
+      {/* Mobile view */}
       <div className="md:hidden">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger triggerValue="seasonal">Season Honours</TabsTrigger>
-            <TabsTrigger triggerValue="records">Records</TabsTrigger>
-          </TabsList>
-          <TabsContent triggerValue="seasonal">
-            {renderSeasonalHonours()}
-          </TabsContent>
-          <TabsContent triggerValue="records">
-            {renderRecords()}
-          </TabsContent>
-        </Tabs>
+        <div className={styles.arcadeTabs}>
+          <button
+            className={`${styles.arcadeTab} ${activeTab === 'seasonal' ? styles.active : ''}`}
+            onClick={() => setActiveTab('seasonal')}
+          >
+            Season Honours
+          </button>
+          <button
+            className={`${styles.arcadeTab} ${activeTab === 'records' ? styles.active : ''}`}
+            onClick={() => setActiveTab('records')}
+          >
+            Records
+          </button>
+        </div>
+        <div>
+          {activeTab === 'seasonal' ? renderSeasonalHonours() : renderRecords()}
+        </div>
       </div>
     </div>
   );

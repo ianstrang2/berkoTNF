@@ -94,13 +94,14 @@ export async function POST(request: NextRequest) {
       AND m.match_date <= ${endDate}::date
       AND p.is_ringer = 'NO'
       GROUP BY p.player_id, p.name
-      HAVING SUM(pm.goals) > 0
     ),
     recent_games AS (
       SELECT 
         p.player_id,
         pm.goals,
-        ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as game_number
+        m.match_date,
+        ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as game_number,
+        ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as display_order
       FROM players p
       JOIN player_matches pm ON p.player_id = pm.player_id
       JOIN matches m ON pm.match_id = m.match_id
@@ -112,10 +113,11 @@ export async function POST(request: NextRequest) {
       pt.*,
       STRING_AGG(
         CASE 
-          WHEN rg.goals = 0 THEN ''
+          WHEN rg.goals IS NULL THEN NULL
+          WHEN rg.goals = 0 THEN '0'
           ELSE rg.goals::text 
         END,
-        ',' ORDER BY game_number
+        ',' ORDER BY rg.display_order ASC
       ) as last_five_games,
       MAX(rg.goals) as max_goals_in_game
     FROM player_totals pt
@@ -139,17 +141,19 @@ export async function POST(request: NextRequest) {
             WHEN pm.result = 'loss' THEN 'L'
             ELSE 'D'
           END as result,
-          ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as game_number
+          ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as game_number,
+          ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as display_order
         FROM players p
-        JOIN player_matches pm ON p.player_id = pm.player_id
-        JOIN matches m ON pm.match_id = m.match_id
-        WHERE m.match_date >= ${startDate}::date
-        AND m.match_date <= ${endDate}::date
-        AND p.is_ringer = 'NO'
+        LEFT JOIN player_matches pm ON p.player_id = pm.player_id
+        LEFT JOIN matches m ON pm.match_id = m.match_id AND m.match_date >= ${startDate}::date AND m.match_date <= ${endDate}::date
+        WHERE p.is_ringer = 'NO'
       )
       SELECT 
         name,
-        STRING_AGG(result, ', ' ORDER BY game_number) as last_5_games
+        STRING_AGG(
+          result, 
+          ', ' ORDER BY display_order ASC
+        ) as last_5_games
       FROM recent_games
       WHERE game_number <= 5
       GROUP BY player_id, name

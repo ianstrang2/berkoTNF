@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import styles from './PlayerManager.module.css';
 
 const PlayerManager = () => {
   const [players, setPlayers] = useState([]);
@@ -76,56 +77,56 @@ const PlayerManager = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">
+    <div className={styles.playerContainer}>
+      <h2 className={styles.playerTitle}>
         {selectedPlayer ? 'Edit Player' : 'Add New Player'}
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit}>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Name</label>
+          <label className={styles.label}>Name</label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className={styles.input}
             required
           />
         </div>
 
-        <div className="flex items-center space-x-4">
-          <label className="flex items-center">
+        <div>
+          <label className={styles.checkboxLabel}>
             <input
               type="checkbox"
               checked={formData.is_ringer}
               onChange={(e) =>
                 setFormData({ ...formData, is_ringer: e.target.checked })
               }
-              className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+              className={styles.checkbox}
             />
-            <span className="ml-2">Ringer</span>
+            Ringer
           </label>
 
-          <label className="flex items-center">
+          <label className={styles.checkboxLabel}>
             <input
               type="checkbox"
-              checked={!formData.is_retired} // Reverse the logic: if not retired, they are "active"
+              checked={!formData.is_retired}
               onChange={(e) =>
                 setFormData({ ...formData, is_retired: !e.target.checked })
               }
-              className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+              className={styles.checkbox}
             />
-            <span className="ml-2">Active</span>
+            Active
           </label>
         </div>
 
         {error && <p className="text-red-500">{error}</p>}
 
-        <div className="flex space-x-4">
+        <div className={styles.buttonContainer}>
           <button
             type="submit"
             disabled={isLoading}
-            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-blue-500 transition-all disabled:opacity-50"
+            className={styles.actionButton}
           >
             {isLoading
               ? 'Saving...'
@@ -141,7 +142,7 @@ const PlayerManager = () => {
                 setSelectedPlayer(null);
                 setFormData({ name: '', is_ringer: false, is_retired: false });
               }}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-all"
+              className={`${styles.actionButton} ${styles.cancelButton}`}
             >
               Cancel Edit
             </button>
@@ -149,69 +150,43 @@ const PlayerManager = () => {
         </div>
       </form>
 
-      <div className="mt-8">
-        <h3 className="text-xl font-semibold mb-4">Player List</h3>
-        <div className="bg-white shadow overflow-hidden rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ringer
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+      <div>
+        <h3 className={styles.playerTitle}>Player List</h3>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Ringer</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {players.map((player) => (
+              <tr key={player.player_id}>
+                <td>{player.name}</td>
+                <td>
+                  <span className={player.is_retired ? styles.statusInactive : styles.statusActive}>
+                    {player.is_retired ? 'Retired' : 'Active'}
+                  </span>
+                </td>
+                <td>
+                  <span className={player.is_ringer ? styles.statusActive : ''}>
+                    {player.is_ringer ? 'Yes' : 'No'}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    onClick={() => handleEdit(player)}
+                    className={`${styles.actionButton} ${styles.editButton}`}
+                  >
+                    Edit
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {players.map((player) => (
-                <tr key={player.player_id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {player.name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        player.is_retired
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}
-                    >
-                      {player.is_retired ? 'Retired' : 'Active'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        player.is_ringer
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {player.is_ringer ? 'Yes' : 'No'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(player)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
