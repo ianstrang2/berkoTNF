@@ -9,6 +9,24 @@
   width: 100%;
 }
 
+/* Column width definitions */
+.colPlayer {
+  width: 150px;
+  min-width: 150px;
+}
+
+.colSmall {
+  width: 50px;
+}
+
+.colMedium {
+  width: 80px;
+}
+
+.colLarge {
+  width: 100px;
+}
+
 .arcadeTitle {
   color: #ff00ff;
   text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff;
@@ -32,6 +50,7 @@
     width: 100vw;
     margin: 0;
     border-radius: 0;
+    overflow-x: auto;
   }
 
   .arcadeTable {
@@ -45,23 +64,22 @@
     white-space: normal;
   }
 
-  /* Adjust column widths for mobile */
-  .arcadeTable th[style*="minWidth: '150px'"],
-  .arcadeTable th[style*="width: '150px'"] {
-    width: 80px !important;
+  /* Mobile column widths */
+  .colPlayer {
+    width: 80px;
+    min-width: 80px;
   }
 
-  .arcadeTable th[style*="width: '50px'"] {
-    width: 30px !important;
+  .colSmall {
+    width: 30px;
   }
 
-  .arcadeTable th[style*="width: '70px'"],
-  .arcadeTable th[style*="width: '80px'"] {
-    width: 40px !important;
+  .colMedium {
+    width: 40px;
   }
 
-  .arcadeTable th[style*="width: '100px'"] {
-    width: 50px !important;
+  .colLarge {
+    width: 50px;
   }
 
   .arcadeTitle {
