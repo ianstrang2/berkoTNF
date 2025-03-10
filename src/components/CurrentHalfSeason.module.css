@@ -24,6 +24,21 @@
   font-size: 0.7rem;
 }
 
+@media (max-width: 768px) {
+  .arcadeTable {
+    font-size: 11px;
+  }
+  
+  .arcadeTable th,
+  .arcadeTable td {
+    padding: 0.5rem;
+  }
+
+  .arcadeTitle {
+    font-size: 1rem;
+  }
+}
+
 .arcadeTable th {
   background: #0a0a0a;
   color: #00ffff;
