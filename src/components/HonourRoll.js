@@ -45,24 +45,21 @@ const HonourRoll = () => {
   }, []);
 
   const renderSeasonalHonours = () => (
-    <div className={styles.arcadeContainer}>
-      <h3 className={styles.arcadeTitle}>Season Winners</h3>
-      <div className="table-responsive">
-        <table className={styles.arcadeTable}>
-          <thead>
-            <tr>
-              <th style={{ width: '80px' }}>Year</th>
-              <th style={{ minWidth: '150px' }}>Champion</th>
-              <th style={{ width: '80px' }}>Points</th>
-              <th style={{ minWidth: '200px' }}>Runners Up</th>
-              <th style={{ minWidth: '150px' }}>Top Scorer</th>
-              <th style={{ width: '80px' }}>Goals</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.seasonWinners.map((season) => {
-              const scorerData = data.topScorers.find(s => s.year === season.year)?.scorers;
-              return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className={styles.arcadeContainer}>
+        <h3 className={styles.arcadeTitle}>Season Winners</h3>
+        <div className="table-responsive">
+          <table className={styles.arcadeTable}>
+            <thead>
+              <tr>
+                <th style={{ width: '70px' }}>Year</th>
+                <th style={{ width: '120px' }}>Champion</th>
+                <th style={{ width: '70px' }}>Points</th>
+                <th style={{ minWidth: '180px' }}>Runners Up</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.seasonWinners.map((season) => (
                 <tr key={season.year}>
                   <td>{season.year}</td>
                   <td className={styles.playerName}>{season.winners.winner}</td>
@@ -71,13 +68,40 @@ const HonourRoll = () => {
                     {season.winners.runners_up?.map(runner => 
                       `${runner.name} (${runner.points})`).join(', ')}
                   </td>
-                  <td className={styles.playerName}>{scorerData?.winner}</td>
-                  <td>{scorerData?.winner_goals}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className={styles.arcadeContainer}>
+        <h3 className={styles.arcadeTitle}>Top Scorers</h3>
+        <div className="table-responsive">
+          <table className={styles.arcadeTable}>
+            <thead>
+              <tr>
+                <th style={{ width: '70px' }}>Year</th>
+                <th style={{ width: '120px' }}>Player</th>
+                <th style={{ width: '70px' }}>Goals</th>
+                <th style={{ minWidth: '180px' }}>Runners Up</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.topScorers.map((season) => (
+                <tr key={season.year}>
+                  <td>{season.year}</td>
+                  <td className={styles.playerName}>{season.scorers.winner}</td>
+                  <td>{season.scorers.winner_goals}</td>
+                  <td>
+                    {season.scorers.runners_up?.map(runner => 
+                      `${runner.name} (${runner.goals})`).join(', ')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
