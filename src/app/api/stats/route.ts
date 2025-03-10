@@ -144,9 +144,11 @@ export async function POST(request: NextRequest) {
           ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as game_number,
           ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as display_order
         FROM players p
-        LEFT JOIN player_matches pm ON p.player_id = pm.player_id
-        LEFT JOIN matches m ON pm.match_id = m.match_id AND m.match_date >= ${startDate}::date AND m.match_date <= ${endDate}::date
-        WHERE p.is_ringer = 'NO'
+        JOIN player_matches pm ON p.player_id = pm.player_id
+        JOIN matches m ON pm.match_id = m.match_id
+        WHERE m.match_date >= ${startDate}::date
+        AND m.match_date <= ${endDate}::date
+        AND p.is_ringer = 'NO'
       )
       SELECT 
         name,
