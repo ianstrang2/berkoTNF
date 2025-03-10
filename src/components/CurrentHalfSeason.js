@@ -65,18 +65,18 @@ const CurrentHalfSeason = () => {
         <table className={styles.arcadeTable}>
           <thead>
             <tr>
-              <th className={styles.colPlayer}>Player</th>
-              <th className={styles.colSmall}>P</th>
-              <th className={styles.colSmall}>W</th>
-              <th className={styles.colSmall}>D</th>
-              <th className={styles.colSmall}>L</th>
-              <th className={styles.colMedium}>Goals</th>
-              <th className={styles.colMedium}>Heavy W</th>
-              <th className={styles.colMedium}>Heavy L</th>
-              <th className={styles.colLarge}>Clean Sheet</th>
-              <th className={styles.colMedium}>Win %</th>
-              <th className={styles.colMedium}>Points</th>
-              <th className={styles.colLarge}>Last 5</th>
+              <th style={{minWidth: '150px'}}>Player</th>
+              <th style={{width: '50px'}}>P</th>
+              <th style={{width: '50px'}}>W</th>
+              <th style={{width: '50px'}}>D</th>
+              <th style={{width: '50px'}}>L</th>
+              <th style={{width: '70px'}}>Goals</th>
+              <th style={{width: '80px'}}>Heavy W</th>
+              <th style={{width: '80px'}}>Heavy L</th>
+              <th style={{width: '100px'}}>Clean Sheet</th>
+              <th style={{width: '80px'}}>Win %</th>
+              <th style={{width: '70px'}}>Points</th>
+              <th style={{width: '150px'}}>Last 5</th>
             </tr>
           </thead>
           <tbody>
@@ -121,10 +121,10 @@ const CurrentHalfSeason = () => {
         <table className={styles.arcadeTable}>
           <thead>
             <tr>
-              <th className={styles.colPlayer}>Player</th>
-              <th className={styles.colMedium}>Goals</th>
-              <th className={styles.colMedium}>MPG</th>
-              <th className={styles.colLarge}>Last 5</th>
+              <th style={{minWidth: '150px'}}>Player</th>
+              <th style={{width: '80px'}}>Goals</th>
+              <th style={{width: '80px'}}>MPG</th>
+              <th style={{width: '200px'}}>Last 5</th>
             </tr>
           </thead>
           <tbody>
@@ -162,7 +162,7 @@ const CurrentHalfSeason = () => {
   }
 
   return (
-    <div className="w-full">
+    <div className="container-fluid p-4">
       <h2 className={styles.arcadeTitle}>
         Current Half-Season Performance - {getCurrentHalf().description}
       </h2>
@@ -174,7 +174,7 @@ const CurrentHalfSeason = () => {
       </div>
 
       {/* Mobile view */}
-      <div className="d-md-none w-full">
+      <div className="d-md-none">
         <div className={styles.arcadeContainer}>
           <ul className="nav nav-tabs mb-3" role="tablist">
             <li className="nav-item" role="presentation">
@@ -194,11 +194,11 @@ const CurrentHalfSeason = () => {
               </button>
             </li>
           </ul>
-          <div className="tab-content w-full">
-            <div className={`tab-pane fade ${activeTab === 'performance' ? 'show active' : ''} w-full`}>
+          <div className="tab-content">
+            <div className={`tab-pane fade ${activeTab === 'performance' ? 'show active' : ''}`}>
               {renderMainStats()}
             </div>
-            <div className={`tab-pane fade ${activeTab === 'goals' ? 'show active' : ''} w-full`}>
+            <div className={`tab-pane fade ${activeTab === 'goals' ? 'show active' : ''}`}>
               {renderGoalStats()}
             </div>
           </div>

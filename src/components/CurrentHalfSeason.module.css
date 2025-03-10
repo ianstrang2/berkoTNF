@@ -6,25 +6,6 @@
   border-radius: 4px;
   padding: 1rem;
   margin-bottom: 2rem;
-  width: 100%;
-}
-
-/* Column width definitions */
-.colPlayer {
-  width: 150px;
-  min-width: 150px;
-}
-
-.colSmall {
-  width: 50px;
-}
-
-.colMedium {
-  width: 80px;
-}
-
-.colLarge {
-  width: 100px;
 }
 
 .arcadeTitle {
@@ -40,55 +21,7 @@
   width: 100%;
   color: white;
   font-family: 'Press Start 2P', cursive;
-  font-size: 14px;
-  table-layout: fixed;
-}
-
-@media (max-width: 768px) {
-  .arcadeContainer {
-    padding: 0.5rem;
-    width: 100vw;
-    margin: 0;
-    border-radius: 0;
-    overflow-x: auto;
-  }
-
-  .arcadeTable {
-    font-size: 9px;
-    width: 100%;
-  }
-  
-  .arcadeTable th,
-  .arcadeTable td {
-    padding: 0.3rem 0.2rem;
-    white-space: normal;
-  }
-
-  /* Mobile column widths */
-  .colPlayer {
-    width: 80px;
-    min-width: 80px;
-  }
-
-  .colSmall {
-    width: 30px;
-  }
-
-  .colMedium {
-    width: 40px;
-  }
-
-  .colLarge {
-    width: 50px;
-  }
-
-  .arcadeTitle {
-    font-size: 14px;
-  }
-
-  .playerName {
-    white-space: normal !important;
-  }
+  font-size: 0.7rem;
 }
 
 .arcadeTable th {
