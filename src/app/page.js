@@ -7,6 +7,7 @@ import HonourRoll from '@/components/HonourRoll';
 import PlayerProfile from '@/components/PlayerProfile';
 import AdminPanel from '@/components/admin/AdminPanel';
 import AdminLayout from '@/components/admin/AdminLayout';
+import MatchReport from '@/components/MatchReport/MatchReport';
 import styles from './page.module.css';
 
 console.log('Type of AdminLayout:', typeof AdminLayout);
@@ -38,6 +39,12 @@ export default function Home() {
           <h1 className={styles.arcadeTitle}>TNF Stats Dashboard</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div 
+              className={`${styles.arcadeCard} ${styles.matchReport}`}
+              onClick={() => setCurrentView('match-report')}
+            >
+              <h2 className={styles.arcadeCardTitle}>Latest Match Report</h2>
+            </div>
+            <div 
               className={`${styles.arcadeCard} ${styles.currentHalf}`}
               onClick={() => setCurrentView('current-half')}
             >
@@ -62,10 +69,10 @@ export default function Home() {
               <h2 className={styles.arcadeCardTitle}>Hall of Fame</h2>
             </div>
             <div 
-              className={`${styles.arcadeCard} ${styles.playerProfiles}`}
+              className={`${styles.arcadeCard} ${styles.profiles}`}
               onClick={() => handlePlayerProfileClick(1)}
             >
-              <h2 className={styles.arcadeCardTitle}>Individual Player Profiles</h2>
+              <h2 className={styles.arcadeCardTitle}>Player Profiles</h2>
             </div>
             <div 
               className={`${styles.arcadeCard} ${styles.admin}`}
@@ -83,6 +90,7 @@ export default function Home() {
           >
             Back to Home
           </button>
+          {currentView === 'match-report' && <MatchReport />}
           {currentView === 'current-half' && <CurrentHalfSeason />}
           {currentView === 'season' && <OverallSeasonPerformance />}
           {currentView === 'all-time' && <AllTimeStats />}

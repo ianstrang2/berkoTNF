@@ -86,4 +86,22 @@
 .admin .arcadeCardTitle {
   color: #9933ff;
   text-shadow: 0 0 5px #9933ff;
+}
+
+/* Match Report card with distinct styling */
+.matchReport {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: #ffd700;
+  box-shadow: 0 0 10px #ffd700;
+}
+
+.matchReport:hover {
+  background: rgba(255, 215, 0, 0.3);
+  border-color: #ffd700;
+  box-shadow: 0 0 20px #ffd700;
+}
+
+.matchReport .arcadeCardTitle {
+  color: #ffd700;
+  text-shadow: 0 0 5px #ffd700;
 } 

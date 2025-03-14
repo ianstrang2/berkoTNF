@@ -1,0 +1,97 @@
+.arcadeContainer {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid var(--neon-cyan);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 10px var(--neon-cyan);
+}
+
+.arcadeTitle {
+  color: var(--neon-magenta);
+  font-family: 'Press Start 2P', cursive;
+  text-align: center;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px var(--neon-magenta);
+}
+
+.matchResult {
+  font-family: 'Press Start 2P', cursive;
+  text-align: center;
+  font-size: 24px;
+  margin: 20px 0;
+  color: var(--neon-cyan);
+}
+
+.teamInfo {
+  margin: 15px 0;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+}
+
+.teamName {
+  color: var(--neon-yellow);
+  font-family: 'Press Start 2P', cursive;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.playerList {
+  color: white;
+  font-size: 14px;
+}
+
+.scorers {
+  color: var(--neon-green);
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+.statSection {
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+}
+
+.statTitle {
+  color: var(--neon-yellow);
+  font-family: 'Press Start 2P', cursive;
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+
+.statItem {
+  color: white;
+  font-size: 14px;
+  margin: 8px 0;
+  padding: 5px;
+}
+
+.success {
+  color: var(--neon-green);
+}
+
+.warning {
+  color: var(--neon-yellow);
+}
+
+.danger {
+  color: var(--neon-red);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .matchResult {
+    font-size: 18px;
+  }
+
+  .teamName {
+    font-size: 14px;
+  }
+
+  .playerList, .scorers, .statItem {
+    font-size: 11px;
+  }
+} 
