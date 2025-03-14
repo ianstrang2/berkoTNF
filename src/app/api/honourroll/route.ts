@@ -111,6 +111,58 @@ export async function GET() {
           JOIN matches m ON pm.match_id = m.match_id
           WHERE pm.goals > 0 AND p.is_ringer = false  -- Exclude ringers
         ),
+        biggest_victories AS (
+          SELECT 
+            m.match_id,
+            m.match_date,
+            m.team_a_score,
+            m.team_b_score,
+            ABS(m.team_a_score - m.team_b_score) as score_difference,
+            CASE 
+              WHEN m.team_a_score > m.team_b_score THEN 'A'
+              ELSE 'B'
+            END as winning_team,
+            (
+              SELECT string_agg(
+                CASE 
+                  WHEN p.name ~ ' ' THEN 
+                    SUBSTRING(SPLIT_PART(p.name, ' ', 1), 1, 1) || '. ' || SPLIT_PART(p.name, ' ', 2)
+                  ELSE p.name
+                END || 
+                CASE 
+                  WHEN pm2.goals > 0 THEN ' (' || pm2.goals || ')'
+                  ELSE ''
+                END,
+                ', '
+                ORDER BY p.name
+              )
+              FROM player_matches pm2
+              JOIN players p ON pm2.player_id = p.player_id
+              WHERE pm2.match_id = m.match_id AND pm2.team = 'A'
+            ) as team_a_players,
+            (
+              SELECT string_agg(
+                CASE 
+                  WHEN p.name ~ ' ' THEN 
+                    SUBSTRING(SPLIT_PART(p.name, ' ', 1), 1, 1) || '. ' || SPLIT_PART(p.name, ' ', 2)
+                  ELSE p.name
+                END || 
+                CASE 
+                  WHEN pm2.goals > 0 THEN ' (' || pm2.goals || ')'
+                  ELSE ''
+                END,
+                ', '
+                ORDER BY p.name
+              )
+              FROM player_matches pm2
+              JOIN players p ON pm2.player_id = p.player_id
+              WHERE pm2.match_id = m.match_id AND pm2.team = 'B'
+            ) as team_b_players
+          FROM matches m
+          WHERE m.match_date IS NOT NULL
+          ORDER BY ABS(m.team_a_score - m.team_b_score) DESC, m.match_date DESC
+          LIMIT 1
+        ),
         consecutive_goals AS (
           WITH player_matches_with_gaps AS (
             SELECT 
@@ -241,11 +293,10 @@ export async function GET() {
               )
             )
             FROM (
-              SELECT *,
-                RANK() OVER (ORDER BY goals DESC) as rank
+              SELECT *
               FROM game_goals
-            ) ranked
-            WHERE rank = 1
+              WHERE rn = 1
+            ) t
           ),
           'streaks', (
             SELECT jsonb_object_agg(
@@ -288,16 +339,22 @@ export async function GET() {
                     'end_date', streak_end::text
                   )
                 )
-                FROM (
-                  SELECT 
-                    name, streak, streak_start, streak_end,
-                    RANK() OVER (ORDER BY streak DESC) as rank
-                  FROM consecutive_goals
-                  ORDER BY streak DESC
-                ) ranked
-                WHERE rank = 1
+                FROM consecutive_goals
               )
             )
+          ),
+          'biggest_victory', (
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'team_a_score', team_a_score,
+                'team_b_score', team_b_score,
+                'team_a_players', team_a_players,
+                'team_b_players', team_b_players,
+                'date', match_date::text,
+                'winning_team', winning_team
+              )
+            )
+            FROM biggest_victories
           )
         ) as records`;
 

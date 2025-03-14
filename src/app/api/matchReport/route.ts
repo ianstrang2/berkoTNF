@@ -86,8 +86,8 @@ export async function GET() {
           match_date,
           team_a_score,
           team_b_score,
-          array_agg(DISTINCT name) FILTER (WHERE team = 'A' AND is_ringer = false AND is_retired = false) as team_a_players,
-          array_agg(DISTINCT name) FILTER (WHERE team = 'B' AND is_ringer = false AND is_retired = false) as team_b_players,
+          array_agg(DISTINCT name) FILTER (WHERE team = 'A' AND is_retired = false) as team_a_players,
+          array_agg(DISTINCT name) FILTER (WHERE team = 'B' AND is_retired = false) as team_b_players,
           array_agg(json_build_object('name', name, 'goals', goals)) FILTER (WHERE team = 'A' AND is_retired = false AND goals > 0) as team_a_scorers,
           array_agg(json_build_object('name', name, 'goals', goals)) FILTER (WHERE team = 'B' AND is_retired = false AND goals > 0) as team_b_scorers
         FROM match_players

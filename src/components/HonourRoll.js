@@ -24,6 +24,7 @@ const HonourRoll = () => {
             records: {
               consecutive_goals: recordsData?.consecutive_goals,
               most_goals_in_game: recordsData?.most_goals_in_game,
+              biggest_victory: recordsData?.biggest_victory,
               streaks: {
                 'Win Streak': recordsData?.streaks?.['Win Streak'],
                 'Loss Streak': recordsData?.streaks?.['Loss Streak'],
@@ -118,10 +119,10 @@ const HonourRoll = () => {
           <table className={styles.arcadeTable}>
             <thead>
               <tr>
-                <th style={{ minWidth: '150px' }}>Record</th>
-                <th style={{ minWidth: '150px' }}>Player(s)</th>
-                <th style={{ width: '100px' }}>Details</th>
-                <th style={{ minWidth: '200px' }}>Date</th>
+                <th style={{ width: '120px' }}>Record</th>
+                <th style={{ width: '200px' }}>Player(s)</th>
+                <th style={{ width: '80px' }}>Details</th>
+                <th style={{ width: '100px' }}>Date</th>
               </tr>
             </thead>
             <tbody>
@@ -183,6 +184,33 @@ const HonourRoll = () => {
                             {new Date(holder.end_date).toLocaleDateString()}
                           </div>
                         ))}
+                      </td>
+                    </tr>
+                  )}
+
+                  {data.records.biggest_victory && data.records.biggest_victory[0] && (
+                    <tr>
+                      <td>Biggest Victory</td>
+                      <td className={`${styles.playerName} ${styles.wrapText}`}>
+                        {data.records.biggest_victory[0].winning_team === 'A' ? (
+                          <>
+                            Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
+                            <br />
+                            Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
+                          </>
+                        ) : (
+                          <>
+                            Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
+                            <br />
+                            Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
+                          </>
+                        )}
+                      </td>
+                      <td>
+                        {data.records.biggest_victory[0].team_a_score}-{data.records.biggest_victory[0].team_b_score}
+                      </td>
+                      <td className={styles.dateText}>
+                        {new Date(data.records.biggest_victory[0].date).toLocaleDateString()}
                       </td>
                     </tr>
                   )}

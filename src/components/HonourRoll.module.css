@@ -54,6 +54,13 @@
   white-space: nowrap;
 }
 
+.wrapText {
+  white-space: normal !important;
+  word-wrap: break-word;
+  font-size: 0.65rem;
+  line-height: 1.2;
+}
+
 .arcadeTabs {
   border: none;
   margin-bottom: 2rem;
@@ -84,6 +91,6 @@
 }
 
 .dateText {
+  font-size: 0.7rem;
   color: #00ffff;
-  font-size: 0.6rem;
 } 
