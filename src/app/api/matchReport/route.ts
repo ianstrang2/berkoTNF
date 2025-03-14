@@ -11,21 +11,35 @@ export async function GET() {
   try {
     console.log('Starting match report generation...');
 
-    // Get latest match using Prisma's query builder
+    // Get latest match using raw SQL
     console.log('Fetching latest match...');
-    const latestMatch = await prisma.matches.findFirst({
-      orderBy: {
-        match_date: 'desc'
-      },
-      include: {
-        player_matches: {
-          include: {
-            players: true
-          }
-        }
-      }
-    });
+    const latestMatches = await prisma.$queryRaw`
+      SELECT 
+        m.*,
+        json_agg(json_build_object(
+          'player_id', pm.player_id,
+          'team', pm.team,
+          'goals', pm.goals,
+          'result', pm.result,
+          'player', json_build_object(
+            'player_id', p.player_id,
+            'name', p.name,
+            'is_ringer', p.is_ringer,
+            'is_retired', p.is_retired
+          )
+        )) as player_matches
+      FROM matches m
+      LEFT JOIN player_matches pm ON m.match_id = pm.match_id
+      LEFT JOIN players p ON pm.player_id = p.player_id
+      WHERE m.match_date IS NOT NULL
+      GROUP BY m.match_id
+      ORDER BY m.match_date DESC
+      LIMIT 1
+    `;
+    
+    const latestMatch = latestMatches[0];
     console.log('Latest match:', latestMatch);
+    console.log('Latest match date:', latestMatch?.match_date);
 
     if (!latestMatch) {
       console.log('No matches found');
