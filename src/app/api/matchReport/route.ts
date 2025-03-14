@@ -37,7 +37,7 @@ export async function GET() {
 
     try {
       // Get active players from the latest match
-      const activePlayerIds = await prisma.$queryRaw`
+      const activePlayerIds = await prisma.$queryRaw<Array<{ player_id: number }>>`
         SELECT DISTINCT p.player_id
         FROM players p
         JOIN player_matches pm ON p.player_id = pm.player_id
