@@ -83,6 +83,26 @@ const TeamAlgorithm = () => {
     }
   };
 
+  const handleCopyTeams = () => {
+    const formatTeam = (teamSlots) => {
+      const players = teamSlots
+        .filter(slot => slot.player)
+        .map(slot => slot.player.name)
+        .sort();
+      return players.join('\n');
+    };
+
+    const teamASlots = slots.filter(s => s.slot_number <= 9);
+    const teamBSlots = slots.filter(s => s.slot_number > 9);
+
+    const formattedText = `Orange\n${formatTeam(teamASlots)}\n\nGreen\n${formatTeam(teamBSlots)}`;
+    
+    navigator.clipboard.writeText(formattedText).then(() => {
+      // Could add a toast notification here if you want to show feedback
+      console.log('Teams copied to clipboard');
+    });
+  };
+
   const getPlayerStats = (player, role) => {
     if (!player) return '';
     
@@ -262,13 +282,21 @@ const TeamAlgorithm = () => {
               Assign players to slots and then click 'Balance' to generate balanced teams.
             </p>
           </div>
-          <button
-            onClick={handleBalanceTeams}
-            disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
-          >
-            {loading ? 'Balancing...' : 'Balance'}
-          </button>
+          <div className="space-x-4">
+            <button
+              onClick={handleBalanceTeams}
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
+            >
+              {loading ? 'Balancing...' : 'Balance'}
+            </button>
+            <button
+              onClick={handleCopyTeams}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Copy
+            </button>
+          </div>
         </div>
 
         {error && (
