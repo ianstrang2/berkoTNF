@@ -1,55 +1,62 @@
-import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.css";
-import BootstrapLoader from "./bootstrap"; 
+import Navigation from "@/components/Navigation";
 
 export const metadata = {
   title: "Berko TNF Stats",
-  description: "The Home of Thursday Night Football",
+  description: "Statistics for Berko TNF Football",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body>
-        <BootstrapLoader />
-        <nav className="navbar navbar-expand-lg p-3">
-          <div className="container-fluid">
-            <a className="navbar-brand neon-text" href="/">BERKO TNF</a>
-            <button
-              className="navbar-toggler"
-              type="button"
-              data-bs-toggle="collapse"
-              data-bs-target="#navbarNav"
-            >
-              <span className="navbar-toggler-icon"></span>
-            </button>
-            <div className="collapse navbar-collapse" id="navbarNav">
-              <ul className="navbar-nav ms-auto">
-                <li className="nav-item">
-                  <a className="nav-link neon-text" href="/">HOME</a>
-                </li>
-                <li className="nav-item">
-                  <a className="nav-link neon-text" href="/admin">ADMIN</a>
-                </li>
-              </ul>
+      <body className="h-full">
+        <div className="min-h-full flex flex-col">
+          <nav className="bg-white shadow-sm">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between h-16">
+                <div className="flex">
+                  <div className="flex-shrink-0 flex items-center">
+                    <a href="/" className="text-xl font-bold text-primary-600">
+                      Berko TNF
+                    </a>
+                  </div>
+                  <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                    <a
+                      href="/"
+                      className="border-transparent text-gray-500 hover:border-primary-500 hover:text-primary-600 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    >
+                      HOME
+                    </a>
+                    <a
+                      href="/admin"
+                      className="border-transparent text-gray-500 hover:border-primary-500 hover:text-primary-600 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    >
+                      ADMIN
+                    </a>
+                  </div>
+                </div>
+                <Navigation />
+              </div>
             </div>
-          </div>
-        </nav>
-
-        <main className="container my-4" style={{ paddingBottom: '80px' }}>
-          {children}
-        </main>
-
-        <footer>
-          <div className="container">
-            © {new Date().getFullYear()} BERKO TNF - ALL RIGHTS RESERVED
-          </div>
-        </footer>
+          </nav>
+          <main className="flex-grow bg-neutral-50 py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              {children}
+            </div>
+          </main>
+          <footer className="bg-white">
+            <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+              <p className="text-center text-sm text-gray-500">
+                © {new Date().getFullYear()} Berko TNF. All rights reserved.
+              </p>
+            </div>
+          </footer>
+        </div>
       </body>
     </html>
   );

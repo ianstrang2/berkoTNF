@@ -1,5 +1,5 @@
+'use client';
 import React, { useState, useEffect } from 'react';
-import styles from './OverallSeasonPerformance.module.css';
 
 const OverallSeasonPerformance = () => {
   const [loading, setLoading] = useState(true);
@@ -14,20 +14,20 @@ const OverallSeasonPerformance = () => {
 
   const getGreenColor = (value, max) => {
     const percentage = value / max;
-    if (percentage > 0.8) return 'bg-green-600';
-    if (percentage > 0.6) return 'bg-green-500';
-    if (percentage > 0.4) return 'bg-green-400';
-    if (percentage > 0.2) return 'bg-green-300';
-    return 'bg-green-200';
+    if (percentage > 0.8) return 'text-success-600';
+    if (percentage > 0.6) return 'text-success-500';
+    if (percentage > 0.4) return 'text-success-400';
+    if (percentage > 0.2) return 'text-success-300';
+    return 'text-success-200';
   };
 
   const getRedColor = (value, max) => {
     const percentage = value / max;
-    if (percentage > 0.8) return 'bg-red-600';
-    if (percentage > 0.6) return 'bg-red-500';
-    if (percentage > 0.4) return 'bg-red-400';
-    if (percentage > 0.2) return 'bg-red-300';
-    return 'bg-red-200';
+    if (percentage > 0.8) return 'text-error-600';
+    if (percentage > 0.6) return 'text-error-500';
+    if (percentage > 0.4) return 'text-error-400';
+    if (percentage > 0.2) return 'text-error-300';
+    return 'text-error-200';
   };
 
   useEffect(() => {
@@ -71,23 +71,23 @@ const OverallSeasonPerformance = () => {
     const maxHeavyLosses = Math.max(...stats.seasonStats.map(p => p.heavy_losses), 1);
 
     return (
-      <div className={styles.arcadeContainer}>
-        <h3 className={styles.arcadeTitle}>Points Leaderboard</h3>
-        <div className="table-responsive">
-          <table className={styles.arcadeTable}>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Points Leaderboard</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full table-base">
             <thead>
               <tr>
-                <th style={{ minWidth: '150px' }}>Player</th>
-                <th style={{ width: '50px' }}>P</th>
-                <th style={{ width: '50px' }}>W</th>
-                <th style={{ width: '50px' }}>D</th>
-                <th style={{ width: '50px' }}>L</th>
-                <th style={{ width: '70px' }}>Goals</th>
-                <th style={{ width: '80px' }}>Heavy W</th>
-                <th style={{ width: '80px' }}>Heavy L</th>
-                <th style={{ width: '100px' }}>Clean Sheet</th>
-                <th style={{ width: '80px' }}>Win %</th>
-                <th style={{ width: '70px' }}>Points</th>
+                <th className="min-w-[150px]">Player</th>
+                <th className="w-[50px]">P</th>
+                <th className="w-[50px]">W</th>
+                <th className="w-[50px]">D</th>
+                <th className="w-[50px]">L</th>
+                <th className="w-[70px]">Goals</th>
+                <th className="w-[80px]">HW</th>
+                <th className="w-[80px]">HL</th>
+                <th className="w-[100px]">CS</th>
+                <th className="w-[80px]">Win %</th>
+                <th className="w-[70px]">Points</th>
               </tr>
             </thead>
             <tbody>
@@ -96,23 +96,23 @@ const OverallSeasonPerformance = () => {
                 
                 return (
                   <tr key={index}>
-                    <td className={styles.playerName}>{player.name}</td>
+                    <td className="font-medium text-primary-600">{player.name}</td>
                     <td>{player.games_played}</td>
-                    <td className={player.wins > maxWins * 0.6 ? styles.success : ''}>
+                    <td className={player.wins > maxWins * 0.6 ? 'text-success-600 font-medium' : ''}>
                       {player.wins}
                     </td>
                     <td>{player.draws}</td>
-                    <td className={losses > maxLosses * 0.6 ? styles.danger : ''}>
+                    <td className={losses > maxLosses * 0.6 ? 'text-error-600 font-medium' : ''}>
                       {losses}
                     </td>
-                    <td className={player.goals >= 100 ? styles.success : ''}>{player.goals}</td>
-                    <td className={player.heavy_wins > maxHeavyWins * 0.6 ? styles.success : ''}>
+                    <td className={player.goals >= 100 ? 'text-success-600 font-medium' : ''}>{player.goals}</td>
+                    <td className={player.heavy_wins > maxHeavyWins * 0.6 ? 'text-success-600 font-medium' : ''}>
                       {player.heavy_wins}
                     </td>
-                    <td className={player.heavy_losses > maxHeavyLosses * 0.6 ? styles.danger : ''}>
+                    <td className={player.heavy_losses > maxHeavyLosses * 0.6 ? 'text-error-600 font-medium' : ''}>
                       {player.heavy_losses}
                     </td>
-                    <td className={player.clean_sheets > maxCleanSheets * 0.6 ? styles.success : ''}>
+                    <td className={player.clean_sheets > maxCleanSheets * 0.6 ? 'text-success-600 font-medium' : ''}>
                       {player.clean_sheets}
                     </td>
                     <td>{Math.round(player.win_percentage)}%</td>
@@ -128,23 +128,25 @@ const OverallSeasonPerformance = () => {
   };
 
   const renderGoalStats = () => (
-    <div className={styles.arcadeContainer}>
-      <h3 className={styles.arcadeTitle}>Goalscoring Leaderboard</h3>
-      <div className="table-responsive">
-        <table className={styles.arcadeTable}>
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Goalscoring Leaderboard</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full table-base">
           <thead>
             <tr>
-              <th style={{ minWidth: '150px' }}>Player</th>
-              <th style={{ width: '70px' }}>Goals</th>
-              <th style={{ width: '70px' }}>MPG</th>
+              <th className="min-w-[150px]">Player</th>
+              <th className="w-[70px]">Goals</th>
+              <th className="w-[70px]">MPG</th>
             </tr>
           </thead>
           <tbody>
             {stats.goalStats.map((player, index) => (
               <tr key={index}>
-                <td className={styles.playerName}>{player.name}</td>
+                <td className="font-medium text-primary-600">{player.name}</td>
                 <td>{player.total_goals}</td>
-                <td className={player.total_goals > 0 && player.minutes_per_goal <= 90 ? styles.success : ''}>{player.minutes_per_goal}</td>
+                <td className={player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
+                  {player.minutes_per_goal}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -154,19 +156,21 @@ const OverallSeasonPerformance = () => {
   );
 
   if (loading) {
-    return <div className={`${styles.arcadeContainer} text-center`}>
-      <div className={styles.arcadeTitle}>Loading...</div>
-    </div>;
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div className="text-xl font-semibold text-primary-600">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-4">
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        <h2 className={styles.arcadeTitle}>Overall Season Performance</h2>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-4">
+        <h2 className="text-2xl font-bold text-primary-600">Overall Season Performance</h2>
         <select 
           value={selectedYear}
           onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className={styles.arcadeSelect}
+          className="form-select rounded-md border-neutral-300 focus:border-primary-500 focus:ring-primary-500"
         >
           {yearOptions.map(year => (
             <option key={year} value={year}>{year}</option>
@@ -175,30 +179,36 @@ const OverallSeasonPerformance = () => {
       </div>
 
       {/* Desktop view */}
-      <div className="hidden md:flex gap-8">
-        <div className="flex-1">{renderMainStats()}</div>
-        <div className="flex-1">{renderGoalStats()}</div>
+      <div className="hidden md:grid md:grid-cols-2 gap-6">
+        {renderMainStats()}
+        {renderGoalStats()}
       </div>
 
       {/* Mobile view */}
       <div className="md:hidden">
-        <div className={styles.arcadeTabs}>
+        <div className="flex rounded-lg bg-neutral-100 p-1 mb-6">
           <button
-            className={`${styles.arcadeTab} ${activeTab === 'performance' ? styles.active : ''}`}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'performance' 
+                ? 'bg-white text-primary-600 shadow-sm' 
+                : 'text-neutral-600 hover:text-primary-600'
+            }`}
             onClick={() => setActiveTab('performance')}
           >
             Points
           </button>
           <button
-            className={`${styles.arcadeTab} ${activeTab === 'goals' ? styles.active : ''}`}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'goals' 
+                ? 'bg-white text-primary-600 shadow-sm' 
+                : 'text-neutral-600 hover:text-primary-600'
+            }`}
             onClick={() => setActiveTab('goals')}
           >
             Goals
           </button>
         </div>
-        <div>
-          {activeTab === 'performance' ? renderMainStats() : renderGoalStats()}
-        </div>
+        {activeTab === 'performance' ? renderMainStats() : renderGoalStats()}
       </div>
     </div>
   );

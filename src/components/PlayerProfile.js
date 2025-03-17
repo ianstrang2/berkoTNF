@@ -1,13 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import styles from './PlayerProfile.module.css';
-
-// Placeholder Card components
-const Card = ({ children }) => <div className="border rounded-lg shadow-sm p-4">{children}</div>;
-const CardHeader = ({ children }) => <div className="border-b pb-2 mb-4">{children}</div>;
-const CardTitle = ({ children }) => <h2 className="text-xl font-semibold">{children}</h2>;
-const CardContent = ({ children }) => <div className="mt-4">{children}</div>;
 
 const PlayerProfile = ({ id }) => {
   const [loading, setLoading] = useState(true);
@@ -70,9 +63,9 @@ const PlayerProfile = ({ id }) => {
   }, [selectedPlayerId]);
 
   const getStreakColor = (streak) => {
-    if (streak >= 5) return styles.success;
-    if (streak >= 3) return styles.warning;
-    return '';
+    if (streak >= 5) return 'text-success-600';
+    if (streak >= 3) return 'text-warning-600';
+    return 'text-neutral-600';
   };
 
   const statOptions = [
@@ -98,42 +91,50 @@ const PlayerProfile = ({ id }) => {
   }).reverse();
 
   if (loading) {
-    return <div className={`${styles.arcadeContainer} text-center`}>
-      <div className={styles.arcadeTitle}>Loading...</div>
-    </div>;
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div className="text-xl font-semibold text-primary-600">Loading...</div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className={`${styles.arcadeContainer} text-center`}>
-      <div className={styles.danger}>{error}</div>
-    </div>;
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div className="text-xl font-semibold text-error-600">{error}</div>
+      </div>
+    );
   }
 
   if (!profile || !profile.yearly_stats) {
-    return <div className={`${styles.arcadeContainer} text-center`}>
-      <div className={styles.warning}>No profile data found</div>
-    </div>;
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div className="text-xl font-semibold text-warning-600">No profile data found</div>
+      </div>
+    );
   }
 
   if (!Array.isArray(profile.yearly_stats) || profile.yearly_stats.length === 0) {
-    return <div className={`${styles.arcadeContainer} text-center`}>
-      <div className={styles.warning}>No yearly stats available</div>
-    </div>;
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div className="text-xl font-semibold text-warning-600">No yearly stats available</div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-4">
+    <div className="space-y-6">
       {/* Player Selection Dropdown */}
-      <div className={styles.arcadeContainer}>
-        <div className="flex items-center gap-4 mb-6">
-          <label htmlFor="player-select" className={styles.arcadeSubtitle}>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="flex items-center gap-4">
+          <label htmlFor="player-select" className="text-lg font-medium text-primary-600">
             Select Player
           </label>
           <select
             id="player-select"
             value={selectedPlayerId}
             onChange={(e) => setSelectedPlayerId(Number(e.target.value))}
-            className={styles.arcadeSelect}
+            className="form-select rounded-md border-neutral-300 focus:border-primary-500 focus:ring-primary-500"
           >
             {Array.isArray(players) && players.length > 0 ? (
               players.map((player) => (
@@ -149,51 +150,51 @@ const PlayerProfile = ({ id }) => {
       </div>
 
       {/* Player Profile Overview */}
-      <div className={styles.arcadeContainer}>
-        <h2 className={styles.arcadeTitle}>{profile.name}'s Profile</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <div className={styles.arcadeCard}>
-            <h3 className={styles.arcadeSubtitle}>Games Played</h3>
-            <p className={styles.arcadeValue}>{profile.games_played}</p>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-2xl font-bold text-center text-primary-600 mb-6">{profile.name}'s Profile</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-primary-600 mb-2">Games Played</h3>
+            <p className="text-2xl font-bold text-neutral-900">{profile.games_played}</p>
           </div>
-          <div className={styles.arcadeCard}>
-            <h3 className={styles.arcadeSubtitle}>Fantasy Points</h3>
-            <p className={styles.arcadeValue}>{profile.fantasy_points}</p>
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-primary-600 mb-2">Fantasy Points</h3>
+            <p className="text-2xl font-bold text-neutral-900">{profile.fantasy_points}</p>
           </div>
-          <div className={styles.arcadeCard}>
-            <h3 className={styles.arcadeSubtitle}>Most Goals in a Game</h3>
-            <p className={styles.arcadeValue}>{profile.most_goals}</p>
-            <p className={styles.arcadeDate}>{profile.most_goals_date}</p>
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-primary-600 mb-2">Most Goals in a Game</h3>
+            <p className="text-2xl font-bold text-neutral-900">{profile.most_goals}</p>
+            <p className="text-sm text-neutral-600 mt-1">{profile.most_goals_date}</p>
           </div>
-          <div className={styles.arcadeCard}>
-            <h3 className={styles.arcadeSubtitle}>Longest Win Streak</h3>
-            <p className={`${styles.arcadeValue} ${getStreakColor(profile.win_streak)}`}>
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-primary-600 mb-2">Longest Win Streak</h3>
+            <p className={`text-2xl font-bold ${getStreakColor(profile.win_streak)}`}>
               {profile.win_streak} games
             </p>
-            <p className={styles.arcadeDate}>{profile.win_streak_dates}</p>
+            <p className="text-sm text-neutral-600 mt-1">{profile.win_streak_dates}</p>
           </div>
-          <div className={styles.arcadeCard}>
-            <h3 className={styles.arcadeSubtitle}>Longest Undefeated Streak</h3>
-            <p className={`${styles.arcadeValue} ${getStreakColor(profile.undefeated_streak)}`}>
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-primary-600 mb-2">Longest Undefeated Streak</h3>
+            <p className={`text-2xl font-bold ${getStreakColor(profile.undefeated_streak)}`}>
               {profile.undefeated_streak} games
             </p>
-            <p className={styles.arcadeDate}>{profile.undefeated_streak_dates}</p>
+            <p className="text-sm text-neutral-600 mt-1">{profile.undefeated_streak_dates}</p>
           </div>
         </div>
       </div>
 
       {/* Performance Over Time */}
-      <div className={styles.arcadeContainer}>
-        <h3 className={styles.arcadeTitle}>Performance Over Time</h3>
-        <div className="flex items-center gap-4 mb-4">
-          <label htmlFor="stat-select" className={styles.arcadeSubtitle}>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-2xl font-bold text-center text-primary-600 mb-6">Performance Over Time</h3>
+        <div className="flex items-center gap-4 mb-6">
+          <label htmlFor="stat-select" className="text-lg font-medium text-primary-600">
             Select Stat to Display
           </label>
           <select
             id="stat-select"
             value={selectedStat}
             onChange={(e) => setSelectedStat(e.target.value)}
-            className={styles.arcadeSelect}
+            className="form-select rounded-md border-neutral-300 focus:border-primary-500 focus:ring-primary-500"
           >
             {statOptions.map(option => (
               <option key={option} value={option}>{option}</option>
@@ -211,22 +212,23 @@ const PlayerProfile = ({ id }) => {
                 bottom: 5,
               }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 255, 255, 0.2)" />
-              <XAxis dataKey="year" stroke="#00ffff" />
-              <YAxis stroke="#00ffff" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59, 130, 246, 0.2)" />
+              <XAxis dataKey="year" stroke="#3B82F6" />
+              <YAxis stroke="#3B82F6" />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  border: '2px solid #00ffff',
-                  borderRadius: '4px',
-                  color: '#00ffff'
+                  backgroundColor: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '0.375rem',
+                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                  color: '#111827'
                 }}
               />
-              <Legend wrapperStyle={{ color: '#00ffff' }} />
+              <Legend wrapperStyle={{ color: '#3B82F6' }} />
               <Bar
                 dataKey={selectedStat.toLowerCase().replace(/ /g, '_')}
-                fill="#ff00ff"
-                stroke="#00ffff"
+                fill="#3B82F6"
+                stroke="#2563EB"
                 strokeWidth={1}
               />
             </BarChart>
@@ -235,10 +237,10 @@ const PlayerProfile = ({ id }) => {
       </div>
 
       {/* Yearly Statistics */}
-      <div className={styles.arcadeContainer}>
-        <h3 className={styles.arcadeTitle}>Yearly Statistics</h3>
-        <div className="table-responsive">
-          <table className={styles.arcadeTable}>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-2xl font-bold text-center text-primary-600 mb-6">Yearly Statistics</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full table-base">
             <thead>
               <tr>
                 <th>Year</th>
@@ -250,26 +252,16 @@ const PlayerProfile = ({ id }) => {
               </tr>
             </thead>
             <tbody>
-              {profile.yearly_stats.map((year) => {
-                const minutesPerGoal = (year.games_played * 60) / (year.goals_scored || 1);
-                const pointsPerGame = year.fantasy_points / (year.games_played || 1);
-
-                return (
-                  <tr
-                    key={year.year}
-                    className={selectedYear === year.year ? styles.selectedRow : ''}
-                    onClick={() => setSelectedYear(year.year)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td>{year.year}</td>
-                    <td>{year.games_played}</td>
-                    <td>{year.goals_scored}</td>
-                    <td>{Math.round(minutesPerGoal)}</td>
-                    <td>{pointsPerGame.toFixed(1)}</td>
-                    <td>{year.fantasy_points}</td>
-                  </tr>
-                );
-              })}
+              {yearlyPerformanceData.map((year) => (
+                <tr key={year.year}>
+                  <td>{year.year}</td>
+                  <td>{year.games_played}</td>
+                  <td>{year.goals_scored}</td>
+                  <td>{year.minutes_per_goal.toFixed(1)}</td>
+                  <td>{year.points_per_game.toFixed(1)}</td>
+                  <td>{year.fantasy_points}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

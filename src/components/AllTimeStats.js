@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import styles from './AllTimeStats.module.css';
 
 const AllTimeStats = () => {
   const [stats, setStats] = useState([]);
@@ -64,7 +63,7 @@ const AllTimeStats = () => {
   const getSortIndicator = (key) => {
     if (sortConfig.key === key) {
       return (
-        <span className={styles.sortIndicator}>
+        <span className="ml-1 text-primary-600">
           {sortConfig.direction === 'desc' ? '▼' : '▲'}
         </span>
       );
@@ -73,65 +72,67 @@ const AllTimeStats = () => {
   };
 
   if (loading) {
-    return <div className={`${styles.arcadeContainer} text-center`}>
-      <div className={styles.arcadeTitle}>Loading...</div>
-    </div>;
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div className="text-xl font-semibold text-primary-600">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-4">
-      <h2 className={styles.arcadeTitle}>All-Time Stats</h2>
-      <div className={styles.arcadeContainer}>
-        <div className="table-responsive">
-          <table className={styles.arcadeTable}>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-center text-primary-600">All-Time Stats</h2>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="overflow-x-auto">
+          <table className="w-full table-base">
             <thead>
               <tr>
-                <th onClick={() => sortData('name')} style={{ minWidth: '150px' }}>
+                <th onClick={() => sortData('name')} className="min-w-[150px] cursor-pointer hover:text-primary-600">
                   Player {getSortIndicator('name')}
                 </th>
-                <th onClick={() => sortData('games_played')} style={{ width: '50px' }}>
+                <th onClick={() => sortData('games_played')} className="w-[50px] cursor-pointer hover:text-primary-600">
                   P {getSortIndicator('games_played')}
                 </th>
-                <th onClick={() => sortData('wins')} style={{ width: '50px' }}>
+                <th onClick={() => sortData('wins')} className="w-[50px] cursor-pointer hover:text-primary-600">
                   W {getSortIndicator('wins')}
                 </th>
-                <th onClick={() => sortData('draws')} style={{ width: '50px' }}>
+                <th onClick={() => sortData('draws')} className="w-[50px] cursor-pointer hover:text-primary-600">
                   D {getSortIndicator('draws')}
                 </th>
-                <th onClick={() => sortData('losses')} style={{ width: '50px' }}>
+                <th onClick={() => sortData('losses')} className="w-[50px] cursor-pointer hover:text-primary-600">
                   L {getSortIndicator('losses')}
                 </th>
-                <th onClick={() => sortData('goals')} style={{ width: '60px' }}>
+                <th onClick={() => sortData('goals')} className="w-[60px] cursor-pointer hover:text-primary-600">
                   G {getSortIndicator('goals')}
                 </th>
-                <th onClick={() => sortData('win_percentage')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('win_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   Win% {getSortIndicator('win_percentage')}
                 </th>
-                <th onClick={() => sortData('minutes_per_goal')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('minutes_per_goal')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   MPG {getSortIndicator('minutes_per_goal')}
                 </th>
-                <th onClick={() => sortData('heavy_wins')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('heavy_wins')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   HW {getSortIndicator('heavy_wins')}
                 </th>
-                <th onClick={() => sortData('heavy_win_percentage')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('heavy_win_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   HW% {getSortIndicator('heavy_win_percentage')}
                 </th>
-                <th onClick={() => sortData('heavy_losses')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('heavy_losses')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   HL {getSortIndicator('heavy_losses')}
                 </th>
-                <th onClick={() => sortData('heavy_loss_percentage')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('heavy_loss_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   HL% {getSortIndicator('heavy_loss_percentage')}
                 </th>
-                <th onClick={() => sortData('clean_sheets')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('clean_sheets')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   CS {getSortIndicator('clean_sheets')}
                 </th>
-                <th onClick={() => sortData('clean_sheet_percentage')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('clean_sheet_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   CS% {getSortIndicator('clean_sheet_percentage')}
                 </th>
-                <th onClick={() => sortData('fantasy_points')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('fantasy_points')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   Pts {getSortIndicator('fantasy_points')}
                 </th>
-                <th onClick={() => sortData('points_per_game')} style={{ width: '70px' }}>
+                <th onClick={() => sortData('points_per_game')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   PPG {getSortIndicator('points_per_game')}
                 </th>
               </tr>
@@ -146,22 +147,38 @@ const AllTimeStats = () => {
                 const cleanSheets = player.clean_sheets || 0;
 
                 return (
-                  <tr key={index} className={isRetired ? styles.retired : ''}>
-                    <td className={isRetired ? styles.retiredPlayerName : styles.playerName}>{player.name}</td>
-                    <td className={player.games_played >= 200 ? styles.success : ''}>{player.games_played}</td>
+                  <tr key={index} className={isRetired ? 'text-neutral-400' : ''}>
+                    <td className={`font-medium ${isRetired ? 'text-neutral-400' : 'text-primary-600'}`}>
+                      {player.name}
+                    </td>
+                    <td className={player.games_played >= 200 ? 'text-success-600 font-medium' : ''}>
+                      {player.games_played}
+                    </td>
                     <td>{wins}</td>
                     <td>{player.draws}</td>
                     <td>{losses}</td>
-                    <td className={player.goals >= 100 ? styles.success : ''}>{player.goals}</td>
-                    <td className={player.win_percentage >= 50 ? styles.success : ''}>{Math.round(player.win_percentage)}%</td>
-                    <td className={player.minutes_per_goal <= 90 ? styles.success : ''}>{Math.round(player.minutes_per_goal)}</td>
+                    <td className={player.goals >= 100 ? 'text-success-600 font-medium' : ''}>
+                      {player.goals}
+                    </td>
+                    <td className={player.win_percentage >= 50 ? 'text-success-600 font-medium' : ''}>
+                      {Math.round(player.win_percentage)}%
+                    </td>
+                    <td className={player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
+                      {Math.round(player.minutes_per_goal)}
+                    </td>
                     <td>{heavyWins}</td>
-                    <td className={player.heavy_win_percentage >= 20 ? styles.success : ''}>{Math.round(player.heavy_win_percentage)}%</td>
+                    <td className={player.heavy_win_percentage >= 20 ? 'text-success-600 font-medium' : ''}>
+                      {Math.round(player.heavy_win_percentage)}%
+                    </td>
                     <td>{heavyLosses}</td>
-                    <td className={player.heavy_loss_percentage >= 20 ? styles.danger : ''}>{Math.round(player.heavy_loss_percentage)}%</td>
+                    <td className={player.heavy_loss_percentage >= 20 ? 'text-error-600 font-medium' : ''}>
+                      {Math.round(player.heavy_loss_percentage)}%
+                    </td>
                     <td>{cleanSheets}</td>
-                    <td className={player.clean_sheet_percentage >= 7.5 ? styles.success : ''}>{Math.round(player.clean_sheet_percentage)}%</td>
-                    <td className={styles.playerName}>{player.fantasy_points}</td>
+                    <td className={player.clean_sheet_percentage >= 7.5 ? 'text-success-600 font-medium' : ''}>
+                      {Math.round(player.clean_sheet_percentage)}%
+                    </td>
+                    <td className="font-medium text-primary-600">{player.fantasy_points}</td>
                     <td>{player.points_per_game}</td>
                   </tr>
                 );

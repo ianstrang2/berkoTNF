@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';  // Import date-fns for date formatting
-import styles from './MatchManager.module.css';
 
 const MatchManager = () => {
   const [players, setPlayers] = useState([]);
@@ -204,153 +203,182 @@ const MatchManager = () => {
   };
 
   return (
-    <div className={styles.matchContainer}>
-      <h2 className={styles.matchTitle}>
+    <div className="bg-white rounded-lg shadow-sm p-6 space-y-8">
+      <h2 className="text-2xl font-bold text-primary-600">
         {selectedMatch ? 'Edit Match' : 'Add New Match'}
       </h2>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-8">
         {/* Match Date */}
-        <div>
-          <label className={styles.label}>Match Date</label>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Match Date</label>
           <input
             type="date"
             value={formData.match_date}
             onChange={(e) => setFormData({ ...formData, match_date: e.target.value })}
-            className={styles.input}
+            className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
             required
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Team A */}
-          <div className={styles.teamSection}>
-            <h3 className={styles.teamTitle}>Team A</h3>
-            {formData.team_a.map((player, index) => (
-              <div key={`team-a-${index}`} className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <select
-                    value={player.player_id}
-                    onChange={(e) => handlePlayerChange('a', index, 'player_id', e.target.value)}
-                    className={styles.select}
-                  >
-                    <option value="">Select Player</option>
-                    {players.map((p) => (
-                      <option key={p.player_id} value={p.player_id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-primary-600">Team A</h3>
+            <div className="space-y-4">
+              {formData.team_a.map((player, index) => (
+                <div key={`team-a-${index}`} className="grid grid-cols-4 gap-4">
+                  <div className="col-span-3">
+                    <select
+                      value={player.player_id}
+                      onChange={(e) => handlePlayerChange('a', index, 'player_id', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                    >
+                      <option value="">Select Player</option>
+                      {players.map((p) => (
+                        <option key={p.player_id} value={p.player_id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={player.goals}
+                    onChange={(e) => handlePlayerChange('a', index, 'goals', parseInt(e.target.value) || 0)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  />
                 </div>
-                <input
-                  type="number"
-                  min="0"
-                  value={player.goals}
-                  onChange={(e) => handlePlayerChange('a', index, 'goals', parseInt(e.target.value) || 0)}
-                  className={styles.input}
-                />
-              </div>
-            ))}
-            <div>
-              <label className={styles.label}>Team A Score</label>
+              ))}
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">Team A Score</label>
               <input
                 type="number"
                 min="0"
                 value={formData.team_a_score}
                 onChange={(e) => setFormData({ ...formData, team_a_score: parseInt(e.target.value) || 0 })}
-                className={styles.input}
+                className="mt-1 w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
           </div>
 
           {/* Team B */}
-          <div className={styles.teamSection}>
-            <h3 className={styles.teamTitle}>Team B</h3>
-            {formData.team_b.map((player, index) => (
-              <div key={`team-b-${index}`} className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <select
-                    value={player.player_id}
-                    onChange={(e) => handlePlayerChange('b', index, 'player_id', e.target.value)}
-                    className={styles.select}
-                  >
-                    <option value="">Select Player</option>
-                    {players.map((p) => (
-                      <option key={p.player_id} value={p.player_id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-primary-600">Team B</h3>
+            <div className="space-y-4">
+              {formData.team_b.map((player, index) => (
+                <div key={`team-b-${index}`} className="grid grid-cols-4 gap-4">
+                  <div className="col-span-3">
+                    <select
+                      value={player.player_id}
+                      onChange={(e) => handlePlayerChange('b', index, 'player_id', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                    >
+                      <option value="">Select Player</option>
+                      {players.map((p) => (
+                        <option key={p.player_id} value={p.player_id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={player.goals}
+                    onChange={(e) => handlePlayerChange('b', index, 'goals', parseInt(e.target.value) || 0)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  />
                 </div>
-                <input
-                  type="number"
-                  min="0"
-                  value={player.goals}
-                  onChange={(e) => handlePlayerChange('b', index, 'goals', parseInt(e.target.value) || 0)}
-                  className={styles.input}
-                />
-              </div>
-            ))}
-            <div>
-              <label className={styles.label}>Team B Score</label>
+              ))}
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">Team B Score</label>
               <input
                 type="number"
                 min="0"
                 value={formData.team_b_score}
                 onChange={(e) => setFormData({ ...formData, team_b_score: parseInt(e.target.value) || 0 })}
-                className={styles.input}
+                className="mt-1 w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className={styles.actionButton}
-        >
-          {isLoading ? 'Saving...' : (selectedMatch ? 'Update Match' : 'Add Match')}
-        </button>
+        {error && (
+          <p className="text-red-500 text-sm font-medium text-center">{error}</p>
+        )}
 
-        {error && <div className="text-red-500 mt-4">{error}</div>}
+        <div className="flex space-x-4">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex-1 py-2 px-4 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 disabled:opacity-50"
+          >
+            {isLoading
+              ? 'Saving...'
+              : selectedMatch
+              ? 'Update Match'
+              : 'Add Match'}
+          </button>
+
+          {selectedMatch && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMatch(null);
+                setFormData({
+                  match_date: new Date().toISOString().split('T')[0],
+                  team_a: [...defaultTeamState],
+                  team_b: [...defaultTeamState],
+                  team_a_score: 0,
+                  team_b_score: 0,
+                });
+              }}
+              className="flex-1 py-2 px-4 bg-white text-primary-600 border border-primary-200 rounded-md hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
+            >
+              Cancel Edit
+            </button>
+          )}
+        </div>
       </form>
 
-      {/* Previous Matches */}
+      {/* Match List */}
       <div className="mt-8">
-        <h3 className={styles.matchTitle}>Previous Matches</h3>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Score</th>
-              <th>Players</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {matches.map((match) => (
-              <tr key={match.match_id}>
-                <td>{format(new Date(match.match_date), 'dd/MM/yyyy')}</td>
-                <td>{match.team_a_score} - {match.team_b_score}</td>
-                <td>
-                  {match.player_matches.map((pm) => (
-                    <div key={pm.player_id} className={styles.playerRow}>
-                      {players.find(p => p.player_id === pm.player_id)?.name} ({pm.team}): {pm.goals} goals
-                    </div>
-                  ))}
-                </td>
-                <td>
-                  <button
-                    onClick={() => handleEdit(match)}
-                    className={`${styles.actionButton} ${styles.editButton}`}
-                  >
-                    Edit
-                  </button>
-                </td>
+        <h3 className="text-xl font-semibold text-primary-600 mb-4">Match History</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {matches.map((match) => (
+                <tr key={match.match_id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {format(new Date(match.match_date), 'dd/MM/yyyy')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {match.team_a_score} - {match.team_b_score}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <button
+                      onClick={() => handleEdit(match)}
+                      className="text-primary-600 hover:text-primary-900 font-medium"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import styles from './CurrentHalfSeason.module.css';
 
 const CurrentHalfSeason = () => {
   const [loading, setLoading] = useState(true);
@@ -59,24 +58,24 @@ const CurrentHalfSeason = () => {
   }, []);
 
   const renderMainStats = () => (
-    <div className={styles.arcadeContainer}>
-      <h3 className={styles.arcadeTitle}>Points Leaderboard</h3>
-      <div className="table-responsive">
-        <table className={styles.arcadeTable}>
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Points Leaderboard</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full table-base">
           <thead>
             <tr>
-              <th style={{minWidth: '150px'}}>Player</th>
-              <th style={{width: '50px'}}>P</th>
-              <th style={{width: '50px'}}>W</th>
-              <th style={{width: '50px'}}>D</th>
-              <th style={{width: '50px'}}>L</th>
-              <th style={{width: '70px'}}>Goals</th>
-              <th style={{width: '80px'}}>Heavy W</th>
-              <th style={{width: '80px'}}>Heavy L</th>
-              <th style={{width: '100px'}}>Clean Sheet</th>
-              <th style={{width: '80px'}}>Win %</th>
-              <th style={{width: '70px'}}>Points</th>
-              <th style={{width: '150px'}}>Last 5</th>
+              <th className="min-w-[150px]">Player</th>
+              <th className="w-[50px]">P</th>
+              <th className="w-[50px]">W</th>
+              <th className="w-[50px]">D</th>
+              <th className="w-[50px]">L</th>
+              <th className="w-[70px]">Goals</th>
+              <th className="w-[80px]">Heavy W</th>
+              <th className="w-[80px]">Heavy L</th>
+              <th className="w-[100px]">Clean Sheet</th>
+              <th className="w-[80px]">Win %</th>
+              <th className="w-[70px]">Points</th>
+              <th className="w-[150px]">Last 5</th>
             </tr>
           </thead>
           <tbody>
@@ -85,21 +84,40 @@ const CurrentHalfSeason = () => {
               const losses = player.games_played - player.wins - player.draws;
               return (
                 <tr key={index}>
-                  <td className={styles.playerName}>{player.name}</td>
+                  <td className="font-medium text-primary-600">{player.name}</td>
                   <td>{player.games_played}</td>
-                  <td className={player.wins >= 7 ? styles.success : ''}>{player.wins}</td>
+                  <td className={player.wins >= 7 ? 'text-success-600 font-medium' : ''}>
+                    {player.wins}
+                  </td>
                   <td>{player.draws}</td>
-                  <td className={losses >= 7 ? styles.danger : ''}>{losses}</td>
+                  <td className={losses >= 7 ? 'text-error-600 font-medium' : ''}>
+                    {losses}
+                  </td>
                   <td>{player.goals}</td>
-                  <td className={player.heavy_wins >= 3 ? styles.success : ''}>{player.heavy_wins}</td>
-                  <td className={player.heavy_losses >= 3 ? styles.danger : ''}>{player.heavy_losses}</td>
-                  <td className={player.clean_sheets >= 3 ? styles.success : ''}>{player.clean_sheets}</td>
+                  <td className={player.heavy_wins >= 3 ? 'text-success-600 font-medium' : ''}>
+                    {player.heavy_wins}
+                  </td>
+                  <td className={player.heavy_losses >= 3 ? 'text-error-600 font-medium' : ''}>
+                    {player.heavy_losses}
+                  </td>
+                  <td className={player.clean_sheets >= 3 ? 'text-success-600 font-medium' : ''}>
+                    {player.clean_sheets}
+                  </td>
                   <td>{Math.round(player.win_percentage)}%</td>
-                  <td className="fw-bold">{player.fantasy_points}</td>
+                  <td className="font-bold">{player.fantasy_points}</td>
                   <td>
-                    <div className="d-flex gap-1">
+                    <div className="flex gap-1">
                       {form.map((result, i) => (
-                        <span key={i} className={`${result.includes('W') ? styles.success : result === 'D' ? styles.warning : styles.danger}`}>
+                        <span 
+                          key={i} 
+                          className={`px-1.5 py-0.5 rounded text-sm font-medium ${
+                            result.includes('W') 
+                              ? 'bg-success-50 text-success-600' 
+                              : result === 'D' 
+                                ? 'bg-warning-50 text-warning-600' 
+                                : 'bg-error-50 text-error-600'
+                          }`}
+                        >
                           {result.replace('H', '')}
                         </span>
                       ))}
@@ -115,32 +133,41 @@ const CurrentHalfSeason = () => {
   );
 
   const renderGoalStats = () => (
-    <div className={styles.arcadeContainer}>
-      <h3 className={styles.arcadeTitle}>Goalscoring Leaderboard</h3>
-      <div className="table-responsive">
-        <table className={styles.arcadeTable}>
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Goalscoring Leaderboard</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full table-base">
           <thead>
             <tr>
-              <th style={{minWidth: '150px'}}>Player</th>
-              <th style={{width: '80px'}}>Goals</th>
-              <th style={{width: '80px'}}>MPG</th>
-              <th style={{width: '200px'}}>Last 5</th>
+              <th className="min-w-[150px]">Player</th>
+              <th className="w-[80px]">Goals</th>
+              <th className="w-[80px]">MPG</th>
+              <th className="w-[200px]">Last 5</th>
             </tr>
           </thead>
           <tbody>
             {stats.goalStats.map((player, index) => (
               <tr key={index}>
-                <td className={styles.playerName}>{player.name}</td>
+                <td className="font-medium text-primary-600">{player.name}</td>
                 <td>{player.total_goals}</td>
-                <td className={player.total_goals > 0 && player.minutes_per_goal <= 90 ? styles.success : ''}>
+                <td className={player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
                   {player.minutes_per_goal}
                 </td>
                 <td>
-                  <div className="d-flex gap-1">
+                  <div className="flex gap-1">
                     {player.last_five_games?.split(',').map((goals, i) => {
                       const goalCount = parseInt(goals);
                       return (
-                        <span key={i} className={goalCount > 0 ? styles.success : goals === '0' ? styles.danger : ''}>
+                        <span 
+                          key={i} 
+                          className={`px-1.5 py-0.5 rounded text-sm font-medium ${
+                            goalCount > 0 
+                              ? 'bg-success-50 text-success-600' 
+                              : goals === '0' 
+                                ? 'bg-error-50 text-error-600' 
+                                : ''
+                          }`}
+                        >
                           {goals}
                         </span>
                       );
@@ -156,53 +183,50 @@ const CurrentHalfSeason = () => {
   );
 
   if (loading) {
-    return <div className={`${styles.arcadeContainer} text-center`}>
-      <div className={styles.arcadeTitle}>Loading...</div>
-    </div>;
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div className="text-xl font-semibold text-primary-600">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="container-fluid p-4">
-      <h2 className={styles.arcadeTitle}>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-center text-primary-600">
         Current Half-Season Performance - {getCurrentHalf().description}
       </h2>
 
       {/* Desktop view */}
-      <div className="d-none d-md-flex gap-4">
-        <div className="flex-grow-1">{renderMainStats()}</div>
-        <div className="flex-grow-1">{renderGoalStats()}</div>
+      <div className="hidden md:grid md:grid-cols-2 gap-6">
+        {renderMainStats()}
+        {renderGoalStats()}
       </div>
 
       {/* Mobile view */}
-      <div className="d-md-none">
-        <div className={styles.arcadeContainer}>
-          <ul className="nav nav-tabs mb-3" role="tablist">
-            <li className="nav-item" role="presentation">
-              <button
-                className={`nav-link ${activeTab === 'performance' ? 'active' : ''} ${styles.arcadeButton}`}
-                onClick={() => setActiveTab('performance')}
-              >
-                Points
-              </button>
-            </li>
-            <li className="nav-item" role="presentation">
-              <button
-                className={`nav-link ${activeTab === 'goals' ? 'active' : ''} ${styles.arcadeButton}`}
-                onClick={() => setActiveTab('goals')}
-              >
-                Goals
-              </button>
-            </li>
-          </ul>
-          <div className="tab-content">
-            <div className={`tab-pane fade ${activeTab === 'performance' ? 'show active' : ''}`}>
-              {renderMainStats()}
-            </div>
-            <div className={`tab-pane fade ${activeTab === 'goals' ? 'show active' : ''}`}>
-              {renderGoalStats()}
-            </div>
-          </div>
+      <div className="md:hidden">
+        <div className="flex rounded-lg bg-neutral-100 p-1 mb-6">
+          <button
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'performance' 
+                ? 'bg-white text-primary-600 shadow-sm' 
+                : 'text-neutral-600 hover:text-primary-600'
+            }`}
+            onClick={() => setActiveTab('performance')}
+          >
+            Points
+          </button>
+          <button
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'goals' 
+                ? 'bg-white text-primary-600 shadow-sm' 
+                : 'text-neutral-600 hover:text-primary-600'
+            }`}
+            onClick={() => setActiveTab('goals')}
+          >
+            Goals
+          </button>
         </div>
+        {activeTab === 'performance' ? renderMainStats() : renderGoalStats()}
       </div>
     </div>
   );
