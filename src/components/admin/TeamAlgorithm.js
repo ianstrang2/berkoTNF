@@ -1,106 +1,224 @@
 import React, { useState, useEffect } from 'react';
 
+// Team structure constants
+const TEAM_STRUCTURE = {
+  ORANGE: {
+    name: 'Orange',
+    slots: {
+      defenders: [1, 2, 3],
+      midfielders: [4, 5, 6, 7],
+      attackers: [8, 9]
+    }
+  },
+  GREEN: {
+    name: 'Green',
+    slots: {
+      defenders: [10, 11, 12],
+      midfielders: [13, 14, 15, 16],
+      attackers: [17, 18]
+    }
+  }
+};
+
+// Helper function to get team and position info from slot number
+const getSlotInfo = (slotNumber) => {
+  const isGreen = slotNumber > 9;
+  const team = isGreen ? TEAM_STRUCTURE.GREEN : TEAM_STRUCTURE.ORANGE;
+  
+  let position;
+  if (team.slots.defenders.includes(slotNumber)) position = 'defenders';
+  else if (team.slots.midfielders.includes(slotNumber)) position = 'midfielders';
+  else position = 'attackers';
+  
+  return { team, position };
+};
+
+// Warning message helper
+const getWarningMessage = (currentSlots, isBalanced, error) => {
+  if (error) return { type: 'error', message: error };
+  
+  const filledSlotCount = currentSlots.filter(s => s.player_id !== null).length;
+  
+  if (filledSlotCount === 0) return null;
+  if (filledSlotCount < 18) return {
+    type: 'error',
+    message: `Need ${18 - filledSlotCount} more players`
+  };
+  if (!isBalanced) return {
+    type: 'warning',
+    message: 'Teams have been modified. Click "Balance Teams" to optimize team balance.'
+  };
+  return null;
+};
+
 const TeamAlgorithm = () => {
   const [players, setPlayers] = useState([]);
-  const [slots, setSlots] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [currentSlots, setCurrentSlots] = useState(Array(18).fill().map((_, i) => ({
+    slot_number: i + 1,
+    player_id: null
+  })));
+  const [isBalanced, setIsBalanced] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Fetch players and current slot assignments
+  // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsLoading(true);
+        setError(null);
+        
         // Fetch players
         const playersResponse = await fetch('/api/admin/players');
+        if (!playersResponse.ok) throw new Error('Failed to fetch players');
         const playersData = await playersResponse.json();
-        if (playersData.data) {
-          const activePlayers = playersData.data.filter(p => !p.is_retired);
-          setPlayers(activePlayers);
-        }
+        if (!playersData.success) throw new Error(playersData.error || 'Failed to fetch players');
+        
+        // Sort players alphabetically and map to correct format
+        const sortedPlayers = playersData.data
+          .filter(p => !p.is_retired)
+          .map(p => ({
+            id: p.player_id,  // Map player_id to id for consistency
+            ...p
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setPlayers(sortedPlayers);
 
         // Fetch current slot assignments
         const slotsResponse = await fetch('/api/admin/team-slots');
+        if (!slotsResponse.ok) throw new Error('Failed to fetch slots');
         const slotsData = await slotsResponse.json();
-        if (slotsData.success) {
-          setSlots(slotsData.data);
-        }
+        if (!slotsData.success) throw new Error(slotsData.error || 'Failed to fetch slots');
+        
+        // Ensure slots are ordered 1-18
+        const orderedSlots = slotsData.data.sort((a, b) => a.slot_number - b.slot_number);
+        setCurrentSlots(orderedSlots);
+        
+        // If all slots are filled, consider it balanced
+        const allFilled = orderedSlots.every(slot => slot.player_id !== null);
+        setIsBalanced(allFilled);
       } catch (err) {
-        setError('Failed to fetch data');
+        console.error('Error fetching data:', err);
+        setError('Failed to fetch data: ' + err.message);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
   }, []);
 
-  const handlePlayerSelect = async (slotNumber, playerId) => {
+  // Get available players for a slot
+  const getAvailablePlayers = (slotNumber) => {
+    if (!players.length) return [];
+    
+    // Get IDs of players assigned to other slots
+    const takenPlayerIds = new Set(
+      currentSlots
+        .filter(s => s.slot_number !== slotNumber && s.player_id !== null)
+        .map(s => s.player_id)
+    );
+
+    // Get current player in this slot
+    const currentPlayerId = currentSlots.find(s => s.slot_number === slotNumber)?.player_id;
+
+    // Return available players (unassigned + current player)
+    return players
+      .filter(p => !takenPlayerIds.has(p.id) || p.id === currentPlayerId)
+      .sort((a, b) => {
+        if (a.id === currentPlayerId) return -1;
+        if (b.id === currentPlayerId) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  };
+
+  const handlePlayerSelect = async (slotNumber, newPlayerId) => {
     try {
-      setLoading(true);
+      setError(null);
+      console.log('Updating slot:', slotNumber, 'with player:', newPlayerId);
+      
+      // Parse the player ID properly
+      const parsedPlayerId = newPlayerId === '' ? null : Number(newPlayerId);
+      
+      console.log('Parsed player ID:', parsedPlayerId);
+      
+      // Update database first
       const response = await fetch('/api/admin/team-slots', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slot_number: slotNumber,
-          player_id: playerId ? parseInt(playerId) : null
+          player_id: parsedPlayerId
         })
       });
 
+      console.log('API Response status:', response.status);
       const data = await response.json();
-      if (data.success) {
-        // Update the slots state with the new assignment
-        setSlots(slots.map(slot => 
-          slot.slot_number === slotNumber 
-            ? { ...slot, player_id: playerId ? parseInt(playerId) : null, player: playerId ? players.find(p => p.player_id === parseInt(playerId)) : null }
-            : slot
-        ));
-      } else {
-        setError(data.error || 'Failed to update slot');
+      console.log('API Response data:', data);
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update slot');
       }
-    } catch (err) {
-      setError('Failed to update slot');
-    } finally {
-      setLoading(false);
+
+      // Update UI after successful database update
+      setCurrentSlots(prev => prev.map(slot => ({
+        ...slot,
+        player_id: slot.slot_number === slotNumber ? parsedPlayerId : slot.player_id
+      })));
+      
+      // Mark as unbalanced when changes are made
+      setIsBalanced(false);
+    } catch (error) {
+      console.error('Error updating slot:', error);
+      setError('Failed to update slot: ' + error.message);
     }
   };
 
   const handleBalanceTeams = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       setError(null);
+
       const response = await fetch('/api/admin/generate-teams', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slots: currentSlots }),
       });
 
+      if (!response.ok) throw new Error('Failed to balance teams');
       const data = await response.json();
-      if (data.success) {
-        setSlots(data.data);
-      } else {
-        setError(data.error || 'Failed to balance teams');
-      }
-    } catch (err) {
-      setError('Failed to balance teams');
+      if (!data.success) throw new Error(data.error || 'Failed to balance teams');
+
+      // Update slots with new assignments
+      setCurrentSlots(data.data.sort((a, b) => a.slot_number - b.slot_number));
+      setIsBalanced(true);
+    } catch (error) {
+      console.error('Error balancing teams:', error);
+      setError('Failed to balance teams: ' + error.message);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleCopyTeams = () => {
     const formatTeam = (teamSlots) => {
-      const players = teamSlots
-        .filter(slot => slot.player)
-        .map(slot => slot.player.name)
-        .sort();
-      return players.join('\n');
+      return teamSlots
+        .filter(slot => slot.player_id)
+        .map(slot => {
+          const player = players.find(p => p.id === slot.player_id);
+          return player ? player.name : '';
+        })
+        .filter(name => name) // Remove empty names
+        .sort()
+        .join('\n');
     };
 
-    const teamASlots = slots.filter(s => s.slot_number <= 9);
-    const teamBSlots = slots.filter(s => s.slot_number > 9);
+    const teamASlots = currentSlots.filter(s => s.slot_number <= 9);
+    const teamBSlots = currentSlots.filter(s => s.slot_number > 9);
 
     const formattedText = `Orange\n${formatTeam(teamASlots)}\n\nGreen\n${formatTeam(teamBSlots)}`;
     
-    navigator.clipboard.writeText(formattedText).then(() => {
-      // Could add a toast notification here if you want to show feedback
-      console.log('Teams copied to clipboard');
-    });
+    navigator.clipboard.writeText(formattedText);
   };
 
   const getPlayerStats = (player, role) => {
@@ -127,189 +245,313 @@ const TeamAlgorithm = () => {
   const StatBar = ({ label, value, maxValue = 5 }) => {
     const percentage = (value / maxValue) * 100;
     return (
-      <div className="flex items-center gap-2 mt-2">
-        <span className="text-sm text-gray-700 w-20">{label}</span>
-        <div className="flex-1 bg-gray-200 h-6 rounded-md overflow-hidden">
+      <div className="flex items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
+        <span className="text-xs sm:text-sm text-gray-700 w-16 sm:w-20">{label}</span>
+        <div className="flex-1 bg-gray-200 h-4 sm:h-6 rounded-md overflow-hidden">
           <div 
             className="h-full bg-green-500 transition-all duration-300"
             style={{ width: `${percentage}%` }}
           >
           </div>
         </div>
-        <span className="text-sm text-gray-700 w-12 text-right">{value.toFixed(1)}</span>
+        <span className="text-xs sm:text-sm text-gray-700 w-10 sm:w-12 text-right">{value.toFixed(1)}</span>
       </div>
     );
   };
 
-  const calculateSectionStats = (players, role) => {
+  const calculateSectionStats = (players, position) => {
     if (!players.length) return null;
     
     const avg = (field) => 
       players.reduce((sum, p) => sum + (Number(p[field]) || 0), 0) / players.length;
 
-    switch (role) {
-      case 'defender':
-        return {
-          physical: avg('stamina_pace'),
-          control: avg('control')
-        };
-      case 'midfielder':
-        return {
-          control: avg('control'),
-          teamwork: avg('teamwork'),
-          physical: avg('stamina_pace')
-        };
-      case 'attacker':
-        return {
-          goalscoring: avg('goalscoring'),
-          physical: avg('stamina_pace'),
-          teamwork: avg('teamwork')
-        };
-      default:
-        return null;
-    }
+    // Convert plural position names to singular
+    const role = position.endsWith('s') ? position.slice(0, -1) : position;
+
+    const stats = {
+      defender: {
+        physical: avg('stamina_pace'),
+        control: avg('control')
+      },
+      midfielder: {
+        control: avg('control'),
+        teamwork: avg('teamwork'),
+        physical: avg('stamina_pace')
+      },
+      attacker: {
+        goalscoring: avg('goalscoring'),
+        physical: avg('stamina_pace'),
+        teamwork: avg('teamwork')
+      }
+    }[role] || {};
+
+    return Object.entries(stats).map(([key, value]) => ({
+      label: key.charAt(0).toUpperCase() + key.slice(1),
+      value: value || 0
+    }));
   };
 
-  const renderPositionSection = (slots, position, team) => {
-    const isTeamB = team === 'B';
-    const players = slots
-      .filter(s => s.player)
-      .map(s => s.player);
-    
-    const stats = calculateSectionStats(players, position.toLowerCase());
+  const renderTeamSection = (team) => {
+    const isTeamA = team === 'ORANGE';
+    const teamSlots = currentSlots.filter(slot => 
+      isTeamA ? slot.slot_number <= 9 : slot.slot_number > 9
+    );
+
+    const getTeamPlayers = (startSlot, endSlot) => {
+      return teamSlots
+        .filter(slot => {
+          const slotNum = isTeamA ? slot.slot_number : slot.slot_number - 9;
+          return slotNum >= startSlot && slotNum <= endSlot;
+        })
+        .map(slot => players.find(p => p.id === slot.player_id))
+        .filter(Boolean);
+    };
+
+    const defenders = getTeamPlayers(1, 3);
+    const midfielders = getTeamPlayers(4, 7);
+    const attackers = getTeamPlayers(8, 9);
+
+    const calculateStats = (players, type) => {
+      if (!players.length) return null;
+      
+      switch (type) {
+        case 'defense':
+          return {
+            affinity: players.reduce((sum, p) => sum + (p.defender || 0), 0) / players.length,
+            stamina_pace: players.reduce((sum, p) => sum + (p.stamina_pace || 0), 0) / players.length,
+            control: players.reduce((sum, p) => sum + (p.control || 0), 0) / players.length
+          };
+        case 'midfield':
+          return {
+            control: players.reduce((sum, p) => sum + (p.control || 0), 0) / players.length,
+            teamwork: players.reduce((sum, p) => sum + (p.teamwork || 0), 0) / players.length,
+            stamina_pace: players.reduce((sum, p) => sum + (p.stamina_pace || 0), 0) / players.length
+          };
+        case 'attack':
+          return {
+            goalscoring: players.reduce((sum, p) => sum + (p.goalscoring || 0), 0) / players.length,
+            stamina_pace: players.reduce((sum, p) => sum + (p.stamina_pace || 0), 0) / players.length,
+            teamwork: players.reduce((sum, p) => sum + (p.teamwork || 0), 0) / players.length
+          };
+        default:
+          return null;
+      }
+    };
+
+    const renderPositionGroup = (title, players, type) => {
+      const stats = calculateStats(players, type);
+      
+      return (
+        <div className="mb-6 last:mb-0">
+          <h3 className="text-lg font-semibold mb-2">{title}</h3>
+          <div className="space-y-2">
+            {players.map((player, idx) => (
+              <div key={player.id} className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 w-6">
+                  {isTeamA ? idx + (type === 'defense' ? 1 : type === 'midfield' ? 4 : 8) : 
+                            idx + (type === 'defense' ? 10 : type === 'midfield' ? 13 : 17)}
+                </span>
+                <span>{player.name}</span>
+              </div>
+            ))}
+            {stats && (
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                {Object.entries(stats).map(([key, value]) => (
+                  <StatBar
+                    key={key}
+                    label={key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                    value={value}
+                    maxValue={5}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
 
     return (
-      <div>
-        <h4 className="font-medium text-gray-900 mb-4">
-          {position}s
-        </h4>
-        <div className="space-y-2">
-          {slots.map(slot => (
-            <div key={slot.slot_number} className="relative">
-              <div className="flex items-center space-x-2">
-                <div className="w-full">
-                  <select
-                    value={slot.player_id || ''}
-                    onChange={(e) => handlePlayerSelect(slot.slot_number, e.target.value)}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-                  >
-                    <option value="">Select Player</option>
-                    {players.map(player => (
-                      <option
-                        key={player.player_id}
-                        value={player.player_id}
-                        disabled={slots.some(s => 
-                          s.player_id === player.player_id && s.slot_number !== slot.slot_number
-                        )}
-                      >
-                        {player.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          ))}
+      <div className={`
+        bg-white rounded-lg shadow p-4 sm:p-6
+        ${!isBalanced ? 'border-2 border-yellow-300' : ''}
+      `}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold" style={{ color: isTeamA ? '#ff9800' : '#4caf50' }}>
+            {team}
+          </h2>
+          {!isBalanced && (
+            <span className="px-2 py-1 text-xs font-medium text-yellow-800 bg-yellow-100 rounded-full">
+              Draft
+            </span>
+          )}
         </div>
-        {stats && (
-          <>
-            <div className="my-4 border-t border-gray-200" />
-            <div className="mt-4">
-              {position === 'Defender' && (
-                <>
-                  <StatBar label="Physical" value={stats.physical} />
-                  <StatBar label="Control" value={stats.control} />
-                </>
-              )}
-              {position === 'Midfielder' && (
-                <>
-                  <StatBar label="Control" value={stats.control} />
-                  <StatBar label="Teamwork" value={stats.teamwork} />
-                  <StatBar label="Physical" value={stats.physical} />
-                </>
-              )}
-              {position === 'Attacker' && (
-                <>
-                  <StatBar label="Goalscoring" value={stats.goalscoring} />
-                  <StatBar label="Physical" value={stats.physical} />
-                  <StatBar label="Teamwork" value={stats.teamwork} />
-                </>
-              )}
-            </div>
-          </>
-        )}
+        {renderPositionGroup('Defenders', defenders, 'defense')}
+        {renderPositionGroup('Midfielders', midfielders, 'midfield')}
+        {renderPositionGroup('Attackers', attackers, 'attack')}
       </div>
     );
   };
 
-  const renderTeamSection = (team) => {
-    const startSlot = team === 'A' ? 1 : 10;
-    const endSlot = team === 'A' ? 9 : 18;
-    const teamSlots = slots.filter(s => s.slot_number >= startSlot && s.slot_number <= endSlot);
+  // Render player selection dropdowns
+  const renderPlayerSelection = () => (
+    <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Player Selection</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {currentSlots.map(slot => (
+          <div key={slot.slot_number} className="flex items-center gap-2">
+            <span className="text-sm text-gray-500 w-6">{slot.slot_number}</span>
+            <select
+              value={slot.player_id || ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                console.log('Select changed:', {
+                  slot: slot.slot_number,
+                  value: value,
+                  type: typeof value
+                });
+                handlePlayerSelect(slot.slot_number, value);
+              }}
+              className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              disabled={isLoading}
+            >
+              <option value="">Select player</option>
+              {getAvailablePlayers(slot.slot_number).map(player => (
+                <option key={player.id} value={player.id}>
+                  {player.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
-    const defenderSlots = teamSlots.filter(s => 
-      getPositionFromSlot(s.slot_number) === 'defender'
-    );
-    const midfielderSlots = teamSlots.filter(s => 
-      getPositionFromSlot(s.slot_number) === 'midfielder'
-    );
-    const attackerSlots = teamSlots.filter(s => 
-      getPositionFromSlot(s.slot_number) === 'attacker'
-    );
+  const handleClearAll = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch('/api/admin/team-slots/clear-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear slots');
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to clear slots');
+      }
+
+      // Update local state
+      setCurrentSlots(prev => prev.map(slot => ({
+        ...slot,
+        player_id: null
+      })));
+      setIsBalanced(false);
+    } catch (error) {
+      console.error('Error clearing slots:', error);
+      setError('Failed to clear slots: ' + error.message);
+    } finally {
+      setIsLoading(false);
+      setShowClearConfirm(false);
+    }
+  };
+
+  // Confirmation Modal
+  const renderConfirmationModal = () => {
+    if (!showClearConfirm) return null;
 
     return (
-      <div className="space-y-6">
-        <h3 className="text-xl font-semibold text-primary-600">
-          {team === 'A' ? 'Orange' : 'Green'}
-        </h3>
-        
-        {renderPositionSection(defenderSlots, 'Defender', team)}
-        <hr className="border-gray-200" />
-        {renderPositionSection(midfielderSlots, 'Midfielder', team)}
-        <hr className="border-gray-200" />
-        {renderPositionSection(attackerSlots, 'Attacker', team)}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Clear All Squads?</h3>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to clear all squad assignments? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowClearConfirm(false)}
+              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              disabled={isLoading}
+            >
+              No, Cancel
+            </button>
+            <button
+              onClick={handleClearAll}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Clearing...' : 'Yes, Clear Squads'}
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-semibold text-primary-600">Team Selection</h2>
-            <p className="text-gray-600 mt-2">
-              Assign players to slots and then click 'Balance' to generate balanced teams.
-            </p>
-          </div>
-          <div className="space-x-4">
-            <button
-              onClick={handleBalanceTeams}
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
-            >
-              {loading ? 'Balancing...' : 'Balance'}
-            </button>
-            <button
-              onClick={handleCopyTeams}
-              className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
-            >
-              Copy
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
-            {error}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {renderTeamSection('A')}
-          {renderTeamSection('B')}
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4 sm:mb-0">Team Algorithm</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
+            className="px-4 py-2 text-gray-700 hover:text-gray-900 disabled:opacity-50 disabled:hover:text-gray-700"
+          >
+            Clear All
+          </button>
+          <button
+            onClick={handleBalanceTeams}
+            disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Balancing...' : 'Balance Teams'}
+          </button>
+          <button
+            onClick={handleCopyTeams}
+            disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+          >
+            Copy Teams
+          </button>
         </div>
       </div>
+
+      {isLoading && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md mb-6">
+          Loading players...
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-6">
+          {error}
+        </div>
+      )}
+
+      {!error && !isBalanced && currentSlots.some(slot => slot.player_id !== null) && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md mb-6 flex items-center gap-2">
+          <span className="text-yellow-600 text-xl">⚠️</span>
+          <span>Teams have been modified. Click "Balance Teams" to optimize team balance.</span>
+        </div>
+      )}
+
+      {renderPlayerSelection()}
+
+      {currentSlots.some(slot => slot.player_id !== null) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          {renderTeamSection('ORANGE')}
+          {renderTeamSection('GREEN')}
+        </div>
+      )}
+
+      {renderConfirmationModal()}
     </div>
   );
 };

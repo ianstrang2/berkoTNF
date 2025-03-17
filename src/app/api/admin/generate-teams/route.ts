@@ -40,14 +40,14 @@ const calculateTeamStats = (team: any[]) => {
 
   return {
     defense: {
-      rating: safeAverage(defenders, 'defender'),
       stamina_pace: safeAverage(defenders, 'stamina_pace'),
       control: safeAverage(defenders, 'control')
     },
     midfield: {
       control: safeAverage(midfielders, 'control'),
       teamwork: safeAverage(midfielders, 'teamwork'),
-      stamina_pace: safeAverage(midfielders, 'stamina_pace')
+      stamina_pace: safeAverage(midfielders, 'stamina_pace'),
+      goalscoring: safeAverage(midfielders, 'goalscoring')
     },
     attack: {
       goalscoring: safeAverage(attackers, 'goalscoring'),
@@ -63,16 +63,19 @@ const calculateBalanceScore = (teamA: any[], teamB: any[]) => {
   const statsB = calculateTeamStats(teamB);
 
   // Calculate differences for each position group
+  // Defense: 50% Stamina & Pace, 50% Control
   const defenseDiff = 
-    Math.abs(statsA.defense.rating - statsB.defense.rating) +
-    Math.abs(statsA.defense.stamina_pace - statsB.defense.stamina_pace) +
-    Math.abs(statsA.defense.control - statsB.defense.control);
+    Math.abs(statsA.defense.stamina_pace - statsB.defense.stamina_pace) * 0.5 +
+    Math.abs(statsA.defense.control - statsB.defense.control) * 0.5;
 
+  // Midfield: 25% each for Control, Teamwork, Stamina & Pace, and Goalscoring
   const midfieldDiff = 
-    Math.abs(statsA.midfield.control - statsB.midfield.control) +
-    Math.abs(statsA.midfield.teamwork - statsB.midfield.teamwork) +
-    Math.abs(statsA.midfield.stamina_pace - statsB.midfield.stamina_pace);
+    Math.abs(statsA.midfield.control - statsB.midfield.control) * 0.25 +
+    Math.abs(statsA.midfield.teamwork - statsB.midfield.teamwork) * 0.25 +
+    Math.abs(statsA.midfield.stamina_pace - statsB.midfield.stamina_pace) * 0.25 +
+    Math.abs(statsA.midfield.goalscoring - statsB.midfield.goalscoring) * 0.25;
 
+  // Attack: 50% Goalscoring, 30% Stamina & Pace, 20% Teamwork
   const attackDiff = 
     Math.abs(statsA.attack.goalscoring - statsB.attack.goalscoring) * 0.5 +
     Math.abs(statsA.attack.stamina_pace - statsB.attack.stamina_pace) * 0.3 +
@@ -108,8 +111,11 @@ export async function POST(request: Request) {
       .filter(slot => slot.player_id !== null)
       .map(slot => slot.player_id);
 
-    if (!playerIds.length) {
-      return NextResponse.json({ success: false, error: 'No players assigned to slots' });
+    if (playerIds.length !== 18) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Exactly 18 players required (currently have ${playerIds.length})` 
+      });
     }
 
     // Fetch player details
@@ -124,8 +130,11 @@ export async function POST(request: Request) {
       name: p.name 
     })));
 
-    if (!players || players.length < 14) {
-      return NextResponse.json({ success: false, error: 'Not enough players selected (minimum 14 required)' });
+    if (players.length !== 18) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Some selected players not found in database' 
+      });
     }
 
     // First, identify defenders (highest defender scores)

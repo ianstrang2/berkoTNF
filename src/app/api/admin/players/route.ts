@@ -15,11 +15,14 @@ export async function GET() {
         name: 'asc',
       },
     });
-    return NextResponse.json({ data: serializeData(players) });
+    return NextResponse.json({ 
+      success: true,
+      data: serializeData(players) 
+    });
   } catch (error) {
     console.error('Error fetching players:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch players', details: error },
+      { success: false, error: 'Failed to fetch players', details: error },
       { status: 500 }
     );
   }
