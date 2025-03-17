@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 
 const PlayerManager = dynamic(() => import('@/components/admin/PlayerManager'), { ssr: false });
 const MatchManager = dynamic(() => import('@/components/admin/MatchManager'), { ssr: false });
+const TeamAlgorithm = dynamic(() => import('@/components/admin/TeamAlgorithm'), { ssr: false });
 
 const AdminPanel = () => {
   const [currentSection, setCurrentSection] = useState(null);
@@ -93,12 +94,7 @@ const AdminPanel = () => {
           </button>
           {currentSection === 'players' && <PlayerManager />}
           {currentSection === 'matches' && <MatchManager />}
-          {currentSection === 'algorithm' && (
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">Team Balancing Algorithm</h2>
-              <p className="text-gray-600">This feature is coming soon!</p>
-            </div>
-          )}
+          {currentSection === 'algorithm' && <TeamAlgorithm />}
         </div>
       )}
     </div>

@@ -48,4 +48,15 @@ model players {
   control        Int              @default(3) @db.SmallInt
   teamwork       Int              @default(3) @db.SmallInt
   player_matches player_matches[]
+  team_slots     team_slots[]
+}
+
+model team_slots {
+  id          Int       @id @default(autoincrement())
+  slot_number Int      
+  player_id   Int?     
+  updated_at  DateTime  @default(now()) @updatedAt
+  player      players?  @relation(fields: [player_id], references: [player_id], onDelete: SetNull)
+
+  @@unique([slot_number])
 }
