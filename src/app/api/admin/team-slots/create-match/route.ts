@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         slot_number: 'asc'
       },
       include: {
-        players: true
+        player: true
       }
     });
 
