@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AttributeTooltip, AttributeGuideModal } from './AttributeGuide';
 
 const PlayerManager = () => {
   const [players, setPlayers] = useState([]);
@@ -20,9 +21,25 @@ const PlayerManager = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showGuide, setShowGuide] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState(null);
+  const tooltipRef = useRef(null);
 
   useEffect(() => {
     fetchPlayers();
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target)) {
+        setActiveTooltip(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const fetchPlayers = async () => {
@@ -136,7 +153,23 @@ const PlayerManager = () => {
 
   const renderAttributeInput = (label, field) => (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <div className="flex items-center space-x-2">
+        <label className="block text-sm font-medium text-gray-700">{label}</label>
+        <button
+          type="button"
+          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+          onClick={() => setActiveTooltip(activeTooltip === field ? null : field)}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+        <div ref={tooltipRef} className="relative">
+          {activeTooltip === field && (
+            <AttributeTooltip attribute={field} />
+          )}
+        </div>
+      </div>
       <div className="flex items-center space-x-2">
         <input
           type="range"
@@ -153,9 +186,21 @@ const PlayerManager = () => {
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 space-y-8">
-      <h2 className="text-2xl font-bold text-primary-600">
-        {selectedPlayer ? 'Edit Player' : 'Add New Player'}
-      </h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-primary-600">
+          {selectedPlayer ? 'Edit Player' : 'Add New Player'}
+        </h2>
+        <button
+          type="button"
+          onClick={() => setShowGuide(true)}
+          className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          Grading Guide
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
@@ -351,6 +396,11 @@ const PlayerManager = () => {
           </table>
         </div>
       </div>
+
+      <AttributeGuideModal
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+      />
     </div>
   );
 };

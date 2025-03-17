@@ -70,8 +70,8 @@ const CurrentHalfSeason = () => {
               <th className="w-[50px]">D</th>
               <th className="w-[50px]">L</th>
               <th className="w-[70px]">Goals</th>
-              <th className="w-[80px]">Heavy W</th>
-              <th className="w-[80px]">Heavy L</th>
+              <th className="w-[80px]">HW</th>
+              <th className="w-[80px]">HL</th>
               <th className="w-[100px]">Clean Sheet</th>
               <th className="w-[80px]">Win %</th>
               <th className="w-[70px]">Points</th>
