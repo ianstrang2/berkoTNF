@@ -47,6 +47,7 @@ model players {
   stamina_pace   Int              @default(3) @db.SmallInt
   control        Int              @default(3) @db.SmallInt
   teamwork       Int              @default(3) @db.SmallInt
+  resilience     Int              @default(3) @db.SmallInt
   player_matches player_matches[]
   team_slots     team_slots[]
 }

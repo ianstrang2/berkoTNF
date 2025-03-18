@@ -40,7 +40,8 @@ export async function POST(request: Request) {
       defender,
       stamina_pace,
       control,
-      teamwork 
+      teamwork,
+      resilience 
     } = body;
 
     const player = await prisma.players.create({
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
         stamina_pace: stamina_pace || 3,
         control: control || 3,
         teamwork: teamwork || 3,
+        resilience: resilience || 3,
         join_date: new Date(),
       },
     });
@@ -79,7 +81,8 @@ export async function PUT(request: Request) {
       defender,
       stamina_pace,
       control,
-      teamwork 
+      teamwork,
+      resilience 
     } = body;
 
     const player = await prisma.players.update({
@@ -95,6 +98,7 @@ export async function PUT(request: Request) {
         stamina_pace: stamina_pace || 3,
         control: control || 3,
         teamwork: teamwork || 3,
+        resilience: resilience || 3,
       },
     });
     return NextResponse.json({ data: serializeData(player) });

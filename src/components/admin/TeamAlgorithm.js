@@ -51,6 +51,13 @@ const getWarningMessage = (currentSlots, isBalanced, error) => {
   return null;
 };
 
+// Helper function to calculate team resilience
+const calculateTeamResilience = (players) => {
+  if (!players || players.length === 0) return 0;
+  const totalResilience = players.reduce((sum, player) => sum + (player.resilience || 3), 0);
+  return totalResilience / players.length;
+};
+
 const TeamAlgorithm = () => {
   const [players, setPlayers] = useState([]);
   const [currentSlots, setCurrentSlots] = useState(Array(18).fill().map((_, i) => ({
@@ -61,6 +68,8 @@ const TeamAlgorithm = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [balanceProgress, setBalanceProgress] = useState(0);
+  const [showCopyToast, setShowCopyToast] = useState(false);
 
   // Fetch initial data
   useEffect(() => {
@@ -178,6 +187,7 @@ const TeamAlgorithm = () => {
     try {
       setIsLoading(true);
       setError(null);
+      setBalanceProgress(0);
 
       const response = await fetch('/api/admin/generate-teams', {
         method: 'POST',
@@ -192,15 +202,20 @@ const TeamAlgorithm = () => {
       // Update slots with new assignments
       setCurrentSlots(data.data.sort((a, b) => a.slot_number - b.slot_number));
       setIsBalanced(true);
+      setBalanceProgress(100); // Ensure progress bar shows completion
     } catch (error) {
       console.error('Error balancing teams:', error);
       setError('Failed to balance teams: ' + error.message);
     } finally {
-      setIsLoading(false);
+      // Keep progress bar visible briefly after completion
+      setTimeout(() => {
+        setIsLoading(false);
+        setBalanceProgress(0);
+      }, 500);
     }
   };
 
-  const handleCopyTeams = () => {
+  const formatTeamsForCopy = () => {
     const formatTeam = (teamSlots) => {
       return teamSlots
         .filter(slot => slot.player_id)
@@ -216,9 +231,19 @@ const TeamAlgorithm = () => {
     const teamASlots = currentSlots.filter(s => s.slot_number <= 9);
     const teamBSlots = currentSlots.filter(s => s.slot_number > 9);
 
-    const formattedText = `Orange\n${formatTeam(teamASlots)}\n\nGreen\n${formatTeam(teamBSlots)}`;
-    
-    navigator.clipboard.writeText(formattedText);
+    return `Orange\n${formatTeam(teamASlots)}\n\nGreen\n${formatTeam(teamBSlots)}`;
+  };
+
+  const handleCopyTeams = async () => {
+    try {
+      const teamText = formatTeamsForCopy();
+      await navigator.clipboard.writeText(teamText);
+      setShowCopyToast(true);
+      setTimeout(() => setShowCopyToast(false), 2000); // Hide after 2 seconds
+    } catch (error) {
+      console.error('Failed to copy teams:', error);
+      setError('Failed to copy teams to clipboard');
+    }
   };
 
   const getPlayerStats = (player, role) => {
@@ -389,6 +414,16 @@ const TeamAlgorithm = () => {
         {renderPositionGroup('Defenders', defenders, 'defense')}
         {renderPositionGroup('Midfielders', midfielders, 'midfield')}
         {renderPositionGroup('Attackers', attackers, 'attack')}
+        
+        {/* Team Resilience Section */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <h3 className="text-lg font-semibold mb-2">Team Resilience</h3>
+          <StatBar
+            label="Resilience"
+            value={calculateTeamResilience([...defenders, ...midfielders, ...attackers])}
+            maxValue={5}
+          />
+        </div>
       </div>
     );
   };
@@ -498,7 +533,7 @@ const TeamAlgorithm = () => {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-4 sm:mb-0">Team Algorithm</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={() => setShowClearConfirm(true)}
             disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
@@ -506,13 +541,23 @@ const TeamAlgorithm = () => {
           >
             Clear All
           </button>
-          <button
-            onClick={handleBalanceTeams}
-            disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
-          >
-            {isLoading ? 'Balancing...' : 'Balance Teams'}
-          </button>
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={handleBalanceTeams}
+              disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+            >
+              {isLoading ? 'Balancing...' : 'Balance Teams'}
+            </button>
+            {isLoading && (
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${balanceProgress}%` }}
+                />
+              </div>
+            )}
+          </div>
           <button
             onClick={handleCopyTeams}
             disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
@@ -552,6 +597,13 @@ const TeamAlgorithm = () => {
       )}
 
       {renderConfirmationModal()}
+
+      {/* Copy Toast Notification */}
+      {showCopyToast && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity duration-300">
+          Teams copied to clipboard
+        </div>
+      )}
     </div>
   );
 };

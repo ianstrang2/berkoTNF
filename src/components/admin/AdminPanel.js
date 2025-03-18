@@ -2,9 +2,10 @@
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 
-const PlayerManager = dynamic(() => import('@/components/admin/PlayerManager'), { ssr: false });
-const MatchManager = dynamic(() => import('@/components/admin/MatchManager'), { ssr: false });
 const TeamAlgorithm = dynamic(() => import('@/components/admin/TeamAlgorithm'), { ssr: false });
+const PlayerRatings = dynamic(() => import('@/components/admin/PlayerRatings'), { ssr: false });
+const SuperAdminPanel = dynamic(() => import('@/components/admin/SuperAdminPanel'), { ssr: false });
+const SuperAdminLayout = dynamic(() => import('@/components/admin/SuperAdminLayout'), { ssr: false });
 
 const AdminPanel = () => {
   const [currentSection, setCurrentSection] = useState(null);
@@ -16,49 +17,7 @@ const AdminPanel = () => {
           <h1 className="text-4xl font-bold text-center text-primary-600 mb-8">
             Admin Dashboard
           </h1>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div
-              onClick={() => setCurrentSection('players')}
-              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
-                  Player Management
-                </h2>
-                <p className="text-gray-600">
-                  Add new players or update existing player information
-                </p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => setCurrentSection('matches')}
-              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                  </div>
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
-                  Match Records
-                </h2>
-                <p className="text-gray-600">
-                  Record match results and player performances
-                </p>
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div
               onClick={() => setCurrentSection('algorithm')}
               className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
@@ -79,6 +38,48 @@ const AdminPanel = () => {
                 </p>
               </div>
             </div>
+
+            <div
+              onClick={() => setCurrentSection('ratings')}
+              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  </div>
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+                  Player Ratings
+                </h2>
+                <p className="text-gray-600">
+                  Update player attributes and ratings
+                </p>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setCurrentSection('superadmin')}
+              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group col-span-1 md:col-span-2"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 bg-red-50 rounded-lg text-red-600 group-hover:bg-red-100 transition-colors duration-200">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-red-600 transition-colors duration-200">
+                  Super Admin Access
+                </h2>
+                <p className="text-gray-600">
+                  Access advanced management features
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -92,9 +93,13 @@ const AdminPanel = () => {
             </svg>
             Back to Dashboard
           </button>
-          {currentSection === 'players' && <PlayerManager />}
-          {currentSection === 'matches' && <MatchManager />}
           {currentSection === 'algorithm' && <TeamAlgorithm />}
+          {currentSection === 'ratings' && <PlayerRatings />}
+          {currentSection === 'superadmin' && (
+            <SuperAdminLayout>
+              <SuperAdminPanel />
+            </SuperAdminLayout>
+          )}
         </div>
       )}
     </div>

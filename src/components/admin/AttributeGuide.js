@@ -51,6 +51,16 @@ const attributeGuides = {
       { value: 5, label: 'Team player', description: 'always collaborates, team-first mindset' },
     ],
   },
+  resilience: {
+    title: 'Resilience',
+    scales: [
+      { value: 1, label: 'Fragile', description: 'head drops fast, gives up when behind' },
+      { value: 2, label: 'Wobbly', description: 'loses focus if losing, inconsistent effort' },
+      { value: 3, label: 'Steady', description: 'keeps going, unaffected by score' },
+      { value: 4, label: 'Gritty', description: 'fights harder when down, lifts others' },
+      { value: 5, label: 'Rock solid', description: 'unshakable, thrives under pressure' },
+    ],
+  },
 };
 
 export const AttributeTooltip = ({ attribute }) => {

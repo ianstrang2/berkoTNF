@@ -53,7 +53,8 @@ const calculateTeamStats = (team: any[]) => {
       goalscoring: safeAverage(attackers, 'goalscoring'),
       stamina_pace: safeAverage(attackers, 'stamina_pace'),
       teamwork: safeAverage(attackers, 'teamwork')
-    }
+    },
+    resilience: safeAverage([...defenders, ...midfielders, ...attackers], 'resilience')
   };
 };
 
@@ -81,7 +82,10 @@ const calculateBalanceScore = (teamA: any[], teamB: any[]) => {
     Math.abs(statsA.attack.stamina_pace - statsB.attack.stamina_pace) * 0.3 +
     Math.abs(statsA.attack.teamwork - statsB.attack.teamwork) * 0.2;
 
-  return defenseDiff + midfieldDiff + attackDiff;
+  // Team Resilience: 20% weight (since it's a team-wide attribute)
+  const resilienceDiff = Math.abs(statsA.resilience - statsB.resilience) * 0.2;
+
+  return defenseDiff + midfieldDiff + attackDiff + resilienceDiff;
 };
 
 // Shuffle array randomly
@@ -156,10 +160,16 @@ export async function POST(request: Request) {
 
     let bestSlots = null;
     let bestScore = Infinity;
-    const maxAttempts = 1000;
+    const maxAttempts = 8400;
 
     // Try different combinations to find the most balanced teams
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Calculate and send progress update every 100 attempts
+      if (attempt % 100 === 0) {
+        const progress = Math.round((attempt / maxAttempts) * 100);
+        console.log(`Progress: ${progress}%`);
+      }
+
       const slots = Array(18).fill(null);
       
       // Distribute defenders to slots 1-3 and 10-12
