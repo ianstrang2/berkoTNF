@@ -316,13 +316,13 @@ const TeamAlgorithm = () => {
       },
       midfielder: {
         control: avg('control'),
-        teamwork: avg('teamwork'),
-        physical: avg('stamina_pace')
+        stamina_pace: avg('stamina_pace'),
+        goalscoring: avg('goalscoring')
       },
       attacker: {
         goalscoring: avg('goalscoring'),
-        physical: avg('stamina_pace'),
-        teamwork: avg('teamwork')
+        stamina_pace: avg('stamina_pace'),
+        control: avg('control')
       }
     }[role] || {};
 
@@ -365,14 +365,14 @@ const TeamAlgorithm = () => {
         case 'midfield':
           return {
             control: players.reduce((sum, p) => sum + (p.control || 0), 0) / players.length,
-            teamwork: players.reduce((sum, p) => sum + (p.teamwork || 0), 0) / players.length,
-            stamina_pace: players.reduce((sum, p) => sum + (p.stamina_pace || 0), 0) / players.length
+            stamina_pace: players.reduce((sum, p) => sum + (p.stamina_pace || 0), 0) / players.length,
+            goalscoring: players.reduce((sum, p) => sum + (p.goalscoring || 0), 0) / players.length
           };
         case 'attack':
           return {
             goalscoring: players.reduce((sum, p) => sum + (p.goalscoring || 0), 0) / players.length,
             stamina_pace: players.reduce((sum, p) => sum + (p.stamina_pace || 0), 0) / players.length,
-            teamwork: players.reduce((sum, p) => sum + (p.teamwork || 0), 0) / players.length
+            control: players.reduce((sum, p) => sum + (p.control || 0), 0) / players.length
           };
         default:
           return null;
