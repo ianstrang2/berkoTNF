@@ -58,6 +58,17 @@ const calculateTeamResilience = (players) => {
   return totalResilience / players.length;
 };
 
+// Helper function to calculate team characteristics
+const calculateTeamCharacteristics = (players) => {
+  if (!players || players.length === 0) return { resilience: 0, teamwork: 0 };
+  const totalResilience = players.reduce((sum, player) => sum + (player.resilience || 3), 0);
+  const totalTeamwork = players.reduce((sum, player) => sum + (player.teamwork || 3), 0);
+  return {
+    resilience: totalResilience / players.length,
+    teamwork: totalTeamwork / players.length
+  };
+};
+
 const TeamAlgorithm = () => {
   const [players, setPlayers] = useState([]);
   const [currentSlots, setCurrentSlots] = useState(Array(18).fill().map((_, i) => ({
@@ -267,14 +278,19 @@ const TeamAlgorithm = () => {
     return 'attacker';
   };
 
-  const StatBar = ({ label, value, maxValue = 5 }) => {
+  const StatBar = ({ label, value, maxValue = 5, color = 'green' }) => {
     const percentage = (value / maxValue) * 100;
+    const colorClasses = {
+      green: 'bg-green-500',
+      orange: 'bg-orange-500'
+    };
+    
     return (
       <div className="flex items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
         <span className="text-xs sm:text-sm text-gray-700 w-16 sm:w-20">{label}</span>
         <div className="flex-1 bg-gray-200 h-4 sm:h-6 rounded-md overflow-hidden">
           <div 
-            className="h-full bg-green-500 transition-all duration-300"
+            className={`h-full ${colorClasses[color]} transition-all duration-300`}
             style={{ width: `${percentage}%` }}
           >
           </div>
@@ -387,6 +403,7 @@ const TeamAlgorithm = () => {
                     label={key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                     value={value}
                     maxValue={5}
+                    color={isTeamA ? 'orange' : 'green'}
                   />
                 ))}
               </div>
@@ -415,13 +432,20 @@ const TeamAlgorithm = () => {
         {renderPositionGroup('Midfielders', midfielders, 'midfield')}
         {renderPositionGroup('Attackers', attackers, 'attack')}
         
-        {/* Team Resilience Section */}
+        {/* Team Characteristics Section */}
         <div className="mt-6 pt-6 border-t border-gray-200">
-          <h3 className="text-lg font-semibold mb-2">Team Resilience</h3>
+          <h3 className="text-lg font-semibold mb-2">Team Characteristics</h3>
           <StatBar
             label="Resilience"
-            value={calculateTeamResilience([...defenders, ...midfielders, ...attackers])}
+            value={calculateTeamCharacteristics([...defenders, ...midfielders, ...attackers]).resilience}
             maxValue={5}
+            color={isTeamA ? 'orange' : 'green'}
+          />
+          <StatBar
+            label="Teamwork"
+            value={calculateTeamCharacteristics([...defenders, ...midfielders, ...attackers]).teamwork}
+            maxValue={5}
+            color={isTeamA ? 'orange' : 'green'}
           />
         </div>
       </div>
@@ -593,6 +617,99 @@ const TeamAlgorithm = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           {renderTeamSection('ORANGE')}
           {renderTeamSection('GREEN')}
+        </div>
+      )}
+
+      {/* Team Comparison Section */}
+      {currentSlots.some(slot => slot.player_id !== null) && (
+        <div className="mt-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Team Comparison</h2>
+            <div className="relative h-[300px] mt-6">
+              {/* Y-axis grid lines and labels */}
+              <div className="absolute inset-y-0 left-12 right-0 flex flex-col justify-between">
+                {[5, 4, 3, 2, 1, 0].map((value) => (
+                  <div key={value} className="flex items-center w-full" style={{ transform: 'translateY(-0.5rem)' }}>
+                    <span className="text-xs text-gray-500 w-8 text-right mr-2">{value}</span>
+                    <div className="flex-1 border-t border-gray-200"></div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bars */}
+              <div className="absolute inset-y-0 left-12 right-0 flex items-end">
+                <div className="flex-1 flex justify-around h-[250px]">
+                  {['Defense', 'Attack', 'Midfield', 'Resilience', 'Teamwork'].map((factor) => {
+                    const getTeamValue = (team) => {
+                      const teamSlots = currentSlots.filter(slot => 
+                        team === 'ORANGE' ? slot.slot_number <= 9 : slot.slot_number > 9
+                      );
+                      const teamPlayers = teamSlots
+                        .map(slot => players.find(p => p.id === slot.player_id))
+                        .filter(Boolean);
+                      
+                      if (!teamPlayers.length) return 0;
+                      
+                      switch (factor) {
+                        case 'Defense': {
+                          const defenders = teamPlayers.slice(0, 3);
+                          return defenders.length ? defenders.reduce((sum, p) => 
+                            sum + ((p.defender || 0) + (p.stamina_pace || 0) + (p.control || 0)) / 3, 0) / defenders.length : 0;
+                        }
+                        case 'Midfield': {
+                          const midfielders = teamPlayers.slice(3, 7);
+                          return midfielders.length ? midfielders.reduce((sum, p) => 
+                            sum + ((p.control || 0) + (p.stamina_pace || 0) + (p.goalscoring || 0)) / 3, 0) / midfielders.length : 0;
+                        }
+                        case 'Attack': {
+                          const attackers = teamPlayers.slice(7, 9);
+                          return attackers.length ? attackers.reduce((sum, p) => 
+                            sum + ((p.goalscoring || 0) + (p.stamina_pace || 0) + (p.control || 0)) / 3, 0) / attackers.length : 0;
+                        }
+                        case 'Teamwork':
+                          return teamPlayers.reduce((sum, p) => sum + (p.teamwork || 3), 0) / teamPlayers.length;
+                        case 'Resilience':
+                          return teamPlayers.reduce((sum, p) => sum + (p.resilience || 3), 0) / teamPlayers.length;
+                        default:
+                          return 0;
+                      }
+                    };
+
+                    const orangeValue = getTeamValue('ORANGE');
+                    const greenValue = getTeamValue('GREEN');
+
+                    return (
+                      <div key={factor} className="flex flex-col items-center" style={{ width: '15%' }}>
+                        <div className="flex gap-4 text-xs mb-2">
+                          <span className="text-orange-600">{orangeValue.toFixed(1)}</span>
+                          <span className="text-green-600">{greenValue.toFixed(1)}</span>
+                        </div>
+                        <div className="flex gap-2 w-full justify-center h-full">
+                          <div className="w-8 flex flex-col items-center justify-end">
+                            <div 
+                              className="w-full bg-orange-500 rounded-sm transition-all duration-300"
+                              style={{ 
+                                height: `${(orangeValue / 5) * 100}%`,
+                              }}
+                            />
+                          </div>
+                          <div className="w-8 flex flex-col items-center justify-end">
+                            <div 
+                              className="w-full bg-green-500 rounded-sm transition-all duration-300"
+                              style={{ 
+                                height: `${(greenValue / 5) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <span className="text-xs text-gray-600 mt-2">{factor}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

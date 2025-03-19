@@ -52,9 +52,10 @@ const calculateTeamStats = (team: any[]) => {
     attack: {
       goalscoring: safeAverage(attackers, 'goalscoring'),
       stamina_pace: safeAverage(attackers, 'stamina_pace'),
-      teamwork: safeAverage(attackers, 'teamwork')
+      control: safeAverage(attackers, 'control')
     },
-    resilience: safeAverage([...defenders, ...midfielders, ...attackers], 'resilience')
+    resilience: safeAverage([...defenders, ...midfielders, ...attackers], 'resilience'),
+    teamwork: safeAverage([...defenders, ...midfielders, ...attackers], 'teamwork')
   };
 };
 
@@ -69,23 +70,25 @@ const calculateBalanceScore = (teamA: any[], teamB: any[]) => {
     Math.abs(statsA.defense.stamina_pace - statsB.defense.stamina_pace) * 0.5 +
     Math.abs(statsA.defense.control - statsB.defense.control) * 0.5;
 
-  // Midfield: 25% each for Control, Teamwork, Stamina & Pace, and Goalscoring
+  // Midfield: 33.33% each for Control, Stamina & Pace, and Goalscoring
   const midfieldDiff = 
-    Math.abs(statsA.midfield.control - statsB.midfield.control) * 0.25 +
-    Math.abs(statsA.midfield.teamwork - statsB.midfield.teamwork) * 0.25 +
-    Math.abs(statsA.midfield.stamina_pace - statsB.midfield.stamina_pace) * 0.25 +
-    Math.abs(statsA.midfield.goalscoring - statsB.midfield.goalscoring) * 0.25;
+    Math.abs(statsA.midfield.control - statsB.midfield.control) * 0.333 +
+    Math.abs(statsA.midfield.stamina_pace - statsB.midfield.stamina_pace) * 0.333 +
+    Math.abs(statsA.midfield.goalscoring - statsB.midfield.goalscoring) * 0.334;
 
-  // Attack: 50% Goalscoring, 30% Stamina & Pace, 20% Teamwork
+  // Attack: 50% Goalscoring, 25% Stamina & Pace, 25% Control
   const attackDiff = 
     Math.abs(statsA.attack.goalscoring - statsB.attack.goalscoring) * 0.5 +
-    Math.abs(statsA.attack.stamina_pace - statsB.attack.stamina_pace) * 0.3 +
-    Math.abs(statsA.attack.teamwork - statsB.attack.teamwork) * 0.2;
+    Math.abs(statsA.attack.stamina_pace - statsB.attack.stamina_pace) * 0.25 +
+    Math.abs(statsA.attack.control - statsB.attack.control) * 0.25;
 
   // Team Resilience: 20% weight (since it's a team-wide attribute)
   const resilienceDiff = Math.abs(statsA.resilience - statsB.resilience) * 0.2;
 
-  return defenseDiff + midfieldDiff + attackDiff + resilienceDiff;
+  // Team Teamwork: 20% weight (since it's a team-wide attribute)
+  const teamworkDiff = Math.abs(statsA.teamwork - statsB.teamwork) * 0.2;
+
+  return defenseDiff + midfieldDiff + attackDiff + resilienceDiff + teamworkDiff;
 };
 
 // Shuffle array randomly
