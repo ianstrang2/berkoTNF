@@ -36,6 +36,12 @@ const AllTimeStats = () => {
     setSortConfig({ key, direction });
 
     const sortedData = [...stats].sort((a, b) => {
+      if (key === 'minutes_per_goal') {
+        const valueA = parseFloat(a[key]);
+        const valueB = parseFloat(b[key]);
+        return direction === 'asc' ? valueA - valueB : valueB - valueA;
+      }
+
       if (a[key] === null || a[key] === undefined) return 1;
       if (b[key] === null || b[key] === undefined) return -1;
       
