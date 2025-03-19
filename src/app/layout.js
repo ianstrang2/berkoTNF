@@ -1,5 +1,4 @@
 import "./globals.css";
-import Navigation from "@/components/Navigation";
 
 export const metadata = {
   title: "Berko TNF Stats",
@@ -25,22 +24,7 @@ export default function RootLayout({ children }) {
                       Berko TNF
                     </a>
                   </div>
-                  <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                    <a
-                      href="/"
-                      className="border-transparent text-gray-500 hover:border-primary-500 hover:text-primary-600 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                    >
-                      HOME
-                    </a>
-                    <a
-                      href="/admin"
-                      className="border-transparent text-gray-500 hover:border-primary-500 hover:text-primary-600 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                    >
-                      ADMIN
-                    </a>
-                  </div>
                 </div>
-                <Navigation />
               </div>
             </div>
           </nav>
