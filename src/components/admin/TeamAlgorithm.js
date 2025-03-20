@@ -892,13 +892,13 @@ const TeamAlgorithm = () => {
                     const greenValue = getTeamValue('GREEN');
 
                     return (
-                      <div key={factor} className="flex flex-col items-center" style={{ width: '15%' }}>
-                        <div className="flex gap-4 text-xs mb-2">
+                      <div key={factor} className="flex flex-col items-center" style={{ width: '18%' }}>
+                        <div className="flex gap-2 text-[10px] sm:text-xs mb-1 sm:mb-2">
                           <span className="text-orange-600">{orangeValue.toFixed(1)}</span>
                           <span className="text-green-600">{greenValue.toFixed(1)}</span>
                         </div>
-                        <div className="flex gap-2 w-full justify-center h-full">
-                          <div className="w-8 flex flex-col items-center justify-end">
+                        <div className="flex gap-1 sm:gap-2 w-full justify-center h-full">
+                          <div className="w-4 sm:w-8 flex flex-col items-center justify-end">
                             <div 
                               className="w-full bg-orange-500 rounded-sm transition-all duration-300"
                               style={{ 
@@ -906,7 +906,7 @@ const TeamAlgorithm = () => {
                               }}
                             />
                           </div>
-                          <div className="w-8 flex flex-col items-center justify-end">
+                          <div className="w-4 sm:w-8 flex flex-col items-center justify-end">
                             <div 
                               className="w-full bg-green-500 rounded-sm transition-all duration-300"
                               style={{ 
@@ -915,7 +915,7 @@ const TeamAlgorithm = () => {
                             />
                           </div>
                         </div>
-                        <span className="text-xs text-gray-600 mt-2">{factor}</span>
+                        <span className="text-[10px] sm:text-xs text-gray-600 mt-1 sm:mt-2">{factor}</span>
                       </div>
                     );
                   })}
