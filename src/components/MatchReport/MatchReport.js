@@ -127,19 +127,66 @@ const MatchReport = () => {
           )}
 
           {/* Scoring Leaders Changes */}
-          {report.scoringLeaders?.length > 0 && (
+          {(report.halfSeasonGoalLeaders?.[0] || report.halfSeasonFantasyLeaders?.[0] || 
+            report.seasonGoalLeaders?.[0] || report.seasonFantasyLeaders?.[0]) && (
             <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-3">📈 Goalscoring Charts</div>
+              <div className="font-semibold text-lg text-primary-600 mb-3">📈 Scoring Leaders</div>
               <div className="space-y-2">
-                {report.scoringLeaders.map((change, index) => (
-                  <div key={index} className="text-sm text-success-600 bg-success-50 p-2 rounded">
-                    {change.new_leader} {
-                      change.previous_leader_goals === change.new_leader_goals ?
-                      `joined ${change.previous_leader} at the top of the goalscoring charts with ${change.new_leader_goals} goals` :
-                      `moved to the top of the goalscoring charts with ${change.new_leader_goals} goals, overtaking ${change.previous_leader} (${change.previous_leader_goals})`
+                {/* Half-Season Goal Leaders */}
+                {report.halfSeasonGoalLeaders?.[0] && (
+                  <div className="text-sm text-success-600 bg-success-50 p-2 rounded">
+                    {report.halfSeasonGoalLeaders[0].change_type === 'new_leader' ? 
+                      `${report.halfSeasonGoalLeaders[0].new_leader} leads the current Half-Season goal-scoring charts with ${report.halfSeasonGoalLeaders[0].new_leader_goals} goals` :
+                    report.halfSeasonGoalLeaders[0].change_type === 'tied' ?
+                      `${report.halfSeasonGoalLeaders[0].new_leader} joined ${report.halfSeasonGoalLeaders[0].previous_leader} at the top of the current half-season goalscoring charts with ${report.halfSeasonGoalLeaders[0].new_leader_goals} goals` :
+                    report.halfSeasonGoalLeaders[0].change_type === 'remains' ?
+                      `${report.halfSeasonGoalLeaders[0].new_leader} remains at the top of the current half-season goalscoring charts with ${report.halfSeasonGoalLeaders[0].new_leader_goals} goals` :
+                      `${report.halfSeasonGoalLeaders[0].new_leader} moved to the top of the current Half-Season goal-scoring charts with ${report.halfSeasonGoalLeaders[0].new_leader_goals} goals, overtaking ${report.halfSeasonGoalLeaders[0].previous_leader} (${report.halfSeasonGoalLeaders[0].previous_leader_goals} goals)`
                     }
                   </div>
-                ))}
+                )}
+
+                {/* Half-Season Fantasy Leaders */}
+                {report.halfSeasonFantasyLeaders?.[0] && (
+                  <div className="text-sm text-success-600 bg-success-50 p-2 rounded">
+                    {report.halfSeasonFantasyLeaders[0].change_type === 'new_leader' ? 
+                      `${report.halfSeasonFantasyLeaders[0].new_leader} leads the current Half-Season fantasy points charts with ${report.halfSeasonFantasyLeaders[0].new_leader_points} points` :
+                    report.halfSeasonFantasyLeaders[0].change_type === 'tied' ?
+                      `${report.halfSeasonFantasyLeaders[0].new_leader} joined ${report.halfSeasonFantasyLeaders[0].previous_leader} at the top of the current half-season fantasy points charts with ${report.halfSeasonFantasyLeaders[0].new_leader_points} points` :
+                    report.halfSeasonFantasyLeaders[0].change_type === 'remains' ?
+                      `${report.halfSeasonFantasyLeaders[0].new_leader} remains at the top of the current half-season fantasy points charts with ${report.halfSeasonFantasyLeaders[0].new_leader_points} points` :
+                      `${report.halfSeasonFantasyLeaders[0].new_leader} moved to the top of the current Half-Season fantasy points charts with ${report.halfSeasonFantasyLeaders[0].new_leader_points} points, overtaking ${report.halfSeasonFantasyLeaders[0].previous_leader} (${report.halfSeasonFantasyLeaders[0].previous_leader_points} points)`
+                    }
+                  </div>
+                )}
+
+                {/* Overall Season Goal Leaders */}
+                {report.seasonGoalLeaders?.[0] && (
+                  <div className="text-sm text-success-600 bg-success-50 p-2 rounded">
+                    {report.seasonGoalLeaders[0].change_type === 'new_leader' ? 
+                      `${report.seasonGoalLeaders[0].new_leader} leads the ${new Date().getFullYear()} Season goal-scoring charts with ${report.seasonGoalLeaders[0].new_leader_goals} goals` :
+                    report.seasonGoalLeaders[0].change_type === 'tied' ?
+                      `${report.seasonGoalLeaders[0].new_leader} joined ${report.seasonGoalLeaders[0].previous_leader} at the top of the ${new Date().getFullYear()} Season goalscoring charts with ${report.seasonGoalLeaders[0].new_leader_goals} goals` :
+                    report.seasonGoalLeaders[0].change_type === 'remains' ?
+                      `${report.seasonGoalLeaders[0].new_leader} remains at the top of the ${new Date().getFullYear()} Season goalscoring charts with ${report.seasonGoalLeaders[0].new_leader_goals} goals` :
+                      `${report.seasonGoalLeaders[0].new_leader} moved to the top of the ${new Date().getFullYear()} Season goal-scoring charts with ${report.seasonGoalLeaders[0].new_leader_goals} goals, overtaking ${report.seasonGoalLeaders[0].previous_leader} (${report.seasonGoalLeaders[0].previous_leader_goals} goals)`
+                    }
+                  </div>
+                )}
+
+                {/* Overall Season Fantasy Leaders */}
+                {report.seasonFantasyLeaders?.[0] && (
+                  <div className="text-sm text-success-600 bg-success-50 p-2 rounded">
+                    {report.seasonFantasyLeaders[0].change_type === 'new_leader' ? 
+                      `${report.seasonFantasyLeaders[0].new_leader} leads the ${new Date().getFullYear()} Season fantasy points charts with ${report.seasonFantasyLeaders[0].new_leader_points} points` :
+                    report.seasonFantasyLeaders[0].change_type === 'tied' ?
+                      `${report.seasonFantasyLeaders[0].new_leader} joined ${report.seasonFantasyLeaders[0].previous_leader} at the top of the ${new Date().getFullYear()} Season fantasy points charts with ${report.seasonFantasyLeaders[0].new_leader_points} points` :
+                    report.seasonFantasyLeaders[0].change_type === 'remains' ?
+                      `${report.seasonFantasyLeaders[0].new_leader} remains at the top of the ${new Date().getFullYear()} Season fantasy points charts with ${report.seasonFantasyLeaders[0].new_leader_points} points` :
+                      `${report.seasonFantasyLeaders[0].new_leader} moved to the top of the ${new Date().getFullYear()} Season fantasy points charts with ${report.seasonFantasyLeaders[0].new_leader_points} points, overtaking ${report.seasonFantasyLeaders[0].previous_leader} (${report.seasonFantasyLeaders[0].previous_leader_points} points)`
+                    }
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -151,7 +198,7 @@ const MatchReport = () => {
   const formatReportForCopy = () => {
     if (!report) return '';
 
-    const { matchInfo, gamesMilestones, goalsMilestones, streaks, scoringLeaders } = report;
+    const { matchInfo, gamesMilestones, goalsMilestones, streaks, halfSeasonGoalLeaders, halfSeasonFantasyLeaders, seasonGoalLeaders, seasonFantasyLeaders } = report;
     const sections = [];
 
     // Match Result
@@ -199,17 +246,60 @@ const MatchReport = () => {
     }
 
     // Scoring Leaders
-    if (scoringLeaders?.length > 0) {
-      sections.push(
-        '\n📈 Goalscoring Charts\n' +
-        scoringLeaders.map(change => 
-          `${change.new_leader} ${
-            change.previous_leader_goals === change.new_leader_goals ?
-            `joined ${change.previous_leader} at the top of the goalscoring charts with ${change.new_leader_goals} goals` :
-            `moved to the top of the goalscoring charts with ${change.new_leader_goals} goals, overtaking ${change.previous_leader} (${change.previous_leader_goals})`
-          }`
-        ).join('\n')
-      );
+    if (halfSeasonGoalLeaders?.[0] || halfSeasonFantasyLeaders?.[0] || seasonGoalLeaders?.[0] || seasonFantasyLeaders?.[0]) {
+      sections.push('\n📈 Scoring Leaders');
+
+      // Half-Season Goal Leaders
+      if (halfSeasonGoalLeaders?.[0]) {
+        sections.push(
+          halfSeasonGoalLeaders[0].change_type === 'new_leader' ? 
+            `${halfSeasonGoalLeaders[0].new_leader} leads the current Half-Season goal-scoring charts with ${halfSeasonGoalLeaders[0].new_leader_goals} goals` :
+          halfSeasonGoalLeaders[0].change_type === 'tied' ?
+            `${halfSeasonGoalLeaders[0].new_leader} joined ${halfSeasonGoalLeaders[0].previous_leader} at the top of the current half-season goalscoring charts with ${halfSeasonGoalLeaders[0].new_leader_goals} goals` :
+          halfSeasonGoalLeaders[0].change_type === 'remains' ?
+            `${halfSeasonGoalLeaders[0].new_leader} remains at the top of the current half-season goalscoring charts with ${halfSeasonGoalLeaders[0].new_leader_goals} goals` :
+            `${halfSeasonGoalLeaders[0].new_leader} moved to the top of the current Half-Season goal-scoring charts with ${halfSeasonGoalLeaders[0].new_leader_goals} goals, overtaking ${halfSeasonGoalLeaders[0].previous_leader} (${halfSeasonGoalLeaders[0].previous_leader_goals} goals)`
+        );
+      }
+
+      // Half-Season Fantasy Leaders
+      if (halfSeasonFantasyLeaders?.[0]) {
+        sections.push(
+          halfSeasonFantasyLeaders[0].change_type === 'new_leader' ? 
+            `${halfSeasonFantasyLeaders[0].new_leader} leads the current Half-Season fantasy points charts with ${halfSeasonFantasyLeaders[0].new_leader_points} points` :
+          halfSeasonFantasyLeaders[0].change_type === 'tied' ?
+            `${halfSeasonFantasyLeaders[0].new_leader} joined ${halfSeasonFantasyLeaders[0].previous_leader} at the top of the current half-season fantasy points charts with ${halfSeasonFantasyLeaders[0].new_leader_points} points` :
+          halfSeasonFantasyLeaders[0].change_type === 'remains' ?
+            `${halfSeasonFantasyLeaders[0].new_leader} remains at the top of the current half-season fantasy points charts with ${halfSeasonFantasyLeaders[0].new_leader_points} points` :
+            `${halfSeasonFantasyLeaders[0].new_leader} moved to the top of the current Half-Season fantasy points charts with ${halfSeasonFantasyLeaders[0].new_leader_points} points, overtaking ${halfSeasonFantasyLeaders[0].previous_leader} (${halfSeasonFantasyLeaders[0].previous_leader_points} points)`
+        );
+      }
+
+      // Overall Season Goal Leaders
+      if (seasonGoalLeaders?.[0]) {
+        sections.push(
+          seasonGoalLeaders[0].change_type === 'new_leader' ? 
+            `${seasonGoalLeaders[0].new_leader} leads the ${new Date().getFullYear()} Season goal-scoring charts with ${seasonGoalLeaders[0].new_leader_goals} goals` :
+          seasonGoalLeaders[0].change_type === 'tied' ?
+            `${seasonGoalLeaders[0].new_leader} joined ${seasonGoalLeaders[0].previous_leader} at the top of the ${new Date().getFullYear()} Season goalscoring charts with ${seasonGoalLeaders[0].new_leader_goals} goals` :
+          seasonGoalLeaders[0].change_type === 'remains' ?
+            `${seasonGoalLeaders[0].new_leader} remains at the top of the ${new Date().getFullYear()} Season goalscoring charts with ${seasonGoalLeaders[0].new_leader_goals} goals` :
+            `${seasonGoalLeaders[0].new_leader} moved to the top of the ${new Date().getFullYear()} Season goal-scoring charts with ${seasonGoalLeaders[0].new_leader_goals} goals, overtaking ${seasonGoalLeaders[0].previous_leader} (${seasonGoalLeaders[0].previous_leader_goals} goals)`
+        );
+      }
+
+      // Overall Season Fantasy Leaders
+      if (seasonFantasyLeaders?.[0]) {
+        sections.push(
+          seasonFantasyLeaders[0].change_type === 'new_leader' ? 
+            `${seasonFantasyLeaders[0].new_leader} leads the ${new Date().getFullYear()} Season fantasy points charts with ${seasonFantasyLeaders[0].new_leader_points} points` :
+          seasonFantasyLeaders[0].change_type === 'tied' ?
+            `${seasonFantasyLeaders[0].new_leader} joined ${seasonFantasyLeaders[0].previous_leader} at the top of the ${new Date().getFullYear()} Season fantasy points charts with ${seasonFantasyLeaders[0].new_leader_points} points` :
+          seasonFantasyLeaders[0].change_type === 'remains' ?
+            `${seasonFantasyLeaders[0].new_leader} remains at the top of the ${new Date().getFullYear()} Season fantasy points charts with ${seasonFantasyLeaders[0].new_leader_points} points` :
+            `${seasonFantasyLeaders[0].new_leader} moved to the top of the ${new Date().getFullYear()} Season fantasy points charts with ${seasonFantasyLeaders[0].new_leader_points} points, overtaking ${seasonFantasyLeaders[0].previous_leader} (${seasonFantasyLeaders[0].previous_leader_points} points)`
+        );
+      }
     }
 
     return sections.join('\n');

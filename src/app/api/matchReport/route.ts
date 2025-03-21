@@ -161,7 +161,7 @@ export async function GET() {
       `;
       console.log('Goals milestones:', goalsMilestones);
 
-      // Fixed streaks query - only for active players
+      // Simplified streaks query
       console.log('Checking for streaks...');
       const streaks = await prisma.$queryRaw`
         WITH recent_matches AS (
@@ -170,8 +170,8 @@ export async function GET() {
             p.name,
             m.match_date,
             pm.result,
-            pm.goals,
-            ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as game_number
+            ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as game_number,
+            LAG(pm.result) OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as prev_result
           FROM players p
           JOIN player_matches pm ON p.player_id = pm.player_id
           JOIN matches m ON pm.match_id = m.match_id
@@ -179,43 +179,58 @@ export async function GET() {
           AND p.is_ringer = false
           AND p.is_retired = false
           AND p.player_id = ANY(${activePlayerIdList}::int[])
-        )
-        SELECT 
-          name,
-          streak_type,
-          streak_count
-        FROM (
+        ),
+        streak_groups AS (
+          SELECT 
+            *,
+            CASE
+              WHEN result != prev_result OR prev_result IS NULL THEN 1
+              ELSE 0
+            END as is_new_streak,
+            SUM(CASE WHEN result != prev_result OR prev_result IS NULL THEN 1 ELSE 0 END) 
+              OVER (PARTITION BY player_id ORDER BY game_number) as streak_group
+          FROM recent_matches
+          WHERE game_number <= 15  -- Look at last 15 games max
+        ),
+        streak_lengths AS (
           SELECT 
             name,
-            CASE 
-              WHEN COUNT(*) FILTER (WHERE result = 'win' AND game_number <= 4) = 4 THEN 'win'
-              WHEN COUNT(*) FILTER (WHERE result = 'loss' AND game_number <= 4) = 4 THEN 'loss'
-              WHEN COUNT(*) FILTER (WHERE result != 'loss' AND game_number <= 5) = 5 THEN 'unbeaten'
-              WHEN COUNT(*) FILTER (WHERE result != 'win' AND game_number <= 5) = 5 THEN 'winless'
-              WHEN COUNT(*) FILTER (WHERE goals > 0 AND game_number <= 3) = 3 THEN 'scoring'
-            END as streak_type,
-            CASE 
-              WHEN COUNT(*) FILTER (WHERE goals > 0 AND game_number <= 3) = 3 
-              THEN SUM(goals) FILTER (WHERE goals > 0 AND game_number <= 3)
-              ELSE 
-                CASE 
-                  WHEN COUNT(*) FILTER (WHERE result = 'win' AND game_number <= 4) = 4 THEN 4
-                  WHEN COUNT(*) FILTER (WHERE result = 'loss' AND game_number <= 4) = 4 THEN 4
-                  WHEN COUNT(*) FILTER (WHERE result != 'loss' AND game_number <= 5) = 5 THEN 5
-                  WHEN COUNT(*) FILTER (WHERE result != 'win' AND game_number <= 5) = 5 THEN 5
-                  ELSE 0
-                END
-            END as streak_count
-          FROM recent_matches
-          GROUP BY name
-        ) s
-        WHERE streak_type IS NOT NULL
+            result,
+            streak_group,
+            COUNT(*) as streak_length,
+            MIN(game_number) as first_game_in_streak,
+            MAX(game_number) as last_game_in_streak
+          FROM streak_groups
+          GROUP BY name, result, streak_group
+        )
+        SELECT DISTINCT ON (name)
+          name,
+          result as streak_type,
+          streak_length as streak_count
+        FROM streak_lengths
+        WHERE 
+          last_game_in_streak = 1  -- Must be current streak
+          AND (
+            (result = 'win' AND streak_length >= 4)  -- Win streak of 4 or more
+            OR (result = 'loss' AND streak_length >= 4)  -- Loss streak of 4 or more
+            OR (result IN ('win', 'draw') AND streak_length >= 6)  -- Unbeaten streak of 6 or more
+            OR (result IN ('loss', 'draw') AND streak_length >= 6)  -- Winless streak of 6 or more
+          )
+        ORDER BY 
+          name,
+          streak_length DESC
       `;
       console.log('Streaks:', streaks);
 
-      // Simplified scoring leaders query - only for active players
-      console.log('Checking for scoring leaders changes...');
-      const scoringLeaders = await prisma.$queryRaw`
+      // Get current half-season dates
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const isFirstHalf = now.getMonth() < 6;  // 0-5 is first half (Jan-June)
+      const halfSeasonStartDate = isFirstHalf ? `${currentYear}-01-01` : `${currentYear}-07-01`;
+      const halfSeasonEndDate = isFirstHalf ? `${currentYear}-06-30` : `${currentYear}-12-31`;
+      
+      // Current Half-Season Goal Leaders - only show changes where new_leader != previous_leader
+      const halfSeasonGoalLeaders = await prisma.$queryRaw`
         WITH current_leaders AS (
           SELECT 
             p.name,
@@ -225,10 +240,13 @@ export async function GET() {
           JOIN player_matches pm ON p.player_id = pm.player_id
           JOIN matches m ON pm.match_id = m.match_id
           WHERE m.match_date <= ${latestMatch.match_date}
+          AND m.match_date >= ${halfSeasonStartDate}::date
+          AND m.match_date <= ${halfSeasonEndDate}::date
           AND p.is_ringer = false
           AND p.is_retired = false
           AND p.player_id = ANY(${activePlayerIdList}::int[])
           GROUP BY p.name
+          HAVING SUM(pm.goals) > 0
         ),
         previous_leaders AS (
           SELECT 
@@ -239,6 +257,124 @@ export async function GET() {
           JOIN player_matches pm ON p.player_id = pm.player_id
           JOIN matches m ON pm.match_id = m.match_id
           WHERE m.match_date < ${latestMatch.match_date}
+          AND m.match_date >= ${halfSeasonStartDate}::date
+          AND m.match_date <= ${halfSeasonEndDate}::date
+          AND p.is_ringer = false
+          AND p.is_retired = false
+          AND p.player_id = ANY(${activePlayerIdList}::int[])
+          GROUP BY p.name
+          HAVING SUM(pm.goals) > 0
+        )
+        SELECT 
+          cl.name as new_leader,
+          cl.goals as new_leader_goals,
+          pl.name as previous_leader,
+          pl.goals as previous_leader_goals,
+          CASE 
+            WHEN pl.goals IS NULL THEN 'new_leader'
+            WHEN cl.goals = pl.goals AND cl.name != pl.name THEN 'tied'
+            WHEN cl.name != pl.name THEN 'overtake'
+            WHEN cl.name = pl.name THEN 'remains'
+            ELSE NULL
+          END as change_type
+        FROM current_leaders cl
+        LEFT JOIN previous_leaders pl ON pl.rank = 1
+        WHERE cl.rank = 1
+        AND (
+          pl.name IS NULL  -- New leader (no previous leader)
+          OR (cl.name != pl.name)  -- Different player
+          OR (cl.name = pl.name)  -- Same player (remains at top)
+        )`;
+
+      // Current Half-Season Fantasy Leaders - only show changes where new_leader != previous_leader
+      const halfSeasonFantasyLeaders = await prisma.$queryRaw`
+        WITH current_leaders AS (
+          SELECT 
+            p.name,
+            SUM(
+              CASE 
+                WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+                     ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                THEN 40
+                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                WHEN pm.result = 'win' AND 
+                     ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                THEN 30
+                WHEN pm.result = 'win' THEN 20
+                WHEN pm.result = 'draw' THEN 10
+                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                WHEN pm.result = 'loss' THEN -10
+                ELSE 0
+              END
+            ) as fantasy_points,
+            ROW_NUMBER() OVER (ORDER BY SUM(
+              CASE 
+                WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+                     ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                THEN 40
+                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                WHEN pm.result = 'win' AND 
+                     ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                THEN 30
+                WHEN pm.result = 'win' THEN 20
+                WHEN pm.result = 'draw' THEN 10
+                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                WHEN pm.result = 'loss' THEN -10
+                ELSE 0
+              END
+            ) DESC) as rank
+          FROM players p
+          JOIN player_matches pm ON p.player_id = pm.player_id
+          JOIN matches m ON pm.match_id = m.match_id
+          WHERE m.match_date <= ${latestMatch.match_date}
+          AND m.match_date >= ${halfSeasonStartDate}::date
+          AND m.match_date <= ${halfSeasonEndDate}::date
+          AND p.is_ringer = false
+          AND p.is_retired = false
+          AND p.player_id = ANY(${activePlayerIdList}::int[])
+          GROUP BY p.name
+        ),
+        previous_leaders AS (
+          SELECT 
+            p.name,
+            SUM(
+              CASE 
+                WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+                     ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                THEN 40
+                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                WHEN pm.result = 'win' AND 
+                     ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                THEN 30
+                WHEN pm.result = 'win' THEN 20
+                WHEN pm.result = 'draw' THEN 10
+                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                WHEN pm.result = 'loss' THEN -10
+                ELSE 0
+              END
+            ) as fantasy_points,
+            ROW_NUMBER() OVER (ORDER BY SUM(
+              CASE 
+                WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+                     ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                THEN 40
+                WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                WHEN pm.result = 'win' AND 
+                     ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                THEN 30
+                WHEN pm.result = 'win' THEN 20
+                WHEN pm.result = 'draw' THEN 10
+                WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                WHEN pm.result = 'loss' THEN -10
+                ELSE 0
+              END
+            ) DESC) as rank
+          FROM players p
+          JOIN player_matches pm ON p.player_id = pm.player_id
+          JOIN matches m ON pm.match_id = m.match_id
+          WHERE m.match_date < ${latestMatch.match_date}
+          AND m.match_date >= ${halfSeasonStartDate}::date
+          AND m.match_date <= ${halfSeasonEndDate}::date
           AND p.is_ringer = false
           AND p.is_retired = false
           AND p.player_id = ANY(${activePlayerIdList}::int[])
@@ -246,15 +382,198 @@ export async function GET() {
         )
         SELECT 
           cl.name as new_leader,
-          cl.goals as new_leader_goals,
+          cl.fantasy_points as new_leader_points,
           pl.name as previous_leader,
-          pl.goals as previous_leader_goals
+          pl.fantasy_points as previous_leader_points,
+          CASE 
+            WHEN pl.fantasy_points IS NULL THEN 'new_leader'
+            WHEN cl.fantasy_points = pl.fantasy_points AND cl.name != pl.name THEN 'tied'
+            WHEN cl.name != pl.name THEN 'overtake'
+            WHEN cl.name = pl.name THEN 'remains'
+            ELSE NULL
+          END as change_type
         FROM current_leaders cl
-        JOIN previous_leaders pl ON cl.rank = 1 AND pl.rank = 1
-        WHERE cl.name != pl.name
-        AND cl.goals > pl.goals
-      `;
-      console.log('Scoring leaders:', scoringLeaders);
+        LEFT JOIN previous_leaders pl ON pl.rank = 1
+        WHERE cl.rank = 1
+        AND (
+          pl.name IS NULL  -- New leader (no previous leader)
+          OR (cl.name != pl.name)  -- Different player
+          OR (cl.name = pl.name)  -- Same player (remains at top)
+        )`;
+
+      // Only run season queries if we're in the second half of the year
+      let seasonGoalLeaders = [];
+      let seasonFantasyLeaders = [];
+
+      if (!isFirstHalf) {
+        // Overall Season Goal Leaders - only show changes where new_leader != previous_leader
+        seasonGoalLeaders = await prisma.$queryRaw`
+          WITH current_leaders AS (
+            SELECT 
+              p.name,
+              SUM(pm.goals) as goals,
+              ROW_NUMBER() OVER (ORDER BY SUM(pm.goals) DESC) as rank
+            FROM players p
+            JOIN player_matches pm ON p.player_id = pm.player_id
+            JOIN matches m ON pm.match_id = m.match_id
+            WHERE m.match_date <= ${latestMatch.match_date}
+            AND EXTRACT(YEAR FROM m.match_date) = ${currentYear}
+            AND p.is_ringer = false
+            AND p.is_retired = false
+            AND p.player_id = ANY(${activePlayerIdList}::int[])
+            GROUP BY p.name
+            HAVING SUM(pm.goals) > 0
+          ),
+          previous_leaders AS (
+            SELECT 
+              p.name,
+              SUM(pm.goals) as goals,
+              ROW_NUMBER() OVER (ORDER BY SUM(pm.goals) DESC) as rank
+            FROM players p
+            JOIN player_matches pm ON p.player_id = pm.player_id
+            JOIN matches m ON pm.match_id = m.match_id
+            WHERE m.match_date < ${latestMatch.match_date}
+            AND EXTRACT(YEAR FROM m.match_date) = ${currentYear}
+            AND p.is_ringer = false
+            AND p.is_retired = false
+            AND p.player_id = ANY(${activePlayerIdList}::int[])
+            GROUP BY p.name
+            HAVING SUM(pm.goals) > 0
+          )
+          SELECT 
+            cl.name as new_leader,
+            cl.goals as new_leader_goals,
+            pl.name as previous_leader,
+            pl.goals as previous_leader_goals,
+            CASE 
+              WHEN pl.goals IS NULL THEN 'new_leader'
+              WHEN cl.goals = pl.goals AND cl.name != pl.name THEN 'tied'
+              WHEN cl.name != pl.name THEN 'overtake'
+              WHEN cl.name = pl.name THEN 'remains'
+              ELSE NULL
+            END as change_type
+          FROM current_leaders cl
+          LEFT JOIN previous_leaders pl ON pl.rank = 1
+          WHERE cl.rank = 1
+          AND (
+            pl.name IS NULL  -- New leader (no previous leader)
+            OR (cl.name != pl.name)  -- Different player
+            OR (cl.name = pl.name)  -- Same player (remains at top)
+          )`;
+
+        // Overall Season Fantasy Leaders - only show changes where new_leader != previous_leader
+        seasonFantasyLeaders = await prisma.$queryRaw`
+          WITH current_leaders AS (
+            SELECT 
+              p.name,
+              SUM(
+                CASE 
+                  WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+                       ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                  THEN 40
+                  WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                  WHEN pm.result = 'win' AND 
+                       ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                  THEN 30
+                  WHEN pm.result = 'win' THEN 20
+                  WHEN pm.result = 'draw' THEN 10
+                  WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                  WHEN pm.result = 'loss' THEN -10
+                  ELSE 0
+                END
+              ) as fantasy_points,
+              ROW_NUMBER() OVER (ORDER BY SUM(
+                CASE 
+                  WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+                       ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                  THEN 40
+                  WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                  WHEN pm.result = 'win' AND 
+                       ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                  THEN 30
+                  WHEN pm.result = 'win' THEN 20
+                  WHEN pm.result = 'draw' THEN 10
+                  WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                  WHEN pm.result = 'loss' THEN -10
+                  ELSE 0
+                END
+              ) DESC) as rank
+            FROM players p
+            JOIN player_matches pm ON p.player_id = pm.player_id
+            JOIN matches m ON pm.match_id = m.match_id
+            WHERE m.match_date <= ${latestMatch.match_date}
+            AND EXTRACT(YEAR FROM m.match_date) = ${currentYear}
+            AND p.is_ringer = false
+            AND p.is_retired = false
+            AND p.player_id = ANY(${activePlayerIdList}::int[])
+            GROUP BY p.name
+          ),
+          previous_leaders AS (
+            SELECT 
+              p.name,
+              SUM(
+                CASE 
+                  WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+                       ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                  THEN 40
+                  WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                  WHEN pm.result = 'win' AND 
+                       ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                  THEN 30
+                  WHEN pm.result = 'win' THEN 20
+                  WHEN pm.result = 'draw' THEN 10
+                  WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                  WHEN pm.result = 'loss' THEN -10
+                  ELSE 0
+                END
+              ) as fantasy_points,
+              ROW_NUMBER() OVER (ORDER BY SUM(
+                CASE 
+                  WHEN pm.result = 'win' AND pm.heavy_win = true AND 
+                       ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                  THEN 40
+                  WHEN pm.result = 'win' AND pm.heavy_win = true THEN 30
+                  WHEN pm.result = 'win' AND 
+                       ((pm.team = 'A' AND m.team_b_score = 0) OR (pm.team = 'B' AND m.team_a_score = 0))
+                  THEN 30
+                  WHEN pm.result = 'win' THEN 20
+                  WHEN pm.result = 'draw' THEN 10
+                  WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN -20
+                  WHEN pm.result = 'loss' THEN -10
+                  ELSE 0
+                END
+              ) DESC) as rank
+            FROM players p
+            JOIN player_matches pm ON p.player_id = pm.player_id
+            JOIN matches m ON pm.match_id = m.match_id
+            WHERE m.match_date < ${latestMatch.match_date}
+            AND EXTRACT(YEAR FROM m.match_date) = ${currentYear}
+            AND p.is_ringer = false
+            AND p.is_retired = false
+            AND p.player_id = ANY(${activePlayerIdList}::int[])
+            GROUP BY p.name
+          )
+          SELECT 
+            cl.name as new_leader,
+            cl.fantasy_points as new_leader_points,
+            pl.name as previous_leader,
+            pl.fantasy_points as previous_leader_points,
+            CASE 
+              WHEN pl.fantasy_points IS NULL THEN 'new_leader'
+              WHEN cl.fantasy_points = pl.fantasy_points AND cl.name != pl.name THEN 'tied'
+              WHEN cl.name != pl.name THEN 'overtake'
+              WHEN cl.name = pl.name THEN 'remains'
+              ELSE NULL
+            END as change_type
+          FROM current_leaders cl
+          LEFT JOIN previous_leaders pl ON pl.rank = 1
+          WHERE cl.rank = 1
+          AND (
+            pl.name IS NULL  -- New leader (no previous leader)
+            OR (cl.name != pl.name)  -- Different player
+            OR (cl.name = pl.name)  -- Same player (remains at top)
+          )`;
+      }
 
       console.log('Preparing response...');
       return NextResponse.json({
@@ -264,7 +583,10 @@ export async function GET() {
           gamesMilestones: serializeData(gamesMilestones),
           goalsMilestones: serializeData(goalsMilestones),
           streaks: serializeData(streaks),
-          scoringLeaders: serializeData(scoringLeaders)
+          halfSeasonGoalLeaders: serializeData(halfSeasonGoalLeaders),
+          halfSeasonFantasyLeaders: serializeData(halfSeasonFantasyLeaders),
+          seasonGoalLeaders: serializeData(seasonGoalLeaders),
+          seasonFantasyLeaders: serializeData(seasonFantasyLeaders)
         }
       });
 
