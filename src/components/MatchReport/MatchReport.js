@@ -30,33 +30,32 @@ const MatchReport = () => {
   const renderMatchInfo = () => {
     const { matchInfo } = report;
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Match Result</h3>
+      <div className="bg-white rounded-lg shadow-md p-6">
         <div className="text-2xl sm:text-3xl font-bold text-center mb-8">
-          Team A ({matchInfo.team_a_score} - {matchInfo.team_b_score}) Team B
+          Team A ({matchInfo.team_a_score}) - ({matchInfo.team_b_score}) Team B
         </div>
         
-        <div className="space-y-6">
-          <div className="bg-neutral-50 rounded-lg p-4">
-            <div className="font-semibold text-lg text-primary-600 mb-2">Team A ({matchInfo.team_a_score})</div>
-            <div className="text-sm text-neutral-600">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-50 rounded-lg p-5">
+            <div className="font-semibold text-lg text-blue-600 mb-3">Team A ({matchInfo.team_a_score})</div>
+            <div className="text-sm text-gray-700 leading-relaxed">
               {matchInfo.team_a_players.join(', ')}
             </div>
             {matchInfo.team_a_scorers && (
-              <div className="text-sm text-success-600 mt-2">
-                Scorers: {matchInfo.team_a_scorers}
+              <div className="text-sm text-blue-600 font-medium mt-3 flex items-center">
+                <span className="mr-2">⚽</span> {matchInfo.team_a_scorers}
               </div>
             )}
           </div>
 
-          <div className="bg-neutral-50 rounded-lg p-4">
-            <div className="font-semibold text-lg text-primary-600 mb-2">Team B ({matchInfo.team_b_score})</div>
-            <div className="text-sm text-neutral-600">
+          <div className="bg-gray-50 rounded-lg p-5">
+            <div className="font-semibold text-lg text-blue-600 mb-3">Team B ({matchInfo.team_b_score})</div>
+            <div className="text-sm text-gray-700 leading-relaxed">
               {matchInfo.team_b_players.join(', ')}
             </div>
             {matchInfo.team_b_scorers && (
-              <div className="text-sm text-success-600 mt-2">
-                Scorers: {matchInfo.team_b_scorers}
+              <div className="text-sm text-blue-600 font-medium mt-3 flex items-center">
+                <span className="mr-2">⚽</span> {matchInfo.team_b_scorers}
               </div>
             )}
           </div>
@@ -66,139 +65,171 @@ const MatchReport = () => {
   };
 
   const renderStatDeepDive = () => {
+    if (!report) return null;
+    
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Random Stats</h3>
-
-        <div className="space-y-6">
-          {/* Games Played Milestones */}
-          {report.gamesMilestones?.length > 0 && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-3">🏆 Milestones</div>
-              <div className="space-y-2">
-                {report.gamesMilestones.map((milestone, index) => (
-                  <div key={index} className="text-sm text-neutral-600">
-                    {milestone.name} played their {milestone.total_games}th game
-                  </div>
-                ))}
+      <div className="mt-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Games & Goals Milestones */}
+            {(report.gamesMilestones?.length > 0 || report.goalsMilestones?.length > 0) && (
+              <div className="bg-gray-50 rounded-lg p-5">
+                <div className="font-semibold text-lg text-blue-600 mb-3">
+                  Milestones
+                </div>
+                <div className="space-y-2">
+                  {report.gamesMilestones?.map((milestone, i) => (
+                    <p key={`game-${i}`} className="text-gray-700">
+                      {milestone.name} played their <span className="font-semibold">{milestone.games_played}th</span> game
+                    </p>
+                  ))}
+                  {report.goalsMilestones?.map((milestone, i) => (
+                    <p key={`goal-${i}`} className="text-gray-700">
+                      {milestone.name} scored their <span className="font-semibold">{milestone.total_goals}th</span> goal
+                    </p>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Goals Milestones */}
-          {report.goalsMilestones?.length > 0 && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-3">⚽ Goal Milestones</div>
-              <div className="space-y-2">
-                {report.goalsMilestones.map((milestone, index) => (
-                  <div key={index} className="text-sm text-neutral-600">
-                    {milestone.name} scored their {milestone.total_goals}th goal
-                  </div>
-                ))}
+            {/* Streaks */}
+            {report.streaks?.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-5">
+                <div className="font-semibold text-lg text-blue-600 mb-3">
+                  Form Streaks
+                </div>
+                <div className="space-y-2">
+                  {report.streaks.map((streak, i) => (
+                    <p key={`streak-${i}`} className="text-gray-700">
+                      {streak.name} is on a <span className="font-semibold">{streak.streak_count} game</span> {
+                        streak.streak_type === 'win' ? 'winning' :
+                        streak.streak_type === 'loss' ? 'losing' :
+                        streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'
+                      } streak
+                    </p>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Streaks */}
-          {report.streaks?.length > 0 && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-3">🔥 Hot Streaks</div>
-              <div className="space-y-2">
-                {report.streaks.map((streak, index) => (
-                  <div 
-                    key={index} 
-                    className={`text-sm p-2 rounded ${
-                      streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'text-success-600 bg-success-50' :
-                      streak.streak_type === 'loss' || streak.streak_type === 'winless' ? 'text-error-600 bg-error-50' :
-                      'text-primary-600 bg-primary-50'
-                    }`}
-                  >
-                    {streak.name} {
-                      streak.streak_type === 'win' ? `is on a ${streak.streak_count} game winning streak` :
-                      streak.streak_type === 'loss' ? `is on a ${streak.streak_count} game losing streak` :
-                      streak.streak_type === 'unbeaten' ? `is unbeaten in ${streak.streak_count} games` :
-                      streak.streak_type === 'winless' ? `hasn't won in ${streak.streak_count} games` :
-                      `has scored in ${streak.streak_count} consecutive games`
-                    }
-                  </div>
-                ))}
+            )}
+            
+            {/* Goal-scoring Streaks */}
+            {report.goalStreaks?.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-5">
+                <div className="font-semibold text-lg text-blue-600 mb-3">
+                  Scoring Streaks
+                </div>
+                <div className="space-y-2">
+                  {report.goalStreaks.map((streak, i) => (
+                    <p key={`goal-streak-${i}`} className="text-gray-700">
+                      {streak.name} has scored in <span className="font-semibold">{streak.matches_with_goals} consecutive</span> matches 
+                      <span className="text-sm text-gray-500 ml-1">
+                        ({streak.goals_in_streak} goals total)
+                      </span>
+                    </p>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Scoring Leaders Changes */}
-          {(report.halfSeasonGoalLeaders?.[0] || report.halfSeasonFantasyLeaders?.[0] || 
-            report.seasonGoalLeaders?.[0] || report.seasonFantasyLeaders?.[0]) && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-3">📈 Scoring Leaders</div>
-              <div className="space-y-2">
-                {/* Half-Season Goal Leaders */}
-                {report.halfSeasonGoalLeaders?.[0] && (
-                  <div className="text-sm text-success-600 bg-success-50 p-2 rounded">
-                    {report.halfSeasonGoalLeaders[0].change_type === 'new_leader' ? 
-                      `${report.halfSeasonGoalLeaders[0].new_leader} leads the current Half-Season goal-scoring charts with ${report.halfSeasonGoalLeaders[0].new_leader_goals} goals` :
-                    report.halfSeasonGoalLeaders[0].change_type === 'tied' ?
-                      `${report.halfSeasonGoalLeaders[0].new_leader} joined ${report.halfSeasonGoalLeaders[0].previous_leader} at the top of the current half-season goalscoring charts with ${report.halfSeasonGoalLeaders[0].new_leader_goals} goals` :
-                    report.halfSeasonGoalLeaders[0].change_type === 'remains' ?
-                      `${report.halfSeasonGoalLeaders[0].new_leader} remains at the top of the current half-season goalscoring charts with ${report.halfSeasonGoalLeaders[0].new_leader_goals} goals` :
-                      `${report.halfSeasonGoalLeaders[0].new_leader} moved to the top of the current Half-Season goal-scoring charts with ${report.halfSeasonGoalLeaders[0].new_leader_goals} goals, overtaking ${report.halfSeasonGoalLeaders[0].previous_leader} (${report.halfSeasonGoalLeaders[0].previous_leader_goals} goals)`
-                    }
-                  </div>
-                )}
+            {/* Half-Season Leaders */}
+            {(report.halfSeasonGoalLeaders?.[0] || report.halfSeasonFantasyLeaders?.[0]) && (
+              <div className="bg-gray-50 rounded-lg p-5">
+                <div className="font-semibold text-lg text-blue-600 mb-3">
+                  Current Leaders
+                </div>
+                <div className="space-y-3">
+                  {/* Half-Season Goal Leaders */}
+                  {report.halfSeasonGoalLeaders?.[0] && (
+                    <div className="text-gray-700">
+                      <p className="font-medium text-gray-800 mb-1">Goals</p>
+                      {renderLeadershipText(report.halfSeasonGoalLeaders[0], 'goals', 'current Half-Season')}
+                    </div>
+                  )}
 
-                {/* Half-Season Fantasy Leaders */}
-                {report.halfSeasonFantasyLeaders?.[0] && (
-                  <div className="text-sm text-success-600 bg-success-50 p-2 rounded">
-                    {report.halfSeasonFantasyLeaders[0].change_type === 'new_leader' ? 
-                      `${report.halfSeasonFantasyLeaders[0].new_leader} leads the current Half-Season fantasy points charts with ${report.halfSeasonFantasyLeaders[0].new_leader_points} points` :
-                    report.halfSeasonFantasyLeaders[0].change_type === 'tied' ?
-                      `${report.halfSeasonFantasyLeaders[0].new_leader} joined ${report.halfSeasonFantasyLeaders[0].previous_leader} at the top of the current half-season fantasy points charts with ${report.halfSeasonFantasyLeaders[0].new_leader_points} points` :
-                    report.halfSeasonFantasyLeaders[0].change_type === 'remains' ?
-                      `${report.halfSeasonFantasyLeaders[0].new_leader} remains at the top of the current half-season fantasy points charts with ${report.halfSeasonFantasyLeaders[0].new_leader_points} points` :
-                      `${report.halfSeasonFantasyLeaders[0].new_leader} moved to the top of the current Half-Season fantasy points charts with ${report.halfSeasonFantasyLeaders[0].new_leader_points} points, overtaking ${report.halfSeasonFantasyLeaders[0].previous_leader} (${report.halfSeasonFantasyLeaders[0].previous_leader_points} points)`
-                    }
-                  </div>
-                )}
-
-                {/* Overall Season Goal Leaders */}
-                {report.seasonGoalLeaders?.[0] && (
-                  <div className="text-sm text-success-600 bg-success-50 p-2 rounded">
-                    {report.seasonGoalLeaders[0].change_type === 'new_leader' ? 
-                      `${report.seasonGoalLeaders[0].new_leader} leads the ${new Date().getFullYear()} Season goal-scoring charts with ${report.seasonGoalLeaders[0].new_leader_goals} goals` :
-                    report.seasonGoalLeaders[0].change_type === 'tied' ?
-                      `${report.seasonGoalLeaders[0].new_leader} joined ${report.seasonGoalLeaders[0].previous_leader} at the top of the ${new Date().getFullYear()} Season goalscoring charts with ${report.seasonGoalLeaders[0].new_leader_goals} goals` :
-                    report.seasonGoalLeaders[0].change_type === 'remains' ?
-                      `${report.seasonGoalLeaders[0].new_leader} remains at the top of the ${new Date().getFullYear()} Season goalscoring charts with ${report.seasonGoalLeaders[0].new_leader_goals} goals` :
-                      `${report.seasonGoalLeaders[0].new_leader} moved to the top of the ${new Date().getFullYear()} Season goal-scoring charts with ${report.seasonGoalLeaders[0].new_leader_goals} goals, overtaking ${report.seasonGoalLeaders[0].previous_leader} (${report.seasonGoalLeaders[0].previous_leader_goals} goals)`
-                    }
-                  </div>
-                )}
-
-                {/* Overall Season Fantasy Leaders */}
-                {report.seasonFantasyLeaders?.[0] && (
-                  <div className="text-sm text-success-600 bg-success-50 p-2 rounded">
-                    {report.seasonFantasyLeaders[0].change_type === 'new_leader' ? 
-                      `${report.seasonFantasyLeaders[0].new_leader} leads the ${new Date().getFullYear()} Season fantasy points charts with ${report.seasonFantasyLeaders[0].new_leader_points} points` :
-                    report.seasonFantasyLeaders[0].change_type === 'tied' ?
-                      `${report.seasonFantasyLeaders[0].new_leader} joined ${report.seasonFantasyLeaders[0].previous_leader} at the top of the ${new Date().getFullYear()} Season fantasy points charts with ${report.seasonFantasyLeaders[0].new_leader_points} points` :
-                    report.seasonFantasyLeaders[0].change_type === 'remains' ?
-                      `${report.seasonFantasyLeaders[0].new_leader} remains at the top of the ${new Date().getFullYear()} Season fantasy points charts with ${report.seasonFantasyLeaders[0].new_leader_points} points` :
-                      `${report.seasonFantasyLeaders[0].new_leader} moved to the top of the ${new Date().getFullYear()} Season fantasy points charts with ${report.seasonFantasyLeaders[0].new_leader_points} points, overtaking ${report.seasonFantasyLeaders[0].previous_leader} (${report.seasonFantasyLeaders[0].previous_leader_points} points)`
-                    }
-                  </div>
-                )}
+                  {/* Half-Season Fantasy Leaders */}
+                  {report.halfSeasonFantasyLeaders?.[0] && (
+                    <div className="text-gray-700 mt-2">
+                      <p className="font-medium text-gray-800 mb-1">Fantasy Points</p>
+                      {renderLeadershipText(report.halfSeasonFantasyLeaders[0], 'points', 'current Half-Season')}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            
+            {/* Season Leaders */}
+            {(report.seasonGoalLeaders?.[0] || report.seasonFantasyLeaders?.[0]) && (
+              <div className="bg-gray-50 rounded-lg p-5">
+                <div className="font-semibold text-lg text-blue-600 mb-3">
+                  Season Leaders
+                </div>
+                <div className="space-y-3">
+                  {/* Season Goal Leaders */}
+                  {report.seasonGoalLeaders?.[0] && (
+                    <div className="text-gray-700">
+                      <p className="font-medium text-gray-800 mb-1">Goals</p>
+                      {renderLeadershipText(report.seasonGoalLeaders[0], 'goals', new Date().getFullYear() + ' Season')}
+                    </div>
+                  )}
+
+                  {/* Season Fantasy Leaders */}
+                  {report.seasonFantasyLeaders?.[0] && (
+                    <div className="text-gray-700 mt-2">
+                      <p className="font-medium text-gray-800 mb-1">Fantasy Points</p>
+                      {renderLeadershipText(report.seasonFantasyLeaders[0], 'points', new Date().getFullYear() + ' Season')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
+  };
+  
+  const renderLeadershipText = (leaderData, metric, period) => {
+    const { change_type, new_leader, previous_leader, new_leader_goals, new_leader_points, previous_leader_goals, previous_leader_points } = leaderData;
+    const value = metric === 'goals' ? new_leader_goals : new_leader_points;
+    const prevValue = metric === 'goals' ? previous_leader_goals : previous_leader_points;
+    
+    switch (change_type) {
+      case 'new_leader':
+        return (
+          <p>{new_leader} <span className="font-semibold">leads</span> the {period} charts with {value} {metric}</p>
+        );
+      case 'tied':
+        return (
+          <p>{new_leader} <span className="font-semibold">tied</span> with {previous_leader} at {value} {metric}</p>
+        );
+      case 'remains':
+        return (
+          <p>{new_leader} <span className="font-semibold">remains top</span> with {value} {metric}</p>
+        );
+      case 'overtake':
+        return (
+          <p>{new_leader} <span className="font-semibold">overtook</span> {previous_leader} ({prevValue} {metric}) with {value} {metric}</p>
+        );
+      default:
+        return null;
+    }
   };
 
   const formatReportForCopy = () => {
     if (!report) return '';
 
-    const { matchInfo, gamesMilestones, goalsMilestones, streaks, halfSeasonGoalLeaders, halfSeasonFantasyLeaders, seasonGoalLeaders, seasonFantasyLeaders } = report;
+    const {
+      matchInfo,
+      gamesMilestones,
+      goalsMilestones,
+      streaks,
+      goalStreaks,
+      halfSeasonGoalLeaders,
+      halfSeasonFantasyLeaders,
+      seasonGoalLeaders,
+      seasonFantasyLeaders
+    } = report;
+    
     const sections = [];
 
     // Match Result
@@ -214,35 +245,30 @@ const MatchReport = () => {
     );
 
     // Milestones
-    if (gamesMilestones?.length > 0) {
-      sections.push(
-        '\n🏆 Milestones\n' +
-        gamesMilestones.map(m => `${m.name} played their ${m.total_games}th game`).join('\n')
-      );
-    }
-
-    // Goal Milestones
-    if (goalsMilestones?.length > 0) {
-      sections.push(
-        '\n⚽ Goal Milestones\n' +
-        goalsMilestones.map(m => `${m.name} scored their ${m.total_goals}th goal`).join('\n')
-      );
+    if (gamesMilestones?.length > 0 || goalsMilestones?.length > 0) {
+      sections.push('\n🏆 Milestones');
+      gamesMilestones?.forEach(milestone => {
+        sections.push(`${milestone.name} played their ${milestone.games_played}th game for The Monks`);
+      });
+      goalsMilestones?.forEach(milestone => {
+        sections.push(`${milestone.name} scored their ${milestone.total_goals}th goal for The Monks`);
+      });
     }
 
     // Streaks
     if (streaks?.length > 0) {
-      sections.push(
-        '\n🔥 Hot Streaks\n' +
-        streaks.map(streak => {
-          const streakText = 
-            streak.streak_type === 'win' ? `is on a ${streak.streak_count} game winning streak` :
-            streak.streak_type === 'loss' ? `is on a ${streak.streak_count} game losing streak` :
-            streak.streak_type === 'unbeaten' ? `is unbeaten in ${streak.streak_count} games` :
-            streak.streak_type === 'winless' ? `hasn't won in ${streak.streak_count} games` :
-            `has scored in ${streak.streak_count} consecutive games`;
-          return `${streak.name} ${streakText}`;
-        }).join('\n')
-      );
+      sections.push('\n🔥 Streaks');
+      streaks.forEach(streak => {
+        sections.push(`${streak.name} is on a ${streak.streak_count} game ${streak.streak_type === 'win' ? 'winning' : streak.streak_type === 'loss' ? 'losing' : streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'} streak`);
+      });
+    }
+
+    // Goal-scoring Streaks
+    if (goalStreaks?.length > 0) {
+      sections.push('\n⚽ Goal Streaks');
+      goalStreaks.forEach(streak => {
+        sections.push(`${streak.name} has scored in ${streak.matches_with_goals} consecutive matches (${streak.goals_in_streak} goals in ${streak.matches_with_goals} games)`);
+      });
     }
 
     // Scoring Leaders
@@ -318,40 +344,48 @@ const MatchReport = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-        <div className="text-xl font-semibold text-primary-600">Loading Match Report...</div>
+      <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="text-xl font-semibold text-blue-600">Loading Match Report...</div>
+        <div className="mt-4 flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-        <div className="text-xl font-semibold text-primary-600">No match report available</div>
+      <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="text-xl font-semibold text-gray-700">No match report available</div>
+        <p className="mt-2 text-gray-500">There are no recent matches to display</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-primary-600">
-          Latest Match Report - {new Date(report.matchInfo.match_date).toLocaleDateString()}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <h2 className="text-2xl font-bold text-blue-600">
+          Latest Match Report
+          <span className="block sm:inline text-lg font-normal text-gray-600 mt-1 sm:mt-0 sm:ml-2">
+            {new Date(report.matchInfo.match_date).toLocaleDateString()}
+          </span>
         </h2>
         <button
           onClick={handleCopyReport}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          className="px-4 py-2 text-sm font-medium bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Copy Report
         </button>
       </div>
+      
       {renderMatchInfo()}
       {renderStatDeepDive()}
       
       {/* Copy Toast Notification */}
       {showCopyToast && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity duration-300">
-          Report copied to clipboard
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2">
+          <span>Report copied to clipboard</span>
         </div>
       )}
     </div>
