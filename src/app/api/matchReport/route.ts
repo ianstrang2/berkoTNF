@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Add dynamic configuration to prevent static generation
+export const dynamic = 'force-dynamic';
+
 const serializeData = (data) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
     typeof value === 'bigint' ? Number(value) : value
