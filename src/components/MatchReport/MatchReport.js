@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 const MatchReport = () => {
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
+  const [showCopyToast, setShowCopyToast] = useState(false);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -147,6 +148,84 @@ const MatchReport = () => {
     );
   };
 
+  const formatReportForCopy = () => {
+    if (!report) return '';
+
+    const { matchInfo, gamesMilestones, goalsMilestones, streaks, scoringLeaders } = report;
+    const sections = [];
+
+    // Match Result
+    sections.push(
+      `Match Result - ${new Date(matchInfo.match_date).toLocaleDateString()}\n` +
+      `Team A ${matchInfo.team_a_score} - ${matchInfo.team_b_score} Team B\n\n` +
+      `Team A (${matchInfo.team_a_score})\n` +
+      `Players: ${matchInfo.team_a_players.join(', ')}\n` +
+      (matchInfo.team_a_scorers ? `Scorers: ${matchInfo.team_a_scorers}\n` : '') +
+      `\nTeam B (${matchInfo.team_b_score})\n` +
+      `Players: ${matchInfo.team_b_players.join(', ')}\n` +
+      (matchInfo.team_b_scorers ? `Scorers: ${matchInfo.team_b_scorers}\n` : '')
+    );
+
+    // Milestones
+    if (gamesMilestones?.length > 0) {
+      sections.push(
+        '\n🏆 Milestones\n' +
+        gamesMilestones.map(m => `${m.name} played their ${m.total_games}th game`).join('\n')
+      );
+    }
+
+    // Goal Milestones
+    if (goalsMilestones?.length > 0) {
+      sections.push(
+        '\n⚽ Goal Milestones\n' +
+        goalsMilestones.map(m => `${m.name} scored their ${m.total_goals}th goal`).join('\n')
+      );
+    }
+
+    // Streaks
+    if (streaks?.length > 0) {
+      sections.push(
+        '\n🔥 Hot Streaks\n' +
+        streaks.map(streak => {
+          const streakText = 
+            streak.streak_type === 'win' ? `is on a ${streak.streak_count} game winning streak` :
+            streak.streak_type === 'loss' ? `is on a ${streak.streak_count} game losing streak` :
+            streak.streak_type === 'unbeaten' ? `is unbeaten in ${streak.streak_count} games` :
+            streak.streak_type === 'winless' ? `hasn't won in ${streak.streak_count} games` :
+            `has scored in ${streak.streak_count} consecutive games`;
+          return `${streak.name} ${streakText}`;
+        }).join('\n')
+      );
+    }
+
+    // Scoring Leaders
+    if (scoringLeaders?.length > 0) {
+      sections.push(
+        '\n📈 Goalscoring Charts\n' +
+        scoringLeaders.map(change => 
+          `${change.new_leader} ${
+            change.previous_leader_goals === change.new_leader_goals ?
+            `joined ${change.previous_leader} at the top of the goalscoring charts with ${change.new_leader_goals} goals` :
+            `moved to the top of the goalscoring charts with ${change.new_leader_goals} goals, overtaking ${change.previous_leader} (${change.previous_leader_goals})`
+          }`
+        ).join('\n')
+      );
+    }
+
+    return sections.join('\n');
+  };
+
+  const handleCopyReport = async () => {
+    try {
+      const reportText = formatReportForCopy();
+      await navigator.clipboard.writeText(reportText);
+      setShowCopyToast(true);
+      setTimeout(() => setShowCopyToast(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy report:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-6 text-center">
@@ -165,11 +244,26 @@ const MatchReport = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center text-primary-600">
-        Latest Match Report - {new Date(report.matchInfo.match_date).toLocaleDateString()}
-      </h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-primary-600">
+          Latest Match Report - {new Date(report.matchInfo.match_date).toLocaleDateString()}
+        </h2>
+        <button
+          onClick={handleCopyReport}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+          Copy Report
+        </button>
+      </div>
       {renderMatchInfo()}
       {renderStatDeepDive()}
+      
+      {/* Copy Toast Notification */}
+      {showCopyToast && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity duration-300">
+          Report copied to clipboard
+        </div>
+      )}
     </div>
   );
 };
