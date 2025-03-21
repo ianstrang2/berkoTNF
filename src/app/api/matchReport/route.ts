@@ -721,13 +721,17 @@ export async function GET() {
             scorers: cleanedMatch,
             top6: [],
             bottom6: [],
-            milestones: serializeData([...(gamesMilestones || []), ...(goalsMilestones || [])]),
+            milestones: serializeData(Array.isArray(gamesMilestones) && Array.isArray(goalsMilestones) 
+                ? [...gamesMilestones, ...goalsMilestones] 
+                : Array.isArray(gamesMilestones) ? [...gamesMilestones] 
+                : Array.isArray(goalsMilestones) ? [...goalsMilestones] 
+                : []),
             streaks: serializeData(streaks),
             goalStreaks: serializeData(goalStreaks), // Add the goal streaks to the response
-            halfSeasonGoalLeaders: halfSeasonGoalLeaders?.length ? serializeData(halfSeasonGoalLeaders) : null,
-            halfSeasonFantasyLeaders: halfSeasonFantasyLeaders?.length ? serializeData(halfSeasonFantasyLeaders) : null,
-            seasonGoalLeaders: seasonGoalLeaders?.length ? serializeData(seasonGoalLeaders) : null,
-            seasonFantasyLeaders: seasonFantasyLeaders?.length ? serializeData(seasonFantasyLeaders) : null,
+            halfSeasonGoalLeaders: Array.isArray(halfSeasonGoalLeaders) ? serializeData(halfSeasonGoalLeaders) : [],
+            halfSeasonFantasyLeaders: Array.isArray(halfSeasonFantasyLeaders) ? serializeData(halfSeasonFantasyLeaders) : [],
+            seasonGoalLeaders: Array.isArray(seasonGoalLeaders) ? serializeData(seasonGoalLeaders) : [],
+            seasonFantasyLeaders: Array.isArray(seasonFantasyLeaders) ? serializeData(seasonFantasyLeaders) : []
           };
 
           // Prepare response
@@ -736,14 +740,14 @@ export async function GET() {
             success: true,
             data: {
               matchInfo: serializeData(cleanedMatch),
-              gamesMilestones: serializeData(gamesMilestones),
-              goalsMilestones: serializeData(goalsMilestones),
-              streaks: serializeData(streaks),
-              goalStreaks: serializeData(goalStreaks),
-              halfSeasonGoalLeaders: serializeData(halfSeasonGoalLeaders),
-              halfSeasonFantasyLeaders: serializeData(halfSeasonFantasyLeaders),
-              seasonGoalLeaders: serializeData(seasonGoalLeaders),
-              seasonFantasyLeaders: serializeData(seasonFantasyLeaders)
+              gamesMilestones: serializeData(gamesMilestones || []),
+              goalsMilestones: serializeData(goalsMilestones || []),
+              streaks: serializeData(streaks || []),
+              goalStreaks: serializeData(goalStreaks || []),
+              halfSeasonGoalLeaders: Array.isArray(halfSeasonGoalLeaders) ? serializeData(halfSeasonGoalLeaders) : [],
+              halfSeasonFantasyLeaders: Array.isArray(halfSeasonFantasyLeaders) ? serializeData(halfSeasonFantasyLeaders) : [],
+              seasonGoalLeaders: Array.isArray(seasonGoalLeaders) ? serializeData(seasonGoalLeaders) : [],
+              seasonFantasyLeaders: Array.isArray(seasonFantasyLeaders) ? serializeData(seasonFantasyLeaders) : []
             }
           });
         } catch (queryError) {
