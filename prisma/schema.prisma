@@ -37,27 +37,136 @@ model player_matches {
 }
 
 model players {
-  player_id      Int              @id @default(autoincrement())
-  name           String           @db.VarChar(100)
-  join_date      DateTime?        @default(dbgenerated("CURRENT_DATE")) @db.Date
-  is_ringer      Boolean          @default(false)
-  is_retired     Boolean?         @default(false)
-  goalscoring    Int              @default(3) @db.SmallInt
-  defender       Int              @default(3) @db.SmallInt
-  stamina_pace   Int              @default(3) @db.SmallInt
-  control        Int              @default(3) @db.SmallInt
-  teamwork       Int              @default(3) @db.SmallInt
-  resilience     Int              @default(3) @db.SmallInt
-  player_matches player_matches[]
-  team_slots     team_slots[]
+  player_id              Int                      @id @default(autoincrement())
+  name                   String                   @db.VarChar(100)
+  join_date              DateTime?                @default(dbgenerated("CURRENT_DATE")) @db.Date
+  is_ringer              Boolean                  @default(false)
+  is_retired             Boolean?                 @default(false)
+  goalscoring            Int                      @default(3) @db.SmallInt
+  defender               Int                      @default(3) @db.SmallInt
+  stamina_pace           Int                      @default(3) @db.SmallInt
+  control                Int                      @default(3) @db.SmallInt
+  teamwork               Int                      @default(3) @db.SmallInt
+  resilience             Int?                     @default(3) @db.SmallInt
+  player_matches         player_matches[]
+  team_slots             team_slots[]
+  upcoming_match_players upcoming_match_players[]
 }
 
 model team_slots {
   id          Int       @id @default(autoincrement())
-  slot_number Int      
-  player_id   Int?     
-  updated_at  DateTime  @default(now()) @updatedAt
-  player      players?  @relation(fields: [player_id], references: [player_id], onDelete: SetNull)
+  slot_number Int       @unique(map: "unique_slot_number")
+  player_id   Int?
+  updated_at  DateTime? @default(now()) @updatedAt @db.Timestamptz(6)
+  player      players?  @relation(fields: [player_id], references: [player_id], onUpdate: NoAction)
 
-  @@unique([slot_number])
+  @@index([player_id], map: "idx_team_slots_player_id")
+}
+
+/// This model represents app configuration settings
+/// Visit https://pris.ly/d/check-constraints for more info about check constraints.
+model app_config {
+  config_id          Int       @id @default(autoincrement())
+  config_key         String    @db.VarChar(255)
+  config_value       String
+  config_description String?
+  config_group       String?   @db.VarChar(100)
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model represents app configuration default settings
+model app_config_defaults {
+  config_key         String  @id @db.VarChar(255)
+  config_value       String
+  config_description String?
+  config_group       String  @db.VarChar(255)
+}
+
+/// This model represents team size templates
+/// Visit https://pris.ly/d/check-constraints for more info about check constraints.
+model team_size_templates {
+  template_id              Int                        @id @default(autoincrement())
+  team_size                Int
+  name                     String                     @db.VarChar(100)
+  defenders                Int
+  midfielders              Int
+  attackers                Int
+  created_at               DateTime?                  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime?                  @default(now()) @db.Timestamptz(6)
+  team_balance_weights_old team_balance_weights_old[]
+}
+
+/// This model represents team size template defaults
+model team_size_templates_defaults {
+  team_size            Int     @id
+  defenders_per_team   Int
+  midfielders_per_team Int
+  attackers_per_team   Int
+  team_a_name          String  @db.VarChar(255)
+  team_b_name          String  @db.VarChar(255)
+  name                 String? @default(dbgenerated("(team_size || '-a-side'::text)")) @db.VarChar(255)
+}
+
+/// This model represents balance algorithm weights for team templates
+/// Visit https://pris.ly/d/check-constraints for more info about check constraints.
+model team_balance_weights {
+  weight_id      Int       @id(map: "team_balance_weights_new_pkey") @default(autoincrement())
+  position_group String    @db.VarChar(50)
+  attribute      String    @db.VarChar(50)
+  weight         Decimal   @db.Decimal(4, 2)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([position_group, attribute], map: "team_balance_weights_new_position_group_attribute_key")
+}
+
+/// This model represents balance algorithm weight defaults
+model team_balance_weights_defaults {
+  position_group String  @db.VarChar(50)
+  attribute      String  @db.VarChar(50)
+  weight         Decimal @db.Decimal(5, 4)
+
+  @@id([position_group, attribute])
+}
+
+/// This model represents upcoming matches
+/// Visit https://pris.ly/d/check-constraints for more info about check constraints.
+model upcoming_matches {
+  upcoming_match_id Int                      @id @default(autoincrement())
+  match_date        DateTime                 @db.Timestamptz(6)
+  team_size         Int
+  location          String?                  @db.VarChar(255)
+  team1_name        String?                  @default("Orange") @db.VarChar(100)
+  team2_name        String?                  @default("Green") @db.VarChar(100)
+  notes             String?
+  is_completed      Boolean?                 @default(false)
+  created_at        DateTime?                @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?                @default(now()) @db.Timestamptz(6)
+  players           upcoming_match_players[]
+}
+
+/// This model represents players assigned to upcoming matches
+/// Visit https://pris.ly/d/check-constraints for more info about check constraints.
+model upcoming_match_players {
+  upcoming_player_id Int              @id @default(autoincrement())
+  upcoming_match_id  Int
+  player_id          Int
+  team               Int
+  position           String?          @db.VarChar(50)
+  created_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  player             players          @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
+  match              upcoming_matches @relation(fields: [upcoming_match_id], references: [upcoming_match_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model team_balance_weights_old {
+  weight_id           Int                 @id(map: "team_balance_weights_pkey") @default(autoincrement())
+  template_id         Int
+  position_group      String              @db.VarChar(50)
+  attribute           String              @db.VarChar(50)
+  weight              Decimal             @db.Decimal(4, 2)
+  created_at          DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?           @default(now()) @db.Timestamptz(6)
+  team_size_templates team_size_templates @relation(fields: [template_id], references: [template_id], onDelete: Cascade, onUpdate: NoAction, map: "team_balance_weights_template_id_fkey")
 }

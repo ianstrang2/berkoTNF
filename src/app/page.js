@@ -68,7 +68,7 @@ export default function Home() {
     },
     {
       title: 'Hall of Fame',
-      description: 'Explore historic achievements and records',
+      description: 'Explore historic achievements',
       view: 'honour-roll',
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

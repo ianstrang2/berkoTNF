@@ -1,13 +1,72 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 
 const TeamAlgorithm = dynamic(() => import('@/components/admin/TeamAlgorithm'), { ssr: false });
 const PlayerRatings = dynamic(() => import('@/components/admin/PlayerRatings'), { ssr: false });
-const SuperAdminPanel = dynamic(() => import('@/components/admin/SuperAdminPanel'), { ssr: false });
-const SuperAdminLayout = dynamic(() => import('@/components/admin/SuperAdminLayout'), { ssr: false });
+const PlayerManager = dynamic(() => import('@/components/admin/PlayerManager'), { ssr: false });
+const MatchManager = dynamic(() => import('@/components/admin/MatchManager'), { ssr: false });
+const AppSetup = dynamic(() => import('@/components/admin/AppSetup'), { ssr: false });
+
+const ProtectedAppSetup = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const superAdminAuth = localStorage.getItem('superAdminAuth');
+    if (superAdminAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (password === 'wee') {
+      localStorage.setItem('superAdminAuth', 'true');
+      setIsAuthenticated(true);
+      setError('');
+    } else {
+      setError('Invalid password');
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="w-full">
+        <Card>
+          <h2 className="text-2xl font-bold mb-6 text-center text-red-600">App Setup Access</h2>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              />
+            </div>
+            {error && (
+              <p className="text-red-500 text-sm font-medium text-center">
+                {error}
+              </p>
+            )}
+            <Button
+              type="submit"
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              Login
+            </Button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
+
+  return <AppSetup />;
+};
 
 const AdminPanel = () => {
   const [currentSection, setCurrentSection] = useState(null);
@@ -32,10 +91,10 @@ const AdminPanel = () => {
                 </div>
               </div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
-                Team Algorithm
+                Next Match Management
               </h2>
               <p className="text-gray-600">
-                Generate balanced teams based on player attributes
+                Organise and balance teams for the next game
               </p>
             </Card>
 
@@ -54,12 +113,50 @@ const AdminPanel = () => {
                 Player Ratings
               </h2>
               <p className="text-gray-600">
-                Update player attributes and ratings
+                Update player attributes
               </p>
             </Card>
 
             <Card
-              onClick={() => setCurrentSection('superadmin')}
+              onClick={() => setCurrentSection('players')}
+              className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+                Player Management
+              </h2>
+              <p className="text-gray-600">
+                Add, edit and manage players
+              </p>
+            </Card>
+
+            <Card
+              onClick={() => setCurrentSection('matches')}
+              className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+                Match Records
+              </h2>
+              <p className="text-gray-600">
+                Enter and manage match information
+              </p>
+            </Card>
+
+            <Card
+              onClick={() => setCurrentSection('appsetup')}
               className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group col-span-1 md:col-span-2"
             >
               <div className="flex items-center justify-between mb-4">
@@ -70,10 +167,10 @@ const AdminPanel = () => {
                 </div>
               </div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-red-600 transition-colors duration-200">
-                Super Admin Access
+                App Setup
               </h2>
               <p className="text-gray-600">
-                Access advanced management features
+                Configure application settings, team templates, and balance algorithm
               </p>
             </Card>
           </div>
@@ -95,10 +192,12 @@ const AdminPanel = () => {
           </Button>
           {currentSection === 'algorithm' && <TeamAlgorithm />}
           {currentSection === 'ratings' && <PlayerRatings />}
-          {currentSection === 'superadmin' && (
-            <SuperAdminLayout>
-              <SuperAdminPanel />
-            </SuperAdminLayout>
+          {currentSection === 'players' && <PlayerManager />}
+          {currentSection === 'matches' && <MatchManager />}
+          {currentSection === 'appsetup' && (
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <ProtectedAppSetup />
+            </div>
           )}
         </div>
       )}
