@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AttributeTooltip, AttributeGuideModal } from './AttributeGuide';
+import Card from '@/components/ui/card';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
 
 const PlayerManager = () => {
   const [players, setPlayers] = useState([]);
@@ -216,16 +218,16 @@ const PlayerManager = () => {
     };
 
     return (
-      <tr key={player.player_id} className="bg-blue-50">
-        <td className="px-2 py-1 whitespace-nowrap">
+      <TableRow key={player.player_id} className="bg-blue-50">
+        <TableCell>
           <input
             type="text"
             value={editForm.name}
             onChange={(e) => handleInputChange('name', e.target.value)}
             className="w-full px-2 py-1 border border-blue-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
           />
-        </td>
-        <td className="px-2 py-1 whitespace-nowrap">
+        </TableCell>
+        <TableCell>
           <button
             onClick={() => handleInputChange('is_retired', !editForm.is_retired)}
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -234,8 +236,8 @@ const PlayerManager = () => {
           >
             {editForm.is_retired ? 'Retired' : 'Active'}
           </button>
-        </td>
-        <td className="px-2 py-1 whitespace-nowrap">
+        </TableCell>
+        <TableCell>
           <button
             onClick={() => handleInputChange('is_ringer', !editForm.is_ringer)}
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -244,9 +246,9 @@ const PlayerManager = () => {
           >
             {editForm.is_ringer ? 'Yes' : 'No'}
           </button>
-        </td>
+        </TableCell>
         {['goalscoring', 'defender', 'stamina_pace', 'control', 'teamwork', 'resilience'].map((field) => (
-          <td key={field} className="px-2 py-1 whitespace-nowrap">
+          <TableCell key={field}>
             <div className="flex items-center space-x-0.5">
               <button
                 onClick={() => handleNumberChange(field, editForm[field] - 1)}
@@ -269,14 +271,14 @@ const PlayerManager = () => {
                 +
               </button>
             </div>
-          </td>
+          </TableCell>
         ))}
-        <td className="px-2 py-1 whitespace-nowrap text-right">
+        <TableCell className="text-right">
           <div className="flex space-x-2 justify-end">
             <button
               onClick={handleSaveEdit}
               disabled={isLoading}
-              className="text-xs text-green-600 hover:text-green-900 font-medium"
+              className="text-xs text-primary-600 hover:text-primary-700 font-medium"
             >
               Save
             </button>
@@ -288,8 +290,8 @@ const PlayerManager = () => {
               Cancel
             </button>
           </div>
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
     );
   };
 
@@ -327,7 +329,7 @@ const PlayerManager = () => {
   );
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 space-y-8">
+    <Card className="space-y-8">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-primary-600">
           {selectedPlayer ? 'Edit Player' : 'Add New Player'}
@@ -449,91 +451,89 @@ const PlayerManager = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('name')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('status')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  Status {sortField === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ringer
-                </th>
-                <th onClick={() => handleSort('goalscoring')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  GOL {sortField === 'goalscoring' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('defender')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  DEF {sortField === 'defender' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('stamina_pace')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  S&P {sortField === 'stamina_pace' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('control')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  CTL {sortField === 'control' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('teamwork')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  TMW {sortField === 'teamwork' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('resilience')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  RES {sortField === 'resilience' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-3 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPlayers.map((player) => (
-                editingId === player.player_id ? (
-                  renderEditableRow(player)
-                ) : (
-                  <tr key={player.player_id} className="hover:bg-gray-50">
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      {player.name}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        player.is_retired ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
-                      }`}>
-                        {player.is_retired ? 'Retired' : 'Active'}
+        <Table responsive>
+          <TableHead>
+            <TableRow>
+              <TableCell isHeader onClick={() => handleSort('name')} className="cursor-pointer">
+                Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('status')} className="cursor-pointer">
+                Status {sortField === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader>
+                Ringer
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('goalscoring')} className="cursor-pointer">
+                GOL {sortField === 'goalscoring' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('defender')} className="cursor-pointer">
+                DEF {sortField === 'defender' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('stamina_pace')} className="cursor-pointer">
+                S&P {sortField === 'stamina_pace' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('control')} className="cursor-pointer">
+                CTL {sortField === 'control' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('teamwork')} className="cursor-pointer">
+                TMW {sortField === 'teamwork' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('resilience')} className="cursor-pointer">
+                RES {sortField === 'resilience' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader></TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredPlayers.map((player) => (
+              editingId === player.player_id ? (
+                renderEditableRow(player)
+              ) : (
+                <TableRow key={player.player_id}>
+                  <TableCell>
+                    {player.name}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      player.is_retired ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {player.is_retired ? 'Retired' : 'Active'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {player.is_ringer && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Yes
                       </span>
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      {player.is_ringer && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Yes
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">{player.goalscoring}</td>
-                    <td className="px-3 py-4 whitespace-nowrap">{player.defender}</td>
-                    <td className="px-3 py-4 whitespace-nowrap">{player.stamina_pace}</td>
-                    <td className="px-3 py-4 whitespace-nowrap">{player.control}</td>
-                    <td className="px-3 py-4 whitespace-nowrap">{player.teamwork}</td>
-                    <td className="px-3 py-4 whitespace-nowrap">{player.resilience}</td>
-                    <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEditClick(player)}
-                        disabled={editingId !== null}
-                        className="text-primary-600 hover:text-primary-900 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                )
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    )}
+                  </TableCell>
+                  <TableCell>{player.goalscoring}</TableCell>
+                  <TableCell>{player.defender}</TableCell>
+                  <TableCell>{player.stamina_pace}</TableCell>
+                  <TableCell>{player.control}</TableCell>
+                  <TableCell>{player.teamwork}</TableCell>
+                  <TableCell>{player.resilience}</TableCell>
+                  <TableCell className="text-right">
+                    <button
+                      onClick={() => handleEditClick(player)}
+                      disabled={editingId !== null}
+                      className="text-primary-600 hover:text-primary-700 disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                  </TableCell>
+                </TableRow>
+              )
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
       <AttributeGuideModal
         isOpen={showGuide}
         onClose={() => setShowGuide(false)}
       />
-    </div>
+    </Card>
   );
 };
 

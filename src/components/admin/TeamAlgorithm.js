@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AttributeTooltip } from './AttributeGuide';
+import Card from '@/components/ui/card';
+import Button from '@/components/ui/Button';
 
 // Team structure constants
 const TEAM_STRUCTURE = {
@@ -441,8 +443,7 @@ const TeamAlgorithm = () => {
     };
 
     return (
-      <div className={`
-        bg-white rounded-lg shadow p-4 sm:p-6
+      <Card className={`
         ${!isBalanced ? 'border-2 border-yellow-300' : ''}
       `}>
         <div className="flex items-center justify-between mb-4">
@@ -475,13 +476,13 @@ const TeamAlgorithm = () => {
             color={isTeamA ? 'orange' : 'green'}
           />
         </div>
-      </div>
+      </Card>
     );
   };
 
   // Render player selection dropdowns
   const renderPlayerSelection = () => (
-    <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+    <Card className="mb-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Player Selection</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {currentSlots.map(slot => (
@@ -511,7 +512,7 @@ const TeamAlgorithm = () => {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 
   const handleClearAll = async () => {
@@ -546,50 +547,6 @@ const TeamAlgorithm = () => {
       setIsLoading(false);
       setShowClearConfirm(false);
     }
-  };
-
-  // Confirmation Modal
-  const renderConfirmationModal = () => {
-    if (!showClearConfirm) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">Clear All Squads?</h3>
-          <p className="text-gray-600 mb-6">
-            Are you sure you want to clear all squad assignments? This action cannot be undone.
-          </p>
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={() => setShowClearConfirm(false)}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-              disabled={isLoading}
-            >
-              No, Cancel
-            </button>
-            <button
-              onClick={handleClearAll}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Clearing...' : 'Yes, Clear Squads'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const handleCopyToClipboard = () => {
-    const text = currentSlots
-      .map(slot => {
-        const player = players.find(p => p.player_id === slot.player_id);
-        return `${slot.slot_number}: ${player ? player.name : 'Empty'}`;
-      })
-      .join('\n');
-    navigator.clipboard.writeText(text);
-    setShowCopyToast(true);
-    setTimeout(() => setShowCopyToast(false), 2000);
   };
 
   // Add Ringer handlers
@@ -640,147 +597,27 @@ const TeamAlgorithm = () => {
     }));
   };
 
-  // Add Ringer Modal Component
-  const AddRingerModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4">Ringer Profile</h2>
-        <form onSubmit={handleAddRinger} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
-            <input
-              type="text"
-              value={ringerForm.name}
-              onChange={(e) => handleRingerInputChange('name', e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              required
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            {['goalscoring', 'defender', 'stamina_pace', 'control', 'teamwork', 'resilience'].map((attr) => (
-              <div key={attr} className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <label className="block text-sm font-medium text-gray-700 capitalize">
-                    {attr.replace('_', ' ')}
-                  </label>
-                  <button
-                    type="button"
-                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                    onClick={() => setActiveTooltip(activeTooltip === attr ? null : attr)}
-                    aria-label={`Show ${attr.replace('_', ' ')} rating information`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </button>
-                  <div ref={tooltipRef} className="relative">
-                    {activeTooltip === attr && (
-                      <div className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-                        <div className="text-sm">
-                          <h4 className="font-semibold mb-2 capitalize">{attr.replace('_', ' ')}</h4>
-                          <ul className="space-y-1">
-                            {[1, 2, 3, 4, 5].map((value) => (
-                              <li key={value} className="flex items-start text-xs">
-                                <span className="font-medium mr-1">{value}:</span>
-                                <span>
-                                  {value === 1 && attr === 'goalscoring' && 'Rarely scores (misses chances, barely threatens)'}
-                                  {value === 2 && attr === 'goalscoring' && 'Occasional scorer (nabs one now and then)'}
-                                  {value === 3 && attr === 'goalscoring' && 'Average scorer (consistent but not standout)'}
-                                  {value === 4 && attr === 'goalscoring' && 'Frequent scorer (often on the scoresheet)'}
-                                  {value === 5 && attr === 'goalscoring' && 'Prolific (goal machine, always dangerous)'}
-                                  
-                                  {value === 1 && attr === 'defender' && 'Hates defending (avoids it, stays forward)'}
-                                  {value === 2 && attr === 'defender' && 'Reluctant defender (grumbles but does it)'}
-                                  {value === 3 && attr === 'defender' && 'Neutral (will defend if asked, no preference)'}
-                                  {value === 4 && attr === 'defender' && 'Willing defender (happy to drop back)'}
-                                  {value === 5 && attr === 'defender' && 'Prefers defending (loves the backline, thrives there)'}
-                                  
-                                  {value === 1 && attr === 'stamina_pace' && 'Slow and fades (lacks speed, tires quickly)'}
-                                  {value === 2 && attr === 'stamina_pace' && 'Steady but sluggish (moderate endurance, little burst)'}
-                                  {value === 3 && attr === 'stamina_pace' && 'Balanced mover (decent stamina, average pace)'}
-                                  {value === 4 && attr === 'stamina_pace' && 'Quick endurer (good speed, lasts well)'}
-                                  {value === 5 && attr === 'stamina_pace' && 'Relentless sprinter (fast and tireless all game)'}
-                                  
-                                  {value === 1 && attr === 'control' && 'Sloppy (loses ball often, wild passes)'}
-                                  {value === 2 && attr === 'control' && 'Shaky (inconsistent touch, hit-or-miss passing)'}
-                                  {value === 3 && attr === 'control' && 'Steady (decent retention, reliable passes)'}
-                                  {value === 4 && attr === 'control' && 'Skilled (good control, accurate distribution)'}
-                                  {value === 5 && attr === 'control' && 'Composed (excellent touch, precise playmaking)'}
-                                  
-                                  {value === 1 && attr === 'teamwork' && 'Lone wolf (solo runs, ignores teammates)'}
-                                  {value === 2 && attr === 'teamwork' && 'Selfish leaner (plays for self more than team)'}
-                                  {value === 3 && attr === 'teamwork' && 'Cooperative (works with others when convenient)'}
-                                  {value === 4 && attr === 'teamwork' && 'Supportive (links up well, helps teammates)'}
-                                  {value === 5 && attr === 'teamwork' && 'Team player (always collaborates, team-first mindset)'}
-                                  
-                                  {value === 1 && attr === 'resilience' && 'Fragile (head drops fast, gives up when behind)'}
-                                  {value === 2 && attr === 'resilience' && 'Wobbly (loses focus if losing, inconsistent effort)'}
-                                  {value === 3 && attr === 'resilience' && 'Steady (keeps going, unaffected by score)'}
-                                  {value === 4 && attr === 'resilience' && 'Gritty (fights harder when down, lifts others)'}
-                                  {value === 5 && attr === 'resilience' && 'Rock solid (unshakable, thrives under pressure)'}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  value={ringerForm[attr]}
-                  onChange={(e) => handleRingerInputChange(attr, parseInt(e.target.value))}
-                  className="mt-1 block w-full"
-                />
-                <div className="text-center text-sm text-gray-600">{ringerForm[attr]}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              type="button"
-              onClick={() => setShowRingerModal(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isAddingRinger || !ringerForm.name.trim()}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isAddingRinger ? 'Adding...' : 'Add Ringer'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Team Balancing</h1>
         <div className="flex space-x-2">
-          <button
+          <Button 
             onClick={() => setShowRingerModal(true)}
-            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            variant="primary"
+            size="sm"
           >
             Add Ringer
-          </button>
+          </Button>
           <div className="flex flex-col gap-1">
-            <button
+            <Button
               onClick={handleBalanceTeams}
               disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+              variant="primary"
+              size="sm"
             >
               {isLoading ? 'Balancing...' : 'Balance Teams'}
-            </button>
+            </Button>
             {isLoading && (
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
@@ -790,18 +627,21 @@ const TeamAlgorithm = () => {
               </div>
             )}
           </div>
-          <button
+          <Button
             onClick={handleCopyTeams}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            variant="outline"
+            size="sm"
           >
             Copy to Clipboard
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowClearConfirm(true)}
-            className="px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            variant="outline"
+            size="sm"
+            className="text-red-700 border-red-300 hover:bg-red-50"
           >
             Clear All
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -836,7 +676,7 @@ const TeamAlgorithm = () => {
       {/* Team Comparison Section */}
       {currentSlots.some(slot => slot.player_id !== null) && (
         <div className="mt-6">
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <Card>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Team Comparison</h2>
             <div className="relative h-[300px] mt-6">
               {/* Y-axis grid lines and labels */}
@@ -922,11 +762,38 @@ const TeamAlgorithm = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      {renderConfirmationModal()}
+      {/* Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Clear All Squads?</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to clear all squad assignments? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                onClick={() => setShowClearConfirm(false)}
+                variant="outline"
+                disabled={isLoading}
+              >
+                No, Cancel
+              </Button>
+              <Button
+                onClick={handleClearAll}
+                variant="primary"
+                className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Clearing...' : 'Yes, Clear Squads'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Copy Toast Notification */}
       {showCopyToast && (
@@ -937,7 +804,124 @@ const TeamAlgorithm = () => {
 
       {/* Add Ringer Modal */}
       {showRingerModal && (
-        <AddRingerModal />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">Ringer Profile</h2>
+            <form onSubmit={handleAddRinger} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <input
+                  type="text"
+                  value={ringerForm.name}
+                  onChange={(e) => handleRingerInputChange('name', e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {['goalscoring', 'defender', 'stamina_pace', 'control', 'teamwork', 'resilience'].map((attr) => (
+                  <div key={attr} className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <label className="block text-sm font-medium text-gray-700 capitalize">
+                        {attr.replace('_', ' ')}
+                      </label>
+                      <button
+                        type="button"
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        onClick={() => setActiveTooltip(activeTooltip === attr ? null : attr)}
+                        aria-label={`Show ${attr.replace('_', ' ')} rating information`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+                      <div ref={tooltipRef} className="relative">
+                        {activeTooltip === attr && (
+                          <div className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+                            <div className="text-sm">
+                              <h4 className="font-semibold mb-2 capitalize">{attr.replace('_', ' ')}</h4>
+                              <ul className="space-y-1">
+                                {[1, 2, 3, 4, 5].map((value) => (
+                                  <li key={value} className="flex items-start text-xs">
+                                    <span className="font-medium mr-1">{value}:</span>
+                                    <span>
+                                      {value === 1 && attr === 'goalscoring' && 'Rarely scores (misses chances, barely threatens)'}
+                                      {value === 2 && attr === 'goalscoring' && 'Occasional scorer (nabs one now and then)'}
+                                      {value === 3 && attr === 'goalscoring' && 'Average scorer (consistent but not standout)'}
+                                      {value === 4 && attr === 'goalscoring' && 'Frequent scorer (often on the scoresheet)'}
+                                      {value === 5 && attr === 'goalscoring' && 'Prolific (goal machine, always dangerous)'}
+                                      
+                                      {value === 1 && attr === 'defender' && 'Hates defending (avoids it, stays forward)'}
+                                      {value === 2 && attr === 'defender' && 'Reluctant defender (grumbles but does it)'}
+                                      {value === 3 && attr === 'defender' && 'Neutral (will defend if asked, no preference)'}
+                                      {value === 4 && attr === 'defender' && 'Willing defender (happy to drop back)'}
+                                      {value === 5 && attr === 'defender' && 'Prefers defending (loves the backline, thrives there)'}
+                                      
+                                      {value === 1 && attr === 'stamina_pace' && 'Slow and fades (lacks speed, tires quickly)'}
+                                      {value === 2 && attr === 'stamina_pace' && 'Steady but sluggish (moderate endurance, little burst)'}
+                                      {value === 3 && attr === 'stamina_pace' && 'Balanced mover (decent stamina, average pace)'}
+                                      {value === 4 && attr === 'stamina_pace' && 'Quick endurer (good speed, lasts well)'}
+                                      {value === 5 && attr === 'stamina_pace' && 'Relentless sprinter (fast and tireless all game)'}
+                                      
+                                      {value === 1 && attr === 'control' && 'Sloppy (loses ball often, wild passes)'}
+                                      {value === 2 && attr === 'control' && 'Shaky (inconsistent touch, hit-or-miss passing)'}
+                                      {value === 3 && attr === 'control' && 'Steady (decent retention, reliable passes)'}
+                                      {value === 4 && attr === 'control' && 'Skilled (good control, accurate distribution)'}
+                                      {value === 5 && attr === 'control' && 'Composed (excellent touch, precise playmaking)'}
+                                      
+                                      {value === 1 && attr === 'teamwork' && 'Lone wolf (solo runs, ignores teammates)'}
+                                      {value === 2 && attr === 'teamwork' && 'Selfish leaner (plays for self more than team)'}
+                                      {value === 3 && attr === 'teamwork' && 'Cooperative (works with others when convenient)'}
+                                      {value === 4 && attr === 'teamwork' && 'Supportive (links up well, helps teammates)'}
+                                      {value === 5 && attr === 'teamwork' && 'Team player (always collaborates, team-first mindset)'}
+                                      
+                                      {value === 1 && attr === 'resilience' && 'Fragile (head drops fast, gives up when behind)'}
+                                      {value === 2 && attr === 'resilience' && 'Wobbly (loses focus if losing, inconsistent effort)'}
+                                      {value === 3 && attr === 'resilience' && 'Steady (keeps going, unaffected by score)'}
+                                      {value === 4 && attr === 'resilience' && 'Gritty (fights harder when down, lifts others)'}
+                                      {value === 5 && attr === 'resilience' && 'Rock solid (unshakable, thrives under pressure)'}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      value={ringerForm[attr]}
+                      onChange={(e) => handleRingerInputChange(attr, parseInt(e.target.value))}
+                      className="mt-1 block w-full"
+                    />
+                    <div className="text-center text-sm text-gray-600">{ringerForm[attr]}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <Button
+                  type="button"
+                  onClick={() => setShowRingerModal(false)}
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isAddingRinger || !ringerForm.name.trim()}
+                  variant="primary"
+                >
+                  {isAddingRinger ? 'Adding...' : 'Add Ringer'}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
       )}
     </div>
   );

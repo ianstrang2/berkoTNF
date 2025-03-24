@@ -1,5 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Card from '@/components/ui/card';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
 
 const AllTimeStats = () => {
   const [stats, setStats] = useState([]);
@@ -79,71 +81,74 @@ const AllTimeStats = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+      <Card className="text-center">
         <div className="text-xl font-semibold text-primary-600">Loading...</div>
-      </div>
+        <div className="mt-4 flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        </div>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-center text-primary-600">All-Time Stats</h2>
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <Card>
         <div className="overflow-x-auto">
-          <table className="w-full table-base">
-            <thead>
-              <tr>
-                <th onClick={() => sortData('name')} className="min-w-[150px] cursor-pointer hover:text-primary-600">
+          <Table responsive>
+            <TableHead>
+              <TableRow>
+                <TableCell isHeader onClick={() => sortData('name')} className="min-w-[150px] cursor-pointer hover:text-primary-600">
                   Player {getSortIndicator('name')}
-                </th>
-                <th onClick={() => sortData('games_played')} className="w-[50px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('games_played')} className="w-[50px] cursor-pointer hover:text-primary-600">
                   P {getSortIndicator('games_played')}
-                </th>
-                <th onClick={() => sortData('wins')} className="w-[50px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('wins')} className="w-[50px] cursor-pointer hover:text-primary-600">
                   W {getSortIndicator('wins')}
-                </th>
-                <th onClick={() => sortData('draws')} className="w-[50px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('draws')} className="w-[50px] cursor-pointer hover:text-primary-600">
                   D {getSortIndicator('draws')}
-                </th>
-                <th onClick={() => sortData('losses')} className="w-[50px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('losses')} className="w-[50px] cursor-pointer hover:text-primary-600">
                   L {getSortIndicator('losses')}
-                </th>
-                <th onClick={() => sortData('goals')} className="w-[60px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('goals')} className="w-[60px] cursor-pointer hover:text-primary-600">
                   G {getSortIndicator('goals')}
-                </th>
-                <th onClick={() => sortData('win_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('win_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   Win% {getSortIndicator('win_percentage')}
-                </th>
-                <th onClick={() => sortData('minutes_per_goal')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('minutes_per_goal')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   MPG {getSortIndicator('minutes_per_goal')}
-                </th>
-                <th onClick={() => sortData('heavy_wins')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('heavy_wins')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   HW {getSortIndicator('heavy_wins')}
-                </th>
-                <th onClick={() => sortData('heavy_win_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('heavy_win_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   HW% {getSortIndicator('heavy_win_percentage')}
-                </th>
-                <th onClick={() => sortData('heavy_losses')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('heavy_losses')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   HL {getSortIndicator('heavy_losses')}
-                </th>
-                <th onClick={() => sortData('heavy_loss_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('heavy_loss_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   HL% {getSortIndicator('heavy_loss_percentage')}
-                </th>
-                <th onClick={() => sortData('clean_sheets')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('clean_sheets')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   CS {getSortIndicator('clean_sheets')}
-                </th>
-                <th onClick={() => sortData('clean_sheet_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('clean_sheet_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   CS% {getSortIndicator('clean_sheet_percentage')}
-                </th>
-                <th onClick={() => sortData('fantasy_points')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('fantasy_points')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   Pts {getSortIndicator('fantasy_points')}
-                </th>
-                <th onClick={() => sortData('points_per_game')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                </TableCell>
+                <TableCell isHeader onClick={() => sortData('points_per_game')} className="w-[70px] cursor-pointer hover:text-primary-600">
                   PPG {getSortIndicator('points_per_game')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {stats.map((player, index) => {
                 const isRetired = player.is_retired;
                 const wins = player.wins || 0;
@@ -153,46 +158,46 @@ const AllTimeStats = () => {
                 const cleanSheets = player.clean_sheets || 0;
 
                 return (
-                  <tr key={index} className={isRetired ? 'text-neutral-400' : ''}>
-                    <td className={`font-medium ${isRetired ? 'text-neutral-400' : 'text-primary-600'}`}>
+                  <TableRow key={index} className={isRetired ? 'text-neutral-500' : ''}>
+                    <TableCell className={`font-medium ${isRetired ? 'text-neutral-500' : 'text-primary-600'}`}>
                       {player.name}
-                    </td>
-                    <td className={player.games_played >= 200 ? 'text-success-600 font-medium' : ''}>
+                    </TableCell>
+                    <TableCell>
                       {player.games_played}
-                    </td>
-                    <td>{wins}</td>
-                    <td>{player.draws}</td>
-                    <td>{losses}</td>
-                    <td className={player.goals >= 100 ? 'text-success-600 font-medium' : ''}>
+                    </TableCell>
+                    <TableCell>{wins}</TableCell>
+                    <TableCell>{player.draws}</TableCell>
+                    <TableCell>{losses}</TableCell>
+                    <TableCell>
                       {player.goals}
-                    </td>
-                    <td className={player.win_percentage >= 50 ? 'text-success-600 font-medium' : ''}>
+                    </TableCell>
+                    <TableCell>
                       {Math.round(player.win_percentage)}%
-                    </td>
-                    <td className={player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
+                    </TableCell>
+                    <TableCell className={player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
                       {Math.round(player.minutes_per_goal)}
-                    </td>
-                    <td>{heavyWins}</td>
-                    <td className={player.heavy_win_percentage >= 20 ? 'text-success-600 font-medium' : ''}>
+                    </TableCell>
+                    <TableCell>{heavyWins}</TableCell>
+                    <TableCell>
                       {Math.round(player.heavy_win_percentage)}%
-                    </td>
-                    <td>{heavyLosses}</td>
-                    <td className={player.heavy_loss_percentage >= 20 ? 'text-error-600 font-medium' : ''}>
+                    </TableCell>
+                    <TableCell>{heavyLosses}</TableCell>
+                    <TableCell>
                       {Math.round(player.heavy_loss_percentage)}%
-                    </td>
-                    <td>{cleanSheets}</td>
-                    <td className={player.clean_sheet_percentage >= 7.5 ? 'text-success-600 font-medium' : ''}>
+                    </TableCell>
+                    <TableCell>{cleanSheets}</TableCell>
+                    <TableCell>
                       {Math.round(player.clean_sheet_percentage)}%
-                    </td>
-                    <td className="font-medium text-primary-600">{player.fantasy_points}</td>
-                    <td>{player.points_per_game}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="font-medium text-primary-600">{player.fantasy_points}</TableCell>
+                    <TableCell>{player.points_per_game}</TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

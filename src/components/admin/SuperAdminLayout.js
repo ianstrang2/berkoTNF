@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Card from '@/components/ui/card';
+import Button from '@/components/ui/Button';
 
 const SuperAdminLayout = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,7 +29,7 @@ const SuperAdminLayout = ({ children }) => {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-lg shadow-sm p-8">
+          <Card>
             <h2 className="text-2xl font-bold mb-6 text-center text-primary-600">Super Admin Access</h2>
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
@@ -44,14 +46,15 @@ const SuperAdminLayout = ({ children }) => {
                   {error}
                 </p>
               )}
-              <button
+              <Button
                 type="submit"
-                className="w-full py-2 px-4 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
+                variant="primary"
+                className="w-full"
               >
                 Login
-              </button>
+              </Button>
             </form>
-          </div>
+          </Card>
         </div>
       </div>
     );

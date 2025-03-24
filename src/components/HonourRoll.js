@@ -1,5 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Card from '@/components/ui/card';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
+import { Tabs, Tab } from '@/components/ui/Tabs';
 
 const HonourRoll = () => {
   const [loading, setLoading] = useState(true);
@@ -47,63 +50,59 @@ const HonourRoll = () => {
 
   const renderSeasonalHonours = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <Card>
         <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Season Winners</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full table-base">
-            <thead>
-              <tr>
-                <th className="w-[70px]">Year</th>
-                <th className="w-[120px]">Champion</th>
-                <th className="w-[70px]">Points</th>
-                <th className="min-w-[180px]">Runners Up</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.seasonWinners.map((season) => (
-                <tr key={season.year}>
-                  <td>{season.year}</td>
-                  <td className="font-medium text-primary-600">{season.winners.winner}</td>
-                  <td>{season.winners.winner_points}</td>
-                  <td>
-                    {season.winners.runners_up?.map(runner => 
-                      `${runner.name} (${runner.points})`).join(', ')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <Table responsive>
+          <TableHead>
+            <TableRow>
+              <TableCell isHeader className="w-[70px]">Year</TableCell>
+              <TableCell isHeader className="w-[120px]">Champion</TableCell>
+              <TableCell isHeader className="w-[70px]">Points</TableCell>
+              <TableCell isHeader className="min-w-[180px]">Runners Up</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {data.seasonWinners.map((season) => (
+              <TableRow key={season.year}>
+                <TableCell>{season.year}</TableCell>
+                <TableCell className="font-medium text-primary-600">{season.winners.winner}</TableCell>
+                <TableCell>{season.winners.winner_points}</TableCell>
+                <TableCell>
+                  {season.winners.runners_up?.map(runner => 
+                    `${runner.name} (${runner.points})`).join(', ')}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
 
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <Card>
         <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Top Scorers</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full table-base">
-            <thead>
-              <tr>
-                <th className="w-[70px]">Year</th>
-                <th className="w-[120px]">Player</th>
-                <th className="w-[70px]">Goals</th>
-                <th className="min-w-[180px]">Runners Up</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topScorers.map((season) => (
-                <tr key={season.year}>
-                  <td>{season.year}</td>
-                  <td className="font-medium text-primary-600">{season.scorers.winner}</td>
-                  <td>{season.scorers.winner_goals}</td>
-                  <td>
-                    {season.scorers.runners_up?.map(runner => 
-                      `${runner.name} (${runner.goals})`).join(', ')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <Table responsive>
+          <TableHead>
+            <TableRow>
+              <TableCell isHeader className="w-[70px]">Year</TableCell>
+              <TableCell isHeader className="w-[120px]">Player</TableCell>
+              <TableCell isHeader className="w-[70px]">Goals</TableCell>
+              <TableCell isHeader className="min-w-[180px]">Runners Up</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {data.topScorers.map((season) => (
+              <TableRow key={season.year}>
+                <TableCell>{season.year}</TableCell>
+                <TableCell className="font-medium text-primary-600">{season.scorers.winner}</TableCell>
+                <TableCell>{season.scorers.winner_goals}</TableCell>
+                <TableCell>
+                  {season.scorers.runners_up?.map(runner => 
+                    `${runner.name} (${runner.goals})`).join(', ')}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 
@@ -113,121 +112,122 @@ const HonourRoll = () => {
     };
 
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <Card>
         <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">TNF Records</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full table-base">
-            <thead>
-              <tr>
-                <th className="w-[120px]">Record</th>
-                <th className="w-[200px]">Player(s)</th>
-                <th className="w-[80px]">Details</th>
-                <th className="w-[100px]">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.records && (
-                <>
-                  {data.records.most_goals_in_game && (
-                    <tr>
-                      <td>Most Goals in a Game</td>
-                      <td className="font-medium text-primary-600">
-                        {formatNames(data.records.most_goals_in_game)}
-                      </td>
-                      <td>
-                        {data.records.most_goals_in_game[0].goals} goals
-                      </td>
-                      <td className="text-sm">
-                        {data.records.most_goals_in_game.map((record, index) => (
-                          <div key={index}>
-                            {record.name}: {new Date(record.date).toLocaleDateString()}
-                          </div>
-                        ))}
-                      </td>
-                    </tr>
-                  )}
+        <Table responsive>
+          <TableHead>
+            <TableRow>
+              <TableCell isHeader className="w-[120px]">Record</TableCell>
+              <TableCell isHeader className="w-[200px]">Player(s)</TableCell>
+              <TableCell isHeader className="w-[80px]">Details</TableCell>
+              <TableCell isHeader className="w-[100px]">Date</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {data.records && (
+              <>
+                {data.records.most_goals_in_game && (
+                  <TableRow>
+                    <TableCell>Most Goals in a Game</TableCell>
+                    <TableCell className="font-medium text-primary-600">
+                      {formatNames(data.records.most_goals_in_game)}
+                    </TableCell>
+                    <TableCell>
+                      {data.records.most_goals_in_game[0].goals} goals
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {data.records.most_goals_in_game.map((record, index) => (
+                        <div key={index}>
+                          {record.name}: {new Date(record.date).toLocaleDateString()}
+                        </div>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                )}
 
-                  {Object.entries(data.records.streaks || {}).map(([streakType, streakData]) => (
-                    <tr key={streakType}>
-                      <td>
-                        {streakType === 'Win Streak' ? 'Longest Win Streak' :
-                         streakType === 'Loss Streak' ? 'Longest Losing Streak' :
-                         streakType === 'No Win Streak' ? 'Longest Streak Without a Win' :
-                         'Longest Undefeated Streak'}
-                      </td>
-                      <td className="font-medium text-primary-600">
-                        {formatNames(streakData.holders)}
-                      </td>
-                      <td>{streakData.holders[0].streak} games</td>
-                      <td className="text-sm">
-                        {streakData.holders.map((holder, index) => (
-                          <div key={index}>
-                            {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
-                            {new Date(holder.end_date).toLocaleDateString()}
-                          </div>
-                        ))}
-                      </td>
-                    </tr>
-                  ))}
+                {Object.entries(data.records.streaks || {}).map(([streakType, streakData]) => (
+                  <TableRow key={streakType}>
+                    <TableCell>
+                      {streakType === 'Win Streak' ? 'Longest Win Streak' :
+                       streakType === 'Loss Streak' ? 'Longest Losing Streak' :
+                       streakType === 'No Win Streak' ? 'Longest Streak Without a Win' :
+                       'Longest Undefeated Streak'}
+                    </TableCell>
+                    <TableCell className="font-medium text-primary-600">
+                      {formatNames(streakData.holders)}
+                    </TableCell>
+                    <TableCell>{streakData.holders[0].streak} games</TableCell>
+                    <TableCell className="text-sm">
+                      {streakData.holders.map((holder, index) => (
+                        <div key={index}>
+                          {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
+                          {new Date(holder.end_date).toLocaleDateString()}
+                        </div>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                ))}
 
-                  {data.records.consecutive_goals && (
-                    <tr>
-                      <td>Most Consecutive Games Scoring</td>
-                      <td className="font-medium text-primary-600">
-                        {formatNames(data.records.consecutive_goals.holders)}
-                      </td>
-                      <td>{data.records.consecutive_goals.holders[0].streak} games</td>
-                      <td className="text-sm">
-                        {data.records.consecutive_goals.holders.map((holder, index) => (
-                          <div key={index}>
-                            {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
-                            {new Date(holder.end_date).toLocaleDateString()}
-                          </div>
-                        ))}
-                      </td>
-                    </tr>
-                  )}
+                {data.records.consecutive_goals && (
+                  <TableRow>
+                    <TableCell>Most Consecutive Games Scoring</TableCell>
+                    <TableCell className="font-medium text-primary-600">
+                      {formatNames(data.records.consecutive_goals.holders)}
+                    </TableCell>
+                    <TableCell>{data.records.consecutive_goals.holders[0].streak} games</TableCell>
+                    <TableCell className="text-sm">
+                      {data.records.consecutive_goals.holders.map((holder, index) => (
+                        <div key={index}>
+                          {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
+                          {new Date(holder.end_date).toLocaleDateString()}
+                        </div>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                )}
 
-                  {data.records.biggest_victory && data.records.biggest_victory[0] && (
-                    <tr>
-                      <td>Biggest Victory</td>
-                      <td className="font-medium text-primary-600 whitespace-normal">
-                        {data.records.biggest_victory[0].winning_team === 'A' ? (
-                          <>
-                            Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
-                            <br />
-                            Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
-                          </>
-                        ) : (
-                          <>
-                            Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
-                            <br />
-                            Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
-                          </>
-                        )}
-                      </td>
-                      <td>
-                        {data.records.biggest_victory[0].team_a_score}-{data.records.biggest_victory[0].team_b_score}
-                      </td>
-                      <td className="text-sm">
-                        {new Date(data.records.biggest_victory[0].date).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  )}
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                {data.records.biggest_victory && data.records.biggest_victory[0] && (
+                  <TableRow>
+                    <TableCell>Biggest Victory</TableCell>
+                    <TableCell className="font-medium text-primary-600 whitespace-normal">
+                      {data.records.biggest_victory[0].winning_team === 'A' ? (
+                        <>
+                          Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
+                          <br />
+                          Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
+                        </>
+                      ) : (
+                        <>
+                          Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
+                          <br />
+                          Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
+                        </>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {data.records.biggest_victory[0].team_a_score}-{data.records.biggest_victory[0].team_b_score}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {new Date(data.records.biggest_victory[0].date).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
     );
   };
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+      <Card className="text-center">
         <div className="text-xl font-semibold text-primary-600">Loading...</div>
-      </div>
+        <div className="mt-4 flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        </div>
+      </Card>
     );
   }
 
@@ -243,30 +243,18 @@ const HonourRoll = () => {
 
       {/* Mobile view */}
       <div className="md:hidden">
-        <div className="flex rounded-lg bg-neutral-100 p-1 mb-6">
-          <button
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              activeTab === 'seasonal' 
-                ? 'bg-white text-primary-600 shadow-sm' 
-                : 'text-neutral-600 hover:text-primary-600'
-            }`}
-            onClick={() => setActiveTab('seasonal')}
-          >
-            Season Honours
-          </button>
-          <button
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              activeTab === 'records' 
-                ? 'bg-white text-primary-600 shadow-sm' 
-                : 'text-neutral-600 hover:text-primary-600'
-            }`}
-            onClick={() => setActiveTab('records')}
-          >
-            TNF Records
-          </button>
-        </div>
-        
-        {activeTab === 'seasonal' ? renderSeasonalHonours() : renderRecords()}
+        <Tabs 
+          defaultTab={activeTab === 'seasonal' ? 0 : 1} 
+          onChange={(index) => setActiveTab(index === 0 ? 'seasonal' : 'records')}
+          variant="pills"
+        >
+          <Tab label="Season Honours">
+            {renderSeasonalHonours()}
+          </Tab>
+          <Tab label="TNF Records">
+            {renderRecords()}
+          </Tab>
+        </Tabs>
       </div>
     </div>
   );

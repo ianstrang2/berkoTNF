@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';  // Import date-fns for date formatting
+import Card from '@/components/ui/card';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
 
 const MatchManager = () => {
   const [players, setPlayers] = useState([]);
@@ -203,7 +205,7 @@ const MatchManager = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 space-y-8">
+    <Card className="space-y-8">
       <h2 className="text-2xl font-bold text-primary-600">
         {selectedMatch ? 'Edit Match' : 'Add New Match'}
       </h2>
@@ -348,39 +350,37 @@ const MatchManager = () => {
       {/* Match List */}
       <div className="mt-8">
         <h3 className="text-xl font-semibold text-primary-600 mb-4">Match History</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {matches.map((match) => (
-                <tr key={match.match_id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {format(new Date(match.match_date), 'dd/MM/yyyy')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {match.team_a_score} - {match.team_b_score}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => handleEdit(match)}
-                      className="text-primary-600 hover:text-primary-900 font-medium"
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table responsive>
+          <TableHead>
+            <TableRow>
+              <TableCell isHeader>Date</TableCell>
+              <TableCell isHeader>Score</TableCell>
+              <TableCell isHeader>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {matches.map((match) => (
+              <TableRow key={match.match_id}>
+                <TableCell className="font-medium">
+                  {format(new Date(match.match_date), 'dd/MM/yyyy')}
+                </TableCell>
+                <TableCell>
+                  {match.team_a_score} - {match.team_b_score}
+                </TableCell>
+                <TableCell>
+                  <button
+                    onClick={() => handleEdit(match)}
+                    className="text-primary-600 hover:text-primary-700 font-medium"
+                  >
+                    Edit
+                  </button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
-    </div>
+    </Card>
   );
 };
 

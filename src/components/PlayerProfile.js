@@ -1,6 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import Card from '@/components/ui/card';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
 
 const PlayerProfile = ({ id }) => {
   const [loading, setLoading] = useState(true);
@@ -63,9 +65,7 @@ const PlayerProfile = ({ id }) => {
   }, [selectedPlayerId]);
 
   const getStreakColor = (streak) => {
-    if (streak >= 5) return 'text-success-600';
-    if (streak >= 3) return 'text-warning-600';
-    return 'text-neutral-600';
+    return 'text-neutral-900';
   };
 
   const statOptions = [
@@ -92,40 +92,43 @@ const PlayerProfile = ({ id }) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+      <Card className="text-center">
         <div className="text-xl font-semibold text-primary-600">Loading...</div>
-      </div>
+        <div className="mt-4 flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        </div>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+      <Card className="text-center">
         <div className="text-xl font-semibold text-error-600">{error}</div>
-      </div>
+      </Card>
     );
   }
 
   if (!profile || !profile.yearly_stats) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+      <Card className="text-center">
         <div className="text-xl font-semibold text-warning-600">No profile data found</div>
-      </div>
+      </Card>
     );
   }
 
   if (!Array.isArray(profile.yearly_stats) || profile.yearly_stats.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+      <Card className="text-center">
         <div className="text-xl font-semibold text-warning-600">No yearly stats available</div>
-      </div>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
       {/* Player Selection Dropdown */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <Card>
         <div className="flex items-center gap-4">
           <label htmlFor="player-select" className="text-lg font-medium text-primary-600">
             Select Player
@@ -147,44 +150,44 @@ const PlayerProfile = ({ id }) => {
             )}
           </select>
         </div>
-      </div>
+      </Card>
 
       {/* Player Profile Overview */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <Card>
         <h2 className="text-2xl font-bold text-center text-primary-600 mb-6">{profile.name}'s Profile</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-primary-600 mb-2">Games Played</h3>
-            <p className="text-2xl font-bold text-neutral-900">{profile.games_played}</p>
+            <h3 className="text-base font-medium text-primary-600 mb-2">Games Played</h3>
+            <p className="text-2xl font-semibold text-neutral-900">{profile.games_played}</p>
           </div>
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-primary-600 mb-2">Fantasy Points</h3>
-            <p className="text-2xl font-bold text-neutral-900">{profile.fantasy_points}</p>
+            <h3 className="text-base font-medium text-primary-600 mb-2">Fantasy Points</h3>
+            <p className="text-2xl font-semibold text-neutral-900">{profile.fantasy_points}</p>
           </div>
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-primary-600 mb-2">Most Goals in a Game</h3>
-            <p className="text-2xl font-bold text-neutral-900">{profile.most_goals}</p>
+            <h3 className="text-base font-medium text-primary-600 mb-2">Most Goals in a Game</h3>
+            <p className="text-2xl font-semibold text-neutral-900">{profile.most_goals}</p>
             <p className="text-sm text-neutral-600 mt-1">{profile.most_goals_date}</p>
           </div>
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-primary-600 mb-2">Longest Win Streak</h3>
-            <p className={`text-2xl font-bold ${getStreakColor(profile.win_streak)}`}>
+            <h3 className="text-base font-medium text-primary-600 mb-2">Longest Win Streak</h3>
+            <p className="text-2xl font-semibold text-neutral-900">
               {profile.win_streak} games
             </p>
             <p className="text-sm text-neutral-600 mt-1">{profile.win_streak_dates}</p>
           </div>
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-primary-600 mb-2">Longest Undefeated Streak</h3>
-            <p className={`text-2xl font-bold ${getStreakColor(profile.undefeated_streak)}`}>
+            <h3 className="text-base font-medium text-primary-600 mb-2">Longest Undefeated Streak</h3>
+            <p className="text-2xl font-semibold text-neutral-900">
               {profile.undefeated_streak} games
             </p>
             <p className="text-sm text-neutral-600 mt-1">{profile.undefeated_streak_dates}</p>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Performance Over Time */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <Card>
         <h3 className="text-2xl font-bold text-center text-primary-600 mb-6">Performance Over Time</h3>
         <div className="flex items-center gap-4 mb-6">
           <label htmlFor="stat-select" className="text-lg font-medium text-primary-600">
@@ -234,38 +237,36 @@ const PlayerProfile = ({ id }) => {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </Card>
 
       {/* Yearly Statistics */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <Card>
         <h3 className="text-2xl font-bold text-center text-primary-600 mb-6">Yearly Statistics</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full table-base">
-            <thead>
-              <tr>
-                <th>Year</th>
-                <th>Games</th>
-                <th>Goals</th>
-                <th>Mins/Goal</th>
-                <th>Points/Game</th>
-                <th>Fantasy Points</th>
-              </tr>
-            </thead>
-            <tbody>
-              {yearlyPerformanceData.map((year) => (
-                <tr key={year.year}>
-                  <td>{year.year}</td>
-                  <td>{year.games_played}</td>
-                  <td>{year.goals_scored}</td>
-                  <td>{year.minutes_per_goal.toFixed(1)}</td>
-                  <td>{year.points_per_game.toFixed(1)}</td>
-                  <td>{year.fantasy_points}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <Table responsive>
+          <TableHead>
+            <TableRow>
+              <TableCell isHeader>Year</TableCell>
+              <TableCell isHeader>Games</TableCell>
+              <TableCell isHeader>Goals</TableCell>
+              <TableCell isHeader>Mins/Goal</TableCell>
+              <TableCell isHeader>Points/Game</TableCell>
+              <TableCell isHeader>Fantasy Points</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {yearlyPerformanceData.map((year) => (
+              <TableRow key={year.year}>
+                <TableCell>{year.year}</TableCell>
+                <TableCell>{year.games_played}</TableCell>
+                <TableCell>{year.goals_scored}</TableCell>
+                <TableCell>{Math.round(year.minutes_per_goal)}</TableCell>
+                <TableCell>{year.points_per_game.toFixed(1)}</TableCell>
+                <TableCell>{year.fantasy_points}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 };

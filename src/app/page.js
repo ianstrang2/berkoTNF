@@ -8,6 +8,8 @@ import PlayerProfile from '@/components/PlayerProfile';
 import AdminPanel from '@/components/admin/AdminPanel';
 import AdminLayout from '@/components/admin/AdminLayout';
 import MatchReport from '@/components/MatchReport/MatchReport';
+import Card from '@/components/ui/card';
+import Button from '@/components/ui/Button';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState('');
@@ -112,25 +114,23 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {cards.map((card, index) => (
-                <div
+                <Card
                   key={index}
                   onClick={() => card.view === 'player-profiles' ? handlePlayerProfileClick(1) : setCurrentView(card.view)}
-                  className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+                  className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
                 >
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
-                        {card.icon}
-                      </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
+                      {card.icon}
                     </div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
-                      {card.title}
-                    </h2>
-                    <p className="text-gray-600">
-                      {card.description}
-                    </p>
                   </div>
-                </div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+                    {card.title}
+                  </h2>
+                  <p className="text-gray-600">
+                    {card.description}
+                  </p>
+                </Card>
               ))}
             </div>
           </div>
@@ -138,15 +138,19 @@ export default function Home() {
       ) : (
         <div className="py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <button
+            <Button
               onClick={goHome}
-              className="mb-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
+              variant="primary"
+              size="md"
+              className="mb-6"
+              icon={
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+              }
             >
-              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
               Back to Dashboard
-            </button>
+            </Button>
             {currentView === 'match-report' && <MatchReport />}
             {currentView === 'current-half' && <CurrentHalfSeason />}
             {currentView === 'season' && <OverallSeasonPerformance />}

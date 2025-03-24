@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AttributeTooltip, AttributeGuideModal } from './AttributeGuide';
+import Card from '@/components/ui/card';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
 
+// NOTE: StatCell has conditional formatting based on value (1-5) with colors from red to green
+// This conditional formatting is preserved for admin view to easily distinguish ratings
 const StatCell = ({ value }) => {
   const getStatColor = (val) => {
     switch (val) {
@@ -147,17 +151,17 @@ const PlayerRatings = () => {
     };
 
     return (
-      <tr key={player.player_id} className="bg-blue-50">
-        <td className="px-3 py-4 whitespace-nowrap">
+      <TableRow key={player.player_id} className="bg-blue-50">
+        <TableCell>
           {player.name}
           {player.is_ringer && (
             <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
               Ringer
             </span>
           )}
-        </td>
+        </TableCell>
         {['goalscoring', 'defender', 'stamina_pace', 'control', 'teamwork', 'resilience'].map((field) => (
-          <td key={field} className="px-3 py-4 whitespace-nowrap">
+          <TableCell key={field}>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handleNumberChange(field, editForm[field] - 1)}
@@ -175,13 +179,13 @@ const PlayerRatings = () => {
                 +
               </button>
             </div>
-          </td>
+          </TableCell>
         ))}
-        <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+        <TableCell className="text-right">
           <button
             onClick={handleSaveEdit}
             disabled={isLoading}
-            className="text-green-600 hover:text-green-900"
+            className="text-primary-600 hover:text-primary-700 mr-2"
           >
             Save
           </button>
@@ -191,8 +195,8 @@ const PlayerRatings = () => {
           >
             Cancel
           </button>
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
     );
   };
 
@@ -201,7 +205,7 @@ const PlayerRatings = () => {
   );
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 space-y-8">
+    <Card className="space-y-8">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-primary-600">Player Ratings</h2>
         <button
@@ -242,88 +246,86 @@ const PlayerRatings = () => {
           />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('name')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('goalscoring')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  GOL {sortField === 'goalscoring' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('defender')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  DEF {sortField === 'defender' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('stamina_pace')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  S&P {sortField === 'stamina_pace' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('control')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  CTL {sortField === 'control' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('teamwork')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  TMW {sortField === 'teamwork' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('resilience')} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                  RES {sortField === 'resilience' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="px-3 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPlayers.map((player) => (
-                editingId === player.player_id ? (
-                  renderEditableRow(player)
-                ) : (
-                  <tr key={player.player_id} className="hover:bg-gray-50">
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      {player.name}
-                      {player.is_ringer && (
-                        <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Ringer
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <StatCell value={player.goalscoring} />
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <StatCell value={player.defender} />
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <StatCell value={player.stamina_pace} />
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <StatCell value={player.control} />
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <StatCell value={player.teamwork} />
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <StatCell value={player.resilience} />
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEditClick(player)}
-                        disabled={editingId !== null}
-                        className="text-primary-600 hover:text-primary-900 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                )
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table responsive>
+          <TableHead>
+            <TableRow>
+              <TableCell isHeader onClick={() => handleSort('name')} className="cursor-pointer">
+                Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('goalscoring')} className="cursor-pointer">
+                GOL {sortField === 'goalscoring' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('defender')} className="cursor-pointer">
+                DEF {sortField === 'defender' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('stamina_pace')} className="cursor-pointer">
+                S&P {sortField === 'stamina_pace' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('control')} className="cursor-pointer">
+                CTL {sortField === 'control' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('teamwork')} className="cursor-pointer">
+                TMW {sortField === 'teamwork' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader onClick={() => handleSort('resilience')} className="cursor-pointer">
+                RES {sortField === 'resilience' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </TableCell>
+              <TableCell isHeader></TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredPlayers.map((player) => (
+              editingId === player.player_id ? (
+                renderEditableRow(player)
+              ) : (
+                <TableRow key={player.player_id} className="hover:bg-gray-50">
+                  <TableCell>
+                    {player.name}
+                    {player.is_ringer && (
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Ringer
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <StatCell value={player.goalscoring} />
+                  </TableCell>
+                  <TableCell>
+                    <StatCell value={player.defender} />
+                  </TableCell>
+                  <TableCell>
+                    <StatCell value={player.stamina_pace} />
+                  </TableCell>
+                  <TableCell>
+                    <StatCell value={player.control} />
+                  </TableCell>
+                  <TableCell>
+                    <StatCell value={player.teamwork} />
+                  </TableCell>
+                  <TableCell>
+                    <StatCell value={player.resilience} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <button
+                      onClick={() => handleEditClick(player)}
+                      disabled={editingId !== null}
+                      className="text-primary-600 hover:text-primary-700 disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                  </TableCell>
+                </TableRow>
+              )
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
       <AttributeGuideModal 
         isOpen={showGuide} 
         onClose={() => setShowGuide(false)} 
       />
-    </div>
+    </Card>
   );
 };
 

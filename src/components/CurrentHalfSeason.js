@@ -1,5 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Card from '@/components/ui/card';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
+import { Tabs, Tab } from '@/components/ui/Tabs';
 
 const CurrentHalfSeason = () => {
   const [loading, setLoading] = useState(true);
@@ -58,135 +61,120 @@ const CurrentHalfSeason = () => {
   }, []);
 
   const renderMainStats = () => (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <Card>
       <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Points Leaderboard</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full table-base">
-          <thead>
-            <tr>
-              <th className="min-w-[150px]">Player</th>
-              <th className="w-[50px]">P</th>
-              <th className="w-[50px]">W</th>
-              <th className="w-[50px]">D</th>
-              <th className="w-[50px]">L</th>
-              <th className="w-[70px]">Goals</th>
-              <th className="w-[80px]">HW</th>
-              <th className="w-[80px]">HL</th>
-              <th className="w-[100px]">Clean Sheet</th>
-              <th className="w-[80px]">Win %</th>
-              <th className="w-[70px]">Points</th>
-              <th className="w-[150px]">Last 5</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.seasonStats.map((player, index) => {
-              const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
-              const losses = player.games_played - player.wins - player.draws;
-              return (
-                <tr key={index}>
-                  <td className="font-medium text-primary-600">{player.name}</td>
-                  <td>{player.games_played}</td>
-                  <td className={player.wins >= 7 ? 'text-success-600 font-medium' : ''}>
-                    {player.wins}
-                  </td>
-                  <td>{player.draws}</td>
-                  <td className={losses >= 7 ? 'text-error-600 font-medium' : ''}>
-                    {losses}
-                  </td>
-                  <td>{player.goals}</td>
-                  <td className={player.heavy_wins >= 3 ? 'text-success-600 font-medium' : ''}>
-                    {player.heavy_wins}
-                  </td>
-                  <td className={player.heavy_losses >= 3 ? 'text-error-600 font-medium' : ''}>
-                    {player.heavy_losses}
-                  </td>
-                  <td className={player.clean_sheets >= 3 ? 'text-success-600 font-medium' : ''}>
-                    {player.clean_sheets}
-                  </td>
-                  <td>{Math.round(player.win_percentage)}%</td>
-                  <td className="font-bold">{player.fantasy_points}</td>
-                  <td>
-                    <div className="flex gap-1">
-                      {form.map((result, i) => (
-                        <span 
-                          key={i} 
-                          className={`px-1.5 py-0.5 rounded text-sm font-medium ${
-                            result.includes('W') 
-                              ? 'bg-success-50 text-success-600' 
-                              : result === 'D' 
-                                ? 'bg-warning-50 text-warning-600' 
-                                : 'bg-error-50 text-error-600'
-                          }`}
-                        >
-                          {result.replace('H', '')}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <Table responsive>
+        <TableHead>
+          <TableRow>
+            <TableCell isHeader className="min-w-[150px]">Player</TableCell>
+            <TableCell isHeader className="w-[50px]">P</TableCell>
+            <TableCell isHeader className="w-[50px]">W</TableCell>
+            <TableCell isHeader className="w-[50px]">D</TableCell>
+            <TableCell isHeader className="w-[50px]">L</TableCell>
+            <TableCell isHeader className="w-[70px]">Goals</TableCell>
+            <TableCell isHeader className="w-[80px]">HW</TableCell>
+            <TableCell isHeader className="w-[80px]">HL</TableCell>
+            <TableCell isHeader className="w-[100px]">Clean Sheet</TableCell>
+            <TableCell isHeader className="w-[80px]">Win %</TableCell>
+            <TableCell isHeader className="w-[70px]">Points</TableCell>
+            <TableCell isHeader className="w-[150px]">Last 5</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {stats.seasonStats.map((player, index) => {
+            const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
+            const losses = player.games_played - player.wins - player.draws;
+            return (
+              <TableRow key={index}>
+                <TableCell className="font-medium text-primary-600">{player.name}</TableCell>
+                <TableCell>{player.games_played}</TableCell>
+                <TableCell>{player.wins}</TableCell>
+                <TableCell>{player.draws}</TableCell>
+                <TableCell>{losses}</TableCell>
+                <TableCell>{player.goals}</TableCell>
+                <TableCell>{player.heavy_wins}</TableCell>
+                <TableCell>{player.heavy_losses}</TableCell>
+                <TableCell>{player.clean_sheets}</TableCell>
+                <TableCell>{Math.round(player.win_percentage)}%</TableCell>
+                <TableCell className="font-bold">{player.fantasy_points}</TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    {form.map((result, i) => (
+                      <span 
+                        key={i} 
+                        className={`px-1.5 py-0.5 rounded text-sm font-medium ${
+                          result.includes('W') 
+                            ? 'bg-success-50 text-success-600' 
+                            : result === 'D' 
+                              ? 'bg-warning-50 text-warning-600' 
+                              : 'bg-error-50 text-error-600'
+                        }`}
+                      >
+                        {result.replace('H', '')}
+                      </span>
+                    ))}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </Card>
   );
 
   const renderGoalStats = () => (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <Card>
       <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Goalscoring Leaderboard</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full table-base">
-          <thead>
-            <tr>
-              <th className="min-w-[150px]">Player</th>
-              <th className="w-[80px]">Goals</th>
-              <th className="w-[80px]">MPG</th>
-              <th className="w-[200px]">Last 5</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.goalStats.map((player, index) => (
-              <tr key={index}>
-                <td className="font-medium text-primary-600">{player.name}</td>
-                <td>{player.total_goals}</td>
-                <td className={player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
-                  {player.minutes_per_goal}
-                </td>
-                <td>
-                  <div className="flex gap-1">
-                    {player.last_five_games?.split(',').map((goals, i) => {
-                      const goalCount = parseInt(goals);
-                      return (
-                        <span 
-                          key={i} 
-                          className={`px-1.5 py-0.5 rounded text-sm font-medium ${
-                            goalCount > 0 
-                              ? 'bg-success-50 text-success-600' 
-                              : goals === '0' 
-                                ? 'bg-error-50 text-error-600' 
-                                : ''
-                          }`}
-                        >
-                          {goals}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <Table responsive>
+        <TableHead>
+          <TableRow>
+            <TableCell isHeader className="min-w-[150px]">Player</TableCell>
+            <TableCell isHeader className="w-[80px]">Goals</TableCell>
+            <TableCell isHeader className="w-[80px]">MPG</TableCell>
+            <TableCell isHeader className="w-[200px]">Last 5</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {stats.goalStats.map((player, index) => (
+            <TableRow key={index}>
+              <TableCell className="font-medium text-primary-600">{player.name}</TableCell>
+              <TableCell>{player.total_goals}</TableCell>
+              <TableCell>{player.minutes_per_goal}</TableCell>
+              <TableCell>
+                <div className="flex gap-1">
+                  {player.last_five_games?.split(',').map((goals, i) => {
+                    const goalCount = parseInt(goals);
+                    return (
+                      <span 
+                        key={i} 
+                        className={`px-1.5 py-0.5 rounded text-sm font-medium ${
+                          goalCount > 0 
+                            ? 'bg-success-50 text-success-600' 
+                            : ''
+                        }`}
+                      >
+                        {goals}
+                      </span>
+                    );
+                  })}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
   );
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+      <Card className="text-center">
         <div className="text-xl font-semibold text-primary-600">Loading...</div>
-      </div>
+        <div className="mt-4 flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        </div>
+      </Card>
     );
   }
 
@@ -204,29 +192,18 @@ const CurrentHalfSeason = () => {
 
       {/* Mobile view */}
       <div className="md:hidden">
-        <div className="flex rounded-lg bg-neutral-100 p-1 mb-6">
-          <button
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              activeTab === 'performance' 
-                ? 'bg-white text-primary-600 shadow-sm' 
-                : 'text-neutral-600 hover:text-primary-600'
-            }`}
-            onClick={() => setActiveTab('performance')}
-          >
-            Points
-          </button>
-          <button
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              activeTab === 'goals' 
-                ? 'bg-white text-primary-600 shadow-sm' 
-                : 'text-neutral-600 hover:text-primary-600'
-            }`}
-            onClick={() => setActiveTab('goals')}
-          >
-            Goals
-          </button>
-        </div>
-        {activeTab === 'performance' ? renderMainStats() : renderGoalStats()}
+        <Tabs 
+          defaultTab={activeTab === 'performance' ? 0 : 1} 
+          onChange={(index) => setActiveTab(index === 0 ? 'performance' : 'goals')}
+          variant="pills"
+        >
+          <Tab label="Points">
+            {renderMainStats()}
+          </Tab>
+          <Tab label="Goals">
+            {renderGoalStats()}
+          </Tab>
+        </Tabs>
       </div>
     </div>
   );
