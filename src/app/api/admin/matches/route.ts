@@ -23,7 +23,7 @@ export async function GET() {
       match_date: match.match_date.toISOString(),  // Convert date to ISO format
       team_a_score: match.team_a_score,
       team_b_score: match.team_b_score,
-      created_at: match.created_at.toISOString(),  // Convert timestamp to ISO format
+      created_at: match.created_at!.toISOString(),  // Convert timestamp to ISO format
       player_matches: match.player_matches.map(pm => ({
         player_match_id: pm.player_match_id,
         player_id: pm.player_id,
@@ -36,11 +36,8 @@ export async function GET() {
         result: pm.result,
         fantasy_points: pm.fantasy_points,
         players: pm.players ? {
-          player_id: pm.players.player_id,
           name: pm.players.name,
-          join_date: pm.players.join_date.toISOString(),  // Convert date to ISO format
-          is_ringer: pm.players.is_ringer,
-          is_retired: pm.players.is_retired,
+          join_date: pm.players.join_date!.toISOString()
         } : null,  // Handle missing players
       })),
     }));
