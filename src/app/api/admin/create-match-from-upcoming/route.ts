@@ -37,10 +37,7 @@ export async function POST(request: Request) {
       data: {
         match_date: upcomingMatch.match_date,
         team_a_score: 0,
-        team_b_score: 0,
-        team_a_name: upcomingMatch.team_a_name,
-        team_b_name: upcomingMatch.team_b_name,
-        is_draft: true // Start as draft until scores are entered
+        team_b_score: 0
       }
     });
 
