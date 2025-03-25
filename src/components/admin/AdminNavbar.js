@@ -1,116 +1,103 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/firebase';
 
 const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: 'dashboard' },
-  { href: '/admin/players', label: 'Players', icon: 'group' },
-  { href: '/admin/teams', label: 'Teams', icon: 'sports_soccer' },
-  { href: '/admin/matches', label: 'Matches', icon: 'event' },
-  { href: '/admin/reports', label: 'Reports', icon: 'assessment' },
-  { href: '/admin/users', label: 'Users', icon: 'manage_accounts' },
-  { href: '/admin/app-setup', label: 'App Setup', icon: 'settings' },
+  { href: '/admin/dashboard', label: 'Dashboard' },
+  { href: '/admin/players', label: 'Players' },
+  { href: '/admin/teams', label: 'Teams' },
+  { href: '/admin/assessments', label: 'Assessments' },
+  { href: '/admin/balance-algorithm', label: 'Balance Algorithm' },
+  { href: '/admin/app-setup', label: 'App Setup' },
 ];
 
 const AdminNavbar = () => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
+  const handleSignOut = () => {
+    localStorage.removeItem('isAdmin');
+    router.push('/');
   };
   
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      router.push('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-  
-  const isActive = (path) => {
-    if (path === '/admin' && router.pathname === '/admin') {
-      return true;
-    }
-    return router.pathname.startsWith(path) && path !== '/admin';
-  };
+  const isActive = (path) => router.pathname === path;
   
   return (
-    <>
-      {/* Top mobile navbar */}
-      <div className="lg:hidden bg-white shadow-md px-4 py-2 flex justify-between items-center">
-        <div className="flex items-center">
-          <span className="text-green-500 material-icons-outlined mr-2">sports_soccer</span>
-          <span className="font-semibold text-gray-800">PlayerPath Admin</span>
-        </div>
-        <button 
-          onClick={toggleMobileMenu} 
-          className="p-2 text-gray-600 hover:text-gray-900"
-        >
-          <span className="material-icons-outlined">
-            {isMobileMenuOpen ? 'close' : 'menu'}
-          </span>
-        </button>
-      </div>
-      
-      {/* Sidebar for desktop / Mobile menu */}
-      <div className={`
-        fixed top-0 left-0 h-screen bg-white shadow-lg z-50 transition-all duration-300 ease-in-out
-        lg:w-64 lg:translate-x-0 lg:z-10
-        ${isMobileMenuOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full'}
-      `}>
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-center lg:justify-start">
-            <span className="text-green-500 material-icons-outlined mr-2">sports_soccer</span>
-            <span className="font-semibold text-gray-800">PlayerPath Admin</span>
-          </div>
-        </div>
-        
-        <nav className="p-4">
-          <ul className="space-y-2">
-            {navItems.map((item) => (
-              <li key={item.href}>
-                <Link 
+    <nav className="bg-white shadow-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            {/* Mobile menu button */}
+            <div className="flex items-center sm:hidden">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500"
+              >
+                <span className="sr-only">Open main menu</span>
+                {!isMobileMenuOpen ? (
+                  <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                ) : (
+                  <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+            </div>
+
+            {/* Desktop navigation */}
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
                   href={item.href}
-                  className={`
-                    flex items-center p-2 rounded-md w-full text-sm font-medium transition-colors duration-200
-                    ${isActive(item.href) 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
-                  `}
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    isActive(item.href)
+                      ? 'border-green-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  }`}
                 >
-                  <span className="material-icons-outlined mr-3 text-inherit">
-                    {item.icon}
-                  </span>
                   {item.label}
                 </Link>
-              </li>
-            ))}
-          </ul>
-          
-          <div className="pt-8 mt-8 border-t border-gray-200">
+              ))}
+            </div>
+          </div>
+
+          {/* Sign out button */}
+          <div className="flex items-center">
             <button
               onClick={handleSignOut}
-              className="flex items-center w-full p-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200"
+              className="ml-4 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
-              <span className="material-icons-outlined mr-3">logout</span>
               Sign Out
             </button>
           </div>
-        </nav>
+        </div>
       </div>
-      
-      {/* Overlay for mobile */}
+
+      {/* Mobile menu */}
       {isMobileMenuOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={toggleMobileMenu}
-        />
+        <div className="sm:hidden">
+          <div className="pt-2 pb-3 space-y-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                  isActive(item.href)
+                    ? 'bg-green-50 border-green-500 text-green-700'
+                    : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+                }`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
-    </>
+    </nav>
   );
 };
 
