@@ -1,39 +1,71 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+interface Player {
+  player_id: number;
+  name: string;
+  defender?: number;
+  goalscoring?: number;
+  stamina_pace?: number;
+  control?: number;
+  teamwork?: number;
+  resilience?: number;
+  slot_number?: number;
+}
+
+interface TeamStats {
+  defense: {
+    stamina_pace: number;
+    control: number;
+  };
+  midfield: {
+    control: number;
+    teamwork: number;
+    stamina_pace: number;
+    goalscoring: number;
+  };
+  attack: {
+    goalscoring: number;
+    stamina_pace: number;
+    control: number;
+  };
+  resilience: number;
+  teamwork: number;
+}
+
 // Calculate defender balance score (equal weight between Stamina & Pace and Control)
-const calculateDefenderScore = (player: any) => ({
-  total: player.defender,
-  balance: (player.stamina_pace + player.control) / 2
+const calculateDefenderScore = (player: Player) => ({
+  total: player.defender || 0,
+  balance: ((player.stamina_pace || 0) + (player.control || 0)) / 2
 });
 
 // Calculate attacker balance score (50% Goalscoring, 30% Stamina & Pace, 20% Teamwork)
-const calculateAttackerScore = (player: any) => ({
-  total: player.goalscoring,
-  balance: (player.goalscoring * 0.5) + (player.stamina_pace * 0.3) + (player.teamwork * 0.2)
+const calculateAttackerScore = (player: Player) => ({
+  total: player.goalscoring || 0,
+  balance: (player.goalscoring || 0) * 0.5 + (player.stamina_pace || 0) * 0.3 + (player.teamwork || 0) * 0.2
 });
 
 // Calculate midfielder balance score (equal weight between Control, Teamwork, and Stamina & Pace)
-const calculateMidfielderScore = (player: any) => 
-  (player.control + player.teamwork + player.stamina_pace) / 3;
+const calculateMidfielderScore = (player: Player) => 
+  ((player.control || 0) + (player.teamwork || 0) + (player.stamina_pace || 0)) / 3;
 
 // Calculate position-specific team stats
-const calculateTeamStats = (team: any[]) => {
+const calculateTeamStats = (team: Player[]): TeamStats => {
   const defenders = team.filter(p => {
-    const isDefender = p.slot_number <= 3 || (p.slot_number >= 10 && p.slot_number <= 12);
+    const isDefender = p.slot_number && (p.slot_number <= 3 || (p.slot_number >= 10 && p.slot_number <= 12));
     return isDefender;
   });
   const midfielders = team.filter(p => {
-    const isMidfielder = (p.slot_number >= 4 && p.slot_number <= 7) || (p.slot_number >= 13 && p.slot_number <= 16);
+    const isMidfielder = p.slot_number && ((p.slot_number >= 4 && p.slot_number <= 7) || (p.slot_number >= 13 && p.slot_number <= 16));
     return isMidfielder;
   });
   const attackers = team.filter(p => {
-    const isAttacker = (p.slot_number === 8 || p.slot_number === 9) || (p.slot_number === 17 || p.slot_number === 18);
+    const isAttacker = p.slot_number && ((p.slot_number === 8 || p.slot_number === 9) || (p.slot_number === 17 || p.slot_number === 18));
     return isAttacker;
   });
 
   // Safely calculate average with fallback to 0
-  const safeAverage = (players: any[], field: string) => {
+  const safeAverage = (players: Player[], field: keyof Player) => {
     if (!players.length) return 0;
     return players.reduce((sum, p) => sum + (Number(p[field]) || 0), 0) / players.length;
   };
@@ -60,7 +92,7 @@ const calculateTeamStats = (team: any[]) => {
 };
 
 // Calculate balance score between two teams
-const calculateBalanceScore = (teamA: any[], teamB: any[]) => {
+const calculateBalanceScore = (teamA: Player[], teamB: Player[]): number => {
   const statsA = calculateTeamStats(teamA);
   const statsB = calculateTeamStats(teamB);
 
@@ -92,7 +124,7 @@ const calculateBalanceScore = (teamA: any[], teamB: any[]) => {
 };
 
 // Shuffle array randomly
-const shuffleArray = (array: any[]) => {
+const shuffleArray = <T>(array: T[]): T[] => {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
@@ -173,7 +205,7 @@ export async function POST(request: Request) {
         console.log(`Progress: ${progress}%`);
       }
 
-      const slots = Array(18).fill(null);
+      const slots: (any & { slot_number?: number })[] = Array(18).fill(null);
       
       // Distribute defenders to slots 1-3 and 10-12
       const shuffledDefenders = shuffleArray([...potentialDefenders]);
