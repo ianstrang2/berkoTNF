@@ -116,7 +116,7 @@ export async function POST(request: Request) {
     // Get all assigned player IDs
     const playerIds = currentSlots
       .filter(slot => slot.player_id !== null)
-      .map(slot => slot.player_id);
+      .map(slot => slot.player_id as number);
 
     if (playerIds.length !== 18) {
       return NextResponse.json({ 
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
     const midfielders = remainingAfterDefenders
       .filter(p => !potentialAttackers.find(a => a.player_id === p.player_id));
 
-    let bestSlots = null;
+    let bestSlots: { slot_number: number; player_id: number | null }[] | null = null;
     let bestScore = Infinity;
     const maxAttempts = 8400;
 
