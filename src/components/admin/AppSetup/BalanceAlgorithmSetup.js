@@ -1,221 +1,587 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/card';
-import { toast } from 'react-hot-toast';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 const BalanceAlgorithmSetup = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const [weights, setWeights] = useState([]);
-  const [originalWeights, setOriginalWeights] = useState([]);
-  const [isDirty, setIsDirty] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
-  
-  useEffect(() => {
-    fetchBalanceWeights();
-  }, []);
-  
-  useEffect(() => {
-    // Check if values have changed
-    const weightsChanged = JSON.stringify(weights) !== JSON.stringify(originalWeights);
-    setIsDirty(weightsChanged);
-  }, [weights, originalWeights]);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [showValidationError, setShowValidationError] = useState(false);
 
-  const fetchBalanceWeights = async () => {
+  // Attribute descriptions for tooltips
+  const attributeDescriptions = {
+    stamina_pace: "Stamina & Pace: Player's endurance and speed on the field",
+    control: "Ball Control: Player's ability to retain possession and make accurate passes",
+    goalscoring: "Finishing: Player's ability to score when given opportunities",
+    resilience: "Resilience: How well a player maintains performance when team is losing",
+    teamwork: "Teamwork: Player's ability to collaborate with teammates effectively"
+  };
+
+  // Technical attributes that need to sum to 100%
+  const technicalAttributes = ['stamina_pace', 'control', 'goalscoring'];
+  
+  // Position groups that need validation
+  const positionGroups = ['defense', 'midfield', 'attack'];
+
+  // Fetch balance weights on component mount
+  useEffect(() => {
+    fetchWeights();
+  }, []);
+
+  // Handle click outside to close tooltips
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (!event.target.closest('.tooltip-trigger')) {
+        setActiveTooltip(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Fetch balance weights from API
+  const fetchWeights = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setIsLoading(true);
       const response = await fetch('/api/admin/balance-algorithm');
       
-      if (!response.ok) throw new Error('Failed to fetch balance algorithm weights');
+      if (!response.ok) {
+        throw new Error('Failed to fetch balance weights');
+      }
       
       const data = await response.json();
       
-      if (data.success) {
+      if (data.success && data.data) {
         setWeights(data.data);
-        setOriginalWeights(data.data);
+      } else {
+        throw new Error(data.error || 'Failed to fetch balance weights');
       }
-    } catch (error) {
-      console.error('Error fetching balance algorithm weights:', error);
-      toast.error('Failed to load balance algorithm weights');
+    } catch (err) {
+      console.error('Error fetching balance weights:', err);
+      setError(err.message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleWeightChange = (index, value) => {
-    const newWeights = [...weights];
-    newWeights[index].weight = Math.min(Math.max(0, value), 100);
-    setWeights(newWeights);
+  // Calculate totals for each position group's technical attributes
+  const calculateTotals = () => {
+    const totals = {};
+    const errors = {};
+    
+    positionGroups.forEach(group => {
+      const groupWeights = weights.filter(w => 
+        w.description === group && technicalAttributes.includes(w.name)
+      );
+      
+      const total = groupWeights.reduce((sum, w) => sum + w.weight, 0);
+      totals[group] = total;
+      
+      // Check if total is not 100%
+      if (Math.abs(total - 1) > 0.001) { // Use a small epsilon for floating point comparison
+        errors[group] = `${getPositionName(group)} technical attributes total ${(total * 100).toFixed(0)}% instead of 100%`;
+      }
+    });
+    
+    return { totals, errors };
   };
 
+  // Validate weights before saving
+  const validateWeights = () => {
+    const { errors } = calculateTotals();
+    
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      setShowValidationError(true);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Save updated weights to API
   const saveWeights = async () => {
+    // Validate weights first
+    if (!validateWeights()) {
+      return;
+    }
+    
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      setIsLoading(true);
-      
       const response = await fetch('/api/admin/balance-algorithm', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ weights })
+        body: JSON.stringify({ weights }),
       });
       
-      if (!response.ok) throw new Error('Failed to save balance algorithm weights');
+      if (!response.ok) {
+        throw new Error('Failed to save balance weights');
+      }
       
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Balance algorithm weights saved successfully');
-        setOriginalWeights([...weights]);
-        setIsDirty(false);
+        setSuccess('Balance weights saved successfully');
+        setHasChanges(false);
+      } else {
+        throw new Error(data.error || 'Failed to save balance weights');
       }
-    } catch (error) {
-      console.error('Error saving balance algorithm weights:', error);
-      toast.error(`Failed to save weights: ${error.message}`);
+    } catch (err) {
+      console.error('Error saving balance weights:', err);
+      setError(err.message);
     } finally {
-      setIsLoading(false);
+      setSaving(false);
       setShowConfirmation(false);
     }
   };
 
-  const resetToDefaults = async () => {
+  // Reset weights to defaults
+  const resetWeights = async () => {
+    setIsResetting(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      setIsLoading(true);
-      
       const response = await fetch('/api/admin/balance-algorithm/reset', {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
-      if (!response.ok) throw new Error('Failed to reset balance algorithm weights');
+      if (!response.ok) {
+        throw new Error('Failed to reset balance weights');
+      }
       
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Balance algorithm weights reset to defaults');
         setWeights(data.data);
-        setOriginalWeights(data.data);
-        setIsDirty(false);
+        setSuccess('Balance weights reset to defaults successfully');
+        setHasChanges(false);
+      } else {
+        throw new Error(data.error || 'Failed to reset balance weights');
       }
-    } catch (error) {
-      console.error('Error resetting balance algorithm weights:', error);
-      toast.error(`Failed to reset weights: ${error.message}`);
+    } catch (err) {
+      console.error('Error resetting balance weights:', err);
+      setError(err.message);
     } finally {
-      setIsLoading(false);
+      setIsResetting(false);
       setShowResetConfirmation(false);
     }
   };
 
-  // Calculate total weight percentage to show it to users
-  const totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
-  const normalizedWeights = weights.map(item => ({
-    ...item,
-    normalizedWeight: Math.round((item.weight / totalWeight) * 100)
-  }));
-  
+  // Round value to nearest 5%
+  const roundToFive = (value) => {
+    return Math.round(value * 20) / 20; // Round to nearest 0.05 (5%)
+  };
+
+  // Handle weight change via slider
+  const handleWeightChange = (attributeId, newValue) => {
+    // Round to nearest 5%
+    newValue = roundToFive(newValue);
+    
+    // Find the weight being changed
+    const changedWeightIndex = weights.findIndex(w => w.attribute_id === attributeId);
+    if (changedWeightIndex === -1) return;
+    
+    const changedWeight = weights[changedWeightIndex];
+    const oldValue = changedWeight.weight;
+    
+    // Only proceed if there's an actual change
+    if (oldValue === newValue) return;
+    
+    // Update the weight
+    const updatedWeights = [...weights];
+    updatedWeights[changedWeightIndex] = {
+      ...changedWeight,
+      weight: newValue
+    };
+    
+    setWeights(updatedWeights);
+    setHasChanges(true);
+  };
+
+  // Group weights by position (description field in API)
+  const groupedWeights = weights.reduce((groups, weight) => {
+    const group = weight.description;
+    if (!groups[group]) {
+      groups[group] = [];
+    }
+    groups[group].push(weight);
+    return groups;
+  }, {});
+
+  // Get the position group display order
+  const positionOrder = ['defense', 'midfield', 'attack', 'team'];
+
+  // Get position-specific color
+  const getPositionColor = (positionGroup) => {
+    switch(positionGroup) {
+      case 'defense': return 'bg-blue-500';
+      case 'midfield': return 'bg-green-500';
+      case 'attack': return 'bg-red-500';
+      case 'team': return 'bg-purple-500';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  // Get border color for position
+  const getPositionBorderColor = (positionGroup) => {
+    switch(positionGroup) {
+      case 'defense': return 'border-blue-500';
+      case 'midfield': return 'border-green-500';
+      case 'attack': return 'border-red-500';
+      case 'team': return 'border-purple-500';
+      default: return 'border-gray-400';
+    }
+  };
+
+  // Get the position descriptive name
+  const getPositionName = (positionGroup) => {
+    switch(positionGroup) {
+      case 'defense': return 'Defenders';
+      case 'midfield': return 'Midfielders';
+      case 'attack': return 'Attackers';
+      case 'team': return 'Team-wide Factors';
+      default: return positionGroup;
+    }
+  };
+
+  // Format attribute name for display
+  const formatAttributeName = (name) => {
+    switch(name) {
+      case 'stamina_pace': return 'Stamina & Pace';
+      case 'control': return 'Ball Control';
+      case 'goalscoring': return 'Finishing';
+      case 'resilience': return 'Resilience';
+      case 'teamwork': return 'Teamwork';
+      case 'defender': return 'Desire to Defend';
+      default: return name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+  };
+
+  // Format weight value for display
+  const formatWeight = (value) => {
+    return (value * 100).toFixed(0) + '%';  // Convert decimal to percentage
+  };
+
+  // Display tooltip for attribute
+  const toggleTooltip = (attributeName) => {
+    setActiveTooltip(activeTooltip === attributeName ? null : attributeName);
+  };
+
+  // Calculate totals for display
+  const { totals } = calculateTotals();
+
   return (
     <div>
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800">Balance Algorithm Settings</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-gray-800">Balance Algorithm Settings</h2>
+          <p className="text-base text-gray-600 mt-1">
             Define how different player attributes are weighted when balancing teams
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex space-x-3">
           <Button
             onClick={() => setShowResetConfirmation(true)}
+            disabled={loading || saving || isResetting}
             variant="outline"
-            disabled={isLoading}
           >
-            Reset to Defaults
+            {isResetting ? 'Resetting...' : 'Reset to Defaults'}
           </Button>
           <Button
             onClick={() => setShowConfirmation(true)}
+            disabled={loading || saving || !hasChanges}
             variant="primary"
-            disabled={isLoading || !isDirty}
           >
-            Save Changes
+            {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </div>
 
-      <Card>
-        <div className="p-5">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-6">
-            <h3 className="text-amber-800 font-medium text-sm mb-2">About Balance Algorithm</h3>
-            <p className="text-sm text-amber-700">
-              The balance algorithm uses player assessment scores to create balanced teams. 
-              These weights determine how much each attribute contributes to a player's overall value.
-              Higher weights mean that attribute has more influence when creating teams.
-            </p>
-          </div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <span className="text-base">{error}</span>
+        </div>
+      )}
 
-          {isLoading ? (
-            <div className="text-center py-10">
-              <p className="text-gray-500 italic">Loading balance algorithm settings...</p>
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+          <span className="text-base">{success}</span>
+        </div>
+      )}
+
+      {/* Validation Error Message */}
+      {showValidationError && Object.keys(validationErrors).length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded mb-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="font-medium mb-2">Please fix the following issues before saving:</p>
+              <ul className="list-disc pl-5">
+                {Object.values(validationErrors).map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-sm">Each position group must have technical attributes (Stamina & Pace, Ball Control, Finishing) that total exactly 100%.</p>
             </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex justify-between text-sm font-medium text-gray-700 px-3">
-                <span>Attribute</span>
-                <span>Weight (0-100)</span>
-              </div>
-              
-              {normalizedWeights.map((item, index) => (
-                <div key={item.attribute_id} className="border-b border-gray-100 pb-5">
-                  <div className="flex justify-between items-center mb-2">
-                    <div>
-                      <h4 className="font-medium">{item.name}</h4>
-                      <p className="text-sm text-gray-500">{item.description}</p>
-                    </div>
-                    <div className="flex items-center">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={item.weight}
-                        onChange={(e) => handleWeightChange(index, parseInt(e.target.value))}
-                        className="w-32 mr-4"
-                        disabled={isLoading}
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={item.weight}
-                        onChange={(e) => handleWeightChange(index, parseInt(e.target.value))}
-                        className="w-16 border border-gray-300 rounded-md px-2 py-1 text-center"
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center text-xs mt-1">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className="bg-green-500 h-2" 
-                        style={{ width: `${item.normalizedWeight}%` }}
-                      />
-                    </div>
-                    <span className="ml-2 text-gray-500">
-                      {item.normalizedWeight}% of total
-                    </span>
+            <button 
+              onClick={() => setShowValidationError(false)}
+              className="text-yellow-700 hover:text-yellow-900"
+              aria-label="Close message"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center items-center p-8">
+          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-2 text-base">Loading balance weights...</span>
+        </div>
+      ) : weights.length === 0 ? (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded mb-6">
+          <span className="text-base">No balance weights found. Please check the API connection or reset to defaults.</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {positionOrder.map(positionGroup => {
+            // Skip if no weights for this position
+            if (!groupedWeights[positionGroup] || groupedWeights[positionGroup].length === 0) {
+              return null;
+            }
+
+            // Calculate total for this position's technical attributes
+            const total = totals[positionGroup] || 0;
+            const isTotalValid = Math.abs(total - 1) <= 0.001; // Within 0.1% of 100%
+            const totalClass = isTotalValid 
+              ? 'text-green-600' 
+              : 'text-red-600 font-bold';
+
+            // Filter technical attributes for this position
+            const techAttributes = groupedWeights[positionGroup]
+              .filter(w => technicalAttributes.includes(w.name));
+            
+            // Filter non-technical attributes for this position
+            const otherAttributes = groupedWeights[positionGroup]
+              .filter(w => !technicalAttributes.includes(w.name));
+
+            return (
+              <Card
+                key={positionGroup}
+                className="shadow-sm"
+              >
+                <div className="mb-4 pb-2 border-b">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">{getPositionName(positionGroup)}</h3>
+                    
+                    {/* Only show total for positions with technical attributes */}
+                    {positionGroup !== 'team' && (
+                      <div className="flex items-center">
+                        <span className="text-sm mr-2">Total:</span>
+                        <span className={`text-sm font-medium ${totalClass}`}>
+                          {(total * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-              
-              <div className="bg-gray-50 p-4 rounded-md">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Total weights:</span>
-                  <span className="font-medium">{totalWeight}</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Note: Values are normalized when calculating team balance. The actual numbers 
-                  you set here determine the relative importance of each attribute.
-                </p>
-              </div>
-            </div>
-          )}
+                
+                {/* Technical attributes section */}
+                {techAttributes.length > 0 && (
+                  <div className="space-y-4 mb-6">
+                    <h4 className="text-sm uppercase text-gray-500 font-medium">Technical Attributes</h4>
+                    {techAttributes.map(weight => (
+                      <div key={weight.attribute_id} className="mb-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="flex items-center relative">
+                            <span className="font-medium text-base text-gray-700">
+                              {formatAttributeName(weight.name)}
+                              <button
+                                type="button"
+                                className="ml-1 text-gray-400 hover:text-gray-600 focus:outline-none tooltip-trigger"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleTooltip(weight.attribute_id);
+                                }}
+                                aria-label={`Show ${formatAttributeName(weight.name)} information`}
+                              >
+                                <span className="text-xs">(?)</span>
+                              </button>
+                            </span>
+                            {activeTooltip === weight.attribute_id && (
+                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-64">
+                                <p className="text-sm text-gray-700">
+                                  {attributeDescriptions[weight.name] || weight.description}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <span className={`text-base font-medium ${hasChanges ? 'text-blue-600' : 'text-gray-700'}`}>
+                            {formatWeight(weight.weight)}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <div className="relative w-full h-4 bg-gray-200 rounded-md overflow-hidden">
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.05"  // Step by 5%
+                              value={weight.weight}
+                              onChange={(e) => handleWeightChange(weight.attribute_id, parseFloat(e.target.value))}
+                              className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            />
+                            <div 
+                              className={`h-full bg-blue-500 transition-all duration-300`}
+                              style={{ width: `${Math.max(0, Math.min(100, weight.weight * 100))}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Other attributes section */}
+                {otherAttributes.length > 0 && (
+                  <div className="space-y-4">
+                    {techAttributes.length > 0 && (
+                      <h4 className="text-sm uppercase text-gray-500 font-medium">Other Attributes</h4>
+                    )}
+                    {otherAttributes.map(weight => (
+                      <div key={weight.attribute_id} className="mb-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="flex items-center relative">
+                            <span className="font-medium text-base text-gray-700">
+                              {formatAttributeName(weight.name)}
+                              <button
+                                type="button"
+                                className="ml-1 text-gray-400 hover:text-gray-600 focus:outline-none tooltip-trigger"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleTooltip(weight.attribute_id);
+                                }}
+                                aria-label={`Show ${formatAttributeName(weight.name)} information`}
+                              >
+                                <span className="text-xs">(?)</span>
+                              </button>
+                            </span>
+                            {activeTooltip === weight.attribute_id && (
+                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-64">
+                                <p className="text-sm text-gray-700">
+                                  {attributeDescriptions[weight.name] || weight.description}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <span className={`text-base font-medium ${hasChanges ? 'text-blue-600' : 'text-gray-700'}`}>
+                            {formatWeight(weight.weight)}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <div className="relative w-full h-4 bg-gray-200 rounded-md overflow-hidden">
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.05"  // Step by 5%
+                              value={weight.weight}
+                              onChange={(e) => handleWeightChange(weight.attribute_id, parseFloat(e.target.value))}
+                              className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            />
+                            <div 
+                              className={`h-full bg-blue-500 transition-all duration-300`}
+                              style={{ width: `${Math.max(0, Math.min(100, weight.weight * 100))}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      
+      <Card
+        title="How Team Balancing Works"
+        className="mb-6 bg-gray-50 border border-gray-200 shadow-sm"
+      >
+        <p className="text-base text-gray-600 mb-4">
+          The team balancing algorithm creates teams by following this sequence:
+        </p>
+        <ul key="balancing-steps" className="space-y-4">
+          <li key="step-1" className="flex items-start">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">1</span>
+            <span className="text-base text-gray-600">
+              Players are first allocated as defenders, based on highest desire to defend.
+            </span>
+          </li>
+          <li key="step-2" className="flex items-start">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">2</span>
+            <span className="text-base text-gray-600">
+              Next, players are assigned as attackers, prioritising those with highest goalscoring ability.
+            </span>
+          </li>
+          <li key="step-3" className="flex items-start">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">3</span>
+            <span className="text-base text-gray-600">
+              Remaining players are assigned to midfield positions.
+            </span>
+          </li>
+          <li key="step-4" className="flex items-start">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">4</span>
+            <span className="text-base text-gray-600">
+              Each player is evaluated within their assigned position using the position-specific weights you've set above. This creates a skill score for each player.
+            </span>
+          </li>
+          <li key="step-5" className="flex items-start">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">5</span>
+            <span className="text-base text-gray-600">
+              Players are distributed between teams in a "snake draft" pattern. The highest-scored defender goes to Team A, second-highest to Team B, and alternating from there. This repeats for midfielders and attackers.
+            </span>
+          </li>
+          <li key="step-6" className="flex items-start">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">6</span>
+            <span className="text-base text-gray-600">
+              Finally, <strong>Resilience</strong> and <strong>Teamwork</strong> attributes are applied according to their weights. These are processed last, and their impact is proportional to the weight you've assigned them in the settings above.
+            </span>
+          </li>
+        </ul>
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-md">
+          <h3 className="font-medium text-blue-800 mb-2">Important Note on Weights</h3>
+          <p className="text-sm text-blue-700">
+            For each position group (Defenders, Midfielders, Attackers), the weights for technical attributes 
+            (Stamina & Pace, Ball Control, Finishing) should total 100%. Each slider will adjust in 5% increments.
+            The system will validate the totals before saving.
+          </p>
         </div>
       </Card>
 
@@ -234,12 +600,11 @@ const BalanceAlgorithmSetup = () => {
       <ConfirmationModal
         isOpen={showResetConfirmation}
         onClose={() => setShowResetConfirmation(false)}
-        onConfirm={resetToDefaults}
-        title="Reset to Defaults?"
-        message="Are you sure you want to reset all balance algorithm weights to their default values? This cannot be undone."
-        confirmText="Reset to Defaults"
+        onConfirm={resetWeights}
+        title="Reset Balance Algorithm"
+        message="Are you sure you want to reset all balance weights to their default values? This action cannot be undone and will affect how teams are balanced."
+        confirmText="Reset"
         cancelText="Cancel"
-        confirmButtonClass="bg-amber-600 hover:bg-amber-700"
       />
     </div>
   );

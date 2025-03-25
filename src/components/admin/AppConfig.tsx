@@ -315,12 +315,12 @@ const AppConfig = () => {
       title={formatConfigKey(group.group_name)} 
       icon={null} 
       footer={
-        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <Button
             onClick={() => openResetConfirmation(group.group_name)}
             disabled={isLoading || isResetting[group.group_name] || isSaving[group.group_name]}
             variant="outline"
-            className="border-gray-300 text-sm"
+            className="border-gray-300"
           >
             {isResetting[group.group_name] ? 'Resetting...' : 'Reset to Default'}
           </Button>
@@ -337,7 +337,7 @@ const AppConfig = () => {
                   setEditingGroups(prev => ({ ...prev, [group.group_name]: false }));
                 }}
                 variant="outline"
-                className="border-gray-300 text-sm"
+                className="border-gray-300"
               >
                 Cancel
               </Button>
@@ -345,7 +345,6 @@ const AppConfig = () => {
                 onClick={() => handleSaveGroup(group.group_name)}
                 disabled={isLoading || !hasGroupChanges(group.group_name) || isSaving[group.group_name]}
                 variant="primary"
-                className="text-sm"
               >
                 {isSaving[group.group_name] ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -354,24 +353,23 @@ const AppConfig = () => {
             <Button
               onClick={() => setEditingGroups(prev => ({ ...prev, [group.group_name]: true }))}
               variant="primary"
-              className="text-sm"
             >
               Edit
             </Button>
           )}
         </div>
       }
-      className="mb-6"
+      className="mb-6 shadow-sm"
     >
       {group.subtitle && (
-        <p className="text-sm text-gray-600 mb-4">{group.subtitle}</p>
+        <p className="text-base text-gray-600 mb-6">{group.subtitle}</p>
       )}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {group.configs.map(config => (
-          <div key={config.config_id} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+          <div key={config.config_id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
             <label 
               htmlFor={config.config_key} 
-              className="text-sm font-medium text-gray-700 md:col-span-1"
+              className="text-base font-medium text-gray-700 md:col-span-1"
             >
               {formatConfigKey(config.config_key)}
             </label>
@@ -383,9 +381,9 @@ const AppConfig = () => {
                 value={formData[config.config_key] || ''}
                 onChange={handleInputChange}
                 disabled={!editingGroups[group.group_name]}
-                className={`w-full rounded-md ${editingGroups[group.group_name] ? 'border-gray-300' : 'bg-gray-50 border-gray-200'} shadow-sm focus:border-primary-500 focus:ring-primary-500`}
+                className={`w-full rounded-md text-base ${editingGroups[group.group_name] ? 'border-gray-300' : 'bg-gray-50 border-gray-200'} shadow-sm focus:border-primary-500 focus:ring-primary-500`}
               />
-              <p className="mt-1 text-xs text-gray-500">{config.config_description}</p>
+              <p className="mt-2 text-sm text-gray-500">{config.config_description}</p>
             </div>
           </div>
         ))}
@@ -400,24 +398,24 @@ const AppConfig = () => {
       </div>
       
       {isLoading && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md mb-4">
-          Loading configuration settings...
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md mb-6">
+          <span className="text-base text-blue-700">Loading configuration settings...</span>
         </div>
       )}
       
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-4 text-red-700">
-          {error}
+        <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-6 text-red-700">
+          <span className="text-base">{error}</span>
         </div>
       )}
       
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-md mb-4 text-green-700">
-          {successMessage}
+        <div className="p-4 bg-green-50 border border-green-200 rounded-md mb-6 text-green-700">
+          <span className="text-base">{successMessage}</span>
         </div>
       )}
 
-      <p className="mb-6 text-gray-600">
+      <p className="mb-6 text-base text-gray-600">
         Manage global application settings used throughout the app. 
         Click "Edit" to modify a section, then "Save Changes" when done.
       </p>

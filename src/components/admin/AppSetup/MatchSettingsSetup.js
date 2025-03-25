@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
-import { toast } from 'react-hot-toast';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 const MatchSettingsSetup = () => {
@@ -12,6 +11,8 @@ const MatchSettingsSetup = () => {
   });
   const [originalConfigs, setOriginalConfigs] = useState({});
   const [isDirty, setIsDirty] = useState(false);
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   useEffect(() => {
     fetchSettings();
@@ -42,7 +43,7 @@ const MatchSettingsSetup = () => {
       }
     } catch (error) {
       console.error('Error fetching match settings:', error);
-      toast.error('Failed to load match settings');
+      showToast('Failed to load match settings', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -80,12 +81,12 @@ const MatchSettingsSetup = () => {
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Match settings updated successfully');
+        showToast('Match settings updated successfully');
         setOriginalConfigs({...configs});
       }
     } catch (error) {
       console.error('Error updating match settings:', error);
-      toast.error('Failed to update match settings');
+      showToast('Failed to update match settings', 'error');
     } finally {
       setIsLoading(false);
       setShowConfirmation(false);
@@ -118,14 +119,20 @@ const MatchSettingsSetup = () => {
         
         setConfigs(configsObj);
         setOriginalConfigs({...configsObj});
-        toast.success('Match settings reset to defaults');
+        showToast('Match settings reset to defaults');
       }
     } catch (error) {
       console.error('Error resetting match settings:', error);
-      toast.error('Failed to reset match settings');
+      showToast('Failed to reset match settings', 'error');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Show toast notification
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
 
   return (
@@ -211,6 +218,15 @@ const MatchSettingsSetup = () => {
         confirmText="Update Settings"
         cancelText="Cancel"
       />
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2 ${
+          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+        }`}>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 };

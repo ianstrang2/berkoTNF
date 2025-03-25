@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
-import { toast } from 'react-hot-toast';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 const FantasyPointsSetup = () => {
@@ -18,6 +17,8 @@ const FantasyPointsSetup = () => {
   });
   const [originalConfigs, setOriginalConfigs] = useState({});
   const [isDirty, setIsDirty] = useState(false);
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   useEffect(() => {
     fetchSettings();
@@ -48,7 +49,7 @@ const FantasyPointsSetup = () => {
       }
     } catch (error) {
       console.error('Error fetching fantasy points settings:', error);
-      toast.error('Failed to load fantasy points settings');
+      showToast('Failed to load fantasy points settings', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -86,12 +87,12 @@ const FantasyPointsSetup = () => {
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Fantasy points settings updated successfully');
+        showToast('Fantasy points settings updated successfully');
         setOriginalConfigs({...configs});
       }
     } catch (error) {
       console.error('Error updating fantasy points settings:', error);
-      toast.error('Failed to update fantasy points settings');
+      showToast('Failed to update fantasy points settings', 'error');
     } finally {
       setIsLoading(false);
       setShowConfirmation(false);
@@ -124,14 +125,20 @@ const FantasyPointsSetup = () => {
         
         setConfigs(configsObj);
         setOriginalConfigs({...configsObj});
-        toast.success('Fantasy points settings reset to defaults');
+        showToast('Fantasy points settings reset to defaults');
       }
     } catch (error) {
       console.error('Error resetting fantasy points settings:', error);
-      toast.error('Failed to reset fantasy points settings');
+      showToast('Failed to reset fantasy points settings', 'error');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Show toast notification
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
 
   return (
@@ -301,6 +308,15 @@ const FantasyPointsSetup = () => {
         cancelText="Cancel"
         confirmButtonClass="bg-yellow-600 hover:bg-yellow-700"
       />
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2 ${
+          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+        }`}>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 };

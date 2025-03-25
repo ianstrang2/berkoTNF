@@ -280,24 +280,24 @@ const TeamTemplates = () => {
       </div>
       
       {isLoading && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md mb-4">
-          Loading team templates...
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md mb-6">
+          <span className="text-base text-blue-700">Loading team templates...</span>
         </div>
       )}
       
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-4 text-red-700">
-          {error}
+        <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-6 text-red-700">
+          <span className="text-base">{error}</span>
         </div>
       )}
       
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-md mb-4 text-green-700">
-          {successMessage}
+        <div className="p-4 bg-green-50 border border-green-200 rounded-md mb-6 text-green-700">
+          <span className="text-base">{successMessage}</span>
         </div>
       )}
 
-      <p className="mb-6 text-gray-600">
+      <p className="mb-6 text-base text-gray-600">
         Manage team formations by adjusting the number of players in each position. 
         The total number of players must match the team size.
         {defaultTeamSize && (
@@ -312,27 +312,28 @@ const TeamTemplates = () => {
           title="Team Templates"
           icon={null}
           footer={null}
+          className="shadow-sm"
         >
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-base text-gray-600 mb-6">
             Recommended: Keep the default values, which have been tested and proven effective over many games.
           </p>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
-                  <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Team Size
                   </th>
-                  <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Defenders
                   </th>
-                  <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Midfielders
                   </th>
-                  <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Attackers
                   </th>
-                  <th className="px-6 py-3 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -340,10 +341,10 @@ const TeamTemplates = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {templates.map(template => (
                   <tr key={template.template_id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-base font-medium text-gray-900">
                       {template.team_size}-a-side
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-2 whitespace-nowrap text-base text-gray-500">
                       {editingTemplateId === template.template_id ? (
                         <input
                           type="number"
@@ -361,7 +362,7 @@ const TeamTemplates = () => {
                         template.defenders
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-2 whitespace-nowrap text-base text-gray-500">
                       {editingTemplateId === template.template_id ? (
                         <input
                           type="number"
@@ -379,7 +380,7 @@ const TeamTemplates = () => {
                         template.midfielders
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-2 whitespace-nowrap text-base text-gray-500">
                       {editingTemplateId === template.template_id ? (
                         <input
                           type="number"
@@ -397,21 +398,19 @@ const TeamTemplates = () => {
                         template.attackers
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-3 py-2 whitespace-nowrap text-right text-base font-medium">
                       {editingTemplateId === template.template_id ? (
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-3">
                           <Button
                             onClick={() => openResetConfirmation(template.template_id)}
                             disabled={isResetting === template.template_id}
                             variant="outline"
-                            className="text-xs"
                           >
                             {isResetting === template.template_id ? 'Resetting...' : 'Reset to Default'}
                           </Button>
                           <Button
                             onClick={() => cancelEdit(template.template_id)}
                             variant="outline"
-                            className="text-xs"
                           >
                             Cancel
                           </Button>
@@ -419,7 +418,6 @@ const TeamTemplates = () => {
                             onClick={() => handleSave(template.template_id)}
                             disabled={isSaving === template.template_id}
                             variant="primary"
-                            className="text-xs"
                           >
                             {isSaving === template.template_id ? 'Saving...' : 'Save'}
                           </Button>
@@ -428,7 +426,6 @@ const TeamTemplates = () => {
                         <Button
                           onClick={() => setEditingTemplateId(template.template_id)}
                           variant="primary"
-                          className="text-xs"
                         >
                           Edit
                         </Button>

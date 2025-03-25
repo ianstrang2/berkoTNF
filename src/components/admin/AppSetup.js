@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tabs, Tab } from '@/components/ui/Tabs';
-import BalanceSettings from './BalanceSettings';
+import BalanceAlgorithmSetup from './AppSetup/BalanceAlgorithmSetup';
 import TeamTemplates from './TeamTemplates';
 import AppConfig from './AppConfig';
 
@@ -28,7 +28,7 @@ const AppSetup = () => {
         </Tab>
         <Tab label="Balance Algorithm">
           <div className="pt-6">
-            <BalanceSettings />
+            <BalanceAlgorithmSetup />
           </div>
         </Tab>
       </Tabs>

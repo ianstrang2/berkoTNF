@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/card';
-import { toast } from 'react-hot-toast';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 const TeamTemplatesSetup = () => {
@@ -28,6 +27,15 @@ const TeamTemplatesSetup = () => {
     balanceWeights: []
   });
 
+  // Add a toast state
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  
+  // Add showToast function
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
+
   useEffect(() => {
     fetchTemplates();
   }, []);
@@ -46,7 +54,7 @@ const TeamTemplatesSetup = () => {
       }
     } catch (error) {
       console.error('Error fetching team templates:', error);
-      toast.error('Failed to load team templates');
+      showToast('Failed to load team templates', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -81,7 +89,7 @@ const TeamTemplatesSetup = () => {
       }
     } catch (error) {
       console.error('Error fetching template details:', error);
-      toast.error('Failed to load template details');
+      showToast('Failed to load template details', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +163,7 @@ const TeamTemplatesSetup = () => {
         parseInt(formData.attackers_per_team);
       
       if (totalPlayers !== parseInt(formData.team_size)) {
-        toast.error(`Total positions (${totalPlayers}) must equal team size (${formData.team_size})`);
+        showToast(`Total positions (${totalPlayers}) must equal team size (${formData.team_size})`, 'error');
         return;
       }
       
@@ -177,7 +185,7 @@ const TeamTemplatesSetup = () => {
       const data = await response.json();
       
       if (data.success) {
-        toast.success(`Template ${isNew ? 'created' : 'updated'} successfully`);
+        showToast(`Template ${isNew ? 'created' : 'updated'} successfully`);
         
         // Refresh data
         fetchTemplates();
@@ -191,7 +199,7 @@ const TeamTemplatesSetup = () => {
       }
     } catch (error) {
       console.error('Error saving template:', error);
-      toast.error(`Failed to save template: ${error.message}`);
+      showToast(`Failed to save template: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
       setShowConfirmation(false);
@@ -211,13 +219,13 @@ const TeamTemplatesSetup = () => {
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Template deleted successfully');
+        showToast('Template deleted successfully');
         setSelectedTemplate(null);
         fetchTemplates();
       }
     } catch (error) {
       console.error('Error deleting template:', error);
-      toast.error(`Failed to delete template: ${error.message}`);
+      showToast(`Failed to delete template: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
       setShowDeleteConfirmation(false);
@@ -244,13 +252,13 @@ const TeamTemplatesSetup = () => {
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Template set as default');
+        showToast('Template set as default');
         fetchTemplates();
         fetchTemplateDetails(selectedTemplate.template_id);
       }
     } catch (error) {
       console.error('Error setting default template:', error);
-      toast.error(`Failed to set default template: ${error.message}`);
+      showToast(`Failed to set default template: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -713,6 +721,15 @@ const TeamTemplatesSetup = () => {
         cancelText="Cancel"
         confirmButtonClass="bg-red-600 hover:bg-red-700"
       />
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2 ${
+          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+        }`}>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 };
