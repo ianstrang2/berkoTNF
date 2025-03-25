@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     // Build query based on parameters
     let templates;
     if (templateId) {
-      // Get specific template with balance weights
+      // Get specific template
       const template = await prisma.team_size_templates.findUnique({
         where: { 
           template_id: parseInt(templateId) 
@@ -23,18 +23,9 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Template not found' }, { status: 404 });
       }
 
-      const balanceWeights = await prisma.team_balance_weights.findMany({
-        where: { 
-          template_id: parseInt(templateId) 
-        }
-      });
-
       return NextResponse.json({
         success: true,
-        data: {
-          ...template,
-          balanceWeights
-        }
+        data: template
       });
     } else if (teamSize) {
       // Get templates for specific team size
@@ -85,66 +76,20 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Create transaction to insert template and balance weights
-    const result = await prisma.$transaction(async (prismaTransaction) => {
-      // Use a type-safe transaction
-      const tx = prismaTransaction as typeof prisma;
-      
-      // Create new template
-      const newTemplate = await tx.team_size_templates.create({
-        data: {
-          team_size: body.team_size,
-          name: body.name,
-          defenders: body.defenders,
-          midfielders: body.midfielders,
-          attackers: body.attackers
-        }
-      });
-
-      // Insert balance weights if provided
-      if (body.balanceWeights && Array.isArray(body.balanceWeights)) {
-        const weightInserts = body.balanceWeights.map((weight: any) => 
-          tx.team_balance_weights.create({
-            data: {
-              template_id: newTemplate.template_id,
-              position_group: weight.position_group,
-              attribute: weight.attribute,
-              weight: weight.weight
-            }
-          })
-        );
-        await Promise.all(weightInserts);
-      } else {
-        // Insert default weights based on existing 9-a-side template
-        const defaultTemplate = await tx.team_size_templates.findFirst({
-          where: { team_size: 9 }
-        });
-
-        if (defaultTemplate) {
-          const defaultWeights = await tx.team_balance_weights.findMany({
-            where: { template_id: defaultTemplate.template_id }
-          });
-
-          const weightInserts = defaultWeights.map(weight => 
-            tx.team_balance_weights.create({
-              data: {
-                template_id: newTemplate.template_id,
-                position_group: weight.position_group,
-                attribute: weight.attribute,
-                weight: weight.weight
-              }
-            })
-          );
-          await Promise.all(weightInserts);
-        }
+    // Create new template
+    const newTemplate = await prisma.team_size_templates.create({
+      data: {
+        team_size: body.team_size,
+        name: body.name,
+        defenders: body.defenders,
+        midfielders: body.midfielders,
+        attackers: body.attackers
       }
-
-      return newTemplate;
     });
 
     return NextResponse.json({
       success: true,
-      data: result
+      data: newTemplate
     });
   } catch (error) {
     console.error('Error creating team template:', error);
@@ -183,51 +128,25 @@ export async function PUT(request: Request) {
       }
     }
 
-    // Create transaction to update template and possibly balance weights
-    const result = await prisma.$transaction(async (tx) => {
-      // Prepare update data
-      const updateData: any = {};
-      
-      if (body.name !== undefined) updateData.name = body.name;
-      if (body.defenders !== undefined) updateData.defenders = body.defenders;
-      if (body.midfielders !== undefined) updateData.midfielders = body.midfielders;
-      if (body.attackers !== undefined) updateData.attackers = body.attackers;
-      
-      updateData.updated_at = new Date();
+    // Prepare update data
+    const updateData: any = {};
+    
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.defenders !== undefined) updateData.defenders = body.defenders;
+    if (body.midfielders !== undefined) updateData.midfielders = body.midfielders;
+    if (body.attackers !== undefined) updateData.attackers = body.attackers;
+    
+    updateData.updated_at = new Date();
 
-      // Update template
-      const updatedTemplate = await tx.team_size_templates.update({
-        where: { template_id: body.template_id },
-        data: updateData
-      });
-
-      // Update balance weights if provided
-      if (body.balanceWeights && Array.isArray(body.balanceWeights)) {
-        // Delete existing weights
-        await tx.team_balance_weights.deleteMany({
-          where: { template_id: body.template_id }
-        });
-
-        // Insert new weights
-        const weightInserts = body.balanceWeights.map((weight: any) => 
-          tx.team_balance_weights.create({
-            data: {
-              template_id: body.template_id,
-              position_group: weight.position_group,
-              attribute: weight.attribute,
-              weight: weight.weight
-            }
-          })
-        );
-        await Promise.all(weightInserts);
-      }
-
-      return updatedTemplate;
+    // Update template
+    const updatedTemplate = await prisma.team_size_templates.update({
+      where: { template_id: body.template_id },
+      data: updateData
     });
 
     return NextResponse.json({
       success: true,
-      data: result
+      data: updatedTemplate
     });
   } catch (error) {
     console.error('Error updating team template:', error);
@@ -254,7 +173,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
 
-    // Delete template (balance weights will be deleted via ON DELETE CASCADE)
+    // Delete template
     await prisma.team_size_templates.delete({
       where: { template_id: parseInt(templateId) }
     });
