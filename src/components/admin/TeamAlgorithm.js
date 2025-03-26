@@ -137,7 +137,7 @@ const TeamAlgorithm = () => {
         setIsLoading(true);
         setError(null);
         
-        // Fetch players
+        // Make all initial API calls in parallel
         const playersResponse = await fetch('/api/admin/players');
         if (!playersResponse.ok) throw new Error('Failed to fetch players');
         const playersData = await playersResponse.json();
@@ -153,14 +153,24 @@ const TeamAlgorithm = () => {
           .sort((a, b) => a.name.localeCompare(b.name));
         setPlayers(sortedPlayers);
 
-        // Try to fetch match date and settings, but don't fail if they're not available
+        // Make all secondary API calls in parallel
         try {
-          // Fetch last match date and days between matches setting
-          const [lastMatchResponse, settingsResponse] = await Promise.all([
-            fetch('/api/admin/matches?limit=1'),
-            fetch('/api/admin/settings')
+          // Load settings and check for active match in parallel
+          const [settingsResult, activeMatchResult] = await Promise.all([
+            // Settings data - combine match history and app settings
+            (async () => {
+              const [lastMatchResponse, settingsResponse] = await Promise.all([
+                fetch('/api/admin/matches?limit=1'),
+                fetch('/api/admin/settings')
+              ]);
+              return { lastMatchResponse, settingsResponse };
+            })(),
+            // Active match check
+            fetch('/api/admin/upcoming-matches?active=true')
           ]);
           
+          // Process settings data
+          const { lastMatchResponse, settingsResponse } = settingsResult;
           let nextDefaultDate = new Date();
           
           if (lastMatchResponse.ok && settingsResponse.ok) {
@@ -190,39 +200,35 @@ const TeamAlgorithm = () => {
             ...prev,
             match_date: formattedDefaultDate
           }));
-        } catch (settingsError) {
-          console.warn('Failed to fetch settings, using defaults', settingsError);
-          // Set default date for today if settings fail
+          
+          // Process active match result
+          if (activeMatchResult.ok) {
+            const plannedMatchData = await activeMatchResult.json();
+            if (plannedMatchData.success && plannedMatchData.data) {
+              // We have an active match - use it
+              await refreshMatchData();
+              return; // refreshMatchData will handle isLoading state
+            }
+          } else {
+            console.warn('Failed to check for active match:', await activeMatchResult.text());
+          }
+        } catch (secondaryError) {
+          console.warn('Error in secondary data loading:', secondaryError);
+          // Non-critical errors - continue without this data
           setDefaultMatchDate(new Date().toISOString().split('T')[0]);
           setNewMatchData(prev => ({
             ...prev,
             match_date: new Date().toISOString().split('T')[0]
           }));
         }
-
-        // Check for active planned match
-        try {
-          const plannedMatchResponse = await fetch('/api/admin/upcoming-matches?active=true');
-          if (!plannedMatchResponse.ok) {
-            console.warn('Failed to check for active match:', await plannedMatchResponse.text());
-            throw new Error('Failed to check for active match');
-          }
-          const plannedMatchData = await plannedMatchResponse.json();
-
-          if (plannedMatchData.success && plannedMatchData.data) {
-            // We have an active match - use it
-            await refreshMatchData();
-          }
-        } catch (matchError) {
-          console.warn('Error fetching active match:', matchError);
-          // Continue without an active match
-          setActiveMatch(null);
-          setUsingPlannedMatch(false);
-        }
+        
+        // If we get here, there is no active match or an error occurred
+        setActiveMatch(null);
+        setUsingPlannedMatch(false);
+        setIsLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Failed to load data: ' + error.message);
-      } finally {
         setIsLoading(false);
       }
     };
@@ -1572,12 +1578,13 @@ const TeamAlgorithm = () => {
         <div className="mb-6 bg-white rounded-lg shadow-sm p-4 text-center">
           <p className="text-gray-600 mb-3">No active planned match</p>
           <Button
-              variant="primary"
+            variant="primary"
             onClick={handleShowCreateMatchModal}
             className="text-sm h-9"
-            >
-            Create New Planned Match
-            </Button>
+            disabled={isLoading}
+          >
+            {isLoading ? 'Loading...' : 'Create New Planned Match'}
+          </Button>
         </div>
       )}
 
