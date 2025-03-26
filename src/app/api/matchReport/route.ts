@@ -16,7 +16,13 @@ export async function GET() {
 
     // Get latest match using raw SQL
     console.log('Fetching latest match...');
-    const latestMatches = await prisma.$queryRaw`
+    const latestMatches = await prisma.$queryRaw<Array<{
+      match_id: number;
+      match_date: Date;
+      team_a_score: number;
+      team_b_score: number;
+      player_matches: string; // This is a JSON string from json_agg
+    }>>`
       SELECT 
         m.*,
         json_agg(json_build_object(
@@ -67,7 +73,16 @@ export async function GET() {
 
       // Format match data
       console.log('Formatting match data for match_id:', latestMatch.match_id);
-      const formattedMatch = await prisma.$queryRaw`
+      const formattedMatch = await prisma.$queryRaw<Array<{
+        match_id: number;
+        match_date: Date;
+        team_a_score: number;
+        team_b_score: number;
+        team_a_players: string[];
+        team_b_players: string[];
+        team_a_scorers: Array<{name: string; goals: number}>;
+        team_b_scorers: Array<{name: string; goals: number}>;
+      }>>`
         WITH match_players AS (
           SELECT 
             m.match_id,
@@ -131,7 +146,10 @@ export async function GET() {
 
       // Check for milestones (games played) - only for active players
       console.log('Checking for game milestones...');
-      const gamesMilestones = await prisma.$queryRaw`
+      const gamesMilestones = await prisma.$queryRaw<Array<{
+        name: string;
+        total_games: number;
+      }>>`
         SELECT p.name, COUNT(*) as total_games
         FROM players p
         JOIN player_matches pm ON p.player_id = pm.player_id
@@ -147,7 +165,10 @@ export async function GET() {
 
       // Check for goals milestones - only for active players
       console.log('Checking for goals milestones...');
-      const goalsMilestones = await prisma.$queryRaw`
+      const goalsMilestones = await prisma.$queryRaw<Array<{
+        name: string;
+        total_goals: number;
+      }>>`
         SELECT p.name, SUM(pm.goals) as total_goals
         FROM players p
         JOIN player_matches pm ON p.player_id = pm.player_id
@@ -164,7 +185,11 @@ export async function GET() {
       // Checking for streaks
       console.log('Checking for streaks...');
       try {
-        const streaks = await prisma.$queryRaw`
+        const streaks = await prisma.$queryRaw<Array<{
+          name: string;
+          streak_type: string;
+          streak_count: number;
+        }>>`
           WITH player_recent_matches AS (
             -- Get up to 15 most recent matches for each player
             SELECT 
@@ -287,7 +312,13 @@ export async function GET() {
         const halfSeasonEndDate = isFirstHalf ? `${currentYear}-06-30` : `${currentYear}-12-31`;
         
         // Current Half-Season Goal Leaders - only show changes where new_leader != previous_leader
-        const halfSeasonGoalLeaders = await prisma.$queryRaw`
+        const halfSeasonGoalLeaders = await prisma.$queryRaw<Array<{
+          new_leader: string;
+          new_leader_goals: number;
+          previous_leader: string;
+          previous_leader_goals: number;
+          change_type: string;
+        }>>`
           WITH current_leaders AS (
             SELECT 
               p.name,
@@ -344,7 +375,13 @@ export async function GET() {
           )`;
 
         // Current Half-Season Fantasy Leaders - only show changes where new_leader != previous_leader
-        const halfSeasonFantasyLeaders = await prisma.$queryRaw`
+        const halfSeasonFantasyLeaders = await prisma.$queryRaw<Array<{
+          new_leader: string;
+          new_leader_points: number;
+          previous_leader: string;
+          previous_leader_points: number;
+          change_type: string;
+        }>>`
           WITH current_leaders AS (
             SELECT 
               p.name,
@@ -459,12 +496,30 @@ export async function GET() {
           )`;
 
         // Only run season queries if we're in the second half of the year
-        let seasonGoalLeaders = [];
-        let seasonFantasyLeaders = [];
+        let seasonGoalLeaders: Array<{
+          new_leader: string;
+          new_leader_goals: number;
+          previous_leader: string;
+          previous_leader_goals: number;
+          change_type: string;
+        }> = [];
+        let seasonFantasyLeaders: Array<{
+          new_leader: string;
+          new_leader_points: number;
+          previous_leader: string;
+          previous_leader_points: number;
+          change_type: string;
+        }> = [];
 
         if (!isFirstHalf) {
           // Overall Season Goal Leaders - only show changes where new_leader != previous_leader
-          seasonGoalLeaders = await prisma.$queryRaw`
+          seasonGoalLeaders = await prisma.$queryRaw<Array<{
+            new_leader: string;
+            new_leader_goals: number;
+            previous_leader: string;
+            previous_leader_goals: number;
+            change_type: string;
+          }>>`
             WITH current_leaders AS (
               SELECT 
                 p.name,
@@ -519,7 +574,13 @@ export async function GET() {
             )`;
 
           // Overall Season Fantasy Leaders - only show changes where new_leader != previous_leader
-          seasonFantasyLeaders = await prisma.$queryRaw`
+          seasonFantasyLeaders = await prisma.$queryRaw<Array<{
+            new_leader: string;
+            new_leader_points: number;
+            previous_leader: string;
+            previous_leader_points: number;
+            change_type: string;
+          }>>`
             WITH current_leaders AS (
               SELECT 
                 p.name,
@@ -634,7 +695,11 @@ export async function GET() {
 
         console.log('Checking for goal-scoring streaks...');
         try {
-          const goalStreaks = await prisma.$queryRaw`
+          const goalStreaks = await prisma.$queryRaw<Array<{
+            name: string;
+            matches_with_goals: number;
+            goals_in_streak: number;
+          }>>`
             WITH player_recent_matches AS (
               -- Get recent matches with goal info for each player
               SELECT 
