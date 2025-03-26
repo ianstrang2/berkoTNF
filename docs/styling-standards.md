@@ -87,7 +87,7 @@ Shadows are used consistently across the application using utility classes:
 </div>
 
 // Or manual styling
-<div className="fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-md bg-success-600 text-white">
+<div className="fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-md bg-primary-600 text-white">
   {/* Toast content */}
 </div>
 ```
@@ -96,7 +96,7 @@ Shadows are used consistently across the application using utility classes:
 
 Our brand colors are:
 
-- Primary: Green (`bg-primary-500`, `text-primary-600`, etc.)
+- Primary: Blue (`bg-primary-500`, `text-primary-600`, etc.)
 - Secondary: Gray (`bg-secondary-500`, `text-secondary-600`, etc.)
 - Success: Green (`bg-success-500`, `text-success-600`, etc.)
 - Error: Red (`bg-error-500`, `text-error-600`, etc.)
