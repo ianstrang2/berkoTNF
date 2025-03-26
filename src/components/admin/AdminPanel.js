@@ -195,7 +195,7 @@ const AdminPanel = () => {
           {currentSection === 'players' && <PlayerManager />}
           {currentSection === 'matches' && <MatchManager />}
           {currentSection === 'appsetup' && (
-            <div className="bg-white p-6 rounded-lg shadow-card">
+            <div className="bg-white p-6 rounded-lg shadow">
               <ProtectedAppSetup />
             </div>
           )}

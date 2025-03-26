@@ -68,7 +68,7 @@ export const AttributeTooltip = ({ attribute }) => {
   if (!guide) return null;
 
   return (
-    <div className="absolute z-50 w-64 p-3 text-sm bg-white border border-neutral-200 rounded-lg shadow-elevated">
+    <div className="absolute z-50 w-64 p-3 text-sm bg-white border border-neutral-200 rounded-lg shadow-lg">
       <h4 className="font-semibold mb-2">{guide.title}</h4>
       <ul className="space-y-1">
         {guide.scales.map(({ value, label, description }) => (
@@ -90,10 +90,10 @@ export const AttributeGuideModal = ({ isOpen, onClose }) => {
       <div className="fixed inset-0 z-50 overflow-y-auto">
         <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
           <div className="fixed inset-0 transition-opacity" onClick={onClose}>
-            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            <div className="absolute inset-0 bg-neutral-500 opacity-75"></div>
           </div>
 
-          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="sm:flex sm:items-start">
                 <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">

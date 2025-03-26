@@ -46,7 +46,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         </span>
         
         <div 
-          className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-elevated transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full px-4 pt-5 pb-4 sm:p-6"
+          className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full px-4 pt-5 pb-4 sm:p-6"
           onClick={e => e.stopPropagation()}
         >
           <div>

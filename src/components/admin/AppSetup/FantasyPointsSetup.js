@@ -311,7 +311,7 @@ const FantasyPointsSetup = () => {
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2 ${
+        <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-2 ${
           toast.type === 'error' ? 'bg-error-600 text-white' : 'bg-success-600 text-white'
         }`}>
           <span>{toast.message}</span>

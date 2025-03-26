@@ -312,7 +312,7 @@ const TeamTemplates = () => {
           title="Team Templates"
           icon={null}
           footer={null}
-          className="shadow-card"
+          className="shadow"
         >
           <p className="text-base text-neutral-600 mb-6">
             Recommended: Keep the default values, which have been tested and proven effective over many games.

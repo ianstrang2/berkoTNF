@@ -1,0 +1,857 @@
+# Shadow Usage Audit Results
+
+Total files with shadow usage: 26
+
+## src\app\layout.js
+
+Line 19 (shadow-):
+```
+<nav className="bg-white shadow-sm">
+```
+
+Line 19 (shadow-sm):
+```
+<nav className="bg-white shadow-sm">
+```
+
+
+## src\app\page.js
+
+Line 117 (Card Component):
+```
+<Card
+```
+
+Line 120 (shadow-):
+```
+className="hover:shadow-elevated transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 120 (shadow ):
+```
+className="hover:shadow-elevated transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 120 (shadow-elevated):
+```
+className="hover:shadow-elevated transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+
+## src\components\AllTimeStats.js
+
+Line 84 (Card Component):
+```
+<Card className="text-center">
+```
+
+Line 96 (Card Component):
+```
+<Card>
+```
+
+
+## src\components\CurrentHalfSeason.js
+
+Line 64 (Card Component):
+```
+<Card>
+```
+
+Line 127 (Card Component):
+```
+<Card>
+```
+
+Line 176 (Card Component):
+```
+<Card className="text-center">
+```
+
+
+## src\components\HonourRoll.js
+
+Line 53 (Card Component):
+```
+<Card>
+```
+
+Line 80 (Card Component):
+```
+<Card>
+```
+
+Line 115 (Card Component):
+```
+<Card>
+```
+
+Line 225 (Card Component):
+```
+<Card className="text-center">
+```
+
+
+## src\components\MatchReport\MatchReport.js
+
+Line 35 (Card Component):
+```
+<Card className="mt-section">
+```
+
+Line 73 (Card Component):
+```
+<Card className="mt-section">
+```
+
+Line 347 (Card Component):
+```
+<Card className="text-center">
+```
+
+Line 358 (Card Component):
+```
+<Card className="text-center">
+```
+
+Line 387 (shadow-):
+```
+<div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-neutral-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2">
+```
+
+Line 387 (shadow-lg):
+```
+<div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-neutral-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2">
+```
+
+
+## src\components\OverallSeasonPerformance.js
+
+Line 52 (Card Component):
+```
+<Card>
+```
+
+Line 97 (Card Component):
+```
+<Card>
+```
+
+Line 126 (Card Component):
+```
+<Card className="text-center">
+```
+
+
+## src\components\PlayerProfile.js
+
+Line 95 (Card Component):
+```
+<Card className="text-center">
+```
+
+Line 106 (Card Component):
+```
+<Card className="text-center">
+```
+
+Line 114 (Card Component):
+```
+<Card className="text-center">
+```
+
+Line 122 (Card Component):
+```
+<Card className="text-center">
+```
+
+Line 131 (Card Component):
+```
+<Card>
+```
+
+Line 156 (Card Component):
+```
+<Card>
+```
+
+Line 190 (Card Component):
+```
+<Card>
+```
+
+Line 243 (Card Component):
+```
+<Card>
+```
+
+
+## src\components\admin\AdminLayout.js
+
+Line 32 (Card Component):
+```
+<Card>
+```
+
+
+## src\components\admin\AdminNavbar.js
+
+Line 26 (shadow-):
+```
+<nav className="bg-white shadow-md">
+```
+
+Line 26 (shadow-md):
+```
+<nav className="bg-white shadow-md">
+```
+
+
+## src\components\admin\AdminPanel.js
+
+Line 39 (Card Component):
+```
+<Card>
+```
+
+Line 82 (Card Component):
+```
+<Card
+```
+
+Line 84 (shadow-):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 84 (shadow ):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 84 (shadow-md):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 101 (Card Component):
+```
+<Card
+```
+
+Line 103 (shadow-):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 103 (shadow ):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 103 (shadow-md):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 120 (Card Component):
+```
+<Card
+```
+
+Line 122 (shadow-):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 122 (shadow ):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 122 (shadow-md):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 139 (Card Component):
+```
+<Card
+```
+
+Line 141 (shadow-):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 141 (shadow ):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 141 (shadow-md):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+```
+
+Line 158 (Card Component):
+```
+<Card
+```
+
+Line 160 (shadow-):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group col-span-1 md:col-span-2"
+```
+
+Line 160 (shadow ):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group col-span-1 md:col-span-2"
+```
+
+Line 160 (shadow-md):
+```
+className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group col-span-1 md:col-span-2"
+```
+
+Line 198 (shadow"):
+```
+<div className="bg-white p-6 rounded-lg shadow">
+```
+
+
+## src\components\admin\AppConfig.tsx
+
+Line 313 (Card Component):
+```
+<Card
+```
+
+Line 362 (shadow"):
+```
+className="mb-6 shadow"
+```
+
+Line 384 (shadow-):
+```
+className={`w-full rounded-md text-base ${editingGroups[group.group_name] ? 'border-neutral-300' : 'bg-neutral-50 border-neutral-200'} shadow-sm focus:border-primary-500 focus:ring-primary-500`}
+```
+
+Line 384 (shadow-sm):
+```
+className={`w-full rounded-md text-base ${editingGroups[group.group_name] ? 'border-neutral-300' : 'bg-neutral-50 border-neutral-200'} shadow-sm focus:border-primary-500 focus:ring-primary-500`}
+```
+
+Line 395 (Card Component):
+```
+<div className="card p-6 bg-white">
+```
+
+
+## src\components\admin\AppSetup\BalanceAlgorithmSetup.js
+
+Line 394 (Card Component):
+```
+<Card
+```
+
+Line 396 (shadow"):
+```
+className="shadow"
+```
+
+Line 437 (shadow-):
+```
+<div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 w-64">
+```
+
+Line 437 (shadow-lg):
+```
+<div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 w-64">
+```
+
+Line 495 (shadow-):
+```
+<div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 w-64">
+```
+
+Line 495 (shadow-lg):
+```
+<div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 w-64">
+```
+
+Line 533 (Card Component):
+```
+<Card
+```
+
+Line 535 (shadow"):
+```
+className="mb-6 bg-neutral-50 border border-neutral-200 shadow"
+```
+
+
+## src\components\admin\AppSetup\FantasyPointsSetup.js
+
+Line 188 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 188 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 202 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 202 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 216 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 216 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 235 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 235 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 249 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 249 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 263 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 263 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 277 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 277 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 291 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 291 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 314 (shadow-):
+```
+<div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-2 ${
+```
+
+Line 314 (shadow-md):
+```
+<div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-2 ${
+```
+
+
+## src\components\admin\AppSetup\MatchReportSetup.js
+
+Line 165 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 165 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 192 (shadow-):
+```
+<div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-2 ${
+```
+
+Line 192 (shadow-md):
+```
+<div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-2 ${
+```
+
+
+## src\components\admin\AppSetup\MatchSettingsSetup.js
+
+Line 175 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 175 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 195 (shadow-):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 195 (shadow-sm):
+```
+className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+```
+
+Line 225 (shadow-):
+```
+<div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-2 ${
+```
+
+Line 225 (shadow-md):
+```
+<div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-2 ${
+```
+
+
+## src\components\admin\AttributeGuide.js
+
+Line 71 (shadow-):
+```
+<div className="absolute z-50 w-64 p-3 text-sm bg-white border border-neutral-200 rounded-lg shadow-lg">
+```
+
+Line 71 (shadow-lg):
+```
+<div className="absolute z-50 w-64 p-3 text-sm bg-white border border-neutral-200 rounded-lg shadow-lg">
+```
+
+Line 96 (shadow-):
+```
+<div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+```
+
+Line 96 (shadow-lg):
+```
+<div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+```
+
+
+## src\components\admin\MatchManager.js
+
+Line 209 (Card Component):
+```
+<Card className="space-y-section">
+```
+
+
+## src\components\admin\PlayerManager.js
+
+Line 333 (Card Component):
+```
+<Card className="space-y-section">
+```
+
+
+## src\components\admin\PlayerRatings.js
+
+Line 209 (Card Component):
+```
+<Card className="space-y-section">
+```
+
+
+## src\components\admin\PlayerSlot.js
+
+Line 13 (shadow-):
+```
+className="flex-1 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+Line 13 (shadow-sm):
+```
+className="flex-1 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+
+## src\components\admin\TeamAlgorithm.js
+
+Line 16 (shadow-):
+```
+className="flex-1 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+Line 16 (shadow-sm):
+```
+className="flex-1 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+Line 974 (Card Component):
+```
+<Card className={`
+```
+
+Line 1554 (shadow-):
+```
+<div className="mb-6 bg-white rounded-lg shadow-sm p-4">
+```
+
+Line 1554 (shadow-sm):
+```
+<div className="mb-6 bg-white rounded-lg shadow-sm p-4">
+```
+
+Line 1591 (shadow-):
+```
+<div className="mb-6 bg-white rounded-lg shadow-sm p-4 text-center">
+```
+
+Line 1591 (shadow-sm):
+```
+<div className="mb-6 bg-white rounded-lg shadow-sm p-4 text-center">
+```
+
+Line 1625 (Card Component):
+```
+<Card className="mb-6">
+```
+
+Line 1705 (Card Component):
+```
+<Card className="h-full">
+```
+
+Line 1746 (Card Component):
+```
+<Card className="h-full">
+```
+
+Line 1788 (Card Component):
+```
+<Card className="mb-6">
+```
+
+Line 1807 (shadow ):
+```
+<div className="bg-white p-6 rounded-lg shadow max-w-md w-full">
+```
+
+Line 1817 (shadow-):
+```
+className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+```
+
+Line 1817 (shadow-sm):
+```
+className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+```
+
+Line 1827 (shadow-):
+```
+className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+```
+
+Line 1827 (shadow-sm):
+```
+className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+```
+
+Line 1864 (shadow ):
+```
+<div className="bg-white p-6 rounded-lg shadow max-w-md w-full">
+```
+
+Line 1874 (shadow-):
+```
+className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+```
+
+Line 1874 (shadow-sm):
+```
+className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+```
+
+Line 1884 (shadow-):
+```
+className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+```
+
+Line 1884 (shadow-sm):
+```
+className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+```
+
+Line 1921 (shadow ):
+```
+<div className="bg-white p-6 rounded-lg shadow max-w-md">
+```
+
+Line 1939 (shadow ):
+```
+<div className="bg-white p-6 rounded-lg shadow max-w-md">
+```
+
+Line 1956 (shadow-):
+```
+<div className="fixed bottom-4 right-4 bg-green-100 border border-green-200 text-green-700 px-4 py-2 rounded-md shadow-md">
+```
+
+Line 1956 (shadow-md):
+```
+<div className="fixed bottom-4 right-4 bg-green-100 border border-green-200 text-green-700 px-4 py-2 rounded-md shadow-md">
+```
+
+
+## src\components\admin\TeamTemplates.tsx
+
+Line 311 (Card Component):
+```
+<Card
+```
+
+Line 315 (shadow"):
+```
+className="shadow"
+```
+
+Line 359 (shadow-):
+```
+className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+Line 359 (shadow-sm):
+```
+className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+Line 377 (shadow-):
+```
+className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+Line 377 (shadow-sm):
+```
+className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+Line 395 (shadow-):
+```
+className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+Line 395 (shadow-sm):
+```
+className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+```
+
+
+## src\components\ui\ConfirmationDialog.tsx
+
+Line 49 (shadow-):
+```
+className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full px-4 pt-5 pb-4 sm:p-6"
+```
+
+Line 49 (shadow-lg):
+```
+className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full px-4 pt-5 pb-4 sm:p-6"
+```
+
+
+## src\components\ui\card.js
+
+Line 19 (shadow-):
+```
+default: 'shadow-sm',
+```
+
+Line 19 (shadow-sm):
+```
+default: 'shadow-sm',
+```
+
+Line 24 (shadow-):
+```
+const hoverClasses = hover ? 'transition-shadow duration-200 hover:shadow-md' : '';
+```
+
+Line 24 (shadow ):
+```
+const hoverClasses = hover ? 'transition-shadow duration-200 hover:shadow-md' : '';
+```
+
+Line 24 (shadow-md):
+```
+const hoverClasses = hover ? 'transition-shadow duration-200 hover:shadow-md' : '';
+```
+
+
+## src\plugins\tailwind-standards.js
+
+Line 18 (shadow-):
+```
+'@apply w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500': {}
+```
+
+Line 18 (shadow-sm):
+```
+'@apply w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500': {}
+```
+
+Line 21 (shadow-):
+```
+'@apply w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500': {}
+```
+
+Line 21 (shadow-sm):
+```
+'@apply w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500': {}
+```
+
+Line 24 (shadow-):
+```
+'@apply w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500': {}
+```
+
+Line 24 (shadow-sm):
+```
+'@apply w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500': {}
+```
+
+
+## Summary of Shadow Patterns
+
+- `Card Component`: 45 occurrences
+- `shadow `: 11 occurrences
+- `shadow"`: 5 occurrences
+- `shadow-`: 46 occurrences
+- `shadow-elevated`: 1 occurrences
+- `shadow-lg`: 6 occurrences
+- `shadow-md`: 11 occurrences
+- `shadow-sm`: 28 occurrences

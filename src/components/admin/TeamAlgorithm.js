@@ -1804,7 +1804,7 @@ const TeamAlgorithm = () => {
       {/* Create Planned Match Modal */}
       {showCreateMatchModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white p-6 rounded-lg shadow max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Create Planned Match</h3>
             
             <div className="space-y-4">
@@ -1861,7 +1861,7 @@ const TeamAlgorithm = () => {
       {/* Edit Planned Match Modal */}
       {showEditMatchModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white p-6 rounded-lg shadow max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Edit Planned Match</h3>
             
             <div className="space-y-4">
@@ -1918,7 +1918,7 @@ const TeamAlgorithm = () => {
       {/* Clear All Slots Confirmation Modal */}
       {showClearConfirm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
+          <div className="bg-white p-6 rounded-lg shadow max-w-md">
             <h3 className="text-lg font-semibold mb-4">Clear All Slots?</h3>
             <p className="mb-6">Are you sure you want to remove all players from the team slots?</p>
             <div className="flex justify-end gap-3">
@@ -1936,7 +1936,7 @@ const TeamAlgorithm = () => {
       {/* Deactivate Match Confirmation Modal */}
       {showClearMatchConfirm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
+          <div className="bg-white p-6 rounded-lg shadow max-w-md">
             <h3 className="text-lg font-semibold mb-4">Remove Match?</h3>
             <p className="mb-6">Are you sure you want to remove this match? The match data will be preserved but no longer visible in this screen.</p>
             <div className="flex justify-end gap-3">

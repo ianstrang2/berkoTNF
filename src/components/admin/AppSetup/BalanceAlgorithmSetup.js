@@ -393,7 +393,7 @@ const BalanceAlgorithmSetup = () => {
             return (
               <Card
                 key={positionGroup}
-                className="shadow-card"
+                className="shadow"
               >
                 <div className="mb-4 pb-2 border-b">
                   <div className="flex justify-between items-center">
@@ -434,7 +434,7 @@ const BalanceAlgorithmSetup = () => {
                               </button>
                             </span>
                             {activeTooltip === weight.attribute_id && (
-                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-elevated p-3 w-64">
+                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 w-64">
                                 <p className="text-sm text-neutral-700">
                                   {attributeDescriptions[weight.name] || weight.description}
                                 </p>
@@ -492,7 +492,7 @@ const BalanceAlgorithmSetup = () => {
                               </button>
                             </span>
                             {activeTooltip === weight.attribute_id && (
-                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-elevated p-3 w-64">
+                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 w-64">
                                 <p className="text-sm text-neutral-700">
                                   {attributeDescriptions[weight.name] || weight.description}
                                 </p>
@@ -532,7 +532,7 @@ const BalanceAlgorithmSetup = () => {
       
       <Card
         title="How Team Balancing Works"
-        className="mb-6 bg-neutral-50 border border-neutral-200 shadow-card"
+        className="mb-6 bg-neutral-50 border border-neutral-200 shadow"
       >
         <p className="text-base text-neutral-600 mb-4">
           The team balancing algorithm creates teams by following this sequence:

@@ -359,7 +359,7 @@ const AppConfig = () => {
           )}
         </div>
       }
-      className="mb-6 shadow-card"
+      className="mb-6 shadow"
     >
       {group.subtitle && (
         <p className="text-base text-neutral-600 mb-6">{group.subtitle}</p>
@@ -392,7 +392,7 @@ const AppConfig = () => {
   );
 
   return (
-    <div>
+    <div className="card p-6 bg-white">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-neutral-900">App Configuration</h1>
       </div>
