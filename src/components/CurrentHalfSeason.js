@@ -71,10 +71,10 @@ const CurrentHalfSeason = () => {
             <TableCell isHeader className="w-[50px]">W</TableCell>
             <TableCell isHeader className="w-[50px]">D</TableCell>
             <TableCell isHeader className="w-[50px]">L</TableCell>
-            <TableCell isHeader className="w-[70px]">Goals</TableCell>
+            <TableCell isHeader className="w-[70px]">G</TableCell>
             <TableCell isHeader className="w-[80px]">HW</TableCell>
             <TableCell isHeader className="w-[80px]">HL</TableCell>
-            <TableCell isHeader className="w-[100px]">Clean Sheet</TableCell>
+            <TableCell isHeader className="w-[100px]">CS</TableCell>
             <TableCell isHeader className="w-[80px]">Win %</TableCell>
             <TableCell isHeader className="w-[70px]">Points</TableCell>
             <TableCell isHeader className="w-[150px]">Last 5</TableCell>
@@ -136,11 +136,15 @@ const CurrentHalfSeason = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {stats.goalStats.map((player, index) => (
+          {stats.goalStats
+            .filter(player => player.total_goals > 0)
+            .map((player, index) => (
             <TableRow key={index}>
               <TableCell className="font-medium text-primary-600">{player.name}</TableCell>
               <TableCell>{player.total_goals}</TableCell>
-              <TableCell>{player.minutes_per_goal}</TableCell>
+              <TableCell className={player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
+                {player.minutes_per_goal}
+              </TableCell>
               <TableCell>
                 <div className="flex gap-1">
                   {player.last_five_games?.split(',').map((goals, i) => {

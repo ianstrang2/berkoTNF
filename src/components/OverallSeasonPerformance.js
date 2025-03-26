@@ -59,7 +59,7 @@ const OverallSeasonPerformance = () => {
               <TableCell isHeader className="w-[50px]">W</TableCell>
               <TableCell isHeader className="w-[50px]">D</TableCell>
               <TableCell isHeader className="w-[50px]">L</TableCell>
-              <TableCell isHeader className="w-[70px]">Goals</TableCell>
+              <TableCell isHeader className="w-[70px]">G</TableCell>
               <TableCell isHeader className="w-[80px]">HW</TableCell>
               <TableCell isHeader className="w-[80px]">HL</TableCell>
               <TableCell isHeader className="w-[100px]">CS</TableCell>
@@ -105,7 +105,9 @@ const OverallSeasonPerformance = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {stats.goalStats.map((player, index) => (
+          {stats.goalStats
+            .filter(player => player.total_goals > 0)
+            .map((player, index) => (
             <TableRow key={index}>
               <TableCell className="font-medium text-primary-600">{player.name}</TableCell>
               <TableCell>{player.total_goals}</TableCell>
