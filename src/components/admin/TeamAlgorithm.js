@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AttributeTooltip } from './AttributeGuide';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
@@ -130,6 +130,145 @@ const TeamAlgorithm = () => {
     team_size: 9
   });
 
+  // Helper function to determine position groups based on team size
+  const determinePositionGroups = useCallback((teamSize, team) => {
+    const isOrange = team.toLowerCase() === 'orange';
+    const startingSlot = isOrange ? 1 : teamSize + 1;
+    
+    // Adjust position distribution based on team size
+    let positions = [];
+    
+    if (teamSize <= 5) {
+      // 5-a-side: 2 defenders, 2 midfielders, 1 attacker
+      positions = [
+        { title: 'Defenders', slots: [startingSlot, startingSlot + 1] },
+        { title: 'Midfielders', slots: [startingSlot + 2, startingSlot + 3] },
+        { title: 'Attackers', slots: [startingSlot + 4] }
+      ];
+    } else if (teamSize <= 7) {
+      // 6/7-a-side: 2 defenders, 3 midfielders, 2 attackers
+      positions = [
+        { title: 'Defenders', slots: [startingSlot, startingSlot + 1] },
+        { title: 'Midfielders', slots: [startingSlot + 2, startingSlot + 3, startingSlot + 4] },
+        { title: 'Attackers', slots: Array.from({ length: teamSize - 5 }, (_, i) => startingSlot + 5 + i) }
+      ];
+    } else if (teamSize <= 9) {
+      // 8/9-a-side: 3 defenders, 4 midfielders, 2 attackers
+      positions = [
+        { title: 'Defenders', slots: [startingSlot, startingSlot + 1, startingSlot + 2] },
+        { title: 'Midfielders', slots: [startingSlot + 3, startingSlot + 4, startingSlot + 5, startingSlot + 6] },
+        { title: 'Attackers', slots: Array.from({ length: teamSize - 7 }, (_, i) => startingSlot + 7 + i) }
+      ];
+    } else {
+      // 10/11-a-side: 4 defenders, 4 midfielders, 3 attackers
+      positions = [
+        { title: 'Defenders', slots: [startingSlot, startingSlot + 1, startingSlot + 2, startingSlot + 3] },
+        { title: 'Midfielders', slots: [startingSlot + 4, startingSlot + 5, startingSlot + 6, startingSlot + 7] },
+        { title: 'Attackers', slots: Array.from({ length: teamSize - 8 }, (_, i) => startingSlot + 8 + i) }
+      ];
+    }
+    
+    return positions;
+  }, []);
+
+  // Define refreshMatchData before it's used in useEffect
+  const refreshMatchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch updated match data
+      const matchResponse = await fetch('/api/admin/upcoming-matches?active=true');
+      
+      if (!matchResponse.ok) {
+        const responseText = await matchResponse.text();
+        console.error(`Error fetching match data (${matchResponse.status}): ${responseText}`);
+        throw new Error(`Failed to fetch updated match: ${matchResponse.status} ${responseText.substring(0, 100)}`);
+      }
+      
+      const matchData = await matchResponse.json();
+      
+      if (!matchData.success || !matchData.data) {
+        console.error('No active match data found:', matchData);
+        // Clear active match if none found
+        setActiveMatch(null);
+        setCurrentSlots([]);
+        setIsBalanced(false);
+        setUsingPlannedMatch(false);
+        return;
+      }
+      
+      // Set the active match
+      const activeMatchData = matchData.data;
+      
+      // For backward compatibility, ensure match_id exists
+      if (activeMatchData.upcoming_match_id && !activeMatchData.match_id) {
+        activeMatchData.match_id = activeMatchData.upcoming_match_id;
+      }
+      
+      // Create slot assignments from match players
+      const teamSize = activeMatchData.team_size || 9; // Default to 9 if missing
+      const matchPlayerSlots = Array(teamSize * 2)
+        .fill()
+        .map((_, i) => ({
+          slot_number: i + 1,
+          player_id: null,
+          team: i < teamSize ? 'A' : 'B',
+          position: null
+        }));
+      
+      // Fill in existing players if any
+      if (activeMatchData.players && activeMatchData.players.length > 0) {
+        // Map players to their respective slots
+        activeMatchData.players.forEach(player => {
+          // Handle case where slot_number might be missing
+          const slotNumber = player.slot_number || 
+            (player.team === 'A' ? 
+              (Math.floor(Math.random() * teamSize) + 1) : 
+              (Math.floor(Math.random() * teamSize) + teamSize + 1));
+          
+          // Ensure slot number is within range
+          if (slotNumber > 0 && slotNumber <= matchPlayerSlots.length) {
+            matchPlayerSlots[slotNumber - 1] = {
+              ...matchPlayerSlots[slotNumber - 1],
+              player_id: player.player_id,
+              team: player.team || matchPlayerSlots[slotNumber - 1].team, // Use existing team if player.team is missing
+              position: player.position
+            };
+          }
+        });
+      }
+      
+      // Update state
+      setActiveMatch(activeMatchData);
+      setIsBalanced(activeMatchData.is_balanced);
+      setCurrentSlots(matchPlayerSlots);
+      setUsingPlannedMatch(true);
+    } catch (error) {
+      console.error('Error refreshing match data:', error);
+      setError('Failed to refresh match data: ' + error.message);
+      // Keep the UI in a usable state
+      setCurrentSlots(prevSlots => {
+        // Only clear slots if we don't have an active match
+        // This avoids a state update loop during render
+        return prevSlots.length > 0 ? prevSlots : [];
+      });
+      setUsingPlannedMatch(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []); // Remove activeMatch from dependency array to avoid circular reference
+
+  // Create memoized position groups for rendering optimization 
+  // Now positioned after determinePositionGroups is defined
+  const orangePositionGroups = useMemo(() => {
+    return activeMatch ? determinePositionGroups(activeMatch.team_size, 'orange') : [];
+  }, [activeMatch, determinePositionGroups]);
+
+  const greenPositionGroups = useMemo(() => {
+    return activeMatch ? determinePositionGroups(activeMatch.team_size, 'green') : [];
+  }, [activeMatch, determinePositionGroups]);
+  
   // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
@@ -137,107 +276,114 @@ const TeamAlgorithm = () => {
         setIsLoading(true);
         setError(null);
         
-        // Make all initial API calls in parallel
+        // Make essential API calls first to get the UI interactive quickly
         const playersResponse = await fetch('/api/admin/players');
         if (!playersResponse.ok) throw new Error('Failed to fetch players');
         const playersData = await playersResponse.json();
         if (!playersData.success) throw new Error(playersData.error || 'Failed to fetch players');
         
-        // Sort players alphabetically and map to correct format
+        // Process players immediately to make the UI interactive faster
         const sortedPlayers = playersData.data
           .filter(p => !p.is_retired)
           .map(p => ({
-            id: p.player_id,  // Map player_id to id for consistency
+            id: p.player_id,
             ...p
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Set players immediately to reduce perceived loading time
         setPlayers(sortedPlayers);
-
-        // Make all secondary API calls in parallel
-        try {
-          // Load settings and check for active match in parallel
-          const [settingsResult, activeMatchResult] = await Promise.all([
-            // Settings data - combine match history and app settings
-            (async () => {
-              const [lastMatchResponse, settingsResponse] = await Promise.all([
-                fetch('/api/admin/matches?limit=1'),
-                fetch('/api/admin/settings')
-              ]);
-              return { lastMatchResponse, settingsResponse };
-            })(),
-            // Active match check
-            fetch('/api/admin/upcoming-matches?active=true')
-          ]);
+        
+        // Check if there's an active match first
+        const activeMatchResponse = await fetch('/api/admin/upcoming-matches?active=true');
+        let hasActiveMatch = false;
+        
+        if (activeMatchResponse.ok) {
+          const activeMatchData = await activeMatchResponse.json();
+          hasActiveMatch = activeMatchData.success && activeMatchData.data;
           
-          // Process settings data
-          const { lastMatchResponse, settingsResponse } = settingsResult;
-          let nextDefaultDate = new Date();
-          
-          if (lastMatchResponse.ok && settingsResponse.ok) {
-            const lastMatchData = await lastMatchResponse.json();
-            const settingsData = await settingsResponse.json();
-            
-            // If we have matches and settings
-            if (lastMatchData.success && lastMatchData.data.length > 0 && 
-                settingsData.success && settingsData.data) {
-              
-              const lastMatch = lastMatchData.data[0];
-              const daysBetweenMatches = parseInt(settingsData.data.days_between_matches) || 7;
-              
-              // Calculate next match date (last match date + days between matches)
-              const lastMatchDate = new Date(lastMatch.match_date);
-              if (!isNaN(lastMatchDate.getTime())) {
-                nextDefaultDate = new Date(lastMatchDate);
-                nextDefaultDate.setDate(nextDefaultDate.getDate() + daysBetweenMatches);
-              }
-            }
-          }
-          
-          // Set default date for new matches
-          const formattedDefaultDate = nextDefaultDate.toISOString().split('T')[0];
-          setDefaultMatchDate(formattedDefaultDate);
-          setNewMatchData(prev => ({
-            ...prev,
-            match_date: formattedDefaultDate
-          }));
-          
-          // Process active match result
-          if (activeMatchResult.ok) {
-            const plannedMatchData = await activeMatchResult.json();
-            if (plannedMatchData.success && plannedMatchData.data) {
-              // We have an active match - use it
-              await refreshMatchData();
-              return; // refreshMatchData will handle isLoading state
-            }
+          if (hasActiveMatch) {
+            // If we have an active match, update the state immediately
+            // but load detailed data later
+            setActiveMatch(activeMatchData.data);
           } else {
-            console.warn('Failed to check for active match:', await activeMatchResult.text());
+            // If there's no active match, we can immediately disable loading
+            setActiveMatch(null);
+            setUsingPlannedMatch(false);
+            setIsLoading(false);
           }
-        } catch (secondaryError) {
-          console.warn('Error in secondary data loading:', secondaryError);
-          // Non-critical errors - continue without this data
-          setDefaultMatchDate(new Date().toISOString().split('T')[0]);
-          setNewMatchData(prev => ({
-            ...prev,
-            match_date: new Date().toISOString().split('T')[0]
-          }));
+        } else {
+          // Failed to check for active match
+          setActiveMatch(null);
+          setUsingPlannedMatch(false);
+          setIsLoading(false);
         }
         
-        // If we get here, there is no active match or an error occurred
-        setActiveMatch(null);
-        setUsingPlannedMatch(false);
-        setIsLoading(false);
+        // Now load settings in the background - doesn't block UI interaction
+        loadSettingsInBackground();
+        
+        // If there's an active match, now load the detailed data
+        if (hasActiveMatch) {
+          await refreshMatchData();
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Failed to load data: ' + error.message);
         setIsLoading(false);
       }
     };
+    
+    const loadSettingsInBackground = async () => {
+      try {
+        // These settings aren't critical for initial UI rendering
+        const [lastMatchResponse, settingsResponse] = await Promise.all([
+          fetch('/api/admin/matches?limit=1'),
+          fetch('/api/admin/settings')
+        ]);
+        
+        let nextDefaultDate = new Date();
+        
+        if (lastMatchResponse.ok && settingsResponse.ok) {
+          const lastMatchData = await lastMatchResponse.json();
+          const settingsData = await settingsResponse.json();
+          
+          if (lastMatchData.success && lastMatchData.data.length > 0 && 
+              settingsData.success && settingsData.data) {
+            
+            const lastMatch = lastMatchData.data[0];
+            const daysBetweenMatches = parseInt(settingsData.data.days_between_matches) || 7;
+            
+            const lastMatchDate = new Date(lastMatch.match_date);
+            if (!isNaN(lastMatchDate.getTime())) {
+              nextDefaultDate = new Date(lastMatchDate);
+              nextDefaultDate.setDate(nextDefaultDate.getDate() + daysBetweenMatches);
+            }
+          }
+        }
+        
+        const formattedDefaultDate = nextDefaultDate.toISOString().split('T')[0];
+        setDefaultMatchDate(formattedDefaultDate);
+        setNewMatchData(prev => ({
+          ...prev,
+          match_date: formattedDefaultDate
+        }));
+      } catch (error) {
+        console.warn('Error loading settings:', error);
+        // Use default values if settings fail to load
+        setDefaultMatchDate(new Date().toISOString().split('T')[0]);
+        setNewMatchData(prev => ({
+          ...prev,
+          match_date: new Date().toISOString().split('T')[0]
+        }));
+      }
+    };
 
     fetchData();
-  }, []);
+  }, [refreshMatchData, determinePositionGroups]); // Add determinePositionGroups to dependencies
 
   // Calculate warning message when slots or balance status changes
   useEffect(() => {
+    // Move this to a useEffect to avoid state updates during render
     setWarning(getWarningMessage(currentSlots, isBalanced, error));
   }, [currentSlots, isBalanced, error]);
 
@@ -254,8 +400,8 @@ const TeamAlgorithm = () => {
     };
   }, []);
 
-  // Get available players for a slot
-  const getAvailablePlayers = (slotNumber) => {
+  // Memoize the getAvailablePlayers function to avoid recalculations
+  const getAvailablePlayers = useCallback((slotNumber) => {
     if (!players.length) return [];
     
     // Get IDs of players assigned to other slots
@@ -276,7 +422,7 @@ const TeamAlgorithm = () => {
         if (b.id === currentPlayerId) return 1;
         return a.name.localeCompare(b.name); // Then alphabetical
       });
-  };
+  }, [players, currentSlots]);
 
   // Function to handle selecting a player for a slot
   const handlePlayerSelect = async (slotIndex, playerId) => {
@@ -1019,47 +1165,6 @@ const TeamAlgorithm = () => {
     ));
   };
 
-  // Helper function to determine position groups based on team size
-  const determinePositionGroups = (teamSize, team) => {
-    const isOrange = team.toLowerCase() === 'orange';
-    const startingSlot = isOrange ? 1 : teamSize + 1;
-    
-    // Adjust position distribution based on team size
-    let positions = [];
-    
-    if (teamSize <= 5) {
-      // 5-a-side: 2 defenders, 2 midfielders, 1 attacker
-      positions = [
-        { title: 'Defenders', slots: [startingSlot, startingSlot + 1] },
-        { title: 'Midfielders', slots: [startingSlot + 2, startingSlot + 3] },
-        { title: 'Attackers', slots: [startingSlot + 4] }
-      ];
-    } else if (teamSize <= 7) {
-      // 6/7-a-side: 2 defenders, 3 midfielders, 2 attackers
-      positions = [
-        { title: 'Defenders', slots: [startingSlot, startingSlot + 1] },
-        { title: 'Midfielders', slots: [startingSlot + 2, startingSlot + 3, startingSlot + 4] },
-        { title: 'Attackers', slots: Array.from({ length: teamSize - 5 }, (_, i) => startingSlot + 5 + i) }
-      ];
-    } else if (teamSize <= 9) {
-      // 8/9-a-side: 3 defenders, 4 midfielders, 2 attackers
-      positions = [
-        { title: 'Defenders', slots: [startingSlot, startingSlot + 1, startingSlot + 2] },
-        { title: 'Midfielders', slots: [startingSlot + 3, startingSlot + 4, startingSlot + 5, startingSlot + 6] },
-        { title: 'Attackers', slots: Array.from({ length: teamSize - 7 }, (_, i) => startingSlot + 7 + i) }
-      ];
-    } else {
-      // 10/11-a-side: 4 defenders, 4 midfielders, 3 attackers
-      positions = [
-        { title: 'Defenders', slots: [startingSlot, startingSlot + 1, startingSlot + 2, startingSlot + 3] },
-        { title: 'Midfielders', slots: [startingSlot + 4, startingSlot + 5, startingSlot + 6, startingSlot + 7] },
-        { title: 'Attackers', slots: Array.from({ length: teamSize - 8 }, (_, i) => startingSlot + 8 + i) }
-      ];
-    }
-    
-    return positions;
-  };
-
   // Function to handle clearing all slots
   const handleClearAll = async () => {
     try {
@@ -1132,97 +1237,6 @@ const TeamAlgorithm = () => {
     } catch (error) {
       console.error('Error clearing slots:', error);
       setError('Failed to clear slots: ' + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Function to refresh match data after changes
-  const refreshMatchData = async () => {
-    try {
-      setIsLoading(true);
-    setError(null);
-
-      // Fetch updated match data
-      const matchResponse = await fetch('/api/admin/upcoming-matches?active=true');
-      
-      if (!matchResponse.ok) {
-        const responseText = await matchResponse.text();
-        console.error(`Error fetching match data (${matchResponse.status}): ${responseText}`);
-        throw new Error(`Failed to fetch updated match: ${matchResponse.status} ${responseText.substring(0, 100)}`);
-      }
-      
-      const matchData = await matchResponse.json();
-      
-      if (!matchData.success || !matchData.data) {
-        console.error('No active match data found:', matchData);
-        // Clear active match if none found
-        setActiveMatch(null);
-        setCurrentSlots([]);
-        setIsBalanced(false);
-        setUsingPlannedMatch(false);
-        return;
-      }
-      
-      // Set the active match
-      const activeMatchData = matchData.data;
-      console.log('Loaded active match:', activeMatchData);
-      
-      // For backward compatibility, ensure match_id exists
-      if (activeMatchData.upcoming_match_id && !activeMatchData.match_id) {
-        activeMatchData.match_id = activeMatchData.upcoming_match_id;
-      }
-      
-      setActiveMatch(activeMatchData);
-      setIsBalanced(activeMatchData.is_balanced);
-      
-      // Create slot assignments from match players
-      const teamSize = activeMatchData.team_size || 9; // Default to 9 if missing
-      const matchPlayerSlots = Array(teamSize * 2)
-        .fill()
-        .map((_, i) => ({
-          slot_number: i + 1,
-          player_id: null,
-          team: i < teamSize ? 'A' : 'B',
-          position: null
-        }));
-      
-      // Fill in existing players if any
-      if (activeMatchData.players && activeMatchData.players.length > 0) {
-        console.log(`Processing ${activeMatchData.players.length} players for match`);
-        
-        // Map players to their respective slots
-        activeMatchData.players.forEach(player => {
-          // Handle case where slot_number might be missing
-          const slotNumber = player.slot_number || 
-            (player.team === 'A' ? 
-              (Math.floor(Math.random() * teamSize) + 1) : 
-              (Math.floor(Math.random() * teamSize) + teamSize + 1));
-          
-          // Ensure slot number is within range
-          if (slotNumber > 0 && slotNumber <= matchPlayerSlots.length) {
-            matchPlayerSlots[slotNumber - 1] = {
-              ...matchPlayerSlots[slotNumber - 1],
-              player_id: player.player_id,
-              team: player.team || matchPlayerSlots[slotNumber - 1].team, // Use existing team if player.team is missing
-              position: player.position
-            };
-          } else {
-            console.warn(`Player ${player.player_id} has invalid slot number ${slotNumber}, slots length is ${matchPlayerSlots.length}`);
-          }
-        });
-      }
-      
-      setCurrentSlots(matchPlayerSlots);
-      setUsingPlannedMatch(true);
-    } catch (error) {
-      console.error('Error refreshing match data:', error);
-      setError('Failed to refresh match data: ' + error.message);
-      // Keep the UI in a usable state
-      if (!activeMatch) {
-        setCurrentSlots([]);
-        setUsingPlannedMatch(false);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -1699,7 +1713,7 @@ const TeamAlgorithm = () => {
                 
                 {/* Players listing by position group - dynamically determine positions based on team size */}
                 <div className="space-y-4">
-                  {determinePositionGroups(activeMatch.team_size, 'orange').map(({ title, slots }) => {
+                  {orangePositionGroups.map(({ title, slots }) => {
                     const positionPlayers = slots
                       .map(slotNum => {
                         const slot = currentSlots.find(s => s.slot_number === slotNum);
@@ -1740,7 +1754,7 @@ const TeamAlgorithm = () => {
                 
                 {/* Players listing by position group - dynamically determine positions based on team size */}
                 <div className="space-y-4">
-                  {determinePositionGroups(activeMatch.team_size, 'green').map(({ title, slots }) => {
+                  {greenPositionGroups.map(({ title, slots }) => {
                     const positionPlayers = slots
                       .map(slotNum => {
                         const slot = currentSlots.find(s => s.slot_number === slotNum);
