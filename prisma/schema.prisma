@@ -86,15 +86,14 @@ model app_config_defaults {
 /// This model represents team size templates
 /// Visit https://pris.ly/d/check-constraints for more info about check constraints.
 model team_size_templates {
-  template_id              Int                        @id @default(autoincrement())
-  team_size                Int
-  name                     String                     @db.VarChar(100)
-  defenders                Int
-  midfielders              Int
-  attackers                Int
-  created_at               DateTime?                  @default(now()) @db.Timestamptz(6)
-  updated_at               DateTime?                  @default(now()) @db.Timestamptz(6)
-  team_balance_weights_old team_balance_weights_old[]
+  template_id Int       @id @default(autoincrement())
+  team_size   Int
+  name        String    @db.VarChar(100)
+  defenders   Int
+  midfielders Int
+  attackers   Int
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 /// This model represents team size template defaults
@@ -137,13 +136,17 @@ model upcoming_matches {
   match_date        DateTime                 @db.Timestamptz(6)
   team_size         Int
   location          String?                  @db.VarChar(255)
-  team1_name        String?                  @default("Orange") @db.VarChar(100)
-  team2_name        String?                  @default("Green") @db.VarChar(100)
+  team_a_name       String?                  @default("Orange") @db.VarChar(100)
+  team_b_name       String?                  @default("Green") @db.VarChar(100)
   notes             String?
   is_completed      Boolean?                 @default(false)
   created_at        DateTime?                @default(now()) @db.Timestamptz(6)
   updated_at        DateTime?                @default(now()) @db.Timestamptz(6)
+  is_active         Boolean?                 @default(false)
+  is_balanced       Boolean?                 @default(false)
   players           upcoming_match_players[]
+
+  @@index([is_active], map: "idx_upcoming_matches_active")
 }
 
 /// This model represents players assigned to upcoming matches
@@ -152,21 +155,10 @@ model upcoming_match_players {
   upcoming_player_id Int              @id @default(autoincrement())
   upcoming_match_id  Int
   player_id          Int
-  team               Int
-  position           String?          @db.VarChar(50)
+  team               String           @db.Char(1)
   created_at         DateTime?        @default(now()) @db.Timestamptz(6)
   updated_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  slot_number        Int?
   player             players          @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
   match              upcoming_matches @relation(fields: [upcoming_match_id], references: [upcoming_match_id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model team_balance_weights_old {
-  weight_id           Int                 @id(map: "team_balance_weights_pkey") @default(autoincrement())
-  template_id         Int
-  position_group      String              @db.VarChar(50)
-  attribute           String              @db.VarChar(50)
-  weight              Decimal             @db.Decimal(4, 2)
-  created_at          DateTime?           @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime?           @default(now()) @db.Timestamptz(6)
-  team_size_templates team_size_templates @relation(fields: [template_id], references: [template_id], onDelete: Cascade, onUpdate: NoAction, map: "team_balance_weights_template_id_fkey")
 }

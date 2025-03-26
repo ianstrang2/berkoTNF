@@ -19,9 +19,9 @@ const BalanceAlgorithmSetup = () => {
 
   // Attribute descriptions for tooltips
   const attributeDescriptions = {
-    stamina_pace: "Stamina & Pace: Player's endurance and speed on the field",
-    control: "Ball Control: Player's ability to retain possession and make accurate passes",
-    goalscoring: "Finishing: Player's ability to score when given opportunities",
+    stamina_pace: "Stamina & Pace: Player's energy levels and speed during a match",
+    control: "Ball Control: Player's ability to control and pass the ball",
+    goalscoring: "Goalscoring: Player's likelyhood to get a goal in a match",
     resilience: "Resilience: How well a player maintains performance when team is losing",
     teamwork: "Teamwork: Player's ability to collaborate with teammates effectively"
   };
@@ -272,7 +272,7 @@ const BalanceAlgorithmSetup = () => {
     switch(name) {
       case 'stamina_pace': return 'Stamina & Pace';
       case 'control': return 'Ball Control';
-      case 'goalscoring': return 'Finishing';
+      case 'goalscoring': return 'Goalscoring';
       case 'resilience': return 'Resilience';
       case 'teamwork': return 'Teamwork';
       case 'defender': return 'Desire to Defend';
@@ -343,7 +343,7 @@ const BalanceAlgorithmSetup = () => {
                   <li key={index}>{error}</li>
                 ))}
               </ul>
-              <p className="mt-2 text-sm">Each position group must have technical attributes (Stamina & Pace, Ball Control, Finishing) that total exactly 100%.</p>
+              <p className="mt-2 text-sm">Each position group must have technical attributes (Stamina & Pace, Ball Control, Goalscoring) that total exactly 100%.</p>
             </div>
             <button 
               onClick={() => setShowValidationError(false)}
@@ -579,7 +579,7 @@ const BalanceAlgorithmSetup = () => {
           <h3 className="font-medium text-blue-800 mb-2">Important Note on Weights</h3>
           <p className="text-sm text-blue-700">
             For each position group (Defenders, Midfielders, Attackers), the weights for technical attributes 
-            (Stamina & Pace, Ball Control, Finishing) should total 100%. Each slider will adjust in 5% increments.
+            (Stamina & Pace, Ball Control, Goalscoring) should total 100%. Each slider will adjust in 5% increments.
             The system will validate the totals before saving.
           </p>
         </div>

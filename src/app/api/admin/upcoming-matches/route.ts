@@ -1,188 +1,281 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // GET: Fetch upcoming matches
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Get query parameters
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
+    const active = searchParams.get('active');
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
 
-    // Build query based on parameters
-    if (matchId) {
-      // Get specific match with player assignments
+    let formattedMatch;
+
+    // Define query structure with TypeScript support
+    const matchQuery: any = {
+      include: {
+        players: {
+          include: {
+            player: {
+              select: {
+                name: true,
+                goalscoring: true,
+                defender: true,
+                stamina_pace: true,
+                control: true,
+                teamwork: true,
+                resilience: true
+              }
+            }
+          },
+          orderBy: [
+            { slot_number: 'asc' },
+            { created_at: 'asc' }
+          ]
+        }
+      }
+    };
+
+    if (active === 'true') {
+      // Get active match
+      const activeMatch = await prisma.upcoming_matches.findFirst({
+        where: { is_active: true },
+        include: {
+          players: {
+            include: {
+              player: {
+                select: {
+                  name: true,
+                  goalscoring: true,
+                  defender: true,
+                  stamina_pace: true,
+                  control: true,
+                  teamwork: true,
+                  resilience: true
+                }
+              }
+            },
+            orderBy: [
+              { slot_number: 'asc' },
+              { created_at: 'asc' }
+            ]
+          }
+        }
+      });
+
+      if (activeMatch) {
+        // Format the response
+        formattedMatch = {
+          ...activeMatch,
+          players: activeMatch.players.map(p => ({
+            player_id: p.player_id,
+            match_id: p.upcoming_match_id,
+            upcoming_match_id: p.upcoming_match_id,
+            player_match_id: p.upcoming_player_id,
+            team: p.team,
+            position: p.position,
+            slot_number: p.slot_number,
+            ...p.player
+          }))
+        };
+        return NextResponse.json({ success: true, data: formattedMatch });
+      }
+      return NextResponse.json({ success: true, data: null });
+    } else if (matchId) {
+      // Get specific match
       const match = await prisma.upcoming_matches.findUnique({
         where: { upcoming_match_id: parseInt(matchId) },
+        include: {
+          players: {
+            include: {
+              player: {
+                select: {
+                  name: true,
+                  goalscoring: true,
+                  defender: true,
+                  stamina_pace: true,
+                  control: true,
+                  teamwork: true,
+                  resilience: true
+                }
+              }
+            },
+            orderBy: [
+              { slot_number: 'asc' },
+              { created_at: 'asc' }
+            ]
+          }
+        }
       });
 
       if (!match) {
-        return NextResponse.json({ error: 'Match not found' }, { status: 404 });
+        return NextResponse.json({ success: false, error: 'Match not found' }, { status: 404 });
       }
 
-      const players = await prisma.upcoming_match_players.findMany({
-        where: { upcoming_match_id: parseInt(matchId) },
-        include: {
-          player: {
-            select: {
-              name: true,
-              goalscoring: true,
-              defender: true,
-              stamina_pace: true,
-              control: true,
-              teamwork: true,
-              resilience: true,
-              is_ringer: true
-            }
-          }
-        },
-        orderBy: { slot_number: 'asc' }
-      });
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          ...match,
-          players
-        }
-      });
-    } else {
-      // Get all upcoming matches
-      const matches = await prisma.upcoming_matches.findMany({
-        orderBy: { match_date: 'asc' },
-        include: {
-          players: {
-            select: {
-              player_id: true
-            }
-          }
-        }
-      });
-
-      return NextResponse.json({
-        success: true,
-        data: matches.map(match => ({
-          ...match,
-          player_count: match.players.length
+      // Format the response
+      formattedMatch = {
+        ...match,
+        players: match.players.map(p => ({
+          player_id: p.player_id,
+          match_id: p.upcoming_match_id,
+          upcoming_match_id: p.upcoming_match_id,
+          player_match_id: p.upcoming_player_id,
+          team: p.team,
+          position: p.position,
+          slot_number: p.slot_number,
+          ...p.player
         }))
+      };
+
+      return NextResponse.json({ success: true, data: formattedMatch });
+    } else {
+      // Fetch all upcoming matches
+      const matches = await prisma.upcoming_matches.findMany({
+        orderBy: {
+          match_date: 'asc'
+        },
+        include: {
+          _count: {
+            select: { players: true }
+          }
+        }
       });
+
+      return NextResponse.json({ success: true, data: matches });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching upcoming matches:', error);
-    return NextResponse.json({ error: 'Failed to fetch upcoming matches' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
 // POST: Create a new upcoming match
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    // Validate required fields
-    if (!body.match_date) {
-      return NextResponse.json({ error: 'Match date is required' }, { status: 400 });
+    const { match_date, team_size } = body;
+
+    if (!match_date) {
+      return NextResponse.json({ success: false, error: 'Match date is required' }, { status: 400 });
     }
 
-    // Get app settings for defaults
-    const appSettings = await prisma.app_config.findMany({
-      where: {
-        config_key: {
-          in: ['default_team_size']
-        }
-      }
-    });
-    
-    const defaultTeamSize = appSettings.find(s => s.config_key === 'default_team_size')?.config_value 
-      ? parseInt(appSettings.find(s => s.config_key === 'default_team_size')?.config_value || '9')
-      : 9;
+    if (!team_size || team_size < 5 || team_size > 11) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Team size is required and must be between 5 and 11' 
+      }, { status: 400 });
+    }
 
-    // Get the default template for the selected team size
-    const teamSize = body.team_size || defaultTeamSize;
-    const defaultTemplate = await prisma.team_size_templates.findFirst({
-      where: {
-        team_size: teamSize,
-        is_default: true
-      }
-    });
+    // If creating a new active match, deactivate any existing active matches
+    if (body.is_active === true) {
+      await prisma.upcoming_matches.updateMany({
+        where: { is_active: true },
+        data: { is_active: false }
+      });
+    }
 
-    // Create new upcoming match
+    // Create new match
     const newMatch = await prisma.upcoming_matches.create({
       data: {
-        match_date: new Date(body.match_date),
-        team_size: teamSize,
-        team_a_name: body.team_a_name || defaultTemplate?.team_a_name || 'Orange',
-        team_b_name: body.team_b_name || defaultTemplate?.team_b_name || 'Green',
-        is_balanced: false
+        match_date: new Date(match_date),
+        team_size: team_size,
+        is_balanced: false,
+        is_active: body.is_active !== undefined ? body.is_active : true // Default to active if not specified
       }
     });
 
-    return NextResponse.json({
-      success: true,
-      data: newMatch
-    });
-  } catch (error) {
+    return NextResponse.json({ success: true, data: newMatch });
+  } catch (error: any) {
     console.error('Error creating upcoming match:', error);
-    return NextResponse.json({ error: 'Failed to create upcoming match' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
 // PUT: Update an existing upcoming match
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    const { match_id, upcoming_match_id, match_date, team_size, is_balanced, is_active } = body;
     
-    // Validate required fields
-    if (!body.upcoming_match_id) {
-      return NextResponse.json({ error: 'Match ID is required' }, { status: 400 });
+    // Use upcoming_match_id if provided, fallback to match_id for compatibility
+    const targetMatchId = upcoming_match_id || match_id;
+
+    if (!targetMatchId) {
+      return NextResponse.json({ success: false, error: 'Match ID is required' }, { status: 400 });
     }
 
-    // Prepare update data
-    const updateData: any = {};
-    
-    if (body.match_date !== undefined) updateData.match_date = new Date(body.match_date);
-    if (body.team_size !== undefined) updateData.team_size = body.team_size;
-    if (body.team_a_name !== undefined) updateData.team_a_name = body.team_a_name;
-    if (body.team_b_name !== undefined) updateData.team_b_name = body.team_b_name;
-    if (body.is_balanced !== undefined) updateData.is_balanced = body.is_balanced;
-    
-    updateData.updated_at = new Date();
+    // Get current match to check current team size
+    const currentMatch = await prisma.upcoming_matches.findUnique({
+      where: { upcoming_match_id: targetMatchId },
+      include: { 
+        _count: { select: { players: true } } 
+      }
+    });
+
+    if (!currentMatch) {
+      return NextResponse.json({ success: false, error: 'Match not found' }, { status: 404 });
+    }
+
+    // Check if team size is being reduced and there are more players than the new size would allow
+    if (team_size && team_size < currentMatch.team_size && currentMatch._count.players > team_size * 2) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Cannot reduce team size: ${currentMatch._count.players} players are assigned but new team size would only allow ${team_size * 2} players.`
+      }, { status: 400 });
+    }
+
+    // If setting match as active, deactivate any other active matches
+    if (is_active === true && !currentMatch.is_active) {
+      await prisma.upcoming_matches.updateMany({
+        where: { 
+          is_active: true,
+          upcoming_match_id: { not: targetMatchId }
+        },
+        data: { is_active: false }
+      });
+    }
 
     // Update match
     const updatedMatch = await prisma.upcoming_matches.update({
-      where: { upcoming_match_id: body.upcoming_match_id },
-      data: updateData
+      where: { upcoming_match_id: targetMatchId },
+      data: {
+        match_date: match_date ? new Date(match_date) : undefined,
+        team_size: team_size,
+        is_balanced: is_balanced !== undefined ? is_balanced : undefined,
+        is_active: is_active !== undefined ? is_active : undefined
+      }
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedMatch
-    });
-  } catch (error) {
+    return NextResponse.json({ success: true, data: updatedMatch });
+  } catch (error: any) {
     console.error('Error updating upcoming match:', error);
-    return NextResponse.json({ error: 'Failed to update upcoming match' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-// DELETE: Delete an upcoming match
-export async function DELETE(request: Request) {
+// DELETE: Remove an upcoming match
+export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const matchId = searchParams.get('matchId');
-    
+    const searchParams = request.nextUrl.searchParams;
+    const matchId = searchParams.get('id');
+
     if (!matchId) {
-      return NextResponse.json({ error: 'Match ID is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Match ID is required' }, { status: 400 });
     }
 
-    // Delete match (players will be deleted via ON DELETE CASCADE)
+    // Delete player assignments first
+    await prisma.upcoming_match_players.deleteMany({
+      where: { upcoming_match_id: parseInt(matchId) }
+    });
+
+    // Delete the match
     await prisma.upcoming_matches.delete({
       where: { upcoming_match_id: parseInt(matchId) }
     });
 
-    return NextResponse.json({
-      success: true,
-      data: { matchId: parseInt(matchId) }
-    });
-  } catch (error) {
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
     console.error('Error deleting upcoming match:', error);
-    return NextResponse.json({ error: 'Failed to delete upcoming match' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 } 

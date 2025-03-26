@@ -1,20 +1,48 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // GET: Fetch players for an upcoming match
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Get query parameters
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
+    const upcomingMatchId = searchParams.get('upcoming_match_id');
+    const activeOnly = searchParams.get('active') === 'true';
 
-    if (!matchId) {
-      return NextResponse.json({ error: 'Match ID is required' }, { status: 400 });
+    let whereClause: any = {};
+    
+    if (upcomingMatchId) {
+      // Use provided upcoming_match_id
+      whereClause.upcoming_match_id = parseInt(upcomingMatchId);
+    } else if (matchId) {
+      // Get players for a specific match using matchId for backward compatibility
+      whereClause.upcoming_match_id = parseInt(matchId);
+    } else if (activeOnly) {
+      // Get players for the active match
+      const activeMatch = await prisma.upcoming_matches.findFirst({
+        where: { is_active: true },
+        select: { upcoming_match_id: true }
+      });
+      
+      if (!activeMatch) {
+        return NextResponse.json({ 
+          success: true, 
+          data: [], 
+          message: 'No active match found' 
+        });
+      }
+      
+      whereClause.upcoming_match_id = activeMatch.upcoming_match_id;
+    } else {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Either matchId, upcoming_match_id, or active=true is required' 
+      }, { status: 400 });
     }
 
-    // Get players assigned to this match
+    // Get players with their details
     const players = await prisma.upcoming_match_players.findMany({
-      where: { upcoming_match_id: parseInt(matchId) },
+      where: whereClause,
       include: {
         player: {
           select: {
@@ -24,60 +52,147 @@ export async function GET(request: Request) {
             stamina_pace: true,
             control: true,
             teamwork: true,
-            resilience: true,
-            is_ringer: true
+            resilience: true
           }
         }
       },
       orderBy: [
-        { team: 'asc' },
-        { position: 'asc' }, 
-        { slot_number: 'asc' }
+        { slot_number: 'asc' }, // First order by slot number
+        { created_at: 'asc' } // Then by creation date as fallback
       ]
     });
 
-    return NextResponse.json({
-      success: true,
-      data: players
+    // Format the response for easier consumption by the frontend
+    const formattedPlayers = players.map(p => ({
+      player_id: p.player_id,
+      match_id: p.upcoming_match_id,
+      upcoming_match_id: p.upcoming_match_id,
+      team: p.team,
+      position: p.position,
+      slot_number: p.slot_number,
+      player_match_id: p.upcoming_player_id, // Include this for updates
+      ...p.player
+    }));
+
+    return NextResponse.json({ 
+      success: true, 
+      data: formattedPlayers 
     });
-  } catch (error) {
-    console.error('Error fetching upcoming match players:', error);
-    return NextResponse.json({ error: 'Failed to fetch upcoming match players' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error fetching match players:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 500 });
   }
 }
 
 // POST: Add a player to an upcoming match
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    // Validate required fields
-    if (!body.upcoming_match_id || !body.player_id) {
-      return NextResponse.json({ error: 'Match ID and player ID are required' }, { status: 400 });
-    }
+    // Accept either match_id or upcoming_match_id for backward compatibility
+    let { player_id, match_id, upcoming_match_id, team, position, slot_number } = body;
 
-    // Check if player already exists in this match
-    const existingPlayer = await prisma.upcoming_match_players.findFirst({
-      where: {
-        upcoming_match_id: body.upcoming_match_id,
-        player_id: body.player_id
-      }
-    });
+    // Convert numeric parameters to integers
+    player_id = player_id ? parseInt(player_id, 10) : null;
+    match_id = match_id ? parseInt(match_id, 10) : null;
+    upcoming_match_id = upcoming_match_id ? parseInt(upcoming_match_id, 10) : null;
+    slot_number = slot_number ? parseInt(slot_number, 10) : null;
 
-    if (existingPlayer) {
+    if (!player_id) {
       return NextResponse.json({ 
-        error: 'Player is already assigned to this match' 
+        success: false, 
+        error: 'Player ID is required' 
       }, { status: 400 });
     }
 
-    // Add player to the match
-    const addedPlayer = await prisma.upcoming_match_players.create({
+    if (!slot_number) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Slot number is required' 
+      }, { status: 400 });
+    }
+
+    // Use provided match ID (try both field names) or find the active match
+    let targetMatchId = upcoming_match_id || match_id;
+    
+    if (!targetMatchId) {
+      // Find the active match
+      const activeMatch = await prisma.upcoming_matches.findFirst({
+        where: { is_active: true },
+        select: { 
+          upcoming_match_id: true,
+          team_size: true,
+          _count: {
+            select: { players: true }
+          }
+        }
+      });
+
+      if (!activeMatch) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'No active match found' 
+        }, { status: 404 });
+      }
+      
+      targetMatchId = activeMatch.upcoming_match_id;
+      
+      // Check if match is full
+      if (activeMatch._count.players >= activeMatch.team_size * 2) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Match is full (${activeMatch._count.players}/${activeMatch.team_size * 2} players)` 
+        }, { status: 400 });
+      }
+    }
+
+    // First, check if any player is already assigned to this slot
+    const existingPlayerInSlot = await prisma.upcoming_match_players.findFirst({
+      where: {
+        upcoming_match_id: targetMatchId,
+        slot_number: slot_number
+      }
+    });
+
+    // If there's a player in this slot, remove them first
+    if (existingPlayerInSlot) {
+      await prisma.upcoming_match_players.delete({
+        where: {
+          upcoming_player_id: existingPlayerInSlot.upcoming_player_id
+        }
+      });
+    }
+
+    // Then check if this player is already in another slot for this match
+    const existingPlayerAssignment = await prisma.upcoming_match_players.findFirst({
+      where: {
+        upcoming_match_id: targetMatchId,
+        player_id: player_id
+      }
+    });
+
+    // If the player is already in another slot, remove that assignment
+    if (existingPlayerAssignment) {
+      await prisma.upcoming_match_players.delete({
+        where: {
+          upcoming_player_id: existingPlayerAssignment.upcoming_player_id
+        }
+      });
+    }
+
+    // Now add player to match in the specified slot
+    const newAssignment = await prisma.upcoming_match_players.create({
       data: {
-        upcoming_match_id: body.upcoming_match_id,
-        player_id: body.player_id,
-        team: body.team,
-        position: body.position,
-        slot_number: body.slot_number
+        team: team || 'A',
+        slot_number: slot_number,
+        player: {
+          connect: { player_id: player_id }
+        },
+        match: {
+          connect: { upcoming_match_id: targetMatchId }
+        }
       },
       include: {
         player: {
@@ -88,54 +203,110 @@ export async function POST(request: Request) {
             stamina_pace: true,
             control: true,
             teamwork: true,
-            resilience: true,
-            is_ringer: true
+            resilience: true
           }
         }
       }
     });
 
-    // Update match to indicate teams are not balanced
+    // Mark match as unbalanced when adding players
     await prisma.upcoming_matches.update({
-      where: { upcoming_match_id: body.upcoming_match_id },
-      data: { 
-        is_balanced: false,
-        updated_at: new Date()
-      }
+      where: { upcoming_match_id: targetMatchId },
+      data: { is_balanced: false }
     });
 
-    return NextResponse.json({
-      success: true,
-      data: addedPlayer
+    // Format response
+    const formattedPlayer = {
+      player_id: newAssignment.player_id,
+      match_id: newAssignment.upcoming_match_id,
+      upcoming_match_id: newAssignment.upcoming_match_id,
+      team: newAssignment.team,
+      slot_number: newAssignment.slot_number,
+      ...newAssignment.player
+    };
+
+    return NextResponse.json({ 
+      success: true, 
+      data: formattedPlayer 
     });
-  } catch (error) {
-    console.error('Error adding player to upcoming match:', error);
-    return NextResponse.json({ error: 'Failed to add player to upcoming match' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error adding player to match:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 500 });
   }
 }
 
-// PUT: Update a player's assignment in an upcoming match
-export async function PUT(request: Request) {
+// PUT: Update a player's team or position in an upcoming match
+export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    // Validate required fields
-    if (!body.upcoming_player_id) {
-      return NextResponse.json({ error: 'Upcoming player ID is required' }, { status: 400 });
+    let { player_id, match_id, upcoming_match_id, team, position, slot_number } = body;
+
+    // Convert numeric parameters to integers
+    player_id = player_id ? parseInt(player_id, 10) : null;
+    match_id = match_id ? parseInt(match_id, 10) : null;
+    upcoming_match_id = upcoming_match_id ? parseInt(upcoming_match_id, 10) : null;
+    slot_number = slot_number ? parseInt(slot_number, 10) : null;
+
+    if (!player_id) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Player ID is required' 
+      }, { status: 400 });
+    }
+
+    // Determine which match to use
+    let targetMatchId = upcoming_match_id || match_id;
+    if (!targetMatchId) {
+      // Try to find the active match
+      const activeMatch = await prisma.upcoming_matches.findFirst({
+        where: { is_active: true },
+        select: { upcoming_match_id: true }
+      });
+      
+      if (!activeMatch) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'No active match found and no match ID provided' 
+        }, { status: 404 });
+      }
+      
+      targetMatchId = activeMatch.upcoming_match_id;
+    }
+
+    // Check if the player assignment exists
+    const existingAssignment = await prisma.upcoming_match_players.findFirst({
+      where: {
+        upcoming_match_id: targetMatchId,
+        player_id: player_id
+      }
+    });
+
+    if (!existingAssignment) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Player is not assigned to this match' 
+      }, { status: 404 });
     }
 
     // Prepare update data
     const updateData: any = {};
     
-    if (body.team !== undefined) updateData.team = body.team;
-    if (body.position !== undefined) updateData.position = body.position;
-    if (body.slot_number !== undefined) updateData.slot_number = body.slot_number;
+    if (team !== undefined) {
+      updateData.team = team;
+    }
     
-    updateData.updated_at = new Date();
-
-    // Update player assignment
-    const updatedPlayer = await prisma.upcoming_match_players.update({
-      where: { upcoming_player_id: body.upcoming_player_id },
+    if (slot_number !== undefined) {
+      updateData.slot_number = slot_number;
+    }
+    
+    // Update the player's team/slot
+    const updatedAssignment = await prisma.upcoming_match_players.update({
+      where: {
+        upcoming_player_id: existingAssignment.upcoming_player_id
+      },
       data: updateData,
       include: {
         player: {
@@ -146,81 +317,226 @@ export async function PUT(request: Request) {
             stamina_pace: true,
             control: true,
             teamwork: true,
-            resilience: true,
-            is_ringer: true
+            resilience: true
           }
         }
       }
     });
 
-    // Get match ID from player record
-    const matchId = updatedPlayer.upcoming_match_id;
+    // Format response
+    const formattedPlayer = {
+      player_id: updatedAssignment.player_id,
+      match_id: updatedAssignment.upcoming_match_id,
+      upcoming_match_id: updatedAssignment.upcoming_match_id, 
+      team: updatedAssignment.team,
+      slot_number: updatedAssignment.slot_number,
+      ...updatedAssignment.player
+    };
 
-    // Update match to indicate teams are not balanced
-    await prisma.upcoming_matches.update({
-      where: { upcoming_match_id: matchId },
-      data: { 
-        is_balanced: false,
-        updated_at: new Date()
-      }
+    return NextResponse.json({ 
+      success: true, 
+      data: formattedPlayer 
     });
-
-    return NextResponse.json({
-      success: true,
-      data: updatedPlayer
-    });
-  } catch (error) {
-    console.error('Error updating player assignment:', error);
-    return NextResponse.json({ error: 'Failed to update player assignment' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error updating player in match:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 500 });
   }
 }
 
 // DELETE: Remove a player from an upcoming match
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const playerId = searchParams.get('playerId');
     const matchId = searchParams.get('matchId');
+    const upcomingMatchId = searchParams.get('upcoming_match_id');
+    const slotNumber = searchParams.get('slotNumber');
+    const active = searchParams.get('active') === 'true';
     
-    if (!playerId || !matchId) {
-      return NextResponse.json({ error: 'Player ID and match ID are required' }, { status: 400 });
+    // If no params provided, check request body (for bulk deletion)
+    if (!playerId && !slotNumber && !upcomingMatchId && !matchId && !active) {
+      try {
+        const body = await request.json();
+        if (body && (body.player_id || body.upcoming_match_id || body.match_id)) {
+          // Handle DELETE with JSON body
+          return await handleDeleteWithBody(body);
+        }
+      } catch (parseError) {
+        // If parsing fails, likely not a JSON body, continue with query params
+        console.log('No JSON body in DELETE request, using query params');
+      }
     }
-
-    // Find the player assignment
-    const playerAssignment = await prisma.upcoming_match_players.findFirst({
-      where: {
-        upcoming_match_id: parseInt(matchId),
-        player_id: parseInt(playerId)
+    
+    if (!playerId && !slotNumber) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Either Player ID or Slot Number is required' 
+      }, { status: 400 });
+    }
+    
+    // Determine which match to use
+    let targetMatchId = upcomingMatchId ? parseInt(upcomingMatchId) : (matchId ? parseInt(matchId) : null);
+    
+    if (!targetMatchId && active) {
+      // Try to find the active match
+      const activeMatch = await prisma.upcoming_matches.findFirst({
+        where: { is_active: true },
+        select: { upcoming_match_id: true }
+      });
+      
+      if (!activeMatch) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'No active match found' 
+        }, { status: 404 });
+      }
+      
+      targetMatchId = activeMatch.upcoming_match_id;
+    } else if (!targetMatchId && !active) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Either matchId, upcoming_match_id, or active=true is required' 
+      }, { status: 400 });
+    }
+    
+    // Build the where clause based on available parameters
+    let whereClause: any = {
+      upcoming_match_id: targetMatchId
+    };
+    
+    if (playerId) {
+      whereClause.player_id = parseInt(playerId);
+    }
+    
+    if (slotNumber) {
+      whereClause.slot_number = parseInt(slotNumber);
+    }
+    
+    // Find the assignment to get its ID
+    const existingAssignment = await prisma.upcoming_match_players.findFirst({
+      where: whereClause,
+      select: {
+        upcoming_player_id: true  // Make sure to select the primary key
       }
     });
-
-    if (!playerAssignment) {
-      return NextResponse.json({ error: 'Player assignment not found' }, { status: 404 });
+    
+    if (!existingAssignment) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Player assignment not found' 
+      }, { status: 404 });
     }
-
-    // Remove player from match
+    
+    // Delete the player assignment using the primary key
     await prisma.upcoming_match_players.delete({
-      where: { upcoming_player_id: playerAssignment.upcoming_player_id }
+      where: {
+        upcoming_player_id: existingAssignment.upcoming_player_id
+      }
     });
-
-    // Update match to indicate teams are not balanced
+    
+    // Mark match as unbalanced when removing players
     await prisma.upcoming_matches.update({
-      where: { upcoming_match_id: parseInt(matchId) },
-      data: { 
-        is_balanced: false,
-        updated_at: new Date()
-      }
+      where: { upcoming_match_id: targetMatchId },
+      data: { is_balanced: false }
     });
-
-    return NextResponse.json({
+    
+    return NextResponse.json({ 
       success: true,
-      data: { 
-        playerId: parseInt(playerId),
-        matchId: parseInt(matchId)
+      message: 'Player removed from match'
+    });
+  } catch (error: any) {
+    console.error('Error removing player from match:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 500 });
+  }
+}
+
+// Helper function to handle DELETE with request body
+async function handleDeleteWithBody(body: any) {
+  let { player_id, match_id, upcoming_match_id } = body;
+  
+  // Convert numeric parameters to integers
+  player_id = player_id ? parseInt(player_id, 10) : null;
+  match_id = match_id ? parseInt(match_id, 10) : null;
+  upcoming_match_id = upcoming_match_id ? parseInt(upcoming_match_id, 10) : null;
+  
+  // Determine which match to use
+  let targetMatchId = upcoming_match_id || match_id;
+  
+  if (!targetMatchId) {
+    // Try to find the active match
+    const activeMatch = await prisma.upcoming_matches.findFirst({
+      where: { is_active: true },
+      select: { upcoming_match_id: true }
+    });
+    
+    if (!activeMatch) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No active match found and no match ID provided' 
+      }, { status: 404 });
+    }
+    
+    targetMatchId = activeMatch.upcoming_match_id;
+  }
+  
+  // If no player_id is specified, delete all players from the match
+  if (!player_id) {
+    // Delete all players from this match
+    await prisma.upcoming_match_players.deleteMany({
+      where: { 
+        upcoming_match_id: targetMatchId
       }
     });
-  } catch (error) {
-    console.error('Error removing player from upcoming match:', error);
-    return NextResponse.json({ error: 'Failed to remove player from upcoming match' }, { status: 500 });
+    
+    // Mark match as unbalanced
+    await prisma.upcoming_matches.update({
+      where: { upcoming_match_id: targetMatchId },
+      data: { is_balanced: false }
+    });
+    
+    return NextResponse.json({ 
+      success: true,
+      message: 'All players removed from match'
+    });
   }
+  
+  // Otherwise, delete just this player
+  const existingAssignment = await prisma.upcoming_match_players.findFirst({
+    where: {
+      upcoming_match_id: targetMatchId,
+      player_id: player_id
+    },
+    select: { upcoming_player_id: true }
+  });
+  
+  if (!existingAssignment) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Player assignment not found' 
+    }, { status: 404 });
+  }
+  
+  // Delete the player assignment
+  await prisma.upcoming_match_players.delete({
+    where: {
+      upcoming_player_id: existingAssignment.upcoming_player_id
+    }
+  });
+  
+  // Mark match as unbalanced when removing players
+  await prisma.upcoming_matches.update({
+    where: { upcoming_match_id: targetMatchId },
+    data: { is_balanced: false }
+  });
+  
+  return NextResponse.json({ 
+    success: true,
+    message: 'Player removed from match'
+  });
 } 

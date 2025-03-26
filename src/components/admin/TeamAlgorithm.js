@@ -2,6 +2,30 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AttributeTooltip } from './AttributeGuide';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
+import { format, parse } from 'date-fns';
+import { useRouter } from 'next/navigation';
+
+// PlayerSlot component for player selection
+const PlayerSlot = ({ slotNumber, currentPlayerId, availablePlayers, onSelectPlayer, isLoading }) => {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-gray-500 w-6">•</span>
+      <select
+        value={currentPlayerId || ''}
+        onChange={(e) => onSelectPlayer(e.target.value)}
+        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+        disabled={isLoading}
+      >
+        <option value="">Select player</option>
+        {availablePlayers.map(player => (
+          <option key={player.id} value={player.id}>
+            {player.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
 
 // Team structure constants
 const TEAM_STRUCTURE = {
@@ -42,15 +66,9 @@ const getWarningMessage = (currentSlots, isBalanced, error) => {
   
   const filledSlotCount = currentSlots.filter(s => s.player_id !== null).length;
   
+  // Remove the warning about needing more players
   if (filledSlotCount === 0) return null;
-  if (filledSlotCount < 18) return {
-    type: 'error',
-    message: `Need ${18 - filledSlotCount} more players`
-  };
-  if (!isBalanced) return {
-    type: 'warning',
-    message: 'Teams have been modified. Click "Balance Teams" to optimize team balance.'
-  };
+  // Remove the warning about balanced teams - don't show any warnings
   return null;
 };
 
@@ -73,6 +91,7 @@ const calculateTeamCharacteristics = (players) => {
 };
 
 const TeamAlgorithm = () => {
+  const router = useRouter();
   const [players, setPlayers] = useState([]);
   const [currentSlots, setCurrentSlots] = useState(Array(18).fill().map((_, i) => ({
     slot_number: i + 1,
@@ -81,6 +100,7 @@ const TeamAlgorithm = () => {
   const [isBalanced, setIsBalanced] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [warning, setWarning] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [balanceProgress, setBalanceProgress] = useState(0);
   const [showCopyToast, setShowCopyToast] = useState(false);
@@ -97,6 +117,18 @@ const TeamAlgorithm = () => {
   const [isAddingRinger, setIsAddingRinger] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState(null);
   const tooltipRef = useRef(null);
+  const [activeMatch, setActiveMatch] = useState(null);
+  const [usingPlannedMatch, setUsingPlannedMatch] = useState(false);
+  const [creatingMatchReport, setCreatingMatchReport] = useState(false);
+  const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
+  const [showEditMatchModal, setShowEditMatchModal] = useState(false);
+  const [showClearMatchConfirm, setShowClearMatchConfirm] = useState(false);
+  const [createMatchError, setCreateMatchError] = useState(null);
+  const [defaultMatchDate, setDefaultMatchDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newMatchData, setNewMatchData] = useState({
+    match_date: new Date().toISOString().split('T')[0],
+    team_size: 9
+  });
 
   // Fetch initial data
   useEffect(() => {
@@ -121,28 +153,87 @@ const TeamAlgorithm = () => {
           .sort((a, b) => a.name.localeCompare(b.name));
         setPlayers(sortedPlayers);
 
-        // Fetch current slot assignments
-        const slotsResponse = await fetch('/api/admin/team-slots');
-        if (!slotsResponse.ok) throw new Error('Failed to fetch slots');
-        const slotsData = await slotsResponse.json();
-        if (!slotsData.success) throw new Error(slotsData.error || 'Failed to fetch slots');
-        
-        // Ensure slots are ordered 1-18
-        const orderedSlots = slotsData.data.sort((a, b) => a.slot_number - b.slot_number);
-        setCurrentSlots(orderedSlots);
-        
-        // If all slots are filled, consider it balanced
-        const allFilled = orderedSlots.every(slot => slot.player_id !== null);
-        setIsBalanced(allFilled);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to fetch data: ' + err.message);
+        // Try to fetch match date and settings, but don't fail if they're not available
+        try {
+          // Fetch last match date and days between matches setting
+          const [lastMatchResponse, settingsResponse] = await Promise.all([
+            fetch('/api/admin/matches?limit=1'),
+            fetch('/api/admin/settings')
+          ]);
+          
+          let nextDefaultDate = new Date();
+          
+          if (lastMatchResponse.ok && settingsResponse.ok) {
+            const lastMatchData = await lastMatchResponse.json();
+            const settingsData = await settingsResponse.json();
+            
+            // If we have matches and settings
+            if (lastMatchData.success && lastMatchData.data.length > 0 && 
+                settingsData.success && settingsData.data) {
+              
+              const lastMatch = lastMatchData.data[0];
+              const daysBetweenMatches = parseInt(settingsData.data.days_between_matches) || 7;
+              
+              // Calculate next match date (last match date + days between matches)
+              const lastMatchDate = new Date(lastMatch.match_date);
+              if (!isNaN(lastMatchDate.getTime())) {
+                nextDefaultDate = new Date(lastMatchDate);
+                nextDefaultDate.setDate(nextDefaultDate.getDate() + daysBetweenMatches);
+              }
+            }
+          }
+          
+          // Set default date for new matches
+          const formattedDefaultDate = nextDefaultDate.toISOString().split('T')[0];
+          setDefaultMatchDate(formattedDefaultDate);
+          setNewMatchData(prev => ({
+            ...prev,
+            match_date: formattedDefaultDate
+          }));
+        } catch (settingsError) {
+          console.warn('Failed to fetch settings, using defaults', settingsError);
+          // Set default date for today if settings fail
+          setDefaultMatchDate(new Date().toISOString().split('T')[0]);
+          setNewMatchData(prev => ({
+            ...prev,
+            match_date: new Date().toISOString().split('T')[0]
+          }));
+        }
+
+        // Check for active planned match
+        try {
+          const plannedMatchResponse = await fetch('/api/admin/upcoming-matches?active=true');
+          if (!plannedMatchResponse.ok) {
+            console.warn('Failed to check for active match:', await plannedMatchResponse.text());
+            throw new Error('Failed to check for active match');
+          }
+          const plannedMatchData = await plannedMatchResponse.json();
+
+          if (plannedMatchData.success && plannedMatchData.data) {
+            // We have an active match - use it
+            await refreshMatchData();
+          }
+        } catch (matchError) {
+          console.warn('Error fetching active match:', matchError);
+          // Continue without an active match
+          setActiveMatch(null);
+          setUsingPlannedMatch(false);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError('Failed to load data: ' + error.message);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchData();
   }, []);
+
+  // Calculate warning message when slots or balance status changes
+  useEffect(() => {
+    setWarning(getWarningMessage(currentSlots, isBalanced, error));
+  }, [currentSlots, isBalanced, error]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -171,87 +262,372 @@ const TeamAlgorithm = () => {
     // Get current player in this slot
     const currentPlayerId = currentSlots.find(s => s.slot_number === slotNumber)?.player_id;
 
-    // Return available players (unassigned + current player)
+    // Return available players (only unassigned + current player in this slot)
     return players
       .filter(p => !takenPlayerIds.has(p.id) || p.id === currentPlayerId)
       .sort((a, b) => {
-        if (a.id === currentPlayerId) return -1;
+        if (a.id === currentPlayerId) return -1; // Current player first
         if (b.id === currentPlayerId) return 1;
-        return a.name.localeCompare(b.name);
+        return a.name.localeCompare(b.name); // Then alphabetical
       });
   };
 
-  const handlePlayerSelect = async (slotNumber, newPlayerId) => {
+  // Function to handle selecting a player for a slot
+  const handlePlayerSelect = async (slotIndex, playerId) => {
     try {
       setError(null);
-      console.log('Updating slot:', slotNumber, 'with player:', newPlayerId);
       
-      // Parse the player ID properly
-      const parsedPlayerId = newPlayerId === '' ? null : Number(newPlayerId);
+      // Get the correct match ID (prioritize upcoming_match_id)
+      const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
       
-      console.log('Parsed player ID:', parsedPlayerId);
+      if (!matchId) {
+        throw new Error('No active match selected');
+      }
       
-      // Update database first
-      const response = await fetch('/api/admin/team-slots', {
+      if (!playerId) {
+        // Handle removing player from slot
+        const slot = currentSlots[slotIndex];
+        
+        // If the slot has no player, nothing to do
+        if (!slot.player_id) return;
+        
+        // Remove player from slot
+        const response = await fetch(`/api/admin/upcoming-match-players`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            upcoming_match_id: matchId,
+            player_id: slot.player_id
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to remove player');
+        }
+        
+        // Update local state
+        const updatedSlots = [...currentSlots];
+        updatedSlots[slotIndex] = {
+          ...updatedSlots[slotIndex],
+          player_id: null
+        };
+        setCurrentSlots(updatedSlots);
+        return;
+      }
+      
+      // Convert playerId to an integer (if it's a string)
+      const playerIdInt = parseInt(playerId, 10);
+      if (isNaN(playerIdInt)) {
+        throw new Error('Invalid player ID');
+      }
+      
+      // Check if the player is already in a slot
+      const existingSlotIndex = currentSlots.findIndex(s => s.player_id === playerIdInt);
+      
+      if (existingSlotIndex !== -1) {
+        // If player is already in this exact slot, nothing to do
+        if (existingSlotIndex === slotIndex) return;
+        
+        // Move player from one slot to another
+        const updatedSlots = [...currentSlots];
+        
+        // Remove from old slot
+        updatedSlots[existingSlotIndex] = {
+          ...updatedSlots[existingSlotIndex],
+          player_id: null
+        };
+        
+        // Calculate team assignment based on slot number
+        const slotNumber = slotIndex + 1; // Convert to 1-indexed
+        const team = slotNumber <= activeMatch.team_size ? 'A' : 'B';
+        
+        // Add to new slot
+        updatedSlots[slotIndex] = {
+          ...updatedSlots[slotIndex],
+          player_id: playerIdInt,
+          team: team
+        };
+        
+        // Update in database
+        const response = await fetch(`/api/admin/upcoming-match-players`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          slot_number: slotNumber,
-          player_id: parsedPlayerId
+            upcoming_match_id: matchId,
+            player_id: playerIdInt,
+            team: team,
+            slot_number: slotNumber
         })
       });
 
-      console.log('API Response status:', response.status);
-      const data = await response.json();
-      console.log('API Response data:', data);
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to update slot');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to update player slot');
+        }
+        
+        // Update UI
+        setCurrentSlots(updatedSlots);
+        return;
       }
-
-      // Update UI after successful database update
-      setCurrentSlots(prev => prev.map(slot => ({
-        ...slot,
-        player_id: slot.slot_number === slotNumber ? parsedPlayerId : slot.player_id
-      })));
       
-      // Mark as unbalanced when changes are made
+      // Add player to a slot for the first time
+      // Calculate team assignment based on slot number
+      const slotNumber = slotIndex + 1; // Convert to 1-indexed
+      const team = slotNumber <= activeMatch.team_size ? 'A' : 'B';
+      
+      const response = await fetch(`/api/admin/upcoming-match-players`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          upcoming_match_id: matchId,
+          player_id: playerIdInt,
+          team: team,
+          slot_number: slotNumber
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add player to match');
+      }
+      
+      // Update local state
+      const updatedSlots = [...currentSlots];
+      updatedSlots[slotIndex] = {
+        ...updatedSlots[slotIndex],
+        player_id: playerIdInt,
+        team: team
+      };
+      setCurrentSlots(updatedSlots);
+      
+      // Mark match as unbalanced when players change
       setIsBalanced(false);
+      
     } catch (error) {
-      console.error('Error updating slot:', error);
-      setError('Failed to update slot: ' + error.message);
+      console.error('Error selecting player:', error);
+      setError('Failed to update player assignment: ' + error.message);
     }
   };
 
+  // Function to handle team balancing
   const handleBalanceTeams = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      setBalanceProgress(0);
-
-      const response = await fetch('/api/admin/generate-teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slots: currentSlots }),
+      setBalanceProgress(25);
+      
+      // Get the correct match ID (prioritize upcoming_match_id)
+      const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
+      
+      if (!matchId) {
+        throw new Error('No active match selected');
+      }
+      
+      // Count players assigned to avoid needless API calls
+      const assignedPlayerCount = currentSlots.filter(slot => slot.player_id !== null).length;
+      
+      if (assignedPlayerCount < 2) {
+        throw new Error('Please assign at least 2 players before balancing');
+      }
+      
+      setBalanceProgress(50);
+      
+      // Call the balance-planned-match endpoint
+      const response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, {
+        method: 'POST'
       });
-
-      if (!response.ok) throw new Error('Failed to balance teams');
+      
+      setBalanceProgress(75);
+      
+      // Handle different error responses
+      if (!response.ok) {
+        console.error(`Balance API error (${response.status}):`, await response.text());
+        
+        // For 400 errors, show the error message
+        if (response.status === 400) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to balance teams');
+        }
+        
+        // For server errors, try the basic balancing fallback
+        if (response.status === 500) {
+          console.warn('Server error in balance API, falling back to basic team balance');
+          await performBasicTeamBalance(matchId);
+          return;
+        }
+        
+        throw new Error(`Failed to balance teams: ${response.status}`);
+      }
+      
+      // For successful API calls, process the response
       const data = await response.json();
-      if (!data.success) throw new Error(data.error || 'Failed to balance teams');
-
-      // Update slots with new assignments
-      setCurrentSlots(data.data.sort((a, b) => a.slot_number - b.slot_number));
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to balance teams');
+      }
+      
+      // Mark as balanced
       setIsBalanced(true);
-      setBalanceProgress(100); // Ensure progress bar shows completion
+      
+      // Refresh data to get updated team assignments
+      await refreshMatchData();
+      
     } catch (error) {
       console.error('Error balancing teams:', error);
       setError('Failed to balance teams: ' + error.message);
     } finally {
-      // Keep progress bar visible briefly after completion
-      setTimeout(() => {
+      setBalanceProgress(100);
+      setTimeout(() => setBalanceProgress(0), 500);
         setIsLoading(false);
-        setBalanceProgress(0);
-      }, 500);
+    }
+  };
+  
+  // Basic team balancing fallback when the API fails
+  const performBasicTeamBalance = async (matchId) => {
+    try {
+      console.log('Performing basic team balance');
+      
+      // Get players from current slots
+      const assignedPlayers = currentSlots
+        .filter(slot => slot.player_id !== null)
+        .map(slot => ({
+          player_id: slot.player_id,
+          player: players.find(p => p.id === slot.player_id)
+        }));
+      
+      // Sort by player skill (using goalscoring as a proxy)
+      assignedPlayers.sort((a, b) => 
+        ((b.player?.goalscoring || 3) + (b.player?.stamina_pace || 3)) - 
+        ((a.player?.goalscoring || 3) + (a.player?.stamina_pace || 3))
+      );
+      
+      // Alternate between teams (best player to team A, second best to team B, etc.)
+      const updates = [];
+      
+      assignedPlayers.forEach((player, index) => {
+        const team = index % 2 === 0 ? 'A' : 'B';
+        const teamSlotStart = team === 'A' ? 0 : activeMatch.team_size;
+        
+        // Find first empty slot in the appropriate team
+        const teamSlots = currentSlots
+          .slice(teamSlotStart, teamSlotStart + activeMatch.team_size)
+          .map((slot, idx) => ({ ...slot, realIndex: idx + teamSlotStart }));
+        
+        // Find position in team based on skill
+        let slotNumber;
+        
+        if (team === 'A') {
+          slotNumber = index / 2 + 1;
+        } else {
+          slotNumber = activeMatch.team_size + Math.floor(index / 2) + 1;
+        }
+        
+        // Ensure slot number is valid
+        if (slotNumber > currentSlots.length) {
+          slotNumber = currentSlots.length;
+        }
+        
+        updates.push({
+          player_id: player.player_id,
+          team,
+          slot_number: slotNumber
+        });
+      });
+      
+      // Update each player's team assignment in the database
+      await Promise.all(updates.map(update => 
+        fetch('/api/admin/upcoming-match-players', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            upcoming_match_id: matchId,
+            player_id: update.player_id,
+            team: update.team,
+            slot_number: update.slot_number
+          })
+        })
+      ));
+      
+      // Mark match as balanced
+      await fetch(`/api/admin/upcoming-matches`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          upcoming_match_id: matchId,
+          is_balanced: true
+        })
+      });
+      
+      setIsBalanced(true);
+      await refreshMatchData();
+      
+    } catch (error) {
+      console.error('Error in basic team balancing:', error);
+      throw new Error('Basic team balancing failed: ' + error.message);
+    }
+  };
+
+  const handleCreateMatchReport = async () => {
+    if (!isBalanced) {
+      setError('Teams must be balanced before creating a match report');
+      return;
+    }
+    
+    try {
+      setCreatingMatchReport(true);
+      setError(null);
+      
+      const assignedPlayers = currentSlots.filter(slot => slot.player_id !== null).length;
+      const requiredPlayers = activeMatch.team_size * 2;
+      
+      if (assignedPlayers < requiredPlayers) {
+        const proceed = window.confirm(
+          `Only ${assignedPlayers} of ${requiredPlayers} players are assigned. Do you still want to create a match report?`
+        );
+        
+        if (!proceed) {
+          setCreatingMatchReport(false);
+          return;
+        }
+      }
+      
+      // Get the correct match ID (prioritize upcoming_match_id)
+      const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
+      
+      if (!matchId) {
+        throw new Error('Could not determine match ID');
+      }
+      
+      // Call API to create match from planned match
+      const response = await fetch('/api/admin/create-match-from-planned', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          upcoming_match_id: matchId // Use the correct field name
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create match report');
+      }
+      
+      // Navigate to match manager to edit the new match
+      router.push(`/admin/match-manager?match_id=${data.data.match_id}`);
+      
+    } catch (error) {
+      console.error('Error creating match report:', error);
+      setError('Failed to create match report: ' + error.message);
+    } finally {
+      setCreatingMatchReport(false);
     }
   };
 
@@ -291,11 +667,11 @@ const TeamAlgorithm = () => {
     
     switch (role) {
       case 'defender':
-        return `D:${player.defender} | S&P:${player.stamina_pace} | C:${player.control}`;
+        return `G:${player.goalscoring} | S&P:${player.stamina_pace} | C:${player.control}`;
       case 'midfielder':
-        return `C:${player.control} | T:${player.teamwork} | S&P:${player.stamina_pace}`;
+        return `C:${player.control} | S&P:${player.stamina_pace} | G:${player.goalscoring}`;
       case 'attacker':
-        return `G:${player.goalscoring} | S&P:${player.stamina_pace} | T:${player.teamwork}`;
+        return `G:${player.goalscoring} | S&P:${player.stamina_pace} | C:${player.control}`;
       default:
         return '';
     }
@@ -340,6 +716,7 @@ const TeamAlgorithm = () => {
 
     const stats = {
       defender: {
+        goalscoring: avg('goalscoring'),
         physical: avg('stamina_pace'),
         control: avg('control')
       },
@@ -387,9 +764,9 @@ const TeamAlgorithm = () => {
       switch (type) {
         case 'defense':
           return {
-            affinity: players.reduce((sum, p) => sum + (p.defender || 0), 0) / players.length,
             stamina_pace: players.reduce((sum, p) => sum + (p.stamina_pace || 0), 0) / players.length,
-            control: players.reduce((sum, p) => sum + (p.control || 0), 0) / players.length
+            control: players.reduce((sum, p) => sum + (p.control || 0), 0) / players.length,
+            goalscoring: players.reduce((sum, p) => sum + (p.goalscoring || 0), 0) / players.length
           };
         case 'midfield':
           return {
@@ -480,447 +857,1084 @@ const TeamAlgorithm = () => {
     );
   };
 
-  // Render player selection dropdowns
-  const renderPlayerSelection = () => (
-    <Card className="mb-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Player Selection</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {currentSlots.map(slot => (
-          <div key={slot.slot_number} className="flex items-center gap-2">
-            <span className="text-sm text-gray-500 w-6">{slot.slot_number}</span>
-            <select
-              value={slot.player_id || ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                console.log('Select changed:', {
-                  slot: slot.slot_number,
-                  value: value,
-                  type: typeof value
-                });
-                handlePlayerSelect(slot.slot_number, value);
-              }}
-              className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              disabled={isLoading}
-            >
-              <option value="">Select player</option>
-              {getAvailablePlayers(slot.slot_number).map(player => (
-                <option key={player.id} value={player.id}>
-                  {player.name}
-                </option>
-              ))}
-            </select>
+  const renderTeamStats = (players) => {
+    if (!players || players.length === 0) return <p>No players selected</p>;
+    
+    const teamStats = {
+      goalscoring: players.reduce((sum, p) => sum + (p.goalscoring || 0), 0) / players.length,
+      defender: players.reduce((sum, p) => sum + (p.defender || 0), 0) / players.length,
+      stamina_pace: players.reduce((sum, p) => sum + (p.stamina_pace || 0), 0) / players.length,
+      control: players.reduce((sum, p) => sum + (p.control || 0), 0) / players.length,
+      teamwork: players.reduce((sum, p) => sum + (p.teamwork || 0), 0) / players.length,
+      resilience: players.reduce((sum, p) => sum + (p.resilience || 0), 0) / players.length
+    };
+    
+    return (
+      <div className="space-y-2">
+        {Object.entries(teamStats).map(([key, value]) => (
+          <div key={key} className="flex items-center justify-between">
+            <span className="text-sm capitalize">{key.replace('_', ' ')}</span>
+            <span className="font-medium">{value.toFixed(1)}</span>
           </div>
         ))}
       </div>
-    </Card>
-  );
+    );
+  };
 
+  // Moved inside component so it has access to currentSlots and players
+  const renderComparativeStats = () => {
+    // Get players from each team
+    const orangeTeamPlayers = currentSlots
+      .filter(slot => slot.player_id && slot.slot_number <= 9)
+      .map(slot => players.find(p => p.id === slot.player_id))
+      .filter(Boolean);
+      
+    const greenTeamPlayers = currentSlots
+      .filter(slot => slot.player_id && slot.slot_number > 9)
+      .map(slot => players.find(p => p.id === slot.player_id))
+      .filter(Boolean);
+    
+    if (orangeTeamPlayers.length === 0 && greenTeamPlayers.length === 0) {
+      return <p className="text-xs text-gray-500 italic">No players selected</p>;
+    }
+    
+    // Calculate team stats
+    const calcStatAverage = (players, attribute) => {
+      if (players.length === 0) return 0;
+      return players.reduce((sum, p) => sum + (p[attribute] || 0), 0) / players.length;
+    };
+    
+    // Define the categories to compare
+    const categories = [
+      { 
+        key: 'defense', 
+        label: 'Defence',
+        calcFunc: (players) => {
+          // Calculate defense score using weighted combination of relevant attributes
+          const defenders = players.filter(p => {
+            const slotNumber = currentSlots.find(s => s.player_id === p.id)?.slot_number;
+            return slotNumber <= 3 || (slotNumber >= 10 && slotNumber <= 12);
+          });
+          if (defenders.length === 0) return calcStatAverage(players, 'defender');
+          return (
+            calcStatAverage(defenders, 'stamina_pace') * 0.34 +
+            calcStatAverage(defenders, 'control') * 0.33 +
+            calcStatAverage(defenders, 'goalscoring') * 0.33
+          );
+        }
+      },
+      { 
+        key: 'midfield', 
+        label: 'Midfield',
+        calcFunc: (players) => {
+          // Calculate midfield score using weighted combination of relevant attributes
+          const midfielders = players.filter(p => {
+            const slotNumber = currentSlots.find(s => s.player_id === p.id)?.slot_number;
+            return (slotNumber >= 4 && slotNumber <= 7) || (slotNumber >= 13 && slotNumber <= 16);
+          });
+          if (midfielders.length === 0) return calcStatAverage(players, 'control');
+          return (
+            calcStatAverage(midfielders, 'control') * 0.33 +
+            calcStatAverage(midfielders, 'stamina_pace') * 0.33 +
+            calcStatAverage(midfielders, 'goalscoring') * 0.34
+          );
+        }
+      },
+      { 
+        key: 'attack', 
+        label: 'Attack',
+        calcFunc: (players) => {
+          // Calculate attack score using weighted combination of relevant attributes
+          const attackers = players.filter(p => {
+            const slotNumber = currentSlots.find(s => s.player_id === p.id)?.slot_number;
+            return (slotNumber === 8 || slotNumber === 9) || (slotNumber === 17 || slotNumber === 18);
+          });
+          if (attackers.length === 0) return calcStatAverage(players, 'goalscoring');
+          return (
+            calcStatAverage(attackers, 'goalscoring') * 0.5 +
+            calcStatAverage(attackers, 'stamina_pace') * 0.25 +
+            calcStatAverage(attackers, 'control') * 0.25
+          );
+        }
+      },
+      { key: 'teamwork', label: 'Teamwork' },
+      { key: 'resilience', label: 'Resilience' }
+    ];
+    
+    // Calculate stats for both teams
+    const stats = categories.map(cat => {
+      const orangeValue = cat.calcFunc ? 
+        cat.calcFunc(orangeTeamPlayers) : 
+        calcStatAverage(orangeTeamPlayers, cat.key);
+      
+      const greenValue = cat.calcFunc ? 
+        cat.calcFunc(greenTeamPlayers) : 
+        calcStatAverage(greenTeamPlayers, cat.key);
+      
+      const total = orangeValue + greenValue;
+      
+      // Calculate percentages (avoid division by zero)
+      const orangePercent = total > 0 ? (orangeValue / total) * 100 : 50;
+      const greenPercent = total > 0 ? (greenValue / total) * 100 : 50;
+      
+      return {
+        ...cat,
+        orangeValue,
+        greenValue,
+        orangePercent,
+        greenPercent
+      };
+    });
+    
+    return stats.map(stat => (
+      <div key={stat.key} className="mb-3">
+        <div className="flex justify-between mb-1">
+          <span className="text-sm font-medium text-gray-700">{stat.label}</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-10 text-right mr-2 text-xs font-medium text-gray-800">
+            {stat.orangeValue.toFixed(1)}
+          </div>
+          <div className="flex-1 h-6 rounded-lg overflow-hidden flex">
+            <div 
+              className="bg-blue-500 h-full"
+              style={{ width: `${stat.orangePercent}%` }}
+            ></div>
+            <div 
+              className="bg-green-500 h-full"
+              style={{ width: `${stat.greenPercent}%` }}
+            ></div>
+          </div>
+          <div className="w-10 ml-2 text-xs font-medium text-gray-800">
+            {stat.greenValue.toFixed(1)}
+          </div>
+        </div>
+      </div>
+    ));
+  };
+
+  // Helper function to determine position groups based on team size
+  const determinePositionGroups = (teamSize, team) => {
+    const isOrange = team.toLowerCase() === 'orange';
+    const startingSlot = isOrange ? 1 : teamSize + 1;
+    
+    // Adjust position distribution based on team size
+    let positions = [];
+    
+    if (teamSize <= 5) {
+      // 5-a-side: 2 defenders, 2 midfielders, 1 attacker
+      positions = [
+        { title: 'Defenders', slots: [startingSlot, startingSlot + 1] },
+        { title: 'Midfielders', slots: [startingSlot + 2, startingSlot + 3] },
+        { title: 'Attackers', slots: [startingSlot + 4] }
+      ];
+    } else if (teamSize <= 7) {
+      // 6/7-a-side: 2 defenders, 3 midfielders, 2 attackers
+      positions = [
+        { title: 'Defenders', slots: [startingSlot, startingSlot + 1] },
+        { title: 'Midfielders', slots: [startingSlot + 2, startingSlot + 3, startingSlot + 4] },
+        { title: 'Attackers', slots: Array.from({ length: teamSize - 5 }, (_, i) => startingSlot + 5 + i) }
+      ];
+    } else if (teamSize <= 9) {
+      // 8/9-a-side: 3 defenders, 4 midfielders, 2 attackers
+      positions = [
+        { title: 'Defenders', slots: [startingSlot, startingSlot + 1, startingSlot + 2] },
+        { title: 'Midfielders', slots: [startingSlot + 3, startingSlot + 4, startingSlot + 5, startingSlot + 6] },
+        { title: 'Attackers', slots: Array.from({ length: teamSize - 7 }, (_, i) => startingSlot + 7 + i) }
+      ];
+    } else {
+      // 10/11-a-side: 4 defenders, 4 midfielders, 3 attackers
+      positions = [
+        { title: 'Defenders', slots: [startingSlot, startingSlot + 1, startingSlot + 2, startingSlot + 3] },
+        { title: 'Midfielders', slots: [startingSlot + 4, startingSlot + 5, startingSlot + 6, startingSlot + 7] },
+        { title: 'Attackers', slots: Array.from({ length: teamSize - 8 }, (_, i) => startingSlot + 8 + i) }
+      ];
+    }
+    
+    return positions;
+  };
+
+  // Function to handle clearing all slots
   const handleClearAll = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/team-slots/clear-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+      if (usingPlannedMatch) {
+        // Get the correct match ID (prioritize upcoming_match_id)
+        const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
+        
+        if (!matchId) {
+          throw new Error('No active match selected');
+        }
+        
+        // For planned matches, remove all players from the match using the appropriate method
+        const response = await fetch('/api/admin/upcoming-match-players', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            upcoming_match_id: matchId
+          })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to clear slots');
-      }
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to clear all players');
+        }
+        
+        // Update UI to reflect cleared slots
+        setCurrentSlots(prev => prev.map(slot => ({
+          ...slot,
+          player_id: null,
+          team: slot.team, // Preserve team assignment based on slot number
+          position: null
+        })));
+        
+        // Mark as unbalanced
+        setIsBalanced(false);
+        if (activeMatch) {
+          setActiveMatch(prev => ({
+            ...prev,
+            is_balanced: false
+          }));
+        }
+      } else {
+        // For legacy team slots, clear all slots
+        const response = await fetch('/api/admin/team-slots/clear', {
+          method: 'POST'
+        });
 
       const data = await response.json();
-      if (!data.success) {
+        if (!response.ok || !data.success) {
         throw new Error(data.error || 'Failed to clear slots');
       }
 
-      // Update local state
+        // Update UI after successful database update
       setCurrentSlots(prev => prev.map(slot => ({
         ...slot,
         player_id: null
       })));
+          
+        // Mark as unbalanced
       setIsBalanced(false);
+      }
+      
+      // Close modal
+      setShowClearConfirm(false);
     } catch (error) {
       console.error('Error clearing slots:', error);
       setError('Failed to clear slots: ' + error.message);
     } finally {
       setIsLoading(false);
-      setShowClearConfirm(false);
     }
   };
 
-  // Add Ringer handlers
-  const handleAddRinger = async (e) => {
-    e.preventDefault();
-    setIsAddingRinger(true);
+  // Function to refresh match data after changes
+  const refreshMatchData = async () => {
+    try {
+      setIsLoading(true);
     setError(null);
 
+      // Fetch updated match data
+      const matchResponse = await fetch('/api/admin/upcoming-matches?active=true');
+      
+      if (!matchResponse.ok) {
+        const responseText = await matchResponse.text();
+        console.error(`Error fetching match data (${matchResponse.status}): ${responseText}`);
+        throw new Error(`Failed to fetch updated match: ${matchResponse.status} ${responseText.substring(0, 100)}`);
+      }
+      
+      const matchData = await matchResponse.json();
+      
+      if (!matchData.success || !matchData.data) {
+        console.error('No active match data found:', matchData);
+        // Clear active match if none found
+        setActiveMatch(null);
+        setCurrentSlots([]);
+        setIsBalanced(false);
+        setUsingPlannedMatch(false);
+        return;
+      }
+      
+      // Set the active match
+      const activeMatchData = matchData.data;
+      console.log('Loaded active match:', activeMatchData);
+      
+      // For backward compatibility, ensure match_id exists
+      if (activeMatchData.upcoming_match_id && !activeMatchData.match_id) {
+        activeMatchData.match_id = activeMatchData.upcoming_match_id;
+      }
+      
+      setActiveMatch(activeMatchData);
+      setIsBalanced(activeMatchData.is_balanced);
+      
+      // Create slot assignments from match players
+      const teamSize = activeMatchData.team_size || 9; // Default to 9 if missing
+      const matchPlayerSlots = Array(teamSize * 2)
+        .fill()
+        .map((_, i) => ({
+          slot_number: i + 1,
+          player_id: null,
+          team: i < teamSize ? 'A' : 'B',
+          position: null
+        }));
+      
+      // Fill in existing players if any
+      if (activeMatchData.players && activeMatchData.players.length > 0) {
+        console.log(`Processing ${activeMatchData.players.length} players for match`);
+        
+        // Map players to their respective slots
+        activeMatchData.players.forEach(player => {
+          // Handle case where slot_number might be missing
+          const slotNumber = player.slot_number || 
+            (player.team === 'A' ? 
+              (Math.floor(Math.random() * teamSize) + 1) : 
+              (Math.floor(Math.random() * teamSize) + teamSize + 1));
+          
+          // Ensure slot number is within range
+          if (slotNumber > 0 && slotNumber <= matchPlayerSlots.length) {
+            matchPlayerSlots[slotNumber - 1] = {
+              ...matchPlayerSlots[slotNumber - 1],
+              player_id: player.player_id,
+              team: player.team || matchPlayerSlots[slotNumber - 1].team, // Use existing team if player.team is missing
+              position: player.position
+            };
+          } else {
+            console.warn(`Player ${player.player_id} has invalid slot number ${slotNumber}, slots length is ${matchPlayerSlots.length}`);
+          }
+        });
+      }
+      
+      setCurrentSlots(matchPlayerSlots);
+      setUsingPlannedMatch(true);
+    } catch (error) {
+      console.error('Error refreshing match data:', error);
+      setError('Failed to refresh match data: ' + error.message);
+      // Keep the UI in a usable state
+      if (!activeMatch) {
+        setCurrentSlots([]);
+        setUsingPlannedMatch(false);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to handle creating a new planned match
+  const handleCreatePlannedMatch = async () => {
     try {
-      const response = await fetch('/api/admin/players', {
+      setIsLoading(true);
+      setCreateMatchError(null);
+      
+      // Validate input
+      if (!newMatchData.match_date) {
+        setCreateMatchError('Please select a match date');
+        return;
+      }
+      
+      if (!newMatchData.team_size || newMatchData.team_size < 5 || newMatchData.team_size > 11) {
+        setCreateMatchError('Team size must be between 5 and 11');
+        return;
+      }
+      
+      // Check if there's already an active match
+      const activeMatchResponse = await fetch('/api/admin/upcoming-matches?active=true');
+      const activeMatchData = await activeMatchResponse.json();
+      
+      if (activeMatchData.success && activeMatchData.data) {
+        const confirmDeactivate = window.confirm(
+          'There is already an active planned match. Creating a new match will deactivate the current one. Do you want to continue?'
+        );
+        
+        if (!confirmDeactivate) {
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // Create the new match
+      const response = await fetch('/api/admin/upcoming-matches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          ...ringerForm,
-          is_ringer: true,
-          is_retired: false
+          match_date: newMatchData.match_date,
+          team_size: parseInt(newMatchData.team_size),
+          is_active: true
         })
       });
 
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
-
-      // Add new player to players list
-      setPlayers(prev => [...prev, data.data]);
       
-      // Reset form and close modal
-      setRingerForm({
-        name: '',
-        goalscoring: 3,
-        defender: 3,
-        stamina_pace: 3,
-        control: 3,
-        teamwork: 3,
-        resilience: 3
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create planned match');
+      }
+      
+      // Close modal
+      setShowCreateMatchModal(false);
+      
+      // Reset form for next time
+      setNewMatchData({
+        match_date: defaultMatchDate,
+        team_size: 9
       });
-      setShowRingerModal(false);
+      
+      // Refresh data rather than reloading the page
+      await refreshMatchData();
+      
     } catch (error) {
-      setError('Failed to add ringer: ' + error.message);
+      console.error('Error creating planned match:', error);
+      setCreateMatchError(error.message);
     } finally {
-      setIsAddingRinger(false);
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to handle editing a planned match
+  const handleEditPlannedMatch = async () => {
+    try {
+      setIsLoading(true);
+      setCreateMatchError(null);
+      
+      // Validate input
+      if (!newMatchData.match_date) {
+        setCreateMatchError('Please select a match date');
+        return;
+      }
+      
+      if (!newMatchData.team_size || newMatchData.team_size < 5 || newMatchData.team_size > 11) {
+        setCreateMatchError('Team size must be between 5 and 11');
+        return;
+      }
+      
+      // Check if team size is being reduced
+      if (activeMatch && newMatchData.team_size < activeMatch.team_size) {
+        // Count currently assigned players
+        const assignedPositions = currentSlots.filter(slot => 
+          slot.player_id !== null && slot.slot_number <= activeMatch.team_size * 2
+        ).length;
+        
+        // If there are more players assigned than the new size would allow
+        if (assignedPositions > newMatchData.team_size * 2) {
+          setCreateMatchError(`Cannot reduce team size: ${assignedPositions} players are currently assigned but the new team size would only allow ${newMatchData.team_size * 2} players. Please remove some players first.`);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // Get the correct match ID (prioritize upcoming_match_id)
+      const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
+      
+      if (!matchId) {
+        throw new Error('Could not determine match ID');
+      }
+      
+      // Update the match
+      const response = await fetch(`/api/admin/upcoming-matches`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          upcoming_match_id: matchId, // Use the correct field name
+          match_date: newMatchData.match_date,
+          team_size: parseInt(newMatchData.team_size)
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update planned match');
+      }
+      
+      // Close modal
+      setShowEditMatchModal(false);
+      
+      // Refresh data rather than reloading the page
+      await refreshMatchData();
+      
+    } catch (error) {
+      console.error('Error updating planned match:', error);
+      setCreateMatchError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to deactivate the active match (preserves data but marks as inactive)
+  const handleDeactivateMatch = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get the correct match ID (prioritize upcoming_match_id)
+      const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
+      
+      if (!matchId) {
+        throw new Error('Could not determine match ID');
+      }
+      
+      // Deactivate the match (set is_active to false)
+      const response = await fetch(`/api/admin/upcoming-matches`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          upcoming_match_id: matchId, // Use the correct field name
+          is_active: false
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove match');
+      }
+      
+      // Clear active match state and hide player sections
+      setActiveMatch(null);
+      setCurrentSlots([]);
+      setUsingPlannedMatch(false);
+      setIsBalanced(false);
+      setShowClearMatchConfirm(false);
+      
+    } catch (error) {
+      console.error('Error removing match:', error);
+      setError('Failed to remove match: ' + error.message);
+    } finally {
+      setIsLoading(false);
+      setShowClearMatchConfirm(false);
     }
   };
 
-  const handleRingerInputChange = (field, value) => {
-    setRingerForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  // Show create match modal
+  const handleShowCreateMatchModal = () => {
+    // Reset form with default date and team size when opening modal
+    setNewMatchData({
+      match_date: defaultMatchDate,
+      team_size: 9
+    });
+    setShowCreateMatchModal(true);
+  };
+
+  // Add a function to completely delete a match instead of just deactivating it
+  const handleDeleteMatch = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Check if there are assigned players
+      const assignedPlayers = currentSlots.filter(slot => slot.player_id !== null).length;
+      
+      if (assignedPlayers > 0) {
+        const confirmDelete = window.confirm(
+          `This will permanently delete the match and all ${assignedPlayers} assigned players. This action cannot be undone. Do you want to continue?`
+        );
+        
+        if (!confirmDelete) {
+          setIsLoading(false);
+          setShowClearMatchConfirm(false);
+          return;
+        }
+      } else {
+        const confirmDelete = window.confirm(
+          `Are you sure you want to permanently delete this match?`
+        );
+        
+        if (!confirmDelete) {
+          setIsLoading(false);
+          setShowClearMatchConfirm(false);
+          return;
+        }
+      }
+      
+      // Delete the match
+      const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
+      const response = await fetch(`/api/admin/upcoming-matches?id=${matchId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete match');
+      }
+      
+      // Clear active match state and hide player sections
+      setActiveMatch(null);
+      setCurrentSlots([]);
+      setUsingPlannedMatch(false);
+      setIsBalanced(false);
+      setShowClearMatchConfirm(false);
+      
+    } catch (error) {
+      console.error('Error deleting match:', error);
+      setError('Failed to delete match: ' + error.message);
+    } finally {
+      setIsLoading(false);
+      setShowClearMatchConfirm(false);
+    }
+  };
+
+  // Debugging function to check player assignments
+  const checkPlayerAssignments = async () => {
+    try {
+      setError(null);
+      
+      // Get the correct match ID
+      const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
+      if (!matchId) {
+        throw new Error('No match ID found');
+      }
+      
+      // Fetch player assignments
+      const response = await fetch(`/api/admin/upcoming-match-players?upcoming_match_id=${matchId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Log player assignments for debugging
+      console.log('Player assignments:', data.data);
+      console.log('Team A players:', data.data.filter(p => p.team === 'A').length);
+      console.log('Team B players:', data.data.filter(p => p.team === 'B').length);
+      
+      return data.data;
+    } catch (error) {
+      console.error('Error checking player assignments:', error);
+      setError('Failed to check player assignments: ' + error.message);
+      return [];
+    }
   };
 
   return (
+    <div className="px-4 py-8 md:px-6 lg:px-8">
+      {/* Actions Section - This is the ONLY Back to Dashboard button we'll keep */}
+      <div className="flex flex-wrap justify-end gap-2 mb-6">
+        <Button
+          variant="outline"
+          onClick={checkPlayerAssignments}
+          className="text-sm h-9 mr-auto"
+        >
+          Check Team Assignments
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => router.push('/admin/dashboard')}
+          className="text-sm h-9"
+        >
+          Back to Dashboard
+        </Button>
+      </div>
+      
+      {/* Match Info Section */}
+      {activeMatch ? (
+        <div className="mb-6 bg-white rounded-lg shadow-sm p-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Team Balancing</h1>
-        <div className="flex space-x-2">
+              <h2 className="text-xl font-bold mb-1">Planned Match</h2>
+              <p className="text-gray-600">
+                {activeMatch.match_date ? format(new Date(activeMatch.match_date), 'EEEE, MMMM do yyyy') : 'Date not set'}
+              </p>
+              <p className="text-gray-600">
+                Format: {activeMatch.team_size}v{activeMatch.team_size}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
           <Button 
-            onClick={() => setShowRingerModal(true)}
-            variant="primary"
-            size="sm"
-          >
-            Add Ringer
+                variant="outline"
+                onClick={() => {
+                  setNewMatchData({
+                    match_date: new Date(activeMatch.match_date).toISOString().split('T')[0],
+                    team_size: activeMatch.team_size
+                  });
+                  setShowEditMatchModal(true);
+                }}
+                className="text-sm h-9"
+              >
+                Edit Match
           </Button>
-          <div className="flex flex-col gap-1">
             <Button
-              onClick={handleBalanceTeams}
-              disabled={isLoading || !currentSlots.some(slot => slot.player_id !== null)}
+                variant="danger"
+                onClick={() => setShowClearMatchConfirm(true)}
+                className="text-sm h-9"
+                title="Remove this match from view"
+              >
+                Delete Match
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6 bg-white rounded-lg shadow-sm p-4 text-center">
+          <p className="text-gray-600 mb-3">No active planned match</p>
+          <Button
               variant="primary"
-              size="sm"
+            onClick={handleShowCreateMatchModal}
+            className="text-sm h-9"
             >
-              {isLoading ? 'Balancing...' : 'Balance Teams'}
+            Create New Planned Match
             </Button>
-            {isLoading && (
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+        </div>
+      )}
+
+      {/* Warning Messages */}
+      {warning && activeMatch && (
+        <div className={`mb-6 p-3 rounded-md ${warning.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'}`}>
+          {warning.message}
+        </div>
+      )}
+      
+      {/* Progress Bar */}
+      {balanceProgress > 0 && (
+        <div className="w-full h-2 bg-gray-200 rounded-full mb-6 overflow-hidden">
+          <div 
+            className="h-full bg-primary-500 transition-all duration-300 ease-out"
                   style={{ width: `${balanceProgress}%` }}
-                />
+          ></div>
               </div>
             )}
+      
+      {/* Only show player selection, team balance, and comparative stats sections when there's an active match */}
+      {activeMatch && (
+        <>
+          {/* Player Selection Section */}
+          <Card className="mb-6">
+            <div className="p-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold">Available Players</h2>
+                  <p className="text-gray-600 text-sm">
+                    {currentSlots.filter(s => s.player_id !== null).length}/{activeMatch.team_size * 2} players selected
+                  </p>
           </div>
+                <div className="flex gap-2 mt-2 md:mt-0">
           <Button
-            onClick={handleCopyTeams}
             variant="outline"
-            size="sm"
+                    onClick={() => setShowClearConfirm(true)}
+                    className="h-9"
           >
-            Copy to Clipboard
+                    Clear All
           </Button>
           <Button
-            onClick={() => setShowClearConfirm(true)}
-            variant="outline"
-            size="sm"
-            className="text-red-700 border-red-300 hover:bg-red-50"
-          >
-            Clear All
+                    variant="primary"
+                    onClick={handleBalanceTeams}
+                    disabled={isLoading || balanceProgress > 0 || currentSlots.filter(s => s.player_id !== null).length < activeMatch.team_size * 2}
+                    className="h-9"
+                  >
+                    {balanceProgress > 0 ? `Balancing ${balanceProgress}%` : 'Balance Teams'}
           </Button>
         </div>
       </div>
-
-      {isLoading && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md mb-6">
-          Loading players...
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Array(activeMatch.team_size * 2).fill().map((_, i) => (
+                  <PlayerSlot 
+                    key={i + 1}
+                    slotNumber={i + 1}
+                    currentPlayerId={currentSlots.find(s => s.slot_number === i + 1)?.player_id}
+                    availablePlayers={getAvailablePlayers(i + 1)}
+                    onSelectPlayer={(playerId) => handlePlayerSelect(i, playerId)}
+                    isLoading={isLoading}
+                  />
+                ))}
         </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-6">
-          {error}
+              <div className="mt-4 text-sm text-gray-600">
+                <p>To remove a player, select "Select player" from the dropdown.</p>
         </div>
-      )}
+            </div>
+          </Card>
 
-      {!error && !isBalanced && currentSlots.some(slot => slot.player_id !== null) && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md mb-6 flex items-center gap-2">
-          <span className="text-yellow-600 text-xl">⚠️</span>
-          <span>Teams have been modified. Click "Balance Teams" to optimize team balance.</span>
+          {/* Team Balance Section */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-1">Balanced Teams</h2>
+              <p className="text-gray-600">
+                {isBalanced 
+                  ? "Teams have been balanced for optimal matchups" 
+                  : "Balance teams to create closer, more entertaining games"}
+              </p>
         </div>
-      )}
+            <div className="flex gap-2 mt-2 md:mt-0">
+              <Button
+                variant="secondary"
+                onClick={handleCopyTeams}
+                disabled={!isBalanced}
+                className="h-9"
+              >
+                Copy Teams
+              </Button>
+              {isBalanced && (
+                <Button
+                  variant="primary"
+                  onClick={handleCreateMatchReport}
+                  disabled={creatingMatchReport}
+                  className="h-9"
+                >
+                  {creatingMatchReport ? 'Creating...' : 'Create Match Report'}
+                </Button>
+              )}
+            </div>
+          </div>
 
-      {renderPlayerSelection()}
-
-      {currentSlots.some(slot => slot.player_id !== null) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          {renderTeamSection('ORANGE')}
-          {renderTeamSection('GREEN')}
-        </div>
-      )}
-
-      {/* Team Comparison Section */}
-      {currentSlots.some(slot => slot.player_id !== null) && (
-        <div className="mt-6">
-          <Card>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Team Comparison</h2>
-            <div className="relative h-[300px] mt-6">
-              {/* Y-axis grid lines and labels */}
-              <div className="absolute inset-y-0 left-12 right-0 flex flex-col justify-between">
-                {[5, 4, 3, 2, 1, 0].map((value) => (
-                  <div key={value} className="flex items-center w-full" style={{ transform: 'translateY(-0.5rem)' }}>
-                    <span className="text-xs text-gray-500 w-8 text-right mr-2">{value}</span>
-                    <div className="flex-1 border-t border-gray-200"></div>
+          {/* Teams Display */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Orange Team Card */}
+            <Card className="h-full">
+              <div className="p-4">
+                <h3 className="text-lg font-semibold text-orange-600 mb-3">Orange Team</h3>
+                
+                {!isBalanced && (
+                  <p className="text-sm text-gray-500 italic mb-3">Teams will appear here after balancing</p>
+                )}
+                
+                {/* Players listing by position group - dynamically determine positions based on team size */}
+                <div className="space-y-4">
+                  {determinePositionGroups(activeMatch.team_size, 'orange').map(({ title, slots }) => {
+                    const positionPlayers = slots
+                      .map(slotNum => {
+                        const slot = currentSlots.find(s => s.slot_number === slotNum);
+                        if (!slot || !slot.player_id) return null;
+                        return players.find(p => p.id === slot.player_id);
+                      })
+                      .filter(Boolean);
+                    
+                    return (
+                      <div key={title} className="space-y-1">
+                        <h4 className="text-sm font-medium text-gray-700">{title}</h4>
+                        {positionPlayers.length > 0 ? (
+                          <div className="space-y-1">
+                            {positionPlayers.map(player => (
+                              <div key={player.id} className="p-1.5 bg-gray-50 rounded-md">
+                                <span className="text-sm font-medium">{player.name}</span>
                   </div>
                 ))}
               </div>
-
-              {/* Bars */}
-              <div className="absolute inset-y-0 left-12 right-0 flex items-end">
-                <div className="flex-1 flex justify-around h-[250px]">
-                  {['Defense', 'Attack', 'Midfield', 'Resilience', 'Teamwork'].map((factor) => {
-                    const getTeamValue = (team) => {
-                      const teamSlots = currentSlots.filter(slot => 
-                        team === 'ORANGE' ? slot.slot_number <= 9 : slot.slot_number > 9
-                      );
-                      const teamPlayers = teamSlots
-                        .map(slot => players.find(p => p.id === slot.player_id))
-                        .filter(Boolean);
-                      
-                      if (!teamPlayers.length) return 0;
-                      
-                      switch (factor) {
-                        case 'Defense': {
-                          const defenders = teamPlayers.slice(0, 3);
-                          return defenders.length ? defenders.reduce((sum, p) => 
-                            sum + ((p.defender || 0) + (p.stamina_pace || 0) + (p.control || 0)) / 3, 0) / defenders.length : 0;
-                        }
-                        case 'Midfield': {
-                          const midfielders = teamPlayers.slice(3, 7);
-                          return midfielders.length ? midfielders.reduce((sum, p) => 
-                            sum + ((p.control || 0) + (p.stamina_pace || 0) + (p.goalscoring || 0)) / 3, 0) / midfielders.length : 0;
-                        }
-                        case 'Attack': {
-                          const attackers = teamPlayers.slice(7, 9);
-                          return attackers.length ? attackers.reduce((sum, p) => 
-                            sum + ((p.goalscoring || 0) + (p.stamina_pace || 0) + (p.control || 0)) / 3, 0) / attackers.length : 0;
-                        }
-                        case 'Teamwork':
-                          return teamPlayers.reduce((sum, p) => sum + (p.teamwork || 3), 0) / teamPlayers.length;
-                        case 'Resilience':
-                          return teamPlayers.reduce((sum, p) => sum + (p.resilience || 3), 0) / teamPlayers.length;
-                        default:
-                          return 0;
-                      }
-                    };
-
-                    const orangeValue = getTeamValue('ORANGE');
-                    const greenValue = getTeamValue('GREEN');
-
-                    return (
-                      <div key={factor} className="flex flex-col items-center" style={{ width: '18%' }}>
-                        <div className="flex gap-2 text-[10px] sm:text-xs mb-1 sm:mb-2">
-                          <span className="text-orange-600">{orangeValue.toFixed(1)}</span>
-                          <span className="text-green-600">{greenValue.toFixed(1)}</span>
-                        </div>
-                        <div className="flex gap-1 sm:gap-2 w-full justify-center h-full">
-                          <div className="w-4 sm:w-8 flex flex-col items-center justify-end">
-                            <div 
-                              className="w-full bg-orange-500 rounded-sm transition-all duration-300"
-                              style={{ 
-                                height: `${(orangeValue / 5) * 100}%`,
-                              }}
-                            />
-                          </div>
-                          <div className="w-4 sm:w-8 flex flex-col items-center justify-end">
-                            <div 
-                              className="w-full bg-green-500 rounded-sm transition-all duration-300"
-                              style={{ 
-                                height: `${(greenValue / 5) * 100}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <span className="text-[10px] sm:text-xs text-gray-600 mt-1 sm:mt-2">{factor}</span>
+                        ) : (
+                          <p className="text-xs text-gray-500 italic">No players assigned</p>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
-            </div>
-          </Card>
-        </div>
-      )}
+            </Card>
 
-      {/* Confirmation Modal */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Clear All Squads?</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to clear all squad assignments? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button
-                onClick={() => setShowClearConfirm(false)}
-                variant="outline"
-                disabled={isLoading}
-              >
-                No, Cancel
-              </Button>
-              <Button
-                onClick={handleClearAll}
-                variant="primary"
-                className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Clearing...' : 'Yes, Clear Squads'}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+            {/* Green Team Card */}
+            <Card className="h-full">
+              <div className="p-4">
+                <h3 className="text-lg font-semibold text-green-600 mb-3">Green Team</h3>
+                
+                {!isBalanced && (
+                  <p className="text-sm text-gray-500 italic mb-3">Teams will appear here after balancing</p>
+                )}
+                
+                {/* Players listing by position group - dynamically determine positions based on team size */}
+                <div className="space-y-4">
+                  {determinePositionGroups(activeMatch.team_size, 'green').map(({ title, slots }) => {
+                    const positionPlayers = slots
+                      .map(slotNum => {
+                        const slot = currentSlots.find(s => s.slot_number === slotNum);
+                        if (!slot || !slot.player_id) return null;
+                        return players.find(p => p.id === slot.player_id);
+                      })
+                      .filter(Boolean);
 
-      {/* Copy Toast Notification */}
-      {showCopyToast && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity duration-300">
-          Teams copied to clipboard
-        </div>
-      )}
-
-      {/* Add Ringer Modal */}
-      {showRingerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">Ringer Profile</h2>
-            <form onSubmit={handleAddRinger} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input
-                  type="text"
-                  value={ringerForm.name}
-                  onChange={(e) => handleRingerInputChange('name', e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                  required
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {['goalscoring', 'defender', 'stamina_pace', 'control', 'teamwork', 'resilience'].map((attr) => (
-                  <div key={attr} className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <label className="block text-sm font-medium text-gray-700 capitalize">
-                        {attr.replace('_', ' ')}
-                      </label>
-                      <button
-                        type="button"
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                        onClick={() => setActiveTooltip(activeTooltip === attr ? null : attr)}
-                        aria-label={`Show ${attr.replace('_', ' ')} rating information`}
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </button>
-                      <div ref={tooltipRef} className="relative">
-                        {activeTooltip === attr && (
-                          <div className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-                            <div className="text-sm">
-                              <h4 className="font-semibold mb-2 capitalize">{attr.replace('_', ' ')}</h4>
-                              <ul className="space-y-1">
-                                {[1, 2, 3, 4, 5].map((value) => (
-                                  <li key={value} className="flex items-start text-xs">
-                                    <span className="font-medium mr-1">{value}:</span>
-                                    <span>
-                                      {value === 1 && attr === 'goalscoring' && 'Rarely scores (misses chances, barely threatens)'}
-                                      {value === 2 && attr === 'goalscoring' && 'Occasional scorer (nabs one now and then)'}
-                                      {value === 3 && attr === 'goalscoring' && 'Average scorer (consistent but not standout)'}
-                                      {value === 4 && attr === 'goalscoring' && 'Frequent scorer (often on the scoresheet)'}
-                                      {value === 5 && attr === 'goalscoring' && 'Prolific (goal machine, always dangerous)'}
-                                      
-                                      {value === 1 && attr === 'defender' && 'Hates defending (avoids it, stays forward)'}
-                                      {value === 2 && attr === 'defender' && 'Reluctant defender (grumbles but does it)'}
-                                      {value === 3 && attr === 'defender' && 'Neutral (will defend if asked, no preference)'}
-                                      {value === 4 && attr === 'defender' && 'Willing defender (happy to drop back)'}
-                                      {value === 5 && attr === 'defender' && 'Prefers defending (loves the backline, thrives there)'}
-                                      
-                                      {value === 1 && attr === 'stamina_pace' && 'Slow and fades (lacks speed, tires quickly)'}
-                                      {value === 2 && attr === 'stamina_pace' && 'Steady but sluggish (moderate endurance, little burst)'}
-                                      {value === 3 && attr === 'stamina_pace' && 'Balanced mover (decent stamina, average pace)'}
-                                      {value === 4 && attr === 'stamina_pace' && 'Quick endurer (good speed, lasts well)'}
-                                      {value === 5 && attr === 'stamina_pace' && 'Relentless sprinter (fast and tireless all game)'}
-                                      
-                                      {value === 1 && attr === 'control' && 'Sloppy (loses ball often, wild passes)'}
-                                      {value === 2 && attr === 'control' && 'Shaky (inconsistent touch, hit-or-miss passing)'}
-                                      {value === 3 && attr === 'control' && 'Steady (decent retention, reliable passes)'}
-                                      {value === 4 && attr === 'control' && 'Skilled (good control, accurate distribution)'}
-                                      {value === 5 && attr === 'control' && 'Composed (excellent touch, precise playmaking)'}
-                                      
-                                      {value === 1 && attr === 'teamwork' && 'Lone wolf (solo runs, ignores teammates)'}
-                                      {value === 2 && attr === 'teamwork' && 'Selfish leaner (plays for self more than team)'}
-                                      {value === 3 && attr === 'teamwork' && 'Cooperative (works with others when convenient)'}
-                                      {value === 4 && attr === 'teamwork' && 'Supportive (links up well, helps teammates)'}
-                                      {value === 5 && attr === 'teamwork' && 'Team player (always collaborates, team-first mindset)'}
-                                      
-                                      {value === 1 && attr === 'resilience' && 'Fragile (head drops fast, gives up when behind)'}
-                                      {value === 2 && attr === 'resilience' && 'Wobbly (loses focus if losing, inconsistent effort)'}
-                                      {value === 3 && attr === 'resilience' && 'Steady (keeps going, unaffected by score)'}
-                                      {value === 4 && attr === 'resilience' && 'Gritty (fights harder when down, lifts others)'}
-                                      {value === 5 && attr === 'resilience' && 'Rock solid (unshakable, thrives under pressure)'}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
+                    return (
+                      <div key={title} className="space-y-1">
+                        <h4 className="text-sm font-medium text-gray-700">{title}</h4>
+                        {positionPlayers.length > 0 ? (
+                          <div className="space-y-1">
+                            {positionPlayers.map(player => (
+                              <div key={player.id} className="p-1.5 bg-gray-50 rounded-md">
+                                <span className="text-sm font-medium">{player.name}</span>
+                        </div>
+                            ))}
                           </div>
+                        ) : (
+                          <p className="text-xs text-gray-500 italic">No players assigned</p>
                         )}
                       </div>
-                    </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="5"
-                      value={ringerForm[attr]}
-                      onChange={(e) => handleRingerInputChange(attr, parseInt(e.target.value))}
-                      className="mt-1 block w-full"
-                    />
-                    <div className="text-center text-sm text-gray-600">{ringerForm[attr]}</div>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Comparative Team Stats Section */}
+          <Card className="mb-6">
+            <div className="p-4">
+              <h3 className="text-lg font-semibold mb-3">Team Comparison</h3>
+              
+              {!isBalanced ? (
+                <p className="text-sm text-gray-500 italic">Team comparison will appear after balancing</p>
+              ) : (
+                <div className="space-y-3">
+                  {renderComparativeStats()}
+        </div>
+              )}
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* Create Planned Match Modal */}
+      {showCreateMatchModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Create Planned Match</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Match Date</label>
+                <input 
+                  type="date"
+                  value={newMatchData.match_date}
+                  onChange={(e) => setNewMatchData({...newMatchData, match_date: e.target.value})}
+                  className="w-full p-2 rounded-md border border-gray-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">Format: YYYY-MM-DD</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
+                <select
+                  value={newMatchData.team_size}
+                  onChange={(e) => setNewMatchData({...newMatchData, team_size: parseInt(e.target.value)})}
+                  className="w-full p-2 rounded-md border border-gray-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                >
+                  {[5, 6, 7, 8, 9, 10, 11].map(size => (
+                    <option key={size} value={size}>{size}-a-side</option>
+                  ))}
+                </select>
+              </div>
+              
+              {createMatchError && (
+                <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-md">
+                  {createMatchError}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => {
+                setShowCreateMatchModal(false);
+                setCreateMatchError(null);
+              }}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleCreatePlannedMatch}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Creating...' : 'Create Match'}
+              </Button>
+            </div>
+        </div>
+        </div>
+      )}
+
+      {/* Edit Planned Match Modal */}
+      {showEditMatchModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Edit Planned Match</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Match Date</label>
+                <input
+                  type="date"
+                  value={newMatchData.match_date}
+                  onChange={(e) => setNewMatchData({...newMatchData, match_date: e.target.value})}
+                  className="w-full p-2 rounded-md border border-gray-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">Format: YYYY-MM-DD</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
+                <select
+                  value={newMatchData.team_size}
+                  onChange={(e) => setNewMatchData({...newMatchData, team_size: parseInt(e.target.value)})}
+                  className="w-full p-2 rounded-md border border-gray-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                >
+                  {[5, 6, 7, 8, 9, 10, 11].map(size => (
+                    <option key={size} value={size}>{size}-a-side</option>
+                  ))}
+                </select>
+                            </div>
+              
+              {createMatchError && (
+                <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-md">
+                  {createMatchError}
+                          </div>
+                        )}
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
-                <Button
-                  type="button"
-                  onClick={() => setShowRingerModal(false)}
-                  variant="outline"
-                >
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => {
+                setShowEditMatchModal(false);
+                setCreateMatchError(null);
+              }}>
                   Cancel
                 </Button>
                 <Button
-                  type="submit"
-                  disabled={isAddingRinger || !ringerForm.name.trim()}
                   variant="primary"
+                onClick={handleEditPlannedMatch}
+                disabled={isLoading}
                 >
-                  {isAddingRinger ? 'Adding...' : 'Add Ringer'}
+                {isLoading ? 'Updating...' : 'Update Match'}
                 </Button>
               </div>
-            </form>
-          </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Slots Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Clear All Slots?</h3>
+            <p className="mb-6">Are you sure you want to remove all players from the team slots?</p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowClearConfirm(false)}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={handleClearAll}>
+                Clear All
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Deactivate Match Confirmation Modal */}
+      {showClearMatchConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Remove Match?</h3>
+            <p className="mb-6">Are you sure you want to remove this match? The match data will be preserved but no longer visible in this screen.</p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowClearMatchConfirm(false)}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={handleDeactivateMatch}>
+                Remove Match
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Copy Teams Success Toast */}
+      {showCopyToast && (
+        <div className="fixed bottom-4 right-4 bg-green-100 border border-green-200 text-green-700 px-4 py-2 rounded-md shadow-md">
+          Teams copied to clipboard!
         </div>
       )}
     </div>
