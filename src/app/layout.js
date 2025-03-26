@@ -21,8 +21,12 @@ export default function RootLayout({ children }) {
               <div className="flex justify-between h-16">
                 <div className="flex">
                   <div className="flex-shrink-0 flex items-center">
-                    <a href="/" className="text-xl font-bold text-primary-600">
-                      Berko TNF
+                    <a href="/" className="flex items-center">
+                      <img 
+                        src="/logo.png" 
+                        alt="Berko TNF" 
+                        className="h-10 w-auto my-1"
+                      />
                     </a>
                   </div>
                 </div>
