@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -8,6 +8,12 @@ import { useAuth } from '@/hooks/useAuth';
 const AppSetupPage = () => {
   const { user, isAdmin, isLoading } = useAuth();
   const router = useRouter();
+
+  // Add telemetry to track page usage
+  useEffect(() => {
+    console.log('Direct app-setup page was accessed - tracking for potential cleanup');
+    // In a production app, you might want to log this to your analytics system
+  }, []);
 
   // Redirect if user is not an admin
   React.useEffect(() => {

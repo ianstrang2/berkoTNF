@@ -37,7 +37,7 @@ const ProtectedAppSetup = () => {
     return (
       <div className="w-full">
         <Card>
-          <h2 className="text-2xl font-bold mb-6 text-center text-red-600">App Setup Access</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center text-error-600">App Setup Access</h2>
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <input
@@ -45,17 +45,17 @@ const ProtectedAppSetup = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-error-500 focus:border-error-500 transition-colors"
               />
             </div>
             {error && (
-              <p className="text-red-500 text-sm font-medium text-center">
+              <p className="text-error-500 text-sm font-medium text-center">
                 {error}
               </p>
             )}
             <Button
               type="submit"
-              className="w-full bg-red-600 hover:bg-red-700 text-white"
+              className="w-full bg-error-600 hover:bg-error-700 text-white"
             >
               Login
             </Button>
@@ -90,10 +90,10 @@ const AdminPanel = () => {
                   </svg>
                 </div>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+              <h2 className="text-xl font-semibold text-neutral-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
                 Next Match Management
               </h2>
-              <p className="text-gray-600">
+              <p className="text-neutral-600">
                 Organise and balance teams for the next game
               </p>
             </Card>
@@ -109,10 +109,10 @@ const AdminPanel = () => {
                   </svg>
                 </div>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+              <h2 className="text-xl font-semibold text-neutral-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
                 Player Ratings
               </h2>
-              <p className="text-gray-600">
+              <p className="text-neutral-600">
                 Update player attributes
               </p>
             </Card>
@@ -128,10 +128,10 @@ const AdminPanel = () => {
                   </svg>
                 </div>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+              <h2 className="text-xl font-semibold text-neutral-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
                 Player Management
               </h2>
-              <p className="text-gray-600">
+              <p className="text-neutral-600">
                 Add, edit and manage players
               </p>
             </Card>
@@ -147,10 +147,10 @@ const AdminPanel = () => {
                   </svg>
                 </div>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+              <h2 className="text-xl font-semibold text-neutral-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
                 Match Records
               </h2>
-              <p className="text-gray-600">
+              <p className="text-neutral-600">
                 Enter and manage match information
               </p>
             </Card>
@@ -160,16 +160,16 @@ const AdminPanel = () => {
               className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group col-span-1 md:col-span-2"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-red-50 rounded-lg text-red-600 group-hover:bg-red-100 transition-colors duration-200">
+                <div className="p-2 bg-error-50 rounded-lg text-error-600 group-hover:bg-error-100 transition-colors duration-200">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-red-600 transition-colors duration-200">
+              <h2 className="text-xl font-semibold text-neutral-900 mb-2 group-hover:text-error-600 transition-colors duration-200">
                 App Setup
               </h2>
-              <p className="text-gray-600">
+              <p className="text-neutral-600">
                 Configure application settings, team templates, and balance algorithm
               </p>
             </Card>
@@ -195,7 +195,7 @@ const AdminPanel = () => {
           {currentSection === 'players' && <PlayerManager />}
           {currentSection === 'matches' && <MatchManager />}
           {currentSection === 'appsetup' && (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="bg-white p-6 rounded-lg shadow-card">
               <ProtectedAppSetup />
             </div>
           )}

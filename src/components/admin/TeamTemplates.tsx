@@ -276,28 +276,28 @@ const TeamTemplates = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Team Templates</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">Team Templates</h1>
       </div>
       
       {isLoading && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md mb-6">
-          <span className="text-base text-blue-700">Loading team templates...</span>
+        <div className="p-4 bg-info-50 border border-info-200 rounded-md mb-6">
+          <span className="text-base text-info-700">Loading team templates...</span>
         </div>
       )}
       
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-6 text-red-700">
+        <div className="p-4 bg-error-50 border border-error-200 rounded-md mb-6 text-error-700">
           <span className="text-base">{error}</span>
         </div>
       )}
       
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-md mb-6 text-green-700">
+        <div className="p-4 bg-success-50 border border-success-200 rounded-md mb-6 text-success-700">
           <span className="text-base">{successMessage}</span>
         </div>
       )}
 
-      <p className="mb-6 text-base text-gray-600">
+      <p className="mb-6 text-base text-neutral-600">
         Manage team formations by adjusting the number of players in each position. 
         The total number of players must match the team size.
         {defaultTeamSize && (
@@ -312,39 +312,39 @@ const TeamTemplates = () => {
           title="Team Templates"
           icon={null}
           footer={null}
-          className="shadow-sm"
+          className="shadow-card"
         >
-          <p className="text-base text-gray-600 mb-6">
+          <p className="text-base text-neutral-600 mb-6">
             Recommended: Keep the default values, which have been tested and proven effective over many games.
           </p>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-neutral-200">
               <thead>
                 <tr>
-                  <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Team Size
                   </th>
-                  <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Defenders
                   </th>
-                  <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Midfielders
                   </th>
-                  <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Attackers
                   </th>
-                  <th className="px-3 py-2 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 bg-neutral-50 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-neutral-200">
                 {templates.map(template => (
                   <tr key={template.template_id}>
-                    <td className="px-3 py-2 whitespace-nowrap text-base font-medium text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-base font-medium text-neutral-900">
                       {template.team_size}-a-side
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-gray-500">
+                    <td className="px-3 py-2 whitespace-nowrap text-base text-neutral-500">
                       {editingTemplateId === template.template_id ? (
                         <input
                           type="number"
@@ -356,13 +356,13 @@ const TeamTemplates = () => {
                             'defenders', 
                             parseInt(e.target.value) || 0
                           )}
-                          className="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                          className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                         />
                       ) : (
                         template.defenders
                       )}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-gray-500">
+                    <td className="px-3 py-2 whitespace-nowrap text-base text-neutral-500">
                       {editingTemplateId === template.template_id ? (
                         <input
                           type="number"
@@ -374,13 +374,13 @@ const TeamTemplates = () => {
                             'midfielders', 
                             parseInt(e.target.value) || 0
                           )}
-                          className="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                          className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                         />
                       ) : (
                         template.midfielders
                       )}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-gray-500">
+                    <td className="px-3 py-2 whitespace-nowrap text-base text-neutral-500">
                       {editingTemplateId === template.template_id ? (
                         <input
                           type="number"
@@ -392,7 +392,7 @@ const TeamTemplates = () => {
                             'attackers', 
                             parseInt(e.target.value) || 0
                           )}
-                          className="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                          className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                         />
                       ) : (
                         template.attackers

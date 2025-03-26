@@ -237,22 +237,22 @@ const BalanceAlgorithmSetup = () => {
   // Get position-specific color
   const getPositionColor = (positionGroup) => {
     switch(positionGroup) {
-      case 'defense': return 'bg-blue-500';
-      case 'midfield': return 'bg-green-500';
-      case 'attack': return 'bg-red-500';
-      case 'team': return 'bg-purple-500';
-      default: return 'bg-gray-400';
+      case 'defense': return 'bg-info-500';
+      case 'midfield': return 'bg-success-500';
+      case 'attack': return 'bg-error-500';
+      case 'team': return 'bg-secondary-500';
+      default: return 'bg-neutral-400';
     }
   };
 
   // Get border color for position
   const getPositionBorderColor = (positionGroup) => {
     switch(positionGroup) {
-      case 'defense': return 'border-blue-500';
-      case 'midfield': return 'border-green-500';
-      case 'attack': return 'border-red-500';
-      case 'team': return 'border-purple-500';
-      default: return 'border-gray-400';
+      case 'defense': return 'border-info-500';
+      case 'midfield': return 'border-success-500';
+      case 'attack': return 'border-error-500';
+      case 'team': return 'border-secondary-500';
+      default: return 'border-neutral-400';
     }
   };
 
@@ -297,8 +297,8 @@ const BalanceAlgorithmSetup = () => {
     <div>
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Balance Algorithm Settings</h2>
-          <p className="text-base text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-neutral-800">Balance Algorithm Settings</h2>
+          <p className="text-base text-neutral-600 mt-1">
             Define how different player attributes are weighted when balancing teams
           </p>
         </div>
@@ -321,20 +321,20 @@ const BalanceAlgorithmSetup = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+        <div className="bg-error-50 border border-error-200 text-error-700 px-4 py-3 rounded mb-6">
           <span className="text-base">{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+        <div className="bg-success-50 border border-success-200 text-success-700 px-4 py-3 rounded mb-6">
           <span className="text-base">{success}</span>
         </div>
       )}
 
       {/* Validation Error Message */}
       {showValidationError && Object.keys(validationErrors).length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded mb-6">
+        <div className="bg-warning-50 border border-warning-200 text-warning-700 px-4 py-3 rounded mb-6">
           <div className="flex justify-between items-start">
             <div>
               <p className="font-medium mb-2">Please fix the following issues before saving:</p>
@@ -347,7 +347,7 @@ const BalanceAlgorithmSetup = () => {
             </div>
             <button 
               onClick={() => setShowValidationError(false)}
-              className="text-yellow-700 hover:text-yellow-900"
+              className="text-warning-700 hover:text-warning-900"
               aria-label="Close message"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -364,7 +364,7 @@ const BalanceAlgorithmSetup = () => {
           <span className="ml-2 text-base">Loading balance weights...</span>
         </div>
       ) : weights.length === 0 ? (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded mb-6">
+        <div className="bg-warning-50 border border-warning-200 text-warning-700 px-4 py-3 rounded mb-6">
           <span className="text-base">No balance weights found. Please check the API connection or reset to defaults.</span>
         </div>
       ) : (
@@ -379,8 +379,8 @@ const BalanceAlgorithmSetup = () => {
             const total = totals[positionGroup] || 0;
             const isTotalValid = Math.abs(total - 1) <= 0.001; // Within 0.1% of 100%
             const totalClass = isTotalValid 
-              ? 'text-green-600' 
-              : 'text-red-600 font-bold';
+              ? 'text-success-600' 
+              : 'text-error-600 font-bold';
 
             // Filter technical attributes for this position
             const techAttributes = groupedWeights[positionGroup]
@@ -393,7 +393,7 @@ const BalanceAlgorithmSetup = () => {
             return (
               <Card
                 key={positionGroup}
-                className="shadow-sm"
+                className="shadow-card"
               >
                 <div className="mb-4 pb-2 border-b">
                   <div className="flex justify-between items-center">
@@ -414,16 +414,16 @@ const BalanceAlgorithmSetup = () => {
                 {/* Technical attributes section */}
                 {techAttributes.length > 0 && (
                   <div className="space-y-4 mb-6">
-                    <h4 className="text-sm uppercase text-gray-500 font-medium">Technical Attributes</h4>
+                    <h4 className="text-sm uppercase text-neutral-500 font-medium">Technical Attributes</h4>
                     {techAttributes.map(weight => (
                       <div key={weight.attribute_id} className="mb-4">
                         <div className="flex justify-between items-center mb-2">
                           <div className="flex items-center relative">
-                            <span className="font-medium text-base text-gray-700">
+                            <span className="font-medium text-base text-neutral-700">
                               {formatAttributeName(weight.name)}
                               <button
                                 type="button"
-                                className="ml-1 text-gray-400 hover:text-gray-600 focus:outline-none tooltip-trigger"
+                                className="ml-1 text-neutral-400 hover:text-neutral-600 focus:outline-none tooltip-trigger"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toggleTooltip(weight.attribute_id);
@@ -434,19 +434,19 @@ const BalanceAlgorithmSetup = () => {
                               </button>
                             </span>
                             {activeTooltip === weight.attribute_id && (
-                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-64">
-                                <p className="text-sm text-gray-700">
+                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-elevated p-3 w-64">
+                                <p className="text-sm text-neutral-700">
                                   {attributeDescriptions[weight.name] || weight.description}
                                 </p>
                               </div>
                             )}
                           </div>
-                          <span className={`text-base font-medium ${hasChanges ? 'text-blue-600' : 'text-gray-700'}`}>
+                          <span className={`text-base font-medium ${hasChanges ? 'text-primary-600' : 'text-neutral-700'}`}>
                             {formatWeight(weight.weight)}
                           </span>
                         </div>
                         <div className="flex items-center">
-                          <div className="relative w-full h-4 bg-gray-200 rounded-md overflow-hidden">
+                          <div className="relative w-full h-4 bg-neutral-200 rounded-md overflow-hidden">
                             <input
                               type="range"
                               min="0"
@@ -457,7 +457,7 @@ const BalanceAlgorithmSetup = () => {
                               className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
                             />
                             <div 
-                              className={`h-full bg-blue-500 transition-all duration-300`}
+                              className={`h-full bg-primary-500 transition-all duration-300`}
                               style={{ width: `${Math.max(0, Math.min(100, weight.weight * 100))}%` }}
                             ></div>
                           </div>
@@ -471,17 +471,17 @@ const BalanceAlgorithmSetup = () => {
                 {otherAttributes.length > 0 && (
                   <div className="space-y-4">
                     {techAttributes.length > 0 && (
-                      <h4 className="text-sm uppercase text-gray-500 font-medium">Other Attributes</h4>
+                      <h4 className="text-sm uppercase text-neutral-500 font-medium">Other Attributes</h4>
                     )}
                     {otherAttributes.map(weight => (
                       <div key={weight.attribute_id} className="mb-4">
                         <div className="flex justify-between items-center mb-2">
                           <div className="flex items-center relative">
-                            <span className="font-medium text-base text-gray-700">
+                            <span className="font-medium text-base text-neutral-700">
                               {formatAttributeName(weight.name)}
                               <button
                                 type="button"
-                                className="ml-1 text-gray-400 hover:text-gray-600 focus:outline-none tooltip-trigger"
+                                className="ml-1 text-neutral-400 hover:text-neutral-600 focus:outline-none tooltip-trigger"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toggleTooltip(weight.attribute_id);
@@ -492,19 +492,19 @@ const BalanceAlgorithmSetup = () => {
                               </button>
                             </span>
                             {activeTooltip === weight.attribute_id && (
-                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-64">
-                                <p className="text-sm text-gray-700">
+                              <div className="absolute z-50 mt-2 ml-0 top-6 left-0 bg-white border border-neutral-200 rounded-lg shadow-elevated p-3 w-64">
+                                <p className="text-sm text-neutral-700">
                                   {attributeDescriptions[weight.name] || weight.description}
                                 </p>
                               </div>
                             )}
                           </div>
-                          <span className={`text-base font-medium ${hasChanges ? 'text-blue-600' : 'text-gray-700'}`}>
+                          <span className={`text-base font-medium ${hasChanges ? 'text-primary-600' : 'text-neutral-700'}`}>
                             {formatWeight(weight.weight)}
                           </span>
                         </div>
                         <div className="flex items-center">
-                          <div className="relative w-full h-4 bg-gray-200 rounded-md overflow-hidden">
+                          <div className="relative w-full h-4 bg-neutral-200 rounded-md overflow-hidden">
                             <input
                               type="range"
                               min="0"
@@ -515,7 +515,7 @@ const BalanceAlgorithmSetup = () => {
                               className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
                             />
                             <div 
-                              className={`h-full bg-blue-500 transition-all duration-300`}
+                              className={`h-full bg-primary-500 transition-all duration-300`}
                               style={{ width: `${Math.max(0, Math.min(100, weight.weight * 100))}%` }}
                             ></div>
                           </div>
@@ -532,52 +532,52 @@ const BalanceAlgorithmSetup = () => {
       
       <Card
         title="How Team Balancing Works"
-        className="mb-6 bg-gray-50 border border-gray-200 shadow-sm"
+        className="mb-6 bg-neutral-50 border border-neutral-200 shadow-card"
       >
-        <p className="text-base text-gray-600 mb-4">
+        <p className="text-base text-neutral-600 mb-4">
           The team balancing algorithm creates teams by following this sequence:
         </p>
         <ul key="balancing-steps" className="space-y-4">
           <li key="step-1" className="flex items-start">
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">1</span>
-            <span className="text-base text-gray-600">
+            <span className="text-base text-neutral-600">
               Players are first allocated as defenders, based on highest desire to defend.
             </span>
           </li>
           <li key="step-2" className="flex items-start">
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">2</span>
-            <span className="text-base text-gray-600">
+            <span className="text-base text-neutral-600">
               Next, players are assigned as attackers, prioritising those with highest goalscoring ability.
             </span>
           </li>
           <li key="step-3" className="flex items-start">
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">3</span>
-            <span className="text-base text-gray-600">
+            <span className="text-base text-neutral-600">
               Remaining players are assigned to midfield positions.
             </span>
           </li>
           <li key="step-4" className="flex items-start">
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">4</span>
-            <span className="text-base text-gray-600">
+            <span className="text-base text-neutral-600">
               Each player is evaluated within their assigned position using the position-specific weights you've set above. This creates a skill score for each player.
             </span>
           </li>
           <li key="step-5" className="flex items-start">
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">5</span>
-            <span className="text-base text-gray-600">
+            <span className="text-base text-neutral-600">
               Players are distributed between teams in a "snake draft" pattern. The highest-scored defender goes to Team A, second-highest to Team B, and alternating from there. This repeats for midfielders and attackers.
             </span>
           </li>
           <li key="step-6" className="flex items-start">
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-sm mr-3 shrink-0">6</span>
-            <span className="text-base text-gray-600">
+            <span className="text-base text-neutral-600">
               Finally, <strong>Resilience</strong> and <strong>Teamwork</strong> attributes are applied according to their weights. These are processed last, and their impact is proportional to the weight you've assigned them in the settings above.
             </span>
           </li>
         </ul>
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-md">
-          <h3 className="font-medium text-blue-800 mb-2">Important Note on Weights</h3>
-          <p className="text-sm text-blue-700">
+        <div className="mt-6 p-4 bg-info-50 border border-info-100 rounded-md">
+          <h3 className="font-medium text-info-800 mb-2">Important Note on Weights</h3>
+          <p className="text-sm text-info-700">
             For each position group (Defenders, Midfielders, Attackers), the weights for technical attributes 
             (Stamina & Pace, Ball Control, Goalscoring) should total 100%. Each slider will adjust in 5% increments.
             The system will validate the totals before saving.

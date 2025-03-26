@@ -100,7 +100,7 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <main className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
       {!currentView ? (
         <div className="py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -108,7 +108,7 @@ export default function Home() {
               <h1 className="text-4xl font-bold text-primary-600 mb-8">
                 TNF Stats Dashboard
               </h1>
-              <p className="text-xl text-gray-600 mb-12">
+              <p className="text-xl text-neutral-600 mb-12">
                 Explore statistics, records, and performance data
               </p>
             </div>
@@ -117,17 +117,17 @@ export default function Home() {
                 <Card
                   key={index}
                   onClick={() => card.view === 'player-profiles' ? handlePlayerProfileClick(1) : setCurrentView(card.view)}
-                  className="hover:shadow-md transition-shadow duration-200 cursor-pointer overflow-hidden group"
+                  className="hover:shadow-elevated transition-shadow duration-200 cursor-pointer overflow-hidden group"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
                       {card.icon}
                     </div>
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
+                  <h2 className="text-xl font-semibold text-neutral-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
                     {card.title}
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-neutral-600">
                     {card.description}
                   </p>
                 </Card>

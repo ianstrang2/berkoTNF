@@ -3,6 +3,7 @@ import Button from '@/components/ui/Button';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 const MatchSettingsSetup = () => {
+  console.log('MatchSettingsSetup component was rendered - checking if this component is used');
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [configs, setConfigs] = useState({
@@ -138,7 +139,7 @@ const MatchSettingsSetup = () => {
   return (
     <div>
       <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-800">Match Settings</h2>
+        <h2 className="text-xl font-semibold text-neutral-800">Match Settings</h2>
         <div className="flex gap-2">
           <Button
             onClick={handleResetToDefaults}
@@ -158,40 +159,40 @@ const MatchSettingsSetup = () => {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-gray-50 p-4 rounded-md text-sm text-gray-600">
+        <div className="bg-neutral-50 p-4 rounded-md text-sm text-neutral-600">
           These settings control the defaults for new matches. Changing these values will only affect future matches.
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
               Days Between Matches
             </label>
             <select
               name="days_between_matches"
               value={configs.days_between_matches}
               onChange={handleInputChange}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+              className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
               disabled={isLoading}
             >
               <option value="7">7 days (Weekly)</option>
               <option value="14">14 days (Bi-weekly)</option>
               <option value="28">28 days (Monthly)</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-neutral-500">
               Default number of days between matches when scheduling new matches
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
               Default Team Size
             </label>
             <select
               name="default_team_size"
               value={configs.default_team_size}
               onChange={handleInputChange}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+              className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
               disabled={isLoading}
             >
               <option value="5">5-a-side</option>
@@ -201,7 +202,7 @@ const MatchSettingsSetup = () => {
               <option value="9">9-a-side</option>
               <option value="11">11-a-side</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-neutral-500">
               Default team size for new matches
             </p>
           </div>
@@ -222,7 +223,7 @@ const MatchSettingsSetup = () => {
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2 ${
-          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+          toast.type === 'error' ? 'bg-error-600 text-white' : 'bg-success-600 text-white'
         }`}>
           <span>{toast.message}</span>
         </div>

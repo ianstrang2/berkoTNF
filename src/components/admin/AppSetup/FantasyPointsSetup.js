@@ -144,7 +144,7 @@ const FantasyPointsSetup = () => {
   return (
     <div>
       <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-800">Fantasy Points</h2>
+        <h2 className="text-xl font-semibold text-neutral-800">Fantasy Points</h2>
         <div className="flex gap-2">
           <Button
             onClick={handleResetToDefaults}
@@ -164,7 +164,7 @@ const FantasyPointsSetup = () => {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-md text-sm text-yellow-700">
+        <div className="bg-warning-50 border border-warning-200 p-4 rounded-md text-sm text-warning-700">
           <div className="font-medium mb-1">Warning</div>
           <p>
             Changing these values will affect all historical fantasy points calculations. 
@@ -174,10 +174,10 @@ const FantasyPointsSetup = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h3 className="text-md font-medium text-gray-700 mb-3">Core Points</h3>
+            <h3 className="text-md font-medium text-neutral-700 mb-3">Core Points</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Win
                 </label>
                 <input
@@ -185,13 +185,13 @@ const FantasyPointsSetup = () => {
                   name="fantasy_win_points"
                   value={configs.fantasy_win_points}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   disabled={isLoading}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Draw
                 </label>
                 <input
@@ -199,13 +199,13 @@ const FantasyPointsSetup = () => {
                   name="fantasy_draw_points"
                   value={configs.fantasy_draw_points}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   disabled={isLoading}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Loss
                 </label>
                 <input
@@ -213,7 +213,7 @@ const FantasyPointsSetup = () => {
                   name="fantasy_loss_points"
                   value={configs.fantasy_loss_points}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   disabled={isLoading}
                 />
               </div>
@@ -221,10 +221,10 @@ const FantasyPointsSetup = () => {
           </div>
 
           <div>
-            <h3 className="text-md font-medium text-gray-700 mb-3">Bonus Points</h3>
+            <h3 className="text-md font-medium text-neutral-700 mb-3">Bonus Points</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Heavy Win
                 </label>
                 <input
@@ -232,13 +232,13 @@ const FantasyPointsSetup = () => {
                   name="fantasy_heavy_win_points"
                   value={configs.fantasy_heavy_win_points}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   disabled={isLoading}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Clean Sheet Win
                 </label>
                 <input
@@ -246,13 +246,13 @@ const FantasyPointsSetup = () => {
                   name="fantasy_clean_sheet_win_points"
                   value={configs.fantasy_clean_sheet_win_points}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   disabled={isLoading}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Heavy Win with Clean Sheet
                 </label>
                 <input
@@ -260,13 +260,13 @@ const FantasyPointsSetup = () => {
                   name="fantasy_heavy_clean_sheet_win_points"
                   value={configs.fantasy_heavy_clean_sheet_win_points}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   disabled={isLoading}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Clean Sheet Draw
                 </label>
                 <input
@@ -274,13 +274,13 @@ const FantasyPointsSetup = () => {
                   name="fantasy_clean_sheet_draw_points"
                   value={configs.fantasy_clean_sheet_draw_points}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   disabled={isLoading}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Heavy Loss
                 </label>
                 <input
@@ -288,7 +288,7 @@ const FantasyPointsSetup = () => {
                   name="fantasy_heavy_loss_points"
                   value={configs.fantasy_heavy_loss_points}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   disabled={isLoading}
                 />
               </div>
@@ -312,7 +312,7 @@ const FantasyPointsSetup = () => {
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2 ${
-          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+          toast.type === 'error' ? 'bg-error-600 text-white' : 'bg-success-600 text-white'
         }`}>
           <span>{toast.message}</span>
         </div>

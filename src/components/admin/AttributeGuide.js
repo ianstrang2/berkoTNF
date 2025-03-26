@@ -68,7 +68,7 @@ export const AttributeTooltip = ({ attribute }) => {
   if (!guide) return null;
 
   return (
-    <div className="absolute z-50 w-64 p-3 text-sm bg-white border border-gray-200 rounded-lg shadow-lg">
+    <div className="absolute z-50 w-64 p-3 text-sm bg-white border border-neutral-200 rounded-lg shadow-elevated">
       <h4 className="font-semibold mb-2">{guide.title}</h4>
       <ul className="space-y-1">
         {guide.scales.map(({ value, label, description }) => (
@@ -98,12 +98,12 @@ export const AttributeGuideModal = ({ isOpen, onClose }) => {
               <div className="sm:flex sm:items-start">
                 <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    <h3 className="text-lg leading-6 font-medium text-neutral-900">
                       Player Grading Guide
                     </h3>
                     <button
                       onClick={onClose}
-                      className="text-gray-400 hover:text-gray-500"
+                      className="text-neutral-400 hover:text-neutral-500"
                     >
                       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -119,7 +119,7 @@ export const AttributeGuideModal = ({ isOpen, onClose }) => {
                         {Object.entries(attributeGuides).map(([key, guide]) => (
                           <div key={key} className="border rounded-lg overflow-hidden">
                             <button
-                              className="w-full px-4 py-2 text-left font-medium bg-gray-50 hover:bg-gray-100"
+                              className="w-full px-4 py-2 text-left font-medium bg-neutral-50 hover:bg-neutral-100"
                               onClick={() => setActiveTab(key)}
                             >
                               {guide.title}
@@ -143,7 +143,7 @@ export const AttributeGuideModal = ({ isOpen, onClose }) => {
 
                     <div className="hidden sm:block">
                       {/* Desktop tabs */}
-                      <div className="border-b border-gray-200">
+                      <div className="border-b border-neutral-200">
                         <nav className="-mb-px flex space-x-8">
                           {Object.entries(attributeGuides).map(([key, guide]) => (
                             <button
@@ -152,7 +152,7 @@ export const AttributeGuideModal = ({ isOpen, onClose }) => {
                                 whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm
                                 ${activeTab === key
                                   ? 'border-primary-500 text-primary-600'
-                                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
                                 }
                               `}
                               onClick={() => setActiveTab(key)}

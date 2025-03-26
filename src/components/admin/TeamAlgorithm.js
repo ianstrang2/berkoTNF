@@ -9,11 +9,11 @@ import { useRouter } from 'next/navigation';
 const PlayerSlot = ({ slotNumber, currentPlayerId, availablePlayers, onSelectPlayer, isLoading }) => {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-500 w-6">•</span>
+      <span className="text-sm text-neutral-500 w-6">•</span>
       <select
         value={currentPlayerId || ''}
         onChange={(e) => onSelectPlayer(e.target.value)}
-        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+        className="flex-1 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
         disabled={isLoading}
       >
         <option value="">Select player</option>
@@ -844,15 +844,14 @@ const TeamAlgorithm = () => {
     
     return (
       <div className="flex items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
-        <span className="text-xs sm:text-sm text-gray-700 w-16 sm:w-20">{label}</span>
-        <div className="flex-1 bg-gray-200 h-4 sm:h-6 rounded-md overflow-hidden">
+        <span className="text-xs sm:text-sm text-neutral-700 w-16 sm:w-20">{label}</span>
+        <div className="flex-1 bg-neutral-200 h-4 sm:h-6 rounded-md overflow-hidden">
           <div 
             className={`h-full ${colorClasses[color]} transition-all duration-300`}
             style={{ width: `${percentage}%` }}
-          >
-          </div>
+          ></div>
         </div>
-        <span className="text-xs sm:text-sm text-gray-700 w-10 sm:w-12 text-right">{value.toFixed(1)}</span>
+        <span className="text-xs sm:text-sm text-neutral-700 w-10 sm:w-12 text-right">{value.toFixed(1)}</span>
       </div>
     );
   };
@@ -946,7 +945,7 @@ const TeamAlgorithm = () => {
           <div className="space-y-2">
             {players.map((player, idx) => (
               <div key={player.id} className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 w-6">
+                <span className="text-sm text-neutral-500 w-6">
                   {isTeamA ? idx + (type === 'defense' ? 1 : type === 'midfield' ? 4 : 8) : 
                             idx + (type === 'defense' ? 10 : type === 'midfield' ? 13 : 17)}
                 </span>
@@ -954,7 +953,7 @@ const TeamAlgorithm = () => {
               </div>
             ))}
             {stats && (
-              <div className="mt-2 pt-2 border-t border-gray-200">
+              <div className="mt-2 pt-2 border-t border-neutral-200">
                 {Object.entries(stats).map(([key, value]) => (
                   <StatBar
                     key={key}
@@ -990,7 +989,7 @@ const TeamAlgorithm = () => {
         {renderPositionGroup('Attackers', attackers, 'attack')}
         
         {/* Team Characteristics Section */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
+        <div className="mt-6 pt-6 border-t border-neutral-200">
           <h3 className="text-lg font-semibold mb-2">Team Characteristics</h3>
           <StatBar
             label="Resilience"
@@ -1047,7 +1046,7 @@ const TeamAlgorithm = () => {
       .filter(Boolean);
     
     if (orangeTeamPlayers.length === 0 && greenTeamPlayers.length === 0) {
-      return <p className="text-xs text-gray-500 italic">No players selected</p>;
+      return <p className="text-xs text-neutral-500 italic">No players selected</p>;
     }
     
     // Calculate team stats
@@ -1141,10 +1140,10 @@ const TeamAlgorithm = () => {
     return stats.map(stat => (
       <div key={stat.key} className="mb-3">
         <div className="flex justify-between mb-1">
-          <span className="text-sm font-medium text-gray-700">{stat.label}</span>
+          <span className="text-sm font-medium text-neutral-700">{stat.label}</span>
         </div>
         <div className="flex items-center">
-          <div className="w-10 text-right mr-2 text-xs font-medium text-gray-800">
+          <div className="w-10 text-right mr-2 text-xs font-medium text-neutral-800">
             {stat.orangeValue.toFixed(1)}
           </div>
           <div className="flex-1 h-6 rounded-lg overflow-hidden flex">
@@ -1157,7 +1156,7 @@ const TeamAlgorithm = () => {
               style={{ width: `${stat.greenPercent}%` }}
             ></div>
           </div>
-          <div className="w-10 ml-2 text-xs font-medium text-gray-800">
+          <div className="w-10 ml-2 text-xs font-medium text-neutral-800">
             {stat.greenValue.toFixed(1)}
           </div>
         </div>
@@ -1556,10 +1555,10 @@ const TeamAlgorithm = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
     <div>
               <h2 className="text-xl font-bold mb-1">Planned Match</h2>
-              <p className="text-gray-600">
+              <p className="text-neutral-600">
                 {activeMatch.match_date ? format(new Date(activeMatch.match_date), 'EEEE, MMMM do yyyy') : 'Date not set'}
               </p>
-              <p className="text-gray-600">
+              <p className="text-neutral-600">
                 Format: {activeMatch.team_size}v{activeMatch.team_size}
               </p>
             </div>
@@ -1590,7 +1589,7 @@ const TeamAlgorithm = () => {
         </div>
       ) : (
         <div className="mb-6 bg-white rounded-lg shadow-sm p-4 text-center">
-          <p className="text-gray-600 mb-3">No active planned match</p>
+          <p className="text-neutral-600 mb-3">No active planned match</p>
           <Button
             variant="primary"
             onClick={handleShowCreateMatchModal}
@@ -1611,7 +1610,7 @@ const TeamAlgorithm = () => {
       
       {/* Progress Bar */}
       {balanceProgress > 0 && (
-        <div className="w-full h-2 bg-gray-200 rounded-full mb-6 overflow-hidden">
+        <div className="w-full h-2 bg-neutral-200 rounded-full mb-6 overflow-hidden">
           <div 
             className="h-full bg-primary-500 transition-all duration-300 ease-out"
                   style={{ width: `${balanceProgress}%` }}
@@ -1628,7 +1627,7 @@ const TeamAlgorithm = () => {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
                 <div>
                   <h2 className="text-xl font-semibold">Available Players</h2>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-neutral-600 text-sm">
                     {currentSlots.filter(s => s.player_id !== null).length}/{activeMatch.team_size * 2} players selected
                   </p>
           </div>
@@ -1662,7 +1661,7 @@ const TeamAlgorithm = () => {
                   />
                 ))}
         </div>
-              <div className="mt-4 text-sm text-gray-600">
+              <div className="mt-4 text-sm text-neutral-600">
                 <p>To remove a player, select "Select player" from the dropdown.</p>
         </div>
             </div>
@@ -1672,7 +1671,7 @@ const TeamAlgorithm = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <div>
               <h2 className="text-2xl font-bold mb-1">Balanced Teams</h2>
-              <p className="text-gray-600">
+              <p className="text-neutral-600">
                 {isBalanced 
                   ? "Teams have been balanced for optimal matchups" 
                   : "Balance teams to create closer, more entertaining games"}
@@ -1708,7 +1707,7 @@ const TeamAlgorithm = () => {
                 <h3 className="text-lg font-semibold text-orange-600 mb-3">Orange Team</h3>
                 
                 {!isBalanced && (
-                  <p className="text-sm text-gray-500 italic mb-3">Teams will appear here after balancing</p>
+                  <p className="text-sm text-neutral-500 italic mb-3">Teams will appear here after balancing</p>
                 )}
                 
                 {/* Players listing by position group - dynamically determine positions based on team size */}
@@ -1724,17 +1723,17 @@ const TeamAlgorithm = () => {
                     
                     return (
                       <div key={title} className="space-y-1">
-                        <h4 className="text-sm font-medium text-gray-700">{title}</h4>
+                        <h4 className="text-sm font-medium text-neutral-700">{title}</h4>
                         {positionPlayers.length > 0 ? (
                           <div className="space-y-1">
                             {positionPlayers.map(player => (
-                              <div key={player.id} className="p-1.5 bg-gray-50 rounded-md">
+                              <div key={player.id} className="p-1.5 bg-neutral-50 rounded-md">
                                 <span className="text-sm font-medium">{player.name}</span>
                   </div>
                 ))}
               </div>
                         ) : (
-                          <p className="text-xs text-gray-500 italic">No players assigned</p>
+                          <p className="text-xs text-neutral-500 italic">No players assigned</p>
                         )}
                       </div>
                     );
@@ -1749,7 +1748,7 @@ const TeamAlgorithm = () => {
                 <h3 className="text-lg font-semibold text-green-600 mb-3">Green Team</h3>
                 
                 {!isBalanced && (
-                  <p className="text-sm text-gray-500 italic mb-3">Teams will appear here after balancing</p>
+                  <p className="text-sm text-neutral-500 italic mb-3">Teams will appear here after balancing</p>
                 )}
                 
                 {/* Players listing by position group - dynamically determine positions based on team size */}
@@ -1765,17 +1764,17 @@ const TeamAlgorithm = () => {
 
                     return (
                       <div key={title} className="space-y-1">
-                        <h4 className="text-sm font-medium text-gray-700">{title}</h4>
+                        <h4 className="text-sm font-medium text-neutral-700">{title}</h4>
                         {positionPlayers.length > 0 ? (
                           <div className="space-y-1">
                             {positionPlayers.map(player => (
-                              <div key={player.id} className="p-1.5 bg-gray-50 rounded-md">
+                              <div key={player.id} className="p-1.5 bg-neutral-50 rounded-md">
                                 <span className="text-sm font-medium">{player.name}</span>
                         </div>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-xs text-gray-500 italic">No players assigned</p>
+                          <p className="text-xs text-neutral-500 italic">No players assigned</p>
                         )}
                       </div>
                     );
@@ -1791,7 +1790,7 @@ const TeamAlgorithm = () => {
               <h3 className="text-lg font-semibold mb-3">Team Comparison</h3>
               
               {!isBalanced ? (
-                <p className="text-sm text-gray-500 italic">Team comparison will appear after balancing</p>
+                <p className="text-sm text-neutral-500 italic">Team comparison will appear after balancing</p>
               ) : (
                 <div className="space-y-3">
                   {renderComparativeStats()}
@@ -1810,22 +1809,22 @@ const TeamAlgorithm = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Match Date</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Match Date</label>
                 <input 
                   type="date"
                   value={newMatchData.match_date}
                   onChange={(e) => setNewMatchData({...newMatchData, match_date: e.target.value})}
-                  className="w-full p-2 rounded-md border border-gray-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                  className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
                 />
-                <p className="mt-1 text-xs text-gray-500">Format: YYYY-MM-DD</p>
+                <p className="mt-1 text-xs text-neutral-500">Format: YYYY-MM-DD</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Team Size</label>
                 <select
                   value={newMatchData.team_size}
                   onChange={(e) => setNewMatchData({...newMatchData, team_size: parseInt(e.target.value)})}
-                  className="w-full p-2 rounded-md border border-gray-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                  className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
                 >
                   {[5, 6, 7, 8, 9, 10, 11].map(size => (
                     <option key={size} value={size}>{size}-a-side</option>
@@ -1867,22 +1866,22 @@ const TeamAlgorithm = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Match Date</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Match Date</label>
                 <input
                   type="date"
                   value={newMatchData.match_date}
                   onChange={(e) => setNewMatchData({...newMatchData, match_date: e.target.value})}
-                  className="w-full p-2 rounded-md border border-gray-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                  className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
                 />
-                <p className="mt-1 text-xs text-gray-500">Format: YYYY-MM-DD</p>
+                <p className="mt-1 text-xs text-neutral-500">Format: YYYY-MM-DD</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Team Size</label>
                 <select
                   value={newMatchData.team_size}
                   onChange={(e) => setNewMatchData({...newMatchData, team_size: parseInt(e.target.value)})}
-                  className="w-full p-2 rounded-md border border-gray-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                  className="w-full p-2 rounded-md border border-neutral-300 shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
                 >
                   {[5, 6, 7, 8, 9, 10, 11].map(size => (
                     <option key={size} value={size}>{size}-a-side</option>

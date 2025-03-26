@@ -120,7 +120,7 @@ const MatchReportSetup = () => {
   return (
     <div>
       <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-800">Match Report Settings</h2>
+        <h2 className="text-xl font-semibold text-neutral-800">Match Report Settings</h2>
         <div className="flex gap-2">
           <Button
             onClick={resetToDefaults}
@@ -140,7 +140,7 @@ const MatchReportSetup = () => {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded-md text-sm text-blue-700">
+        <div className="bg-info-50 border border-info-200 p-4 rounded-md text-sm text-info-700">
           <div className="font-medium mb-1">Information</div>
           <p>
             These settings control what appears in the "Stat Dive" section of match reports.
@@ -151,10 +151,10 @@ const MatchReportSetup = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {settings.map(setting => (
             <div key={setting.id}>
-              <h3 className="text-md font-medium text-gray-700 mb-3">{setting.name}</h3>
+              <h3 className="text-md font-medium text-neutral-700 mb-3">{setting.name}</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
                     {setting.name}
                   </label>
                   <input
@@ -162,11 +162,11 @@ const MatchReportSetup = () => {
                     name={setting.key}
                     value={setting.value}
                     onChange={(e) => handleSettingChange(setting.id, e.target.value)}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     disabled={isLoading}
                     min={setting.min}
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-neutral-500">
                     {setting.description}
                   </p>
                 </div>
@@ -190,7 +190,7 @@ const MatchReportSetup = () => {
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2 ${
-          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+          toast.type === 'error' ? 'bg-error-600 text-white' : 'bg-success-600 text-white'
         }`}>
           <span>{toast.message}</span>
         </div>

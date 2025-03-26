@@ -315,12 +315,12 @@ const AppConfig = () => {
       title={formatConfigKey(group.group_name)} 
       icon={null} 
       footer={
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+        <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
           <Button
             onClick={() => openResetConfirmation(group.group_name)}
             disabled={isLoading || isResetting[group.group_name] || isSaving[group.group_name]}
             variant="outline"
-            className="border-gray-300"
+            className="border-neutral-300"
           >
             {isResetting[group.group_name] ? 'Resetting...' : 'Reset to Default'}
           </Button>
@@ -337,7 +337,7 @@ const AppConfig = () => {
                   setEditingGroups(prev => ({ ...prev, [group.group_name]: false }));
                 }}
                 variant="outline"
-                className="border-gray-300"
+                className="border-neutral-300"
               >
                 Cancel
               </Button>
@@ -359,17 +359,17 @@ const AppConfig = () => {
           )}
         </div>
       }
-      className="mb-6 shadow-sm"
+      className="mb-6 shadow-card"
     >
       {group.subtitle && (
-        <p className="text-base text-gray-600 mb-6">{group.subtitle}</p>
+        <p className="text-base text-neutral-600 mb-6">{group.subtitle}</p>
       )}
       <div className="space-y-6">
         {group.configs.map(config => (
           <div key={config.config_id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
             <label 
               htmlFor={config.config_key} 
-              className="text-base font-medium text-gray-700 md:col-span-1"
+              className="text-base font-medium text-neutral-700 md:col-span-1"
             >
               {formatConfigKey(config.config_key)}
             </label>
@@ -381,9 +381,9 @@ const AppConfig = () => {
                 value={formData[config.config_key] || ''}
                 onChange={handleInputChange}
                 disabled={!editingGroups[group.group_name]}
-                className={`w-full rounded-md text-base ${editingGroups[group.group_name] ? 'border-gray-300' : 'bg-gray-50 border-gray-200'} shadow-sm focus:border-primary-500 focus:ring-primary-500`}
+                className={`w-full rounded-md text-base ${editingGroups[group.group_name] ? 'border-neutral-300' : 'bg-neutral-50 border-neutral-200'} shadow-sm focus:border-primary-500 focus:ring-primary-500`}
               />
-              <p className="mt-2 text-sm text-gray-500">{config.config_description}</p>
+              <p className="mt-2 text-sm text-neutral-500">{config.config_description}</p>
             </div>
           </div>
         ))}
@@ -394,28 +394,28 @@ const AppConfig = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">App Configuration</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">App Configuration</h1>
       </div>
       
       {isLoading && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md mb-6">
-          <span className="text-base text-blue-700">Loading configuration settings...</span>
+        <div className="p-4 bg-info-50 border border-info-200 rounded-md mb-6">
+          <span className="text-base text-info-700">Loading configuration settings...</span>
         </div>
       )}
       
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-6 text-red-700">
+        <div className="p-4 bg-error-50 border border-error-200 rounded-md mb-6 text-error-700">
           <span className="text-base">{error}</span>
         </div>
       )}
       
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-md mb-6 text-green-700">
+        <div className="p-4 bg-success-50 border border-success-200 rounded-md mb-6 text-success-700">
           <span className="text-base">{successMessage}</span>
         </div>
       )}
 
-      <p className="mb-6 text-base text-gray-600">
+      <p className="mb-6 text-base text-neutral-600">
         Manage global application settings used throughout the app. 
         Click "Edit" to modify a section, then "Save Changes" when done.
       </p>
