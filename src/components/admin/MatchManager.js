@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';  // Import date-fns for date formatting
 import Card from '@/components/ui/card';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
+import Button from '@/components/ui/Button';
 
 const MatchManager = () => {
   const [players, setPlayers] = useState([]);
@@ -205,36 +206,36 @@ const MatchManager = () => {
   };
 
   return (
-    <Card className="space-y-8">
-      <h2 className="text-2xl font-bold text-primary-600">
+    <Card className="space-y-section">
+      <h2 className="text-2xl font-bold text-primary-600 tracking-tight">
         {selectedMatch ? 'Edit Match' : 'Add New Match'}
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-section">
         {/* Match Date */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Match Date</label>
+        <div className="space-y-related">
+          <label className="block text-sm font-medium text-neutral-700">Match Date</label>
           <input
             type="date"
             value={formData.match_date}
             onChange={(e) => setFormData({ ...formData, match_date: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+            className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
             required
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-grid">
           {/* Team A */}
-          <div className="space-y-4">
+          <div className="space-y-element">
             <h3 className="text-lg font-semibold text-primary-600">Team A</h3>
-            <div className="space-y-4">
+            <div className="space-y-element">
               {formData.team_a.map((player, index) => (
-                <div key={`team-a-${index}`} className="grid grid-cols-4 gap-4">
+                <div key={`team-a-${index}`} className="grid grid-cols-4 gap-element">
                   <div className="col-span-3">
                     <select
                       value={player.player_id}
                       onChange={(e) => handlePlayerChange('a', index, 'player_id', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                      className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                     >
                       <option value="">Select Player</option>
                       {players.map((p) => (
@@ -249,34 +250,34 @@ const MatchManager = () => {
                     min="0"
                     value={player.goals}
                     onChange={(e) => handlePlayerChange('a', index, 'goals', parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                    className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                   />
                 </div>
               ))}
             </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700">Team A Score</label>
+            <div className="mt-element">
+              <label className="block text-sm font-medium text-neutral-700">Team A Score</label>
               <input
                 type="number"
                 min="0"
                 value={formData.team_a_score}
                 onChange={(e) => setFormData({ ...formData, team_a_score: parseInt(e.target.value) || 0 })}
-                className="mt-1 w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="mt-related w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
           </div>
 
           {/* Team B */}
-          <div className="space-y-4">
+          <div className="space-y-element">
             <h3 className="text-lg font-semibold text-primary-600">Team B</h3>
-            <div className="space-y-4">
+            <div className="space-y-element">
               {formData.team_b.map((player, index) => (
-                <div key={`team-b-${index}`} className="grid grid-cols-4 gap-4">
+                <div key={`team-b-${index}`} className="grid grid-cols-4 gap-element">
                   <div className="col-span-3">
                     <select
                       value={player.player_id}
                       onChange={(e) => handlePlayerChange('b', index, 'player_id', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                      className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                     >
                       <option value="">Select Player</option>
                       {players.map((p) => (
@@ -291,19 +292,19 @@ const MatchManager = () => {
                     min="0"
                     value={player.goals}
                     onChange={(e) => handlePlayerChange('b', index, 'goals', parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                    className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                   />
                 </div>
               ))}
             </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700">Team B Score</label>
+            <div className="mt-element">
+              <label className="block text-sm font-medium text-neutral-700">Team B Score</label>
               <input
                 type="number"
                 min="0"
                 value={formData.team_b_score}
                 onChange={(e) => setFormData({ ...formData, team_b_score: parseInt(e.target.value) || 0 })}
-                className="mt-1 w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="mt-related w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
           </div>
@@ -313,22 +314,23 @@ const MatchManager = () => {
           <p className="text-red-500 text-sm font-medium text-center">{error}</p>
         )}
 
-        <div className="flex space-x-4">
-          <button
+        <div className="flex flex-col sm:flex-row space-y-element sm:space-y-0 sm:space-x-element">
+          <Button
             type="submit"
             disabled={isLoading}
-            className="flex-1 py-2 px-4 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 disabled:opacity-50"
+            className="flex-1"
           >
             {isLoading
               ? 'Saving...'
               : selectedMatch
               ? 'Update Match'
               : 'Add Match'}
-          </button>
+          </Button>
 
           {selectedMatch && (
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => {
                 setSelectedMatch(null);
                 setFormData({
@@ -339,17 +341,17 @@ const MatchManager = () => {
                   team_b_score: 0,
                 });
               }}
-              className="flex-1 py-2 px-4 bg-white text-primary-600 border border-primary-200 rounded-md hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
+              className="flex-1"
             >
               Cancel Edit
-            </button>
+            </Button>
           )}
         </div>
       </form>
 
       {/* Match List */}
-      <div className="mt-8">
-        <h3 className="text-xl font-semibold text-primary-600 mb-4">Match History</h3>
+      <div className="mt-section">
+        <h3 className="text-xl font-semibold text-primary-600 mb-element tracking-tight">Match History</h3>
         <Table responsive>
           <TableHead>
             <TableRow>
@@ -360,7 +362,7 @@ const MatchManager = () => {
           </TableHead>
           <TableBody>
             {matches.map((match) => (
-              <TableRow key={match.match_id}>
+              <TableRow key={match.match_id} className="hover:bg-neutral-50">
                 <TableCell className="font-medium">
                   {format(new Date(match.match_date), 'dd/MM/yyyy')}
                 </TableCell>

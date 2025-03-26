@@ -71,7 +71,7 @@ const AllTimeStats = () => {
   const getSortIndicator = (key) => {
     if (sortConfig.key === key) {
       return (
-        <span className="ml-1 text-primary-600">
+        <span className="ml-related text-primary-600">
           {sortConfig.direction === 'desc' ? '▼' : '▲'}
         </span>
       );
@@ -82,8 +82,8 @@ const AllTimeStats = () => {
   if (loading) {
     return (
       <Card className="text-center">
-        <div className="text-xl font-semibold text-primary-600">Loading...</div>
-        <div className="mt-4 flex justify-center">
+        <div className="text-xl font-semibold text-primary-600 mb-element">Loading...</div>
+        <div className="flex justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
         </div>
       </Card>
@@ -91,8 +91,8 @@ const AllTimeStats = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center text-primary-600">All-Time Stats</h2>
+    <div className="space-y-section">
+      <h2 className="text-2xl font-bold text-center text-primary-600 tracking-tight">All-Time Stats</h2>
       <Card>
         <div className="overflow-x-auto">
           <Table responsive>
@@ -101,49 +101,49 @@ const AllTimeStats = () => {
                 <TableCell isHeader onClick={() => sortData('name')} className="min-w-[150px] cursor-pointer hover:text-primary-600">
                   Player {getSortIndicator('name')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('games_played')} className="w-[50px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('games_played')} className="w-16 cursor-pointer hover:text-primary-600">
                   P {getSortIndicator('games_played')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('wins')} className="w-[50px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('wins')} className="w-16 cursor-pointer hover:text-primary-600">
                   W {getSortIndicator('wins')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('draws')} className="w-[50px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('draws')} className="w-16 cursor-pointer hover:text-primary-600">
                   D {getSortIndicator('draws')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('losses')} className="w-[50px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('losses')} className="w-16 cursor-pointer hover:text-primary-600">
                   L {getSortIndicator('losses')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('goals')} className="w-[60px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('goals')} className="w-16 cursor-pointer hover:text-primary-600">
                   G {getSortIndicator('goals')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('win_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('win_percentage')} className="w-20 cursor-pointer hover:text-primary-600">
                   Win% {getSortIndicator('win_percentage')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('minutes_per_goal')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('minutes_per_goal')} className="w-20 cursor-pointer hover:text-primary-600">
                   MPG {getSortIndicator('minutes_per_goal')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('heavy_wins')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('heavy_wins')} className="w-16 cursor-pointer hover:text-primary-600">
                   HW {getSortIndicator('heavy_wins')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('heavy_win_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('heavy_win_percentage')} className="w-20 cursor-pointer hover:text-primary-600">
                   HW% {getSortIndicator('heavy_win_percentage')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('heavy_losses')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('heavy_losses')} className="w-16 cursor-pointer hover:text-primary-600">
                   HL {getSortIndicator('heavy_losses')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('heavy_loss_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('heavy_loss_percentage')} className="w-20 cursor-pointer hover:text-primary-600">
                   HL% {getSortIndicator('heavy_loss_percentage')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('clean_sheets')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('clean_sheets')} className="w-16 cursor-pointer hover:text-primary-600">
                   CS {getSortIndicator('clean_sheets')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('clean_sheet_percentage')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('clean_sheet_percentage')} className="w-20 cursor-pointer hover:text-primary-600">
                   CS% {getSortIndicator('clean_sheet_percentage')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('fantasy_points')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('fantasy_points')} className="w-20 cursor-pointer hover:text-primary-600">
                   Pts {getSortIndicator('fantasy_points')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('points_per_game')} className="w-[70px] cursor-pointer hover:text-primary-600">
+                <TableCell isHeader onClick={() => sortData('points_per_game')} className="w-20 cursor-pointer hover:text-primary-600">
                   PPG {getSortIndicator('points_per_game')}
                 </TableCell>
               </TableRow>

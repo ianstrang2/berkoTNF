@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AttributeTooltip, AttributeGuideModal } from './AttributeGuide';
 import Card from '@/components/ui/card';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
+import Button from '@/components/ui/Button';
 
 // NOTE: StatCell has conditional formatting based on value (1-5) with colors from red to green
 // This conditional formatting is preserved for admin view to easily distinguish ratings
@@ -13,7 +14,7 @@ const StatCell = ({ value }) => {
       case 3: return 'bg-yellow-100 text-yellow-800';
       case 4: return 'bg-lime-100 text-lime-800';
       case 5: return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-neutral-100 text-neutral-800';
     }
   };
 
@@ -155,18 +156,18 @@ const PlayerRatings = () => {
         <TableCell>
           {player.name}
           {player.is_ringer && (
-            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <span className="ml-related inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
               Ringer
             </span>
           )}
         </TableCell>
         {['goalscoring', 'defender', 'stamina_pace', 'control', 'teamwork', 'resilience'].map((field) => (
           <TableCell key={field}>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-related">
               <button
                 onClick={() => handleNumberChange(field, editForm[field] - 1)}
                 disabled={editForm[field] <= 1}
-                className="w-6 h-6 flex items-center justify-center text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30 border border-gray-200 rounded"
+                className="w-6 h-6 flex items-center justify-center text-sm text-neutral-500 hover:text-neutral-700 disabled:opacity-30 border border-neutral-200 rounded"
               >
                 -
               </button>
@@ -174,7 +175,7 @@ const PlayerRatings = () => {
               <button
                 onClick={() => handleNumberChange(field, editForm[field] + 1)}
                 disabled={editForm[field] >= 5}
-                className="w-6 h-6 flex items-center justify-center text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30 border border-gray-200 rounded"
+                className="w-6 h-6 flex items-center justify-center text-sm text-neutral-500 hover:text-neutral-700 disabled:opacity-30 border border-neutral-200 rounded"
               >
                 +
               </button>
@@ -185,13 +186,13 @@ const PlayerRatings = () => {
           <button
             onClick={handleSaveEdit}
             disabled={isLoading}
-            className="text-primary-600 hover:text-primary-700 mr-2"
+            className="text-primary-600 hover:text-primary-700 mr-related"
           >
             Save
           </button>
           <button
             onClick={handleCancelEdit}
-            className="text-gray-600 hover:text-gray-900"
+            className="text-neutral-600 hover:text-neutral-900"
           >
             Cancel
           </button>
@@ -205,19 +206,22 @@ const PlayerRatings = () => {
   );
 
   return (
-    <Card className="space-y-8">
+    <Card className="space-y-section">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-primary-600">Player Ratings</h2>
-        <button
-          type="button"
+        <h2 className="text-2xl font-bold text-primary-600 tracking-tight">Player Ratings</h2>
+        <Button
+          variant="text"
           onClick={() => setShowGuide(true)}
-          className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          className="text-primary-600 hover:text-primary-700"
+          icon={
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          }
+          iconPosition="left"
         >
-          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
           Grading Guide
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -228,21 +232,21 @@ const PlayerRatings = () => {
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
             </div>
-            <div className="ml-3">
+            <div className="ml-element">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           </div>
         </div>
       )}
 
-      <div className="mt-4">
-        <div className="flex items-center mb-4">
+      <div className="mt-element">
+        <div className="flex items-center mb-element">
           <input
             type="text"
             placeholder="Search players..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
         </div>
 
@@ -278,11 +282,11 @@ const PlayerRatings = () => {
               editingId === player.player_id ? (
                 renderEditableRow(player)
               ) : (
-                <TableRow key={player.player_id} className="hover:bg-gray-50">
+                <TableRow key={player.player_id} className="hover:bg-neutral-50">
                   <TableCell>
                     {player.name}
                     {player.is_ringer && (
-                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className="ml-related inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         Ringer
                       </span>
                     )}

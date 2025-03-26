@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AttributeTooltip, AttributeGuideModal } from './AttributeGuide';
 import Card from '@/components/ui/card';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/Table';
+import Button from '@/components/ui/Button';
 
 const PlayerManager = () => {
   const [players, setPlayers] = useState([]);
@@ -230,8 +231,8 @@ const PlayerManager = () => {
         <TableCell>
           <button
             onClick={() => handleInputChange('is_retired', !editForm.is_retired)}
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-              editForm.is_retired ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              editForm.is_retired ? 'bg-neutral-100 text-neutral-800' : 'bg-green-100 text-green-800'
             }`}
           >
             {editForm.is_retired ? 'Retired' : 'Active'}
@@ -240,8 +241,8 @@ const PlayerManager = () => {
         <TableCell>
           <button
             onClick={() => handleInputChange('is_ringer', !editForm.is_ringer)}
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-              editForm.is_ringer ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              editForm.is_ringer ? 'bg-blue-100 text-blue-800' : 'bg-neutral-100 text-neutral-800'
             }`}
           >
             {editForm.is_ringer ? 'Yes' : 'No'}
@@ -249,11 +250,11 @@ const PlayerManager = () => {
         </TableCell>
         {['goalscoring', 'defender', 'stamina_pace', 'control', 'teamwork', 'resilience'].map((field) => (
           <TableCell key={field}>
-            <div className="flex items-center space-x-0.5">
+            <div className="flex items-center space-x-related">
               <button
                 onClick={() => handleNumberChange(field, editForm[field] - 1)}
                 disabled={editForm[field] <= 1}
-                className="w-5 h-5 flex items-center justify-center text-xs text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                className="w-5 h-5 flex items-center justify-center text-xs text-neutral-500 hover:text-neutral-700 disabled:opacity-30"
               >
                 -
               </button>
@@ -266,7 +267,7 @@ const PlayerManager = () => {
               <button
                 onClick={() => handleNumberChange(field, editForm[field] + 1)}
                 disabled={editForm[field] >= 5}
-                className="w-5 h-5 flex items-center justify-center text-xs text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                className="w-5 h-5 flex items-center justify-center text-xs text-neutral-500 hover:text-neutral-700 disabled:opacity-30"
               >
                 +
               </button>
@@ -274,7 +275,7 @@ const PlayerManager = () => {
           </TableCell>
         ))}
         <TableCell className="text-right">
-          <div className="flex space-x-2 justify-end">
+          <div className="flex space-x-related justify-end">
             <button
               onClick={handleSaveEdit}
               disabled={isLoading}
@@ -285,7 +286,7 @@ const PlayerManager = () => {
             <button
               onClick={handleCancelEdit}
               disabled={isLoading}
-              className="text-xs text-gray-600 hover:text-gray-900 font-medium"
+              className="text-xs text-neutral-600 hover:text-neutral-900 font-medium"
             >
               Cancel
             </button>
@@ -296,12 +297,12 @@ const PlayerManager = () => {
   };
 
   const renderAttributeInput = (label, field) => (
-    <div className="space-y-2">
-      <div className="flex items-center space-x-2">
-        <label className="block text-sm font-medium text-gray-700">{label}</label>
+    <div className="space-y-related">
+      <div className="flex items-center space-x-related">
+        <label className="block text-sm font-medium text-neutral-700">{label}</label>
         <button
           type="button"
-          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+          className="text-neutral-400 hover:text-neutral-600 focus:outline-none"
           onClick={() => setActiveTooltip(activeTooltip === field ? null : field)}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -314,14 +315,14 @@ const PlayerManager = () => {
           )}
         </div>
       </div>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-related">
         <input
           type="range"
           min="1"
           max="5"
           value={formData[field]}
           onChange={(e) => setFormData({ ...formData, [field]: parseInt(e.target.value) })}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          className="w-full h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer"
         />
         <span className="w-8 text-center">{formData[field]}</span>
       </div>
@@ -329,37 +330,40 @@ const PlayerManager = () => {
   );
 
   return (
-    <Card className="space-y-8">
+    <Card className="space-y-section">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-primary-600">
+        <h2 className="text-2xl font-bold text-primary-600 tracking-tight">
           {selectedPlayer ? 'Edit Player' : 'Add New Player'}
         </h2>
-        <button
-          type="button"
+        <Button
+          variant="text"
           onClick={() => setShowGuide(true)}
-          className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          className="text-primary-600 hover:text-primary-700"
+          icon={
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          }
+          iconPosition="left"
         >
-          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
           Grading Guide
-        </button>
+        </Button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Name</label>
+      <form onSubmit={handleSubmit} className="space-y-section">
+        <div className="space-y-element">
+          <div className="space-y-related">
+            <label className="block text-sm font-medium text-neutral-700">Name</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
             {renderAttributeInput('Goalscoring', 'goalscoring')}
             {renderAttributeInput('Defender', 'defender')}
             {renderAttributeInput('Stamina & Pace', 'stamina_pace')}
@@ -368,23 +372,23 @@ const PlayerManager = () => {
             {renderAttributeInput('Resilience', 'resilience')}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:space-x-6 space-y-4 sm:space-y-0">
-            <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer">
+          <div className="flex flex-col sm:flex-row sm:space-x-element space-y-element sm:space-y-0">
+            <label className="flex items-center space-x-related text-sm font-medium text-neutral-700 cursor-pointer">
               <input
                 type="checkbox"
                 checked={formData.is_ringer}
                 onChange={(e) => setFormData({ ...formData, is_ringer: e.target.checked })}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded transition-colors"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded transition-colors"
               />
               <span>Ringer</span>
             </label>
 
-            <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer">
+            <label className="flex items-center space-x-related text-sm font-medium text-neutral-700 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!formData.is_retired}
                 onChange={(e) => setFormData({ ...formData, is_retired: !e.target.checked })}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded transition-colors"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded transition-colors"
               />
               <span>Active</span>
             </label>
@@ -395,18 +399,19 @@ const PlayerManager = () => {
           <p className="text-red-500 text-sm font-medium text-center">{error}</p>
         )}
 
-        <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-          <button
+        <div className="flex flex-col sm:flex-row space-y-element sm:space-y-0 sm:space-x-element">
+          <Button
             type="submit"
             disabled={isLoading}
-            className="flex-1 py-2 px-4 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 disabled:opacity-50"
+            className="flex-1"
           >
             {isLoading ? 'Saving...' : selectedPlayer ? 'Update Player' : 'Add Player'}
-          </button>
+          </Button>
 
           {selectedPlayer && (
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => {
                 setSelectedPlayer(null);
                 setFormData({
@@ -421,30 +426,30 @@ const PlayerManager = () => {
                   resilience: 3
                 });
               }}
-              className="flex-1 py-2 px-4 bg-white text-primary-600 border border-primary-200 rounded-md hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
+              className="flex-1"
             >
               Cancel Edit
-            </button>
+            </Button>
           )}
         </div>
       </form>
 
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center space-x-4">
+      <div className="mt-section">
+        <div className="flex justify-between items-center mb-element">
+          <div className="flex items-center space-x-element">
             <input
               type="text"
               placeholder="Search players..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
-            <label className="flex items-center space-x-2 text-sm text-gray-600">
+            <label className="flex items-center space-x-related text-sm text-neutral-600">
               <input
                 type="checkbox"
                 checked={showRetired}
                 onChange={(e) => setShowRetired(e.target.checked)}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
               />
               <span>Show Retired Players</span>
             </label>
@@ -489,13 +494,13 @@ const PlayerManager = () => {
               editingId === player.player_id ? (
                 renderEditableRow(player)
               ) : (
-                <TableRow key={player.player_id}>
+                <TableRow key={player.player_id} className="hover:bg-neutral-50">
                   <TableCell>
                     {player.name}
                   </TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      player.is_retired ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
+                      player.is_retired ? 'bg-neutral-100 text-neutral-800' : 'bg-green-100 text-green-800'
                     }`}>
                       {player.is_retired ? 'Retired' : 'Active'}
                     </span>

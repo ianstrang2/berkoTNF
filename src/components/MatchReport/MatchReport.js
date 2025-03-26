@@ -32,32 +32,32 @@ const MatchReport = () => {
   const renderMatchInfo = () => {
     const { matchInfo } = report;
     return (
-      <Card className="mt-6">
-        <div className="text-2xl sm:text-3xl font-bold text-center mb-8">
+      <Card className="mt-section">
+        <div className="text-2xl sm:text-3xl font-bold text-center mb-section tracking-tight">
           Team A ({matchInfo.team_a_score}) - ({matchInfo.team_b_score}) Team B
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-neutral-50 rounded-lg p-5">
-            <div className="font-semibold text-lg text-primary-600 mb-3">Team A ({matchInfo.team_a_score})</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <div className="font-semibold text-lg text-primary-600 mb-element">Team A ({matchInfo.team_a_score})</div>
             <div className="text-sm text-neutral-700 leading-relaxed">
               {matchInfo.team_a_players.join(', ')}
             </div>
             {matchInfo.team_a_scorers && (
-              <div className="text-sm text-primary-600 font-medium mt-3 flex items-center">
-                <span className="mr-2">⚽</span> {matchInfo.team_a_scorers}
+              <div className="text-sm text-primary-600 font-medium mt-element flex items-center">
+                <span className="mr-related">⚽</span> {matchInfo.team_a_scorers}
               </div>
             )}
           </div>
 
-          <div className="bg-neutral-50 rounded-lg p-5">
-            <div className="font-semibold text-lg text-primary-600 mb-3">Team B ({matchInfo.team_b_score})</div>
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <div className="font-semibold text-lg text-primary-600 mb-element">Team B ({matchInfo.team_b_score})</div>
             <div className="text-sm text-neutral-700 leading-relaxed">
               {matchInfo.team_b_players.join(', ')}
             </div>
             {matchInfo.team_b_scorers && (
-              <div className="text-sm text-primary-600 font-medium mt-3 flex items-center">
-                <span className="mr-2">⚽</span> {matchInfo.team_b_scorers}
+              <div className="text-sm text-primary-600 font-medium mt-element flex items-center">
+                <span className="mr-related">⚽</span> {matchInfo.team_b_scorers}
               </div>
             )}
           </div>
@@ -70,15 +70,15 @@ const MatchReport = () => {
     if (!report) return null;
     
     return (
-      <Card className="mt-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card className="mt-section">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
           {/* Games & Goals Milestones */}
           {(report.gamesMilestones?.length > 0 || report.goalsMilestones?.length > 0) && (
-            <div className="bg-neutral-50 rounded-lg p-5">
-              <div className="font-semibold text-lg text-primary-600 mb-3">
+            <div className="bg-neutral-50 rounded-lg p-4">
+              <div className="font-semibold text-lg text-primary-600 mb-element">
                 Milestones
               </div>
-              <div className="space-y-2">
+              <div className="space-y-related">
                 {report.gamesMilestones?.map((milestone, i) => (
                   <p key={`game-${i}`} className="text-neutral-700">
                     {milestone.name} played their <span className="font-semibold">{milestone.games_played}th</span> game
@@ -95,11 +95,11 @@ const MatchReport = () => {
 
           {/* Streaks */}
           {report.streaks?.length > 0 && (
-            <div className="bg-neutral-50 rounded-lg p-5">
-              <div className="font-semibold text-lg text-primary-600 mb-3">
+            <div className="bg-neutral-50 rounded-lg p-4">
+              <div className="font-semibold text-lg text-primary-600 mb-element">
                 Form Streaks
               </div>
-              <div className="space-y-2">
+              <div className="space-y-related">
                 {report.streaks.map((streak, i) => (
                   <p key={`streak-${i}`} className="text-neutral-700">
                     {streak.name} is on a <span className="font-semibold">{streak.streak_count} game</span> {
@@ -115,15 +115,15 @@ const MatchReport = () => {
           
           {/* Goal-scoring Streaks */}
           {report.goalStreaks?.length > 0 && (
-            <div className="bg-neutral-50 rounded-lg p-5">
-              <div className="font-semibold text-lg text-primary-600 mb-3">
+            <div className="bg-neutral-50 rounded-lg p-4">
+              <div className="font-semibold text-lg text-primary-600 mb-element">
                 Scoring Streaks
               </div>
-              <div className="space-y-2">
+              <div className="space-y-related">
                 {report.goalStreaks.map((streak, i) => (
                   <p key={`goal-streak-${i}`} className="text-neutral-700">
                     {streak.name} has scored in <span className="font-semibold">{streak.matches_with_goals} consecutive</span> matches 
-                    <span className="text-sm text-neutral-500 ml-1">
+                    <span className="text-sm text-neutral-500 ml-related">
                       ({streak.goals_in_streak} goals total)
                     </span>
                   </p>
@@ -134,23 +134,23 @@ const MatchReport = () => {
 
           {/* Half-Season Leaders */}
           {(report.halfSeasonGoalLeaders?.[0] || report.halfSeasonFantasyLeaders?.[0]) && (
-            <div className="bg-neutral-50 rounded-lg p-5">
-              <div className="font-semibold text-lg text-primary-600 mb-3">
+            <div className="bg-neutral-50 rounded-lg p-4">
+              <div className="font-semibold text-lg text-primary-600 mb-element">
                 Current Leaders
               </div>
-              <div className="space-y-3">
+              <div className="space-y-element">
                 {/* Half-Season Goal Leaders */}
                 {report.halfSeasonGoalLeaders?.[0] && (
                   <div className="text-neutral-700">
-                    <p className="font-medium text-neutral-800 mb-1">Goals</p>
+                    <p className="font-medium text-neutral-800 mb-related">Goals</p>
                     {renderLeadershipText(report.halfSeasonGoalLeaders[0], 'goals', 'current Half-Season')}
                   </div>
                 )}
 
                 {/* Half-Season Fantasy Leaders */}
                 {report.halfSeasonFantasyLeaders?.[0] && (
-                  <div className="text-neutral-700 mt-2">
-                    <p className="font-medium text-neutral-800 mb-1">Fantasy Points</p>
+                  <div className="text-neutral-700 mt-element">
+                    <p className="font-medium text-neutral-800 mb-related">Fantasy Points</p>
                     {renderLeadershipText(report.halfSeasonFantasyLeaders[0], 'points', 'current Half-Season')}
                   </div>
                 )}
@@ -160,23 +160,23 @@ const MatchReport = () => {
           
           {/* Season Leaders */}
           {(report.seasonGoalLeaders?.[0] || report.seasonFantasyLeaders?.[0]) && (
-            <div className="bg-neutral-50 rounded-lg p-5">
-              <div className="font-semibold text-lg text-primary-600 mb-3">
+            <div className="bg-neutral-50 rounded-lg p-4">
+              <div className="font-semibold text-lg text-primary-600 mb-element">
                 Season Leaders
               </div>
-              <div className="space-y-3">
+              <div className="space-y-element">
                 {/* Season Goal Leaders */}
                 {report.seasonGoalLeaders?.[0] && (
                   <div className="text-neutral-700">
-                    <p className="font-medium text-neutral-800 mb-1">Goals</p>
+                    <p className="font-medium text-neutral-800 mb-related">Goals</p>
                     {renderLeadershipText(report.seasonGoalLeaders[0], 'goals', new Date().getFullYear() + ' Season')}
                   </div>
                 )}
 
                 {/* Season Fantasy Leaders */}
                 {report.seasonFantasyLeaders?.[0] && (
-                  <div className="text-neutral-700 mt-2">
-                    <p className="font-medium text-neutral-800 mb-1">Fantasy Points</p>
+                  <div className="text-neutral-700 mt-element">
+                    <p className="font-medium text-neutral-800 mb-related">Fantasy Points</p>
                     {renderLeadershipText(report.seasonFantasyLeaders[0], 'points', new Date().getFullYear() + ' Season')}
                   </div>
                 )}
@@ -344,30 +344,30 @@ const MatchReport = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-8 text-center">
-        <div className="text-xl font-semibold text-primary-600">Loading Match Report...</div>
-        <div className="mt-4 flex justify-center">
+      <Card className="text-center">
+        <div className="text-xl font-semibold text-primary-600 mb-element">Loading Match Report...</div>
+        <div className="flex justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (!report) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-8 text-center">
-        <div className="text-xl font-semibold text-gray-700">No match report available</div>
-        <p className="mt-2 text-gray-500">There are no recent matches to display</p>
-      </div>
+      <Card className="text-center">
+        <div className="text-xl font-semibold text-neutral-700">No match report available</div>
+        <p className="mt-element text-neutral-500">There are no recent matches to display</p>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-primary-600">
+    <div className="space-y-section">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-element">
+        <h2 className="text-2xl font-bold text-primary-600 tracking-tight">
           Latest Match Report
-          <span className="block sm:inline text-lg font-normal text-neutral-600 mt-1 sm:mt-0 sm:ml-2">
+          <span className="block sm:inline text-lg font-normal text-neutral-600 mt-related sm:mt-0 sm:ml-related">
             {new Date(report.matchInfo.match_date).toLocaleDateString()}
           </span>
         </h2>

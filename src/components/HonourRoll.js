@@ -49,15 +49,15 @@ const HonourRoll = () => {
   }, []);
 
   const renderSeasonalHonours = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
       <Card>
-        <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Season Winners</h3>
+        <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">Season Winners</h3>
         <Table responsive>
           <TableHead>
             <TableRow>
-              <TableCell isHeader className="w-[70px]">Year</TableCell>
-              <TableCell isHeader className="w-[120px]">Champion</TableCell>
-              <TableCell isHeader className="w-[70px]">Points</TableCell>
+              <TableCell isHeader className="w-20">Year</TableCell>
+              <TableCell isHeader className="w-32">Champion</TableCell>
+              <TableCell isHeader className="w-20">Points</TableCell>
               <TableCell isHeader className="min-w-[180px]">Runners Up</TableCell>
             </TableRow>
           </TableHead>
@@ -78,13 +78,13 @@ const HonourRoll = () => {
       </Card>
 
       <Card>
-        <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Top Scorers</h3>
+        <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">Top Scorers</h3>
         <Table responsive>
           <TableHead>
             <TableRow>
-              <TableCell isHeader className="w-[70px]">Year</TableCell>
-              <TableCell isHeader className="w-[120px]">Player</TableCell>
-              <TableCell isHeader className="w-[70px]">Goals</TableCell>
+              <TableCell isHeader className="w-20">Year</TableCell>
+              <TableCell isHeader className="w-32">Player</TableCell>
+              <TableCell isHeader className="w-20">Goals</TableCell>
               <TableCell isHeader className="min-w-[180px]">Runners Up</TableCell>
             </TableRow>
           </TableHead>
@@ -113,14 +113,14 @@ const HonourRoll = () => {
 
     return (
       <Card>
-        <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">TNF Records</h3>
+        <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">TNF Records</h3>
         <Table responsive>
           <TableHead>
             <TableRow>
-              <TableCell isHeader className="w-[120px]">Record</TableCell>
-              <TableCell isHeader className="w-[200px]">Player(s)</TableCell>
-              <TableCell isHeader className="w-[80px]">Details</TableCell>
-              <TableCell isHeader className="w-[100px]">Date</TableCell>
+              <TableCell isHeader className="w-32">Record</TableCell>
+              <TableCell isHeader className="w-48">Player(s)</TableCell>
+              <TableCell isHeader className="w-24">Details</TableCell>
+              <TableCell isHeader className="w-28">Date</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -223,8 +223,8 @@ const HonourRoll = () => {
   if (loading) {
     return (
       <Card className="text-center">
-        <div className="text-xl font-semibold text-primary-600">Loading...</div>
-        <div className="mt-4 flex justify-center">
+        <div className="text-xl font-semibold text-primary-600 mb-element">Loading...</div>
+        <div className="flex justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
         </div>
       </Card>
@@ -232,11 +232,11 @@ const HonourRoll = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center text-primary-600">Hall of Fame</h2>
+    <div className="space-y-section">
+      <h2 className="text-2xl font-bold text-center text-primary-600 tracking-tight">Hall of Fame</h2>
       
       {/* Desktop view */}
-      <div className="hidden md:flex flex-col gap-6">
+      <div className="hidden md:flex flex-col gap-section">
         {renderSeasonalHonours()}
         {renderRecords()}
       </div>
@@ -248,10 +248,10 @@ const HonourRoll = () => {
           onChange={(index) => setActiveTab(index === 0 ? 'seasonal' : 'records')}
           variant="pills"
         >
-          <Tab label="Season Honours">
+          <Tab label="Seasonal">
             {renderSeasonalHonours()}
           </Tab>
-          <Tab label="TNF Records">
+          <Tab label="Records">
             {renderRecords()}
           </Tab>
         </Tabs>

@@ -62,22 +62,22 @@ const CurrentHalfSeason = () => {
 
   const renderMainStats = () => (
     <Card>
-      <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Points Leaderboard</h3>
+      <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">Points Leaderboard</h3>
       <Table responsive>
         <TableHead>
           <TableRow>
             <TableCell isHeader className="min-w-[150px]">Player</TableCell>
-            <TableCell isHeader className="w-[50px]">P</TableCell>
-            <TableCell isHeader className="w-[50px]">W</TableCell>
-            <TableCell isHeader className="w-[50px]">D</TableCell>
-            <TableCell isHeader className="w-[50px]">L</TableCell>
-            <TableCell isHeader className="w-[70px]">G</TableCell>
-            <TableCell isHeader className="w-[80px]">HW</TableCell>
-            <TableCell isHeader className="w-[80px]">HL</TableCell>
-            <TableCell isHeader className="w-[100px]">CS</TableCell>
-            <TableCell isHeader className="w-[80px]">Win %</TableCell>
-            <TableCell isHeader className="w-[70px]">Points</TableCell>
-            <TableCell isHeader className="w-[150px]">Last 5</TableCell>
+            <TableCell isHeader className="w-16">P</TableCell>
+            <TableCell isHeader className="w-16">W</TableCell>
+            <TableCell isHeader className="w-16">D</TableCell>
+            <TableCell isHeader className="w-16">L</TableCell>
+            <TableCell isHeader className="w-16">G</TableCell>
+            <TableCell isHeader className="w-16">HW</TableCell>
+            <TableCell isHeader className="w-16">HL</TableCell>
+            <TableCell isHeader className="w-20">CS</TableCell>
+            <TableCell isHeader className="w-20">Win %</TableCell>
+            <TableCell isHeader className="w-20">Points</TableCell>
+            <TableCell isHeader className="w-36">Last 5</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -98,7 +98,7 @@ const CurrentHalfSeason = () => {
                 <TableCell>{Math.round(player.win_percentage)}%</TableCell>
                 <TableCell className="font-bold">{player.fantasy_points}</TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
+                  <div className="flex gap-related">
                     {form.map((result, i) => (
                       <span 
                         key={i} 
@@ -125,14 +125,14 @@ const CurrentHalfSeason = () => {
 
   const renderGoalStats = () => (
     <Card>
-      <h3 className="text-xl font-semibold text-center text-primary-600 mb-6">Goalscoring Leaderboard</h3>
+      <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">Goalscoring Leaderboard</h3>
       <Table responsive>
         <TableHead>
           <TableRow>
             <TableCell isHeader className="min-w-[150px]">Player</TableCell>
-            <TableCell isHeader className="w-[80px]">Goals</TableCell>
-            <TableCell isHeader className="w-[80px]">MPG</TableCell>
-            <TableCell isHeader className="w-[200px]">Last 5</TableCell>
+            <TableCell isHeader className="w-20">Goals</TableCell>
+            <TableCell isHeader className="w-20">MPG</TableCell>
+            <TableCell isHeader className="w-36">Last 5</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -146,7 +146,7 @@ const CurrentHalfSeason = () => {
                 {player.minutes_per_goal}
               </TableCell>
               <TableCell>
-                <div className="flex gap-1">
+                <div className="flex gap-related">
                   {player.last_five_games?.split(',').map((goals, i) => {
                     const goalCount = parseInt(goals);
                     return (
@@ -155,7 +155,7 @@ const CurrentHalfSeason = () => {
                         className={`px-1.5 py-0.5 rounded text-sm font-medium ${
                           goalCount > 0 
                             ? 'bg-success-50 text-success-600' 
-                            : ''
+                            : 'bg-neutral-100 text-neutral-600'
                         }`}
                       >
                         {goals}
@@ -174,8 +174,8 @@ const CurrentHalfSeason = () => {
   if (loading) {
     return (
       <Card className="text-center">
-        <div className="text-xl font-semibold text-primary-600">Loading...</div>
-        <div className="mt-4 flex justify-center">
+        <div className="text-xl font-semibold text-primary-600 mb-element">Loading...</div>
+        <div className="flex justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
         </div>
       </Card>
@@ -183,13 +183,13 @@ const CurrentHalfSeason = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center text-primary-600">
+    <div className="space-y-section">
+      <h2 className="text-2xl font-bold text-center text-primary-600 tracking-tight">
         Current Half-Season Performance - {getCurrentHalf().description}
       </h2>
 
       {/* Desktop view */}
-      <div className="hidden md:grid md:grid-cols-2 gap-6">
+      <div className="hidden md:grid md:grid-cols-2 gap-grid">
         {renderMainStats()}
         {renderGoalStats()}
       </div>

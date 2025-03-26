@@ -93,8 +93,8 @@ const PlayerProfile = ({ id }) => {
   if (loading) {
     return (
       <Card className="text-center">
-        <div className="text-xl font-semibold text-primary-600">Loading...</div>
-        <div className="mt-4 flex justify-center">
+        <div className="text-xl font-semibold text-primary-600 mb-element">Loading...</div>
+        <div className="flex justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
         </div>
       </Card>
@@ -126,10 +126,10 @@ const PlayerProfile = ({ id }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       {/* Player Selection Dropdown */}
       <Card>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-element">
           <label htmlFor="player-select" className="text-lg font-medium text-primary-600">
             Select Player
           </label>
@@ -154,42 +154,42 @@ const PlayerProfile = ({ id }) => {
 
       {/* Player Profile Overview */}
       <Card>
-        <h2 className="text-2xl font-bold text-center text-primary-600 mb-6">{profile.name}'s Profile</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <h2 className="text-2xl font-bold text-center text-primary-600 mb-section tracking-tight">{profile.name}'s Profile</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-grid">
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-base font-medium text-primary-600 mb-2">Games Played</h3>
+            <h3 className="text-base font-medium text-primary-600 mb-related">Games Played</h3>
             <p className="text-2xl font-semibold text-neutral-900">{profile.games_played}</p>
           </div>
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-base font-medium text-primary-600 mb-2">Fantasy Points</h3>
+            <h3 className="text-base font-medium text-primary-600 mb-related">Fantasy Points</h3>
             <p className="text-2xl font-semibold text-neutral-900">{profile.fantasy_points}</p>
           </div>
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-base font-medium text-primary-600 mb-2">Most Goals in a Game</h3>
+            <h3 className="text-base font-medium text-primary-600 mb-related">Most Goals in a Game</h3>
             <p className="text-2xl font-semibold text-neutral-900">{profile.most_goals}</p>
-            <p className="text-sm text-neutral-600 mt-1">{profile.most_goals_date}</p>
+            <p className="text-sm text-neutral-600 mt-related">{profile.most_goals_date}</p>
           </div>
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-base font-medium text-primary-600 mb-2">Longest Win Streak</h3>
+            <h3 className="text-base font-medium text-primary-600 mb-related">Longest Win Streak</h3>
             <p className="text-2xl font-semibold text-neutral-900">
               {profile.win_streak} games
             </p>
-            <p className="text-sm text-neutral-600 mt-1">{profile.win_streak_dates}</p>
+            <p className="text-sm text-neutral-600 mt-related">{profile.win_streak_dates}</p>
           </div>
           <div className="bg-neutral-50 rounded-lg p-4">
-            <h3 className="text-base font-medium text-primary-600 mb-2">Longest Undefeated Streak</h3>
+            <h3 className="text-base font-medium text-primary-600 mb-related">Longest Undefeated Streak</h3>
             <p className="text-2xl font-semibold text-neutral-900">
               {profile.undefeated_streak} games
             </p>
-            <p className="text-sm text-neutral-600 mt-1">{profile.undefeated_streak_dates}</p>
+            <p className="text-sm text-neutral-600 mt-related">{profile.undefeated_streak_dates}</p>
           </div>
         </div>
       </Card>
 
       {/* Performance Over Time */}
       <Card>
-        <h3 className="text-2xl font-bold text-center text-primary-600 mb-6">Performance Over Time</h3>
-        <div className="flex items-center gap-4 mb-6">
+        <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">Performance Over Time</h3>
+        <div className="flex items-center gap-element mb-element">
           <label htmlFor="stat-select" className="text-lg font-medium text-primary-600">
             Select Stat to Display
           </label>
@@ -215,23 +215,23 @@ const PlayerProfile = ({ id }) => {
                 bottom: 5,
               }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59, 130, 246, 0.2)" />
-              <XAxis dataKey="year" stroke="#3B82F6" />
-              <YAxis stroke="#3B82F6" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(33, 150, 243, 0.2)" />
+              <XAxis dataKey="year" stroke="#2196F3" />
+              <YAxis stroke="#2196F3" />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'white',
-                  border: '1px solid #E5E7EB',
+                  border: '1px solid #E0E0E0',
                   borderRadius: '0.375rem',
                   boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                  color: '#111827'
+                  color: '#212121'
                 }}
               />
-              <Legend wrapperStyle={{ color: '#3B82F6' }} />
+              <Legend wrapperStyle={{ color: '#2196F3' }} />
               <Bar
                 dataKey={selectedStat.toLowerCase().replace(/ /g, '_')}
-                fill="#3B82F6"
-                stroke="#2563EB"
+                fill="#2196F3"
+                stroke="#1976D2"
                 strokeWidth={1}
               />
             </BarChart>
@@ -241,16 +241,16 @@ const PlayerProfile = ({ id }) => {
 
       {/* Yearly Statistics */}
       <Card>
-        <h3 className="text-2xl font-bold text-center text-primary-600 mb-6">Yearly Statistics</h3>
+        <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">Yearly Statistics</h3>
         <Table responsive>
           <TableHead>
             <TableRow>
-              <TableCell isHeader>Year</TableCell>
-              <TableCell isHeader>Games</TableCell>
-              <TableCell isHeader>Goals</TableCell>
-              <TableCell isHeader>Mins/Goal</TableCell>
-              <TableCell isHeader>Points/Game</TableCell>
-              <TableCell isHeader>Fantasy Points</TableCell>
+              <TableCell isHeader className="w-20">Year</TableCell>
+              <TableCell isHeader className="w-20">Games</TableCell>
+              <TableCell isHeader className="w-20">Goals</TableCell>
+              <TableCell isHeader className="w-24">Mins/Goal</TableCell>
+              <TableCell isHeader className="w-28">Points/Game</TableCell>
+              <TableCell isHeader className="w-32">Fantasy Points</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
