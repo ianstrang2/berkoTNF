@@ -105,12 +105,9 @@ export default function Home() {
         {/* Content overlay - moved to top with left alignment */}
         <div className="relative z-10 h-full p-8 md:p-12">
           <div className="mt-8 md:mt-12">
-            <h1 className="text-5xl md:text-6xl font-bold text-primary-600 mb-4 drop-shadow-[0_2px_4px_rgba(255,255,255,0.5)] text-left">
+            <h1 className="text-4xl md:text-5xl font-bold text-primary-600 drop-shadow-[0_2px_4px_rgba(255,255,255,0.5)] text-left">
               Berko TNF
             </h1>
-            <p className="text-xl md:text-2xl text-primary-600 drop-shadow-[0_1px_2px_rgba(255,255,255,0.5)] text-left">
-              Fantasy Football ... For Real
-            </p>
           </div>
         </div>
         
