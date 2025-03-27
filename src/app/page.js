@@ -100,38 +100,54 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
+    <main className="min-h-screen">
       {!currentView ? (
-        <div className="py-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-primary-600 mb-8">
+        <div className="relative h-screen w-full overflow-hidden">
+          {/* Splash Image */}
+          <div className="absolute inset-0 z-0">
+            <img 
+              src="/splash.jpg" 
+              alt="Berko TNF Football" 
+              className="w-full h-full object-cover"
+            />
+            {/* Overlay with gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-primary-900/30"></div>
+          </div>
+
+          {/* Content overlay */}
+          <div className="relative z-10 flex flex-col h-full justify-center items-center text-center p-4">
+            <div className="max-w-3xl">
+              <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 drop-shadow-lg">
                 Berko TNF
               </h1>
-              <p className="text-xl text-neutral-600 mb-12">
+              <p className="text-xl md:text-2xl text-white/90 mb-8 drop-shadow">
                 Fantasy Football ... For Real
               </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {cards.map((card, index) => (
-                <Card
-                  key={index}
-                  onClick={() => card.view === 'player-profiles' ? handlePlayerProfileClick(1) : setCurrentView(card.view)}
-                  className="hover:shadow-elevated transition-shadow duration-200 cursor-pointer overflow-hidden group"
+
+              {/* Optional focus buttons */}
+              <div className="mt-8 flex flex-wrap gap-4 justify-center">
+                <Button
+                  onClick={() => setCurrentView('match-report')}
+                  variant="primary"
+                  size="lg"
+                  className="bg-white text-primary-600 hover:bg-primary-50 hover:text-primary-700"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-100 transition-colors duration-200">
-                      {card.icon}
-                    </div>
-                  </div>
-                  <h2 className="text-xl font-semibold text-neutral-900 mb-2 group-hover:text-primary-600 transition-colors duration-200">
-                    {card.title}
-                  </h2>
-                  <p className="text-neutral-600">
-                    {card.description}
-                  </p>
-                </Card>
-              ))}
+                  Latest Match
+                </Button>
+                <Button
+                  onClick={() => setCurrentView('current-half')}
+                  variant="outline"
+                  size="lg"
+                  className="text-white border-white hover:bg-white/20"
+                >
+                  Current Season
+                </Button>
+              </div>
+            </div>
+
+            {/* Credit text */}
+            <div className="absolute bottom-4 right-4 text-xs text-white/60">
+              Use the menu to navigate to all sections
             </div>
           </div>
         </div>

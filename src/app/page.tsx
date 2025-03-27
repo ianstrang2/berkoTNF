@@ -91,39 +91,36 @@ export default function Home() {
 
   return (
     <MainLayout>
-      <div className="py-12">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-primary-600 mb-8">
-            Berko TNF
-          </h1>
-          <p className="text-xl text-neutral-600 mb-12">
-            Fantasy Football ... For Real
-          </p>
+      <div className="relative h-[calc(100vh-64px)] w-full overflow-hidden">
+        {/* Splash Image */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="/splash.webp" 
+            alt="Berko TNF Football" 
+            className="w-full h-full object-cover"
+          />
+          {/* Removed gradient overlay */}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cards.map((card, index) => (
-            <Link key={index} href={card.href} className="block">
-              <div className="h-full">
-                <Card 
-                  title={card.title}
-                  icon={card.icon}
-                  hover={true}
-                  footer={null}
-                  className="h-full hover:shadow-elevated transition-shadow duration-200 cursor-pointer overflow-hidden group"
-                >
-                  <p className="text-neutral-600">
-                    {card.description}
-                  </p>
-                </Card>
-              </div>
-            </Link>
-          ))}
+
+        {/* Content overlay - moved to top with left alignment */}
+        <div className="relative z-10 h-full p-8 md:p-12">
+          <div className="mt-8 md:mt-12">
+            <h1 className="text-5xl md:text-6xl font-bold text-primary-600 mb-4 drop-shadow-[0_2px_4px_rgba(255,255,255,0.5)] text-left">
+              Berko TNF
+            </h1>
+            <p className="text-xl md:text-2xl text-primary-600 drop-shadow-[0_1px_2px_rgba(255,255,255,0.5)] text-left">
+              Fantasy Football ... For Real
+            </p>
+          </div>
         </div>
+        
+        {/* Removed instructional text */}
       </div>
-      <footer className="mt-auto pt-8">
-        <div className="max-w-7xl mx-auto py-4">
+      
+      <footer className="py-4 bg-white border-t border-neutral-200">
+        <div className="max-w-7xl mx-auto px-4">
           <p className="text-center text-sm text-neutral-500">
-            © {new Date().getFullYear()} Berko TNF. All rights reserved.
+            © {new Date().getFullYear()} ScoreDraw. All rights reserved.
           </p>
         </div>
       </footer>
