@@ -27,35 +27,33 @@ const AdminLayout = ({ children }) => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md">
-          <Card>
-            <h2 className="text-2xl font-bold mb-6 text-center text-primary-600">Admin Access</h2>
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                />
-              </div>
-              {error && (
-                <p className="text-red-500 text-sm font-medium text-center">
-                  {error}
-                </p>
-              )}
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full"
-              >
-                Login
-              </Button>
-            </form>
-          </Card>
-        </div>
+      <div className="w-full">
+        <Card>
+          <h2 className="text-xl font-bold mb-4 text-primary-600">Admin Access</h2>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              />
+            </div>
+            {error && (
+              <p className="text-red-500 text-sm font-medium">
+                {error}
+              </p>
+            )}
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+            >
+              Login
+            </Button>
+          </form>
+        </Card>
       </div>
     );
   }

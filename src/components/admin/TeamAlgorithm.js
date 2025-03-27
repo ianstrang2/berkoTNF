@@ -1531,24 +1531,6 @@ const TeamAlgorithm = () => {
 
   return (
     <div className="px-4 py-8 md:px-6 lg:px-8">
-      {/* Actions Section - This is the ONLY Back to Dashboard button we'll keep */}
-      <div className="flex flex-wrap justify-end gap-2 mb-6">
-        <Button
-          variant="outline"
-          onClick={checkPlayerAssignments}
-          className="text-sm h-9 mr-auto"
-        >
-          Check Team Assignments
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => router.push('/admin/dashboard')}
-          className="text-sm h-9"
-        >
-          Back to Dashboard
-        </Button>
-      </div>
-      
       {/* Match Info Section */}
       {activeMatch ? (
         <div className="mb-6 bg-white rounded-lg shadow-sm p-4">

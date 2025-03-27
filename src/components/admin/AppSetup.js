@@ -13,8 +13,6 @@ const AppSetup = () => {
 
   return (
     <div className="w-full">
-      <h1 className="text-2xl font-bold text-neutral-900 mb-6">Application Setup</h1>
-      
       <Tabs onChange={handleTabChange} defaultTab={activeTab}>
         <Tab label="App Configuration">
           <div className="pt-6">

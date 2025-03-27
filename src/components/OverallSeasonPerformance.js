@@ -134,17 +134,23 @@ const OverallSeasonPerformance = () => {
 
   return (
     <div className="space-y-section">
-      <div className="flex flex-wrap items-center gap-element">
-        <h2 className="text-2xl font-bold text-primary-600 tracking-tight">Overall Season Performance</h2>
-        <select 
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="form-select rounded-md border-neutral-300 focus:border-primary-500 focus:ring-primary-500"
-        >
-          {yearOptions.map(year => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </select>
+      <div className="flex flex-col items-center gap-element mb-6">
+        <div className="inline-block relative w-40">
+          <select 
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="block appearance-none w-full bg-white border border-neutral-300 hover:border-neutral-400 px-4 py-2 pr-8 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-center"
+          >
+            {yearOptions.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-neutral-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* Desktop view */}

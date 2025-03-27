@@ -184,7 +184,7 @@ const CurrentHalfSeason = () => {
 
   return (
     <div className="space-y-section">
-      <h2 className="text-2xl font-bold text-center text-primary-600 tracking-tight">
+      <h2 className="text-2xl font-bold text-center text-neutral-900 tracking-tight">
         Current Half-Season Performance - {getCurrentHalf().description}
       </h2>
 

@@ -33,8 +33,13 @@ const MatchReport = () => {
     const { matchInfo } = report;
     return (
       <Card className="mt-section">
-        <div className="text-2xl sm:text-3xl font-bold text-center mb-section tracking-tight">
-          Team A ({matchInfo.team_a_score}) - ({matchInfo.team_b_score}) Team B
+        <div className="flex flex-col items-center">
+          <div className="text-2xl sm:text-3xl font-bold text-center mb-2 tracking-tight">
+            Team A ({matchInfo.team_a_score}) - ({matchInfo.team_b_score}) Team B
+          </div>
+          <div className="text-center text-lg text-neutral-600 mb-section">
+            {new Date(matchInfo.match_date).toLocaleDateString()}
+          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
@@ -80,12 +85,12 @@ const MatchReport = () => {
               </div>
               <div className="space-y-related">
                 {report.gamesMilestones?.map((milestone, i) => (
-                  <p key={`game-${i}`} className="text-neutral-700">
+                  <p key={`game-${i}`} className="text-sm text-neutral-700">
                     {milestone.name} played their <span className="font-semibold">{milestone.games_played}th</span> game
                   </p>
                 ))}
                 {report.goalsMilestones?.map((milestone, i) => (
-                  <p key={`goal-${i}`} className="text-neutral-700">
+                  <p key={`goal-${i}`} className="text-sm text-neutral-700">
                     {milestone.name} scored their <span className="font-semibold">{milestone.total_goals}th</span> goal
                   </p>
                 ))}
@@ -101,7 +106,7 @@ const MatchReport = () => {
               </div>
               <div className="space-y-related">
                 {report.streaks.map((streak, i) => (
-                  <p key={`streak-${i}`} className="text-neutral-700">
+                  <p key={`streak-${i}`} className="text-sm text-neutral-700">
                     {streak.name} is on a <span className="font-semibold">{streak.streak_count} game</span> {
                       streak.streak_type === 'win' ? 'winning' :
                       streak.streak_type === 'loss' ? 'losing' :
@@ -121,7 +126,7 @@ const MatchReport = () => {
               </div>
               <div className="space-y-related">
                 {report.goalStreaks.map((streak, i) => (
-                  <p key={`goal-streak-${i}`} className="text-neutral-700">
+                  <p key={`goal-streak-${i}`} className="text-sm text-neutral-700">
                     {streak.name} has scored in <span className="font-semibold">{streak.matches_with_goals} consecutive</span> matches 
                     <span className="text-sm text-neutral-500 ml-related">
                       ({streak.goals_in_streak} goals total)
@@ -142,16 +147,20 @@ const MatchReport = () => {
                 {/* Half-Season Goal Leaders */}
                 {report.halfSeasonGoalLeaders?.[0] && (
                   <div className="text-neutral-700">
-                    <p className="font-medium text-neutral-800 mb-related">Goals</p>
-                    {renderLeadershipText(report.halfSeasonGoalLeaders[0], 'goals', 'current Half-Season')}
+                    <p className="font-medium text-neutral-800 mb-related text-sm">Goals</p>
+                    <div className="text-sm">
+                      {renderLeadershipText(report.halfSeasonGoalLeaders[0], 'goals', 'current Half-Season')}
+                    </div>
                   </div>
                 )}
 
                 {/* Half-Season Fantasy Leaders */}
                 {report.halfSeasonFantasyLeaders?.[0] && (
                   <div className="text-neutral-700 mt-element">
-                    <p className="font-medium text-neutral-800 mb-related">Fantasy Points</p>
-                    {renderLeadershipText(report.halfSeasonFantasyLeaders[0], 'points', 'current Half-Season')}
+                    <p className="font-medium text-neutral-800 mb-related text-sm">Fantasy Points</p>
+                    <div className="text-sm">
+                      {renderLeadershipText(report.halfSeasonFantasyLeaders[0], 'points', 'current Half-Season')}
+                    </div>
                   </div>
                 )}
               </div>
@@ -168,16 +177,20 @@ const MatchReport = () => {
                 {/* Season Goal Leaders */}
                 {report.seasonGoalLeaders?.[0] && (
                   <div className="text-neutral-700">
-                    <p className="font-medium text-neutral-800 mb-related">Goals</p>
-                    {renderLeadershipText(report.seasonGoalLeaders[0], 'goals', new Date().getFullYear() + ' Season')}
+                    <p className="font-medium text-neutral-800 mb-related text-sm">Goals</p>
+                    <div className="text-sm">
+                      {renderLeadershipText(report.seasonGoalLeaders[0], 'goals', new Date().getFullYear() + ' Season')}
+                    </div>
                   </div>
                 )}
 
                 {/* Season Fantasy Leaders */}
                 {report.seasonFantasyLeaders?.[0] && (
                   <div className="text-neutral-700 mt-element">
-                    <p className="font-medium text-neutral-800 mb-related">Fantasy Points</p>
-                    {renderLeadershipText(report.seasonFantasyLeaders[0], 'points', new Date().getFullYear() + ' Season')}
+                    <p className="font-medium text-neutral-800 mb-related text-sm">Fantasy Points</p>
+                    <div className="text-sm">
+                      {renderLeadershipText(report.seasonFantasyLeaders[0], 'points', new Date().getFullYear() + ' Season')}
+                    </div>
                   </div>
                 )}
               </div>
@@ -364,13 +377,10 @@ const MatchReport = () => {
 
   return (
     <div className="space-y-section">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-element">
-        <h2 className="text-2xl font-bold text-primary-600 tracking-tight">
-          Latest Match Report
-          <span className="block sm:inline text-lg font-normal text-neutral-600 mt-related sm:mt-0 sm:ml-related">
-            {new Date(report.matchInfo.match_date).toLocaleDateString()}
-          </span>
-        </h2>
+      {renderMatchInfo()}
+      {renderStatDeepDive()}
+      
+      <div className="flex justify-center mt-8">
         <Button
           variant="secondary"
           onClick={handleCopyReport}
@@ -378,9 +388,6 @@ const MatchReport = () => {
           Copy Report
         </Button>
       </div>
-      
-      {renderMatchInfo()}
-      {renderStatDeepDive()}
       
       {/* Copy Toast Notification */}
       {showCopyToast && (
