@@ -1,8 +1,8 @@
 'use client';
 import React from 'react';
-import MainLayout from '@/components/layouts/MainLayout';
-import HonourRoll from '@/components/HonourRoll';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { MainLayout } from '@/components/layout';
+import { HonourRoll } from '@/components/records';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
 
 export default function HallOfFamePage() {
   return (

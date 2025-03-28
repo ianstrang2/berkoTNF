@@ -1,8 +1,8 @@
 'use client';
 import React, { useState } from 'react';
-import MainLayout from '@/components/layouts/MainLayout';
-import PlayerProfile from '@/components/PlayerProfile';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { MainLayout } from '@/components/layout';
+import { PlayerProfile } from '@/components/player';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
 
 export default function PlayersPage() {
   const [selectedPlayerId, setSelectedPlayerId] = useState(1); // Default to first player

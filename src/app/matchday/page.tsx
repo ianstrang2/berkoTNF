@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import MainLayout from '@/components/layouts/MainLayout';
+import { MainLayout } from '@/components/layout';
 import { format } from 'date-fns';
 
 interface Player {

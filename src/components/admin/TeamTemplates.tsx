@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Card from '@/components/ui/card';
-import Button from '@/components/ui/Button';
-import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+import { Card, Button, ConfirmationDialog } from '@/components/ui-kit';
 
 type TeamTemplate = {
   template_id: number;

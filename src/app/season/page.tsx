@@ -1,10 +1,9 @@
 'use client';
 import React from 'react';
-import MainLayout from '@/components/layouts/MainLayout';
-import CurrentHalfSeason from '@/components/CurrentHalfSeason';
-import OverallSeasonPerformance from '@/components/OverallSeasonPerformance';
-import { Tabs, Tab } from '@/components/ui/Tabs';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { MainLayout } from '@/components/layout';
+import { CurrentHalfSeason, OverallSeasonPerformance } from '@/components/stats';
+import { Tabs, Tab } from '@/components/ui-kit';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
 
 export default function SeasonPage() {
   return (

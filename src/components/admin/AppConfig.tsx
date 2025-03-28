@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Card from '@/components/ui/card';
-import Button from '@/components/ui/Button';
-import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+import Card from '@/components/ui-kit/Card';
+import Button from '@/components/ui-kit/Button';
+import ConfirmationDialog from '@/components/ui-kit/ConfirmationDialog';
 
 type ConfigGroup = {
   group_name: string;

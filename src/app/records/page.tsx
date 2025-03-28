@@ -1,14 +1,14 @@
 'use client';
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
-import MainLayout from '@/components/layouts/MainLayout';
-import Card from '@/components/ui/card';
+import { MainLayout } from '@/components/layout';
 
 export default function RecordsPage() {
   const items = [
     {
-      title: 'Players',
-      description: 'View individual player profiles and statistics',
+      title: 'Player Records',
+      description: 'View individual player achievements and milestones',
       href: '/records/players',
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -17,8 +17,8 @@ export default function RecordsPage() {
       )
     },
     {
-      title: 'All-Time Leaderboard',
-      description: 'Check the all-time statistics leaders',
+      title: 'All-Time Stats',
+      description: 'Club statistics and records across all seasons',
       href: '/records/all-time',
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -28,11 +28,11 @@ export default function RecordsPage() {
     },
     {
       title: 'Hall of Fame',
-      description: 'View record holders and major achievements',
+      description: 'Honoring the club\'s greatest players and achievements',
       href: '/records/hall-of-fame',
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
         </svg>
       )
     }
@@ -41,10 +41,11 @@ export default function RecordsPage() {
   return (
     <MainLayout>
       <div className="py-6">
+        <h1 className="text-2xl font-bold text-neutral-900 mb-6">Club Records</h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {items.map((item, index) => (
-            <Link key={index} href={item.href} className="block">
-              <div className="bg-white rounded-xl shadow-card p-6 hover:shadow-elevated transition-shadow duration-200 h-full flex flex-col items-center text-center">
+          {items.map((item, i) => (
+            <Link key={i} href={item.href} className="block">
+              <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 h-full flex flex-col items-center text-center p-6">
                 <div className="bg-primary-50 p-4 rounded-full mb-4">
                   <div className="text-primary-600">
                     {item.icon}

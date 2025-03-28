@@ -1,9 +1,9 @@
 'use client';
 import React from 'react';
 import { useParams } from 'next/navigation';
-import MainLayout from '@/components/layouts/MainLayout';
-import PlayerProfile from '@/components/PlayerProfile';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { MainLayout } from '@/components/layout';
+import { PlayerProfile } from '@/components/player';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
 
 export default function SpecificPlayerPage() {
   const params = useParams() || {};

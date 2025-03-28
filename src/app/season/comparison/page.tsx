@@ -1,8 +1,8 @@
 'use client';
 import React from 'react';
-import MainLayout from '@/components/layouts/MainLayout';
-import OverallSeasonPerformance from '@/components/OverallSeasonPerformance';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { MainLayout } from '@/components/layout';
+import { OverallSeasonPerformance } from '@/components/stats';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
 
 export default function SeasonComparisonPage() {
   return (

@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/layouts/MainLayout';
+import { MainLayout } from '@/components/layout';
+import { AdminLayout } from '@/components/layout';
 
 export default function AdminPage() {
   const items = [
@@ -65,7 +66,7 @@ export default function AdminPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {items.map((item, i) => (
             <Link key={i} href={item.href} className="block">
-              <div className="bg-white rounded-xl shadow-card p-6 hover:shadow-elevated transition-shadow duration-200 h-full flex flex-col items-center text-center">
+              <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 h-full flex flex-col items-center text-center p-6">
                 <div className="bg-primary-50 p-4 rounded-full mb-4">
                   <div className="text-primary-600">
                     {item.icon}

@@ -1,8 +1,8 @@
 'use client';
 import React from 'react';
-import MainLayout from '@/components/layouts/MainLayout';
-import AllTimeStats from '@/components/AllTimeStats';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { MainLayout } from '@/components/layout';
+import { AllTimeStats } from '@/components/stats';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
 
 export default function AllTimeStatsPage() {
   return (
