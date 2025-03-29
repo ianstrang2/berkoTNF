@@ -65,7 +65,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
         data.data.forEach((weight: Weight) => {
           const key = `${weight.description}_${weight.name}`;
           
-          // For duplicate entries, keep the one with highest ID (assuming newer is better)
+          // For duplicate entries, keep the one with the highest ID (assuming newer is better)
           if (!weightMap.has(key) || weight.attribute_id > weightMap.get(key).attribute_id) {
             weightMap.set(key, weight);
           }
