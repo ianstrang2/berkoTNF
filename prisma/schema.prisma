@@ -51,6 +51,9 @@ model players {
   player_matches         player_matches[]
   team_slots             team_slots[]
   upcoming_match_players upcoming_match_players[]
+  season_stats          aggregated_season_stats[]
+  all_time_stats        aggregated_all_time_stats?
+  hall_of_fame          aggregated_hall_of_fame[]
 }
 
 model team_slots {
@@ -161,4 +164,73 @@ model upcoming_match_players {
   slot_number        Int?
   player             players          @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
   match              upcoming_matches @relation(fields: [upcoming_match_id], references: [upcoming_match_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model stores pre-aggregated season stats for faster retrieval
+model aggregated_season_stats {
+  id                  Int       @id @default(autoincrement())
+  player_id           Int
+  season_start_date   DateTime  @db.Date
+  season_end_date     DateTime  @db.Date
+  games_played        Int
+  wins                Int
+  draws               Int
+  losses              Int
+  goals               Int
+  heavy_wins          Int
+  heavy_losses        Int
+  clean_sheets        Int
+  win_percentage      Decimal   @db.Decimal(5, 1)
+  fantasy_points      Int
+  points_per_game     Decimal   @db.Decimal(5, 1)
+  last_updated        DateTime  @default(now()) @db.Timestamptz(6)
+  player              players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+
+  @@unique([player_id, season_start_date, season_end_date])
+  @@index([season_start_date, season_end_date])
+}
+
+/// This model stores pre-aggregated all-time stats for faster retrieval
+model aggregated_all_time_stats {
+  id                    Int       @id @default(autoincrement())
+  player_id             Int
+  games_played          Int
+  wins                  Int
+  draws                 Int
+  losses                Int
+  goals                 Int
+  win_percentage        Decimal   @db.Decimal(5, 1)
+  minutes_per_goal      Decimal?  @db.Decimal(5, 1)
+  heavy_wins            Int
+  heavy_win_percentage  Decimal   @db.Decimal(5, 1)
+  heavy_losses          Int
+  heavy_loss_percentage Decimal   @db.Decimal(5, 1)
+  clean_sheets          Int
+  clean_sheet_percentage Decimal  @db.Decimal(5, 1)
+  fantasy_points        Int
+  points_per_game       Decimal   @db.Decimal(5, 1)
+  last_updated          DateTime  @default(now()) @db.Timestamptz(6)
+  player                players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+
+  @@unique([player_id])
+}
+
+/// This model stores pre-aggregated hall of fame data
+model aggregated_hall_of_fame {
+  id                    Int       @id @default(autoincrement())
+  category              String
+  player_id             Int
+  value                 Decimal   @db.Decimal(10, 2)
+  last_updated          DateTime  @default(now()) @db.Timestamptz(6)
+  player                players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+
+  @@unique([category, player_id])
+  @@index([category])
+}
+
+/// This model stores cache invalidation metadata
+model cache_metadata {
+  cache_key             String    @id
+  last_invalidated      DateTime  @default(now()) @db.Timestamptz(6)
+  dependency_type       String    // match_result, match_report, squad_selection
 }
