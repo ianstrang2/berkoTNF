@@ -31,18 +31,8 @@ const BalanceAlgorithmSetup: React.FC = () => {
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [showValidationError, setShowValidationError] = useState<boolean>(false);
-
-  // Attribute descriptions for tooltips
-  const attributeDescriptions: AttributeDescriptions = {
-    stamina_pace: "Stamina & Pace: Player's energy levels and speed during a match",
-    control: "Ball Control: Player's ability to control and pass the ball",
-    goalscoring: "Goalscoring: Player's likelyhood to get a goal in a match",
-    resilience: "Resilience: How well a player maintains performance when team is losing",
-    teamwork: "Teamwork: Player's ability to collaborate with teammates effectively"
-  };
 
   // Technical attributes that need to sum to 100%
   const technicalAttributes: string[] = ['stamina_pace', 'control', 'goalscoring'];
@@ -53,20 +43,6 @@ const BalanceAlgorithmSetup: React.FC = () => {
   // Fetch balance weights on component mount
   useEffect(() => {
     fetchWeights();
-  }, []);
-
-  // Handle click outside to close tooltips
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (event.target instanceof Element && !event.target.closest('.tooltip-trigger')) {
-        setActiveTooltip(null);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
   }, []);
 
   // Fetch balance weights from API
@@ -84,7 +60,21 @@ const BalanceAlgorithmSetup: React.FC = () => {
       const data = await response.json();
       
       if (data.success && data.data) {
-        setWeights(data.data);
+        // Deduplicate weights if needed - we only want one entry per attribute per position
+        const weightMap = new Map();
+        data.data.forEach((weight: Weight) => {
+          const key = `${weight.description}_${weight.name}`;
+          
+          // For duplicate entries, keep the one with highest ID (assuming newer is better)
+          if (!weightMap.has(key) || weight.attribute_id > weightMap.get(key).attribute_id) {
+            weightMap.set(key, weight);
+          }
+        });
+        
+        // Convert back to array
+        const uniqueWeights = Array.from(weightMap.values());
+        
+        setWeights(uniqueWeights);
       } else {
         throw new Error(data.error || 'Failed to fetch balance weights');
       }
@@ -99,10 +89,10 @@ const BalanceAlgorithmSetup: React.FC = () => {
   // Get position name for display
   const getPositionName = (positionGroup: string): string => {
     switch(positionGroup) {
-      case 'defense': return 'Defense';
-      case 'midfield': return 'Midfield';
-      case 'attack': return 'Attack';
-      case 'team': return 'Overall Team';
+      case 'defense': return 'Defenders';
+      case 'midfield': return 'Midfielders';
+      case 'attack': return 'Attackers';
+      case 'team': return 'Team-wide Factors';
       default: return positionGroup;
     }
   };
@@ -250,48 +240,88 @@ const BalanceAlgorithmSetup: React.FC = () => {
     setHasChanges(true);
   };
 
+  // Handle click on progress bar
+  const handleBarClick = (e: React.MouseEvent<HTMLDivElement>, attributeId: string): void => {
+    // Get click position relative to the bar width
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = x / rect.width;
+    
+    // Update the weight
+    handleWeightChange(attributeId, percentage);
+  };
+
   // Group weights by position (description field in API)
   const groupedWeights: Record<string, Weight[]> = weights.reduce((groups: Record<string, Weight[]>, weight) => {
     const group = weight.description;
     if (!groups[group]) {
       groups[group] = [];
     }
-    groups[group].push(weight);
+    
+    // Check if this attribute already exists in this group
+    const existingIndex = groups[group].findIndex(w => w.name === weight.name);
+    
+    if (existingIndex === -1) {
+      // This is a new attribute, add it to the group
+      groups[group].push(weight);
+    } else {
+      // This is a duplicate attribute, keep the one with the latest ID
+      // This assumes newer entries have higher/more recent IDs
+      if (weight.attribute_id > groups[group][existingIndex].attribute_id) {
+        groups[group][existingIndex] = weight;
+      }
+    }
+    
     return groups;
   }, {});
+
+  // Define consistent attribute display order
+  const attributeDisplayOrder: string[] = ['stamina_pace', 'control', 'goalscoring', 'resilience', 'teamwork'];
 
   // Get the position group display order
   const positionOrder: string[] = ['defense', 'midfield', 'attack', 'team'];
 
+  // Sort attributes in each position group by the predefined order
+  const sortedGroupedWeights: Record<string, Weight[]> = Object.keys(groupedWeights).reduce((sorted, group) => {
+    sorted[group] = [...groupedWeights[group]].sort((a, b) => {
+      const aIndex = attributeDisplayOrder.indexOf(a.name);
+      const bIndex = attributeDisplayOrder.indexOf(b.name);
+      
+      // If both attributes are in the predefined order, sort by that order
+      if (aIndex >= 0 && bIndex >= 0) {
+        return aIndex - bIndex;
+      }
+      
+      // If only one attribute is in the order, prefer that one
+      if (aIndex >= 0) return -1;
+      if (bIndex >= 0) return 1;
+      
+      // For attributes not in the predefined order, sort alphabetically by name
+      return a.name.localeCompare(b.name);
+    });
+    
+    return sorted;
+  }, {} as Record<string, Weight[]>);
+
   // Get position-specific color
   const getPositionColor = (positionGroup: string): string => {
-    switch(positionGroup) {
-      case 'defense': return 'bg-info-500';
-      case 'midfield': return 'bg-success-500';
-      case 'attack': return 'bg-error-500';
-      case 'team': return 'bg-secondary-500';
-      default: return 'bg-neutral-400';
-    }
-  };
-
-  // Get border color for position
-  const getPositionBorderColor = (positionGroup: string): string => {
-    switch(positionGroup) {
-      case 'defense': return 'border-info-500';
-      case 'midfield': return 'border-success-500';
-      case 'attack': return 'border-error-500';
-      case 'team': return 'border-secondary-500';
-      default: return 'border-neutral-400';
-    }
+    return '#3B82F6'; // blue for all positions
   };
 
   // Format attribute name for display
   const formatAttributeName = (name: string): string => {
-    return name
-      .replace(/_/g, ' ') // Replace underscores with spaces
-      .split(' ') // Split into words
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter
-      .join(' '); // Join words back together
+    switch(name) {
+      case 'stamina_pace': return 'Stamina & Pace';
+      case 'control': return 'Ball Control';
+      case 'goalscoring': return 'Goalscoring';
+      case 'resilience': return 'Resilience';
+      case 'teamwork': return 'Teamwork';
+      default: return name
+        .replace(/_/g, ' ') // Replace underscores with spaces
+        .split(' ') // Split into words
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter
+        .join(' '); // Join words back together
+    }
   };
 
   // Format weight as percentage
@@ -299,22 +329,17 @@ const BalanceAlgorithmSetup: React.FC = () => {
     return `${Math.round(value * 100)}%`;
   };
 
-  // Toggle tooltip visibility
-  const toggleTooltip = (attributeName: string): void => {
-    setActiveTooltip(activeTooltip === attributeName ? null : attributeName);
-  };
-
   return (
     <Card>
       <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Team Balance Algorithm Setup</h2>
+        <h2 className="text-lg font-semibold">Balance Algorithm Settings</h2>
         <div className="flex space-x-2">
           <Button
             onClick={() => setShowResetConfirmation(true)}
             variant="secondary"
             disabled={loading || saving || isResetting}
           >
-            Reset to Default
+            Reset to Defaults
           </Button>
           <Button
             onClick={() => setShowConfirmation(true)}
@@ -339,8 +364,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
       ) : (
         <>
           <p className="mb-4 text-neutral-600">
-            Adjust the weights to control how different player attributes are balanced during team creation.
-            Technical attributes within each position group must total 100%.
+            Define how different player attributes are weighted when balancing teams
           </p>
           
           {showValidationError && Object.keys(validationErrors).length > 0 && (
@@ -354,9 +378,9 @@ const BalanceAlgorithmSetup: React.FC = () => {
             </div>
           )}
           
-          <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {positionOrder.map(position => {
-              const positionWeights = groupedWeights[position] || [];
+              const positionWeights = sortedGroupedWeights[position] || [];
               
               if (positionWeights.length === 0) return null;
               
@@ -366,80 +390,115 @@ const BalanceAlgorithmSetup: React.FC = () => {
               const technicalTotal = isTechnicalGroup ? totals[position] || 0 : null;
               
               return (
-                <div key={position} className="border rounded-lg p-4">
-                  <h3 className="font-medium text-lg mb-3">
-                    {getPositionName(position)}
+                <div key={position} className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-medium text-md">{getPositionName(position)}</h3>
                     {isTechnicalGroup && (
-                      <span className={`ml-2 text-sm font-normal ${Math.abs(technicalTotal! - 1) > 0.001 ? 'text-amber-500' : 'text-green-500'}`}>
-                        (Technical Attributes: {(technicalTotal! * 100).toFixed(0)}%)
-                      </span>
+                      <div className="text-sm text-gray-500">
+                        Total: <span className={Math.abs(technicalTotal! - 1) > 0.001 ? 'text-amber-500' : 'text-gray-500'}>
+                          {(technicalTotal! * 100).toFixed(0)}%
+                        </span>
+                      </div>
                     )}
-                  </h3>
+                  </div>
                   
-                  <div className="space-y-4">
-                    {positionWeights.map(weight => {
-                      const isTechnical = technicalAttributes.includes(weight.name);
-                      return (
-                        <div key={weight.attribute_id} className="space-y-1">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center">
-                              <span className="font-medium">
-                                {formatAttributeName(weight.name)}
-                              </span>
-                              
-                              {attributeDescriptions[weight.name] && (
-                                <button
-                                  className="ml-1 text-neutral-400 hover:text-neutral-600 tooltip-trigger"
-                                  onClick={() => toggleTooltip(weight.name)}
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                  </svg>
-                                  
-                                  {activeTooltip === weight.name && (
-                                    <div className="absolute z-10 mt-2 p-2 bg-white shadow-lg rounded-md border text-sm w-64">
-                                      {attributeDescriptions[weight.name]}
-                                    </div>
-                                  )}
-                                </button>
-                              )}
-                              
-                              {isTechnical && (
-                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
-                                  Technical
-                                </span>
-                              )}
+                  <div className="mt-2">
+                    <div className="text-xs text-gray-500 font-medium uppercase">TECHNICAL ATTRIBUTES</div>
+                    
+                    {positionWeights
+                      .filter(w => technicalAttributes.includes(w.name))
+                      .map(weight => (
+                        <div key={weight.attribute_id} className="my-4">
+                          <div className="flex justify-between items-center mb-1">
+                            <div className="text-sm">
+                              {formatAttributeName(weight.name)}
+                              {weight.name === 'stamina_pace' && <span className="text-gray-400 text-xs"> (i)</span>}
                             </div>
-                            <span className="font-semibold">{formatWeight(weight.weight)}</span>
+                            <div className="font-medium">{formatWeight(weight.weight)}</div>
                           </div>
-                          
-                          <div className="flex items-center">
-                            <span className="text-xs mr-2">0%</span>
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.05"
-                              value={weight.weight}
-                              onChange={(e) => handleWeightChange(weight.attribute_id, parseFloat(e.target.value))}
-                              className="flex-1"
+                          <div className="h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer" 
+                            onClick={(e) => handleBarClick(e, weight.attribute_id)}
+                          >
+                            <div 
+                              className="h-full rounded-full"
+                              style={{ 
+                                backgroundColor: getPositionColor(position),
+                                width: `${weight.weight * 100}%`
+                              }}
                             />
-                            <span className="text-xs ml-2">100%</span>
-                          </div>
-                          
-                          <div className="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full ${getPositionColor(position)}`}
-                              style={{ width: `${weight.weight * 100}%` }}
-                            ></div>
                           </div>
                         </div>
-                      );
-                    })}
+                      ))
+                    }
+                    
+                    {position === 'team' && (
+                      <div className="mt-2">
+                        {positionWeights.map(weight => (
+                          <div key={weight.attribute_id} className="my-4">
+                            <div className="flex justify-between items-center mb-1">
+                              <div className="text-sm">
+                                {formatAttributeName(weight.name)}
+                                {weight.name === 'resilience' && <span className="text-gray-400 text-xs"> (i)</span>}
+                              </div>
+                              <div className="font-medium">{formatWeight(weight.weight)}</div>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
+                              onClick={(e) => handleBarClick(e, weight.attribute_id)}
+                            >
+                              <div 
+                                className="h-full rounded-full"
+                                style={{ 
+                                  backgroundColor: getPositionColor(position),
+                                  width: `${weight.weight * 100}%`
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
+          </div>
+          
+          <div className="mt-10 border-t pt-6">
+            <h3 className="font-medium text-md mb-4">How Team Balancing Works</h3>
+            
+            <ol className="space-y-3">
+              <li className="flex gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">1</div>
+                <div>Players are first allocated as defenders, based on highest desire to defend.</div>
+              </li>
+              <li className="flex gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">2</div>
+                <div>Next, players are assigned as attackers, prioritising those with highest goalscoring ability.</div>
+              </li>
+              <li className="flex gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">3</div>
+                <div>Remaining players are assigned to midfield positions.</div>
+              </li>
+              <li className="flex gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">4</div>
+                <div>Each player is evaluated within their assigned position using the position-specific weights you've set above. This creates a skill score for each player.</div>
+              </li>
+              <li className="flex gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">5</div>
+                <div>Players are distributed between teams in a "snake draft" pattern. The highest-scored defender goes to Team A, second-highest to Team B, and alternating from there. This repeats for midfielders and attackers.</div>
+              </li>
+              <li className="flex gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">6</div>
+                <div>Finally, <strong>Resilience</strong> and <strong>Teamwork</strong> attributes are applied according to their weights. These are processed last, and their impact is proportional to the weight you've assigned them in the settings above.</div>
+              </li>
+            </ol>
+          </div>
+          
+          <div className="mt-6 bg-blue-50 p-4 rounded-md text-sm">
+            <div className="font-medium text-blue-800 mb-1">Important Note on Weights</div>
+            <p className="text-blue-700">
+              For each position group (Defenders, Midfielders, Attackers), the weights for technical attributes (Stamina & Pace, Ball Control, Goalscoring) should total 100%. Each slider will adjust in 5% increments. The system will validate the totals before saving.
+            </p>
           </div>
         </>
       )}
