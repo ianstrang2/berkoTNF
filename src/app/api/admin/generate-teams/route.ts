@@ -4,12 +4,14 @@ import { prisma } from '@/lib/prisma';
 interface Player {
   player_id: number;
   name: string;
-  defender?: number;
-  goalscoring?: number;
-  stamina_pace?: number;
-  control?: number;
-  teamwork?: number;
-  resilience?: number;
+  join_date: Date | null;
+  is_ringer: boolean;
+  is_retired: boolean | null;
+  stamina_pace: number | null;
+  control: number | null;
+  goalscoring: number | null;
+  teamwork: number | null;
+  resilience: number | null;
   slot_number?: number;
 }
 
@@ -33,9 +35,9 @@ interface TeamStats {
   teamwork: number;
 }
 
-// Calculate defender balance score (equal weight between Stamina & Pace and Control)
+// Calculate defender balance score (equal weight between Stamina & Pace, Control, and Resilience)
 const calculateDefenderScore = (player: Player) => ({
-  total: player.defender || 0,
+  total: ((player.stamina_pace || 0) + (player.control || 0) + (player.resilience || 0)) / 3,
   balance: ((player.stamina_pace || 0) + (player.control || 0)) / 2
 });
 
@@ -67,7 +69,11 @@ const calculateTeamStats = (team: Player[]): TeamStats => {
   // Safely calculate average with fallback to 0
   const safeAverage = (players: Player[], field: keyof Player) => {
     if (!players.length) return 0;
-    return players.reduce((sum, p) => sum + (Number(p[field]) || 0), 0) / players.length;
+    const values = players.map(p => {
+      const value = p[field];
+      return typeof value === 'number' ? value : 0;
+    });
+    return values.reduce((sum, val) => sum + val, 0) / values.length;
   };
 
   return {
@@ -92,9 +98,9 @@ const calculateTeamStats = (team: Player[]): TeamStats => {
 };
 
 // Calculate balance score between two teams
-const calculateBalanceScore = (teamA: Player[], teamB: Player[]): number => {
-  const statsA = calculateTeamStats(teamA);
-  const statsB = calculateTeamStats(teamB);
+const calculateBalanceScore = (teamA: (Player | null)[], teamB: (Player | null)[]): number => {
+  const statsA = calculateTeamStats(teamA.filter((p): p is Player => p !== null));
+  const statsB = calculateTeamStats(teamB.filter((p): p is Player => p !== null));
 
   // Calculate differences for each position group
   // Defense: 50% Stamina & Pace, 50% Control
@@ -162,7 +168,7 @@ export async function POST(request: Request) {
       where: {
         player_id: { in: playerIds }
       }
-    });
+    }) as unknown as Player[];  // Cast to our Player interface since we know the shape matches
 
     console.log('Players found:', players.map(p => ({ 
       player_id: p.player_id, 
@@ -176,16 +182,18 @@ export async function POST(request: Request) {
       });
     }
 
+    // Sort players by their defensive attributes (stamina_pace, control, resilience)
+    const defenderScore = (p: Player) => ((p.stamina_pace || 0) + (p.control || 0) + (p.resilience || 0)) / 3;
+    const sortedDefenders = players.sort((a, b) => defenderScore(b) - defenderScore(a));
+
     // First, identify defenders (highest defender scores)
-    const potentialDefenders = [...players]
-      .sort((a, b) => (b.defender || 0) - (a.defender || 0))
-      .slice(0, 6);
+    const potentialDefenders = sortedDefenders.slice(0, 6);
 
     // Identify attackers from remaining players (highest goalscoring)
     const remainingAfterDefenders = players.filter(p => 
       !potentialDefenders.find(d => d.player_id === p.player_id));
     
-    const potentialAttackers = [...remainingAfterDefenders]
+    const potentialAttackers = remainingAfterDefenders
       .sort((a, b) => (b.goalscoring || 0) - (a.goalscoring || 0))
       .slice(0, 4);
 
@@ -205,7 +213,7 @@ export async function POST(request: Request) {
         console.log(`Progress: ${progress}%`);
       }
 
-      const slots: (any & { slot_number?: number })[] = Array(18).fill(null);
+      const slots: (Player | null)[] = Array(18).fill(null);
       
       // Distribute defenders to slots 1-3 and 10-12
       const shuffledDefenders = shuffleArray([...potentialDefenders]);
