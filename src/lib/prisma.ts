@@ -10,6 +10,8 @@ type CustomPrismaClient = PrismaClient & {
   team_balance_weights_defaults: any;
   upcoming_matches: any;
   upcoming_match_players: any;
+  aggregated_season_stats: any;
+  aggregated_recent_performance: any;
 };
 
 // Initialize Prisma client with debug logging

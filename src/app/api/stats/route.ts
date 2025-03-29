@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import apiCache from '@/lib/apiCache';
 
+interface RecentGame {
+  goals: number;
+  heavy_win?: boolean;
+  heavy_loss?: boolean;
+  result: string;
+}
+
 const serializeData = (data) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
     typeof value === 'bigint' ? Number(value) : value
@@ -92,14 +99,14 @@ export async function POST(request: NextRequest) {
         name: perf.player.name,
         total_goals: seasonStats.find(s => s.name === perf.player.name)?.goals || 0,
         minutes_per_goal: Math.round((seasonStats.find(s => s.name === perf.player.name)?.games_played || 0) * 60 / (seasonStats.find(s => s.name === perf.player.name)?.goals || 1)),
-        last_five_games: perf.last_5_games ? JSON.stringify(perf.last_5_games.map(g => g.goals)).replace(/[\[\]]/g, '') : '',
-        max_goals_in_game: Math.max(...(perf.last_5_games?.map(g => g.goals) || [0]))
+        last_five_games: perf.last_5_games ? JSON.stringify((perf.last_5_games as RecentGame[]).map(g => g.goals)).replace(/[\[\]]/g, '') : '',
+        max_goals_in_game: Math.max(...((perf.last_5_games as RecentGame[] | null)?.map(g => g.goals) || [0]))
       })).sort((a, b) => b.total_goals - a.total_goals || a.minutes_per_goal - b.minutes_per_goal);
 
       // Format form data using recent performance data
       const formData = recentPerformance.map(perf => ({
         name: perf.player.name,
-        last_5_games: perf.last_5_games ? perf.last_5_games.map(g => {
+        last_5_games: perf.last_5_games ? (perf.last_5_games as RecentGame[]).map(g => {
           if (g.heavy_win) return 'HW';
           if (g.heavy_loss) return 'HL';
           return g.result.toUpperCase().charAt(0);
