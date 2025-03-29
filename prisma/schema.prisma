@@ -45,6 +45,7 @@ model players {
   stamina_pace              Int                     @default(3)
   control                   Int                     @default(3)
   goalscoring              Int                     @default(3)
+  defender                 Int                     @default(3)
   teamwork                 Int                     @default(3)
   resilience               Int                     @default(3)
   player_matches           player_matches[]
