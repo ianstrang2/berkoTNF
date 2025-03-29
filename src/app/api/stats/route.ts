@@ -75,88 +75,36 @@ export async function POST(request: NextRequest) {
         fantasy_points: stat.fantasy_points,
         points_per_game: stat.points_per_game
       }));
-      
-      // Get the goal stats with last 5 games
-      const goalStats = await prisma.$queryRaw`
-      WITH player_totals AS (
-        SELECT 
-          p.player_id,
-          p.name,
-          SUM(pm.goals) as total_goals,
-          ROUND(COUNT(*) * 60.0 / NULLIF(SUM(pm.goals), 0)) as minutes_per_goal
-        FROM players p
-        JOIN player_matches pm ON p.player_id = pm.player_id
-        JOIN matches m ON pm.match_id = m.match_id
-        WHERE m.match_date >= ${startDate}::date
-        AND m.match_date <= ${endDate}::date
-        AND p.is_ringer = false
-        GROUP BY p.player_id, p.name
-      ),
-      recent_games AS (
-        SELECT 
-          p.player_id,
-          pm.goals,
-          m.match_date,
-          ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as game_number,
-          ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as display_order
-        FROM players p
-        JOIN player_matches pm ON p.player_id = pm.player_id
-        JOIN matches m ON pm.match_id = m.match_id
-        WHERE m.match_date >= ${startDate}::date
-        AND m.match_date <= ${endDate}::date
-        AND p.is_ringer = false
-      )
-      SELECT 
-        pt.*,
-        STRING_AGG(
-          CASE 
-            WHEN rg.goals IS NULL THEN NULL
-            WHEN rg.goals = 0 THEN '0'
-            ELSE rg.goals::text 
-          END,
-          ',' ORDER BY rg.display_order ASC
-        ) as last_five_games,
-        MAX(rg.goals) as max_goals_in_game
-      FROM player_totals pt
-      LEFT JOIN recent_games rg ON pt.player_id = rg.player_id AND rg.game_number <= 5
-      GROUP BY pt.player_id, pt.name, pt.total_goals, pt.minutes_per_goal
-      ORDER BY pt.total_goals DESC, pt.minutes_per_goal ASC
-      `;
-      
-      // Form Data Query (Last 5 Games)
-      const formData = await prisma.$queryRaw`
-        WITH recent_games AS (
-          SELECT 
-            p.player_id,
-            p.name,
-            m.match_date,
-            CASE 
-              WHEN pm.result = 'win' AND pm.heavy_win = true THEN 'HW'
-              WHEN pm.result = 'win' THEN 'W'
-              WHEN pm.result = 'loss' AND pm.heavy_loss = true THEN 'HL'
-              WHEN pm.result = 'loss' THEN 'L'
-              ELSE 'D'
-            END as result,
-            ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as game_number,
-            ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date ASC) as display_order
-          FROM players p
-          JOIN player_matches pm ON p.player_id = pm.player_id
-          JOIN matches m ON pm.match_id = m.match_id
-          WHERE m.match_date >= ${startDate}::date
-          AND m.match_date <= ${endDate}::date
-          AND p.is_ringer = false
-        )
-        SELECT 
-          name,
-          STRING_AGG(
-            result, 
-            ', ' ORDER BY display_order ASC
-          ) as last_5_games
-        FROM recent_games
-        WHERE game_number <= 5
-        GROUP BY player_id, name
-        ORDER BY name
-      `;
+
+      // Get recent performance data from pre-aggregated table
+      const recentPerformance = await prisma.aggregated_recent_performance.findMany({
+        include: {
+          player: {
+            select: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // Format goal stats using recent performance data
+      const goalStats = recentPerformance.map(perf => ({
+        name: perf.player.name,
+        total_goals: seasonStats.find(s => s.name === perf.player.name)?.goals || 0,
+        minutes_per_goal: Math.round((seasonStats.find(s => s.name === perf.player.name)?.games_played || 0) * 60 / (seasonStats.find(s => s.name === perf.player.name)?.goals || 1)),
+        last_five_games: perf.last_5_games ? JSON.stringify(perf.last_5_games.map(g => g.goals)).replace(/[\[\]]/g, '') : '',
+        max_goals_in_game: Math.max(...(perf.last_5_games?.map(g => g.goals) || [0]))
+      })).sort((a, b) => b.total_goals - a.total_goals || a.minutes_per_goal - b.minutes_per_goal);
+
+      // Format form data using recent performance data
+      const formData = recentPerformance.map(perf => ({
+        name: perf.player.name,
+        last_5_games: perf.last_5_games ? perf.last_5_games.map(g => {
+          if (g.heavy_win) return 'HW';
+          if (g.heavy_loss) return 'HL';
+          return g.result.toUpperCase().charAt(0);
+        }).join(', ') : ''
+      })).sort((a, b) => a.name.localeCompare(b.name));
       
       const responseData = {
         seasonStats: serializeData(seasonStats),

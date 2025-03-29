@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
               select: {
                 name: true,
                 goalscoring: true,
-                defender: true,
                 stamina_pace: true,
                 control: true,
                 teamwork: true,
@@ -38,6 +37,7 @@ export async function GET(request: NextRequest) {
 
     if (active === 'true') {
       // Get active match
+      console.log('Fetching active match...');
       const activeMatch = await prisma.upcoming_matches.findFirst({
         where: { is_active: true },
         include: {
@@ -47,7 +47,6 @@ export async function GET(request: NextRequest) {
                 select: {
                   name: true,
                   goalscoring: true,
-                  defender: true,
                   stamina_pace: true,
                   control: true,
                   teamwork: true,
@@ -62,6 +61,8 @@ export async function GET(request: NextRequest) {
           }
         }
       });
+
+      console.log('Active match result:', JSON.stringify(activeMatch, null, 2));
 
       if (activeMatch) {
         // Format the response
@@ -92,7 +93,6 @@ export async function GET(request: NextRequest) {
                 select: {
                   name: true,
                   goalscoring: true,
-                  defender: true,
                   stamina_pace: true,
                   control: true,
                   teamwork: true,
@@ -144,8 +144,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, data: matches });
     }
   } catch (error: any) {
-    console.error('Error fetching upcoming matches:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause
+    });
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message,
+      details: error.stack
+    }, { status: 500 });
   }
 }
 
