@@ -53,10 +53,71 @@ interface MatchReport {
   seasonFantasyLeaders?: LeaderData[];
 }
 
+// Error Boundary Component
+class MatchReportErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('MatchReport Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card className="text-center">
+          <div className="text-xl font-semibold text-error-600 mb-element">Something went wrong</div>
+          <p className="text-neutral-600 mb-element">We're sorry, but there was an error loading the match report.</p>
+          <Button
+            onClick={() => window.location.reload()}
+            variant="primary"
+            size="sm"
+          >
+            Reload Page
+          </Button>
+        </Card>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Loading Skeleton Component
+const LoadingSkeleton = () => (
+  <div className="space-y-section">
+    <Card className="animate-pulse">
+      <div className="h-8 bg-neutral-200 rounded w-3/4 mx-auto mb-4"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
+        <div className="h-32 bg-neutral-200 rounded"></div>
+        <div className="h-32 bg-neutral-200 rounded"></div>
+      </div>
+    </Card>
+    <Card className="animate-pulse">
+      <div className="h-8 bg-neutral-200 rounded w-1/2 mx-auto mb-4"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
+        <div className="h-40 bg-neutral-200 rounded"></div>
+        <div className="h-40 bg-neutral-200 rounded"></div>
+      </div>
+    </Card>
+  </div>
+);
+
 const MatchReport: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [report, setReport] = useState<MatchReport | null>(null);
   const [showCopyToast, setShowCopyToast] = useState<boolean>(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Helper function to get the correct ordinal suffix for numbers
   const getOrdinalSuffix = (num: number): string => {
@@ -74,28 +135,27 @@ const MatchReport: React.FC = () => {
     return num + "th";
   };
 
-  useEffect(() => {
-    const fetchReport = async () => {
-      try {
-        const response = await fetch('/api/matchReport');
-        const result = await response.json();
-        
-        if (result.success) {
-          console.log('Match report data:', result.data);
-          if (result.data.gamesMilestones) {
-            console.log('Game milestones:', result.data.gamesMilestones);
-          }
-          setReport(result.data);
-        } else {
-          console.error('Failed to fetch match report:', result.error);
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching match report:', error);
-        setLoading(false);
+  const fetchReport = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/matchReport');
+      const result = await response.json();
+      
+      if (result.success) {
+        setReport(result.data);
+        setLastUpdated(new Date());
+      } else {
+        setError(new Error(result.error || 'Failed to fetch match report'));
       }
-    };
+    } catch (error) {
+      setError(error instanceof Error ? error : new Error('Failed to fetch match report'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchReport();
   }, []);
 
@@ -429,12 +489,21 @@ const MatchReport: React.FC = () => {
   };
 
   if (loading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (error) {
     return (
       <Card className="text-center">
-        <div className="text-xl font-semibold text-primary-600 mb-element">Loading...</div>
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-        </div>
+        <div className="text-xl font-semibold text-error-600 mb-element">Error Loading Match Report</div>
+        <p className="text-neutral-600 mb-element">{error.message}</p>
+        <Button
+          onClick={fetchReport}
+          variant="primary"
+          size="sm"
+        >
+          Try Again
+        </Button>
       </Card>
     );
   }
@@ -443,7 +512,14 @@ const MatchReport: React.FC = () => {
     return (
       <Card className="text-center">
         <div className="text-xl font-semibold text-error-600 mb-element">No match report found</div>
-        <p className="text-neutral-600">Please check back later for the latest match report.</p>
+        <p className="text-neutral-600 mb-element">Please check back later for the latest match report.</p>
+        <Button
+          onClick={fetchReport}
+          variant="secondary"
+          size="sm"
+        >
+          Refresh
+        </Button>
       </Card>
     );
   }
@@ -462,24 +538,43 @@ const MatchReport: React.FC = () => {
         </div>
       )}
       
-      <h2 className="text-2xl font-bold text-center text-primary-600 tracking-tight">Match Report</h2>
-      
-      {/* Copy Report Button */}
-      <div className="flex justify-end">
-        <Button
-          onClick={handleCopyReport}
-          variant="secondary"
-          size="sm"
-          className="text-sm"
-          icon={
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          }
-        >
-          Copy Report
-        </Button>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-primary-600 tracking-tight">Match Report</h2>
+        <div className="flex gap-2">
+          <Button
+            onClick={fetchReport}
+            variant="secondary"
+            size="sm"
+            className="text-sm"
+            icon={
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            }
+          >
+            Refresh
+          </Button>
+          <Button
+            onClick={handleCopyReport}
+            variant="secondary"
+            size="sm"
+            className="text-sm"
+            icon={
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            }
+          >
+            Copy Report
+          </Button>
+        </div>
       </div>
+
+      {lastUpdated && (
+        <p className="text-sm text-neutral-500 text-right">
+          Last updated: {lastUpdated.toLocaleTimeString()}
+        </p>
+      )}
       
       {/* Match Info */}
       {renderMatchInfo()}
@@ -490,4 +585,11 @@ const MatchReport: React.FC = () => {
   );
 };
 
-export default MatchReport; 
+// Wrap the component with error boundary
+const MatchReportWithErrorBoundary: React.FC = () => (
+  <MatchReportErrorBoundary>
+    <MatchReport />
+  </MatchReportErrorBoundary>
+);
+
+export default MatchReportWithErrorBoundary; 

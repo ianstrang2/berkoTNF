@@ -249,58 +249,72 @@ model aggregated_recent_performance {
 model aggregated_match_report {
   match_id          Int       @id
   match_date        DateTime  @db.Timestamptz
-  team_a_score      Int?
-  team_b_score      Int?
-  team_a_players    Json?     @db.JsonB
-  team_b_players    Json?     @db.JsonB
-  team_a_scorers    Json?     @db.JsonB
-  team_b_scorers    Json?     @db.JsonB
-  game_milestones   Json?     @db.JsonB
-  goal_milestones   Json?     @db.JsonB
-  config_values     Json?     @db.JsonB
-  last_updated      DateTime? @default(now()) @db.Timestamptz
+  team_a_score      Int
+  team_b_score      Int
+  team_a_players    Json?     @db.JsonB  // Array of player names
+  team_b_players    Json?     @db.JsonB  // Array of player names
+  team_a_scorers    Json?     @db.JsonB  // Array of {name: string, goals: number}
+  team_b_scorers    Json?     @db.JsonB  // Array of {name: string, goals: number}
+  game_milestones   Json?     @db.JsonB  // Array of {name: string, total_games: number}
+  goal_milestones   Json?     @db.JsonB  // Array of {name: string, total_goals: number}
+  config_values     Json?     @db.JsonB  // Object containing threshold values as strings
+  last_updated      DateTime  @default(now()) @db.Timestamptz
 
   @@index([match_date])
 }
 
 /// This model stores cached player streak data for match reports
 model aggregated_match_streaks {
-  player_id                 Int      @id
-  name                      String
-  current_win_streak        Int
-  current_unbeaten_streak   Int
-  current_loss_streak       Int
-  current_winless_streak    Int
-  current_scoring_streak    Int
-  goals_in_scoring_streak   Int
-  half_season_goals         Int?
-  season_goals              Int?
-  half_season_fantasy_points Int?
-  season_fantasy_points     Int?
-  is_half_season_leader     Boolean   @default(false)
-  previous_half_season_leader Boolean  @default(false)
-  is_season_leader          Boolean   @default(false)
-  previous_season_leader    Boolean   @default(false)
-  last_updated              DateTime  @default(now()) @db.Timestamptz(6)
-  player                    players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+  player_id                         Int      @id
+  name                             String?
+  current_win_streak               Int?
+  current_unbeaten_streak          Int?
+  current_loss_streak              Int?
+  current_winless_streak           Int?
+  current_scoring_streak           Int?
+  goals_in_scoring_streak          Int?
+  half_season_goals                Int?
+  half_season_fantasy_points       Int?
+  season_goals                     Int?
+  season_fantasy_points           Int?
+  config_values                    Json?    @db.JsonB
+  last_updated                     DateTime @default(now()) @db.Timestamptz(6)
+  half_season_goals_rank           Int?
+  half_season_fantasy_rank         Int?
+  season_goals_rank                Int?
+  season_fantasy_rank              Int?
+  previous_half_season_goals       Int?
+  previous_half_season_fantasy     Int?
+  previous_season_goals            Int?
+  previous_season_fantasy          Int?
+  half_season_goals_status         String?
+  half_season_fantasy_status       String?
+  season_goals_status             String?
+  season_fantasy_status           String?
+  previous_half_season_goals_leader_id Int?
+  previous_half_season_fantasy_leader_id Int?
+  previous_season_goals_leader_id Int?
+  previous_season_fantasy_leader_id Int?
+  player                           players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
 
   @@index([current_win_streak])
   @@index([current_unbeaten_streak])
   @@index([current_scoring_streak])
 }
 
+/// This model stores aggregated records and achievements
 model aggregated_records {
   id           Int       @id @default(autoincrement())
-  records      Json?
-  last_updated DateTime? @default(now()) @db.Timestamptz(6)
+  records      Json?     @db.JsonB  // Object containing various records
+  last_updated DateTime  @default(now()) @db.Timestamptz(6)
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model stores season honours and achievements
 model aggregated_season_honours {
-  year           Int?      @unique(map: "idx_season_honours_year")
-  season_winners Json?
-  top_scorers    Json?
-  last_updated   DateTime? @default(now()) @db.Timestamptz(6)
+  year           Int      @id
+  season_winners Json?    @db.JsonB  // Array of {player_id: number, name: string, value: number}
+  top_scorers    Json?    @db.JsonB  // Array of {player_id: number, name: string, goals: number}
+  last_updated   DateTime @default(now()) @db.Timestamptz(6)
 
-  @@ignore
+  @@index([year])
 }
