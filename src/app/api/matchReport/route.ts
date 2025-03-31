@@ -218,30 +218,53 @@ export async function GET() {
 
     console.log('Goal streaks cache:', JSON.stringify(goalStreaksCache, null, 2));
 
-    // Get leader data
+    // Get half-season leaders
     const halfSeasonLeaders = await prisma.aggregated_match_streaks.findMany({
       where: {
         OR: [
-          { half_season_goals_status: 'leader' },
-          { half_season_fantasy_status: 'leader' },
-          { previous_half_season_goals_leader_id: { not: null } },
-          { previous_half_season_fantasy_leader_id: { not: null } }
+          { half_season_goals: { not: null } },
+          { half_season_fantasy_points: { not: null } }
         ]
       }
-    });
+    }) as unknown as Array<{
+      player_id: number;
+      name: string | null;
+      half_season_goals: number | null;
+      half_season_fantasy_points: number | null;
+      previous_half_season_goals: number | null;
+      previous_half_season_fantasy: number | null;
+      half_season_goals_rank: number | null;
+      half_season_fantasy_rank: number | null;
+      half_season_goals_status: string | null;
+      half_season_fantasy_status: string | null;
+      previous_half_season_goals_leader_id: number | null;
+      previous_half_season_fantasy_leader_id: number | null;
+    }>;
 
     console.log('Half season leaders:', JSON.stringify(halfSeasonLeaders, null, 2));
 
+    // Get season leaders
     const seasonLeaders = await prisma.aggregated_match_streaks.findMany({
       where: {
         OR: [
-          { season_goals_status: 'leader' },
-          { season_fantasy_status: 'leader' },
-          { previous_season_goals_leader_id: { not: null } },
-          { previous_season_fantasy_leader_id: { not: null } }
+          { season_goals: { not: null } },
+          { season_fantasy_points: { not: null } }
         ]
       }
-    });
+    }) as unknown as Array<{
+      player_id: number;
+      name: string | null;
+      season_goals: number | null;
+      season_fantasy_points: number | null;
+      previous_season_goals: number | null;
+      previous_season_fantasy: number | null;
+      season_goals_rank: number | null;
+      season_fantasy_rank: number | null;
+      season_goals_status: string | null;
+      season_fantasy_status: string | null;
+      previous_season_goals_leader_id: number | null;
+      previous_season_fantasy_leader_id: number | null;
+    }>;
 
     console.log('Season leaders:', JSON.stringify(seasonLeaders, null, 2));
 
@@ -251,18 +274,18 @@ export async function GET() {
       let streakType = '';
       let streakCount = 0;
 
-      if (streak.current_unbeaten_streak >= Number(thresholds.unbeaten_streak_threshold)) {
+      if ((streak.current_unbeaten_streak ?? 0) >= Number(thresholds.unbeaten_streak_threshold)) {
         streakType = 'unbeaten';
-        streakCount = streak.current_unbeaten_streak;
-      } else if (streak.current_winless_streak >= Number(thresholds.winless_streak_threshold)) {
+        streakCount = streak.current_unbeaten_streak ?? 0;
+      } else if ((streak.current_winless_streak ?? 0) >= Number(thresholds.winless_streak_threshold)) {
         streakType = 'winless';
-        streakCount = streak.current_winless_streak;
-      } else if (streak.current_win_streak >= Number(thresholds.win_streak_threshold)) {
-        streakType = 'win';
-        streakCount = streak.current_win_streak;
-      } else if (streak.current_loss_streak >= Number(thresholds.loss_streak_threshold)) {
+        streakCount = streak.current_winless_streak ?? 0;
+      } else if ((streak.current_loss_streak ?? 0) >= Number(thresholds.loss_streak_threshold)) {
         streakType = 'loss';
-        streakCount = streak.current_loss_streak;
+        streakCount = streak.current_loss_streak ?? 0;
+      } else if ((streak.current_win_streak ?? 0) >= Number(thresholds.win_streak_threshold)) {
+        streakType = 'win';
+        streakCount = streak.current_win_streak ?? 0;
       }
 
       return {
