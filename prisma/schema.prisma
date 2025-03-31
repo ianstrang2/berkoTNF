@@ -37,24 +37,25 @@ model player_matches {
 }
 
 model players {
-  player_id                  Int                     @id @default(autoincrement())
-  name                       String
-  join_date                  DateTime?               @default(dbgenerated("CURRENT_DATE")) @db.Date
-  is_ringer                  Boolean                 @default(false)
-  is_retired                 Boolean                 @default(false)
-  stamina_pace              Int                     @default(3)
-  control                   Int                     @default(3)
-  goalscoring              Int                     @default(3)
-  defender                 Int                     @default(3)
-  teamwork                 Int                     @default(3)
-  resilience               Int                     @default(3)
+  player_id                Int                            @id @default(autoincrement())
+  name                     String                         @db.VarChar(100)
+  join_date                DateTime?                      @default(dbgenerated("CURRENT_DATE")) @db.Date
+  is_ringer                Boolean                        @default(false)
+  is_retired               Boolean?                       @default(false)
+  goalscoring              Int                            @default(3) @db.SmallInt
+  defender                 Int                            @default(3) @db.SmallInt
+  stamina_pace             Int                            @default(3) @db.SmallInt
+  control                  Int                            @default(3) @db.SmallInt
+  teamwork                 Int                            @default(3) @db.SmallInt
+  resilience               Int?                           @default(3) @db.SmallInt
+  all_time_stats           aggregated_all_time_stats?
+  hall_of_fame             aggregated_hall_of_fame[]
+  aggregated_match_streaks aggregated_match_streaks[]
+  recent_performance       aggregated_recent_performance?
+  season_stats             aggregated_season_stats[]
   player_matches           player_matches[]
   team_slots               team_slots[]
   upcoming_match_players   upcoming_match_players[]
-  season_stats             aggregated_season_stats[]
-  all_time_stats           aggregated_all_time_stats[]
-  hall_of_fame             aggregated_hall_of_fame[]
-  recent_performance       aggregated_recent_performance?
 }
 
 model team_slots {
@@ -169,71 +170,69 @@ model upcoming_match_players {
 
 /// This model stores pre-aggregated season stats for faster retrieval
 model aggregated_season_stats {
-  id                  Int       @id @default(autoincrement())
-  player_id           Int
-  season_start_date   DateTime  @db.Date
-  season_end_date     DateTime  @db.Date
-  games_played        Int
-  wins                Int
-  draws               Int
-  losses              Int
-  goals               Int
-  heavy_wins          Int
-  heavy_losses        Int
-  clean_sheets        Int
-  win_percentage      Decimal   @db.Decimal(5, 1)
-  fantasy_points      Int
-  points_per_game     Decimal   @db.Decimal(5, 1)
-  last_updated        DateTime  @default(now()) @db.Timestamptz(6)
-  player              players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+  id                Int      @id @default(autoincrement())
+  player_id         Int
+  season_start_date DateTime @db.Date
+  season_end_date   DateTime @db.Date
+  games_played      Int
+  wins              Int
+  draws             Int
+  losses            Int
+  goals             Int
+  heavy_wins        Int
+  heavy_losses      Int
+  clean_sheets      Int
+  win_percentage    Decimal  @db.Decimal(10, 1)
+  fantasy_points    Decimal  @db.Decimal(10, 1)
+  points_per_game   Decimal  @db.Decimal(10, 1)
+  last_updated      DateTime @default(now()) @db.Timestamptz(6)
+  player            players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([player_id, season_start_date, season_end_date])
-  @@index([season_start_date, season_end_date])
+  @@index([season_start_date, season_end_date], map: "idx_agg_season_stats_dates")
 }
 
 /// This model stores pre-aggregated all-time stats for faster retrieval
 model aggregated_all_time_stats {
-  id                    Int       @id @default(autoincrement())
-  player_id             Int
-  games_played          Int
-  wins                  Int
-  draws                 Int
-  losses                Int
-  goals                 Int
-  win_percentage        Decimal   @db.Decimal(5, 1)
-  minutes_per_goal      Decimal?  @db.Decimal(5, 1)
-  heavy_wins            Int
-  heavy_win_percentage  Decimal   @db.Decimal(5, 1)
-  heavy_losses          Int
-  heavy_loss_percentage Decimal   @db.Decimal(5, 1)
-  clean_sheets          Int
-  clean_sheet_percentage Decimal  @db.Decimal(5, 1)
-  fantasy_points        Int
-  points_per_game       Decimal   @db.Decimal(5, 1)
-  last_updated          DateTime  @default(now()) @db.Timestamptz(6)
-  player                players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
-
-  @@unique([player_id])
+  id                     Int      @id @default(autoincrement())
+  player_id              Int      @unique
+  games_played           Int
+  wins                   Int
+  draws                  Int
+  losses                 Int
+  goals                  Int
+  win_percentage         Decimal  @db.Decimal(10, 1)
+  minutes_per_goal       Decimal? @db.Decimal(10, 1)
+  heavy_wins             Int
+  heavy_win_percentage   Decimal  @db.Decimal(10, 1)
+  heavy_losses           Int
+  heavy_loss_percentage  Decimal  @db.Decimal(10, 1)
+  clean_sheets           Int
+  clean_sheet_percentage Decimal  @db.Decimal(10, 1)
+  fantasy_points         Decimal  @db.Decimal(10, 1)
+  points_per_game        Decimal  @db.Decimal(10, 1)
+  last_updated           DateTime @default(now()) @db.Timestamptz(6)
+  player                 players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 /// This model stores pre-aggregated hall of fame data
 model aggregated_hall_of_fame {
-  id                    Int       @id @default(autoincrement())
-  category              String
-  player_id             Int
-  value                 Decimal   @db.Decimal(10, 2)
-  last_updated          DateTime  @default(now()) @db.Timestamptz(6)
-  player                players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+  id           Int      @id @default(autoincrement())
+  category     String   @db.VarChar(50)
+  player_id    Int
+  value        Decimal  @db.Decimal(10, 2)
+  last_updated DateTime @default(now()) @db.Timestamptz(6)
+  player       players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([category, player_id])
-  @@index([category])
+  @@index([category], map: "idx_agg_hall_of_fame_category")
 }
 
 /// This model stores cache invalidation metadata
 model cache_metadata {
-  cache_key             String    @id
-  last_invalidated      DateTime  @default(now()) @db.Timestamptz(6)
-  dependency_type       String    // match_result, match_report, squad_selection
+  cache_key        String   @id @db.VarChar(100)
+  last_invalidated DateTime @default(now()) @db.Timestamptz(6)
+  dependency_type  String   @db.VarChar(50)
 }
 
 model aggregated_recent_performance {
@@ -244,4 +243,64 @@ model aggregated_recent_performance {
   player       players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
 
   @@index([player_id])
+}
+
+/// This model stores cached match report data for faster retrieval
+model aggregated_match_report {
+  match_id          Int       @id
+  match_date        DateTime  @db.Timestamptz
+  team_a_score      Int?
+  team_b_score      Int?
+  team_a_players    Json?     @db.JsonB
+  team_b_players    Json?     @db.JsonB
+  team_a_scorers    Json?     @db.JsonB
+  team_b_scorers    Json?     @db.JsonB
+  game_milestones   Json?     @db.JsonB
+  goal_milestones   Json?     @db.JsonB
+  config_values     Json?     @db.JsonB
+  last_updated      DateTime? @default(now()) @db.Timestamptz
+
+  @@index([match_date])
+}
+
+/// This model stores cached player streak data for match reports
+model aggregated_match_streaks {
+  player_id                 Int      @id
+  name                      String
+  current_win_streak        Int
+  current_unbeaten_streak   Int
+  current_loss_streak       Int
+  current_winless_streak    Int
+  current_scoring_streak    Int
+  goals_in_scoring_streak   Int
+  half_season_goals         Int?
+  season_goals              Int?
+  half_season_fantasy_points Int?
+  season_fantasy_points     Int?
+  is_half_season_leader     Boolean   @default(false)
+  previous_half_season_leader Boolean  @default(false)
+  is_season_leader          Boolean   @default(false)
+  previous_season_leader    Boolean   @default(false)
+  last_updated              DateTime  @default(now()) @db.Timestamptz(6)
+  player                    players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+
+  @@index([current_win_streak])
+  @@index([current_unbeaten_streak])
+  @@index([current_scoring_streak])
+}
+
+model aggregated_records {
+  id           Int       @id @default(autoincrement())
+  records      Json?
+  last_updated DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model aggregated_season_honours {
+  year           Int?      @unique(map: "idx_season_honours_year")
+  season_winners Json?
+  top_scorers    Json?
+  last_updated   DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@ignore
 }

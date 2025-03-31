@@ -61,10 +61,15 @@ const OverallSeasonPerformance: React.FC = () => {
         
         const result = await response.json();
         
-        if (result.data) {
+        if (result.data && result.data.seasonStats && result.data.seasonStats.length > 0) {
           setStats(result.data);
         } else {
-          console.error('No data received from API');
+          console.log('No data received from API');
+          setStats({
+            seasonStats: [],
+            goalStats: [],
+            formData: []
+          });
         }
         
         setLoading(false);
@@ -85,6 +90,7 @@ const OverallSeasonPerformance: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell isHeader className="min-w-[150px]">Player</TableCell>
+              <TableCell isHeader className="w-20">Points</TableCell>
               <TableCell isHeader className="w-16">P</TableCell>
               <TableCell isHeader className="w-16">W</TableCell>
               <TableCell isHeader className="w-16">D</TableCell>
@@ -94,7 +100,6 @@ const OverallSeasonPerformance: React.FC = () => {
               <TableCell isHeader className="w-16">HL</TableCell>
               <TableCell isHeader className="w-20">CS</TableCell>
               <TableCell isHeader className="w-20">Win %</TableCell>
-              <TableCell isHeader className="w-20">Points</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -104,6 +109,7 @@ const OverallSeasonPerformance: React.FC = () => {
               return (
                 <TableRow key={index}>
                   <TableCell className="font-medium text-primary-600">{player.name}</TableCell>
+                  <TableCell className="font-bold">{player.fantasy_points}</TableCell>
                   <TableCell>{player.games_played}</TableCell>
                   <TableCell>{player.wins}</TableCell>
                   <TableCell>{player.draws}</TableCell>
@@ -113,7 +119,6 @@ const OverallSeasonPerformance: React.FC = () => {
                   <TableCell>{player.heavy_losses}</TableCell>
                   <TableCell>{player.clean_sheets}</TableCell>
                   <TableCell>{Math.round(player.win_percentage)}%</TableCell>
-                  <TableCell className="font-bold">{player.fantasy_points}</TableCell>
                 </TableRow>
               );
             })}
@@ -183,27 +188,35 @@ const OverallSeasonPerformance: React.FC = () => {
         </div>
       </div>
 
-      {/* Desktop view */}
-      <div className="hidden md:grid md:grid-cols-2 gap-grid">
-        {renderMainStats()}
-        {renderGoalStats()}
-      </div>
-
-      {/* Mobile view */}
-      <div className="md:hidden">
-        <Tabs 
-          defaultTab={activeTab === 'performance' ? 0 : 1} 
-          onChange={(index) => setActiveTab(index === 0 ? 'performance' : 'goals')}
-          variant="pills"
-        >
-          <Tab label="Points">
+      {stats.seasonStats.length === 0 ? (
+        <Card className="text-center">
+          <div className="text-xl font-semibold text-primary-600 mb-element">No stats available for {selectedYear}</div>
+        </Card>
+      ) : (
+        <>
+          {/* Desktop view */}
+          <div className="hidden md:grid md:grid-cols-2 gap-grid">
             {renderMainStats()}
-          </Tab>
-          <Tab label="Goals">
             {renderGoalStats()}
-          </Tab>
-        </Tabs>
-      </div>
+          </div>
+
+          {/* Mobile view */}
+          <div className="md:hidden">
+            <Tabs 
+              defaultTab={activeTab === 'performance' ? 0 : 1} 
+              onChange={(index) => setActiveTab(index === 0 ? 'performance' : 'goals')}
+              variant="pills"
+            >
+              <Tab label="Points">
+                {renderMainStats()}
+              </Tab>
+              <Tab label="Goals">
+                {renderGoalStats()}
+              </Tab>
+            </Tabs>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -126,6 +126,9 @@ const AllTimeStats: React.FC = () => {
                 <TableCell isHeader onClick={() => sortData('name')} className="min-w-[150px] cursor-pointer hover:text-primary-600">
                   Player {getSortIndicator('name')}
                 </TableCell>
+                <TableCell isHeader onClick={() => sortData('fantasy_points')} className="w-20 cursor-pointer hover:text-primary-600">
+                  Pts {getSortIndicator('fantasy_points')}
+                </TableCell>
                 <TableCell isHeader onClick={() => sortData('games_played')} className="w-16 cursor-pointer hover:text-primary-600">
                   P {getSortIndicator('games_played')}
                 </TableCell>
@@ -165,9 +168,6 @@ const AllTimeStats: React.FC = () => {
                 <TableCell isHeader onClick={() => sortData('clean_sheet_percentage')} className="w-20 cursor-pointer hover:text-primary-600">
                   CS% {getSortIndicator('clean_sheet_percentage')}
                 </TableCell>
-                <TableCell isHeader onClick={() => sortData('fantasy_points')} className="w-20 cursor-pointer hover:text-primary-600">
-                  Pts {getSortIndicator('fantasy_points')}
-                </TableCell>
                 <TableCell isHeader onClick={() => sortData('points_per_game')} className="w-20 cursor-pointer hover:text-primary-600">
                   PPG {getSortIndicator('points_per_game')}
                 </TableCell>
@@ -187,34 +187,22 @@ const AllTimeStats: React.FC = () => {
                     <TableCell className={`font-medium ${isRetired ? 'text-neutral-500' : 'text-primary-600'}`}>
                       {player.name}
                     </TableCell>
-                    <TableCell>
-                      {player.games_played}
-                    </TableCell>
+                    <TableCell className="font-medium text-primary-600">{player.fantasy_points}</TableCell>
+                    <TableCell>{player.games_played}</TableCell>
                     <TableCell>{wins}</TableCell>
                     <TableCell>{player.draws}</TableCell>
                     <TableCell>{losses}</TableCell>
-                    <TableCell>
-                      {player.goals}
-                    </TableCell>
-                    <TableCell>
-                      {Math.round(player.win_percentage)}%
-                    </TableCell>
+                    <TableCell>{player.goals}</TableCell>
+                    <TableCell>{Math.round(player.win_percentage)}%</TableCell>
                     <TableCell className={player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
                       {Math.round(player.minutes_per_goal)}
                     </TableCell>
                     <TableCell>{heavyWins}</TableCell>
-                    <TableCell>
-                      {Math.round(player.heavy_win_percentage)}%
-                    </TableCell>
+                    <TableCell>{Math.round(player.heavy_win_percentage)}%</TableCell>
                     <TableCell>{heavyLosses}</TableCell>
-                    <TableCell>
-                      {Math.round(player.heavy_loss_percentage)}%
-                    </TableCell>
+                    <TableCell>{Math.round(player.heavy_loss_percentage)}%</TableCell>
                     <TableCell>{cleanSheets}</TableCell>
-                    <TableCell>
-                      {Math.round(player.clean_sheet_percentage)}%
-                    </TableCell>
-                    <TableCell className="font-medium text-primary-600">{player.fantasy_points}</TableCell>
+                    <TableCell>{Math.round(player.clean_sheet_percentage)}%</TableCell>
                     <TableCell>{player.points_per_game}</TableCell>
                   </TableRow>
                 );
