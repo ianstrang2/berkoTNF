@@ -41,6 +41,15 @@ interface LeaderData {
   previous_leader_points?: number;
 }
 
+interface TimelineItem {
+  type: 'game_milestone' | 'goal_milestone' | 'form_streak' | 'goal_streak' | 'leader_change';
+  player: string;
+  content: string;
+  subtext?: string;
+  icon: 'trophy' | 'goal' | 'fire' | 'chart' | 'soccer' | 'crown';
+  date?: string;
+}
+
 interface MatchReport {
   matchInfo: MatchInfo;
   gamesMilestones?: Milestone[];
@@ -206,134 +215,188 @@ const MatchReport: React.FC = () => {
   const renderStatDeepDive = () => {
     if (!report) return null;
     
+    // Get match date string
+    const matchDate = report.matchInfo.match_date ? new Date(report.matchInfo.match_date).toLocaleDateString() : '';
+    
+    // Create a unified timeline of all stats/achievements
+    const timelineItems: TimelineItem[] = [];
+    
+    // Add game milestones to timeline
+    if (report.gamesMilestones && report.gamesMilestones.length > 0) {
+      report.gamesMilestones.forEach(milestone => {
+        timelineItems.push({
+          type: 'game_milestone',
+          player: milestone.name,
+          content: `Played ${getOrdinalSuffix(milestone.total_games || 0)} game`,
+          icon: 'trophy',
+          date: matchDate
+        });
+      });
+    }
+    
+    // Add goal milestones to timeline
+    if (report.goalsMilestones && report.goalsMilestones.length > 0) {
+      report.goalsMilestones.forEach(milestone => {
+        timelineItems.push({
+          type: 'goal_milestone',
+          player: milestone.name,
+          content: `Scored ${getOrdinalSuffix(milestone.total_goals || 0)} goal`,
+          icon: 'goal',
+          date: matchDate
+        });
+      });
+    }
+    
+    // Add form streaks to timeline
+    if (report.streaks && report.streaks.length > 0) {
+      report.streaks.forEach(streak => {
+        const streakType = 
+          streak.streak_type === 'win' ? 'winning' :
+          streak.streak_type === 'loss' ? 'losing' :
+          streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless';
+        
+        timelineItems.push({
+          type: 'form_streak',
+          player: streak.name,
+          content: `${streak.streak_count} game ${streakType} streak`,
+          icon: streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'fire' : 'chart',
+          date: matchDate
+        });
+      });
+    }
+    
+    // Add goal streaks to timeline
+    if (report.goalStreaks && report.goalStreaks.length > 0) {
+      report.goalStreaks.forEach(streak => {
+        timelineItems.push({
+          type: 'goal_streak',
+          player: streak.name,
+          content: `Scored in ${streak.matches_with_goals} consecutive matches`,
+          subtext: `${streak.goals_in_streak} goals total`,
+          icon: 'soccer',
+          date: matchDate
+        });
+      });
+    }
+    
+    // Add current leader changes
+    if (report.halfSeasonGoalLeaders?.[0]) {
+      const leaderData = report.halfSeasonGoalLeaders[0];
+      timelineItems.push({
+        type: 'leader_change',
+        player: leaderData.new_leader,
+        content: formatLeaderText(leaderData, 'goals', 'current Half-Season'),
+        icon: 'crown',
+        date: matchDate
+      });
+    }
+    
+    if (report.halfSeasonFantasyLeaders?.[0]) {
+      const leaderData = report.halfSeasonFantasyLeaders[0];
+      timelineItems.push({
+        type: 'leader_change',
+        player: leaderData.new_leader,
+        content: formatLeaderText(leaderData, 'points', 'current Half-Season'),
+        icon: 'crown',
+        date: matchDate
+      });
+    }
+    
+    if (report.seasonGoalLeaders?.[0]) {
+      const leaderData = report.seasonGoalLeaders[0];
+      timelineItems.push({
+        type: 'leader_change',
+        player: leaderData.new_leader,
+        content: formatLeaderText(leaderData, 'goals', new Date().getFullYear() + ' Season'),
+        icon: 'crown',
+        date: matchDate
+      });
+    }
+    
+    if (report.seasonFantasyLeaders?.[0]) {
+      const leaderData = report.seasonFantasyLeaders[0];
+      timelineItems.push({
+        type: 'leader_change',
+        player: leaderData.new_leader,
+        content: formatLeaderText(leaderData, 'points', new Date().getFullYear() + ' Season'),
+        icon: 'crown',
+        date: matchDate
+      });
+    }
+    
+    // Only render if we have items
+    if (timelineItems.length === 0) {
+      return null;
+    }
+    
+    // Render the timeline
     return (
       <Card className="mt-section">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
-          {/* Games & Goals Milestones */}
-          {((report.gamesMilestones && report.gamesMilestones.length > 0) || 
-            (report.goalsMilestones && report.goalsMilestones.length > 0)) && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-element">
-                Milestones
-              </div>
-              <div className="space-y-related">
-                {report.gamesMilestones?.map((milestone, i) => {
-                  console.log(`Milestone ${i}:`, milestone);
-                  return (
-                    <p key={`game-${i}`} className="text-sm text-neutral-700">
-                      {milestone.name} played their <span className="font-semibold">
-                        {getOrdinalSuffix(milestone.total_games || 0)}
-                      </span> game
-                    </p>
-                  );
-                })}
-                {report.goalsMilestones?.map((milestone, i) => (
-                  <p key={`goal-${i}`} className="text-sm text-neutral-700">
-                    {milestone.name} scored their <span className="font-semibold">{getOrdinalSuffix(milestone.total_goals || 0)}</span> goal
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Streaks */}
-          {report.streaks && report.streaks.length > 0 && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-element">
-                Form Streaks
-              </div>
-              <div className="space-y-related">
-                {report.streaks.map((streak, i) => (
-                  <p key={`streak-${i}`} className="text-sm text-neutral-700">
-                    {streak.name} is on a <span className="font-semibold">{streak.streak_count} game</span> {
-                      streak.streak_type === 'win' ? 'winning' :
-                      streak.streak_type === 'loss' ? 'losing' :
-                      streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'
-                    } streak
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
+        <div className="relative">
+          {/* Timeline connector line */}
+          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-neutral-200"></div>
           
-          {/* Goal-scoring Streaks */}
-          {report.goalStreaks && report.goalStreaks.length > 0 && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-element">
-                Scoring Streaks
+          {/* Timeline items */}
+          <div className="space-y-6">
+            {timelineItems.map((item, index) => (
+              <div key={`timeline-${index}`} className="flex items-start gap-4 relative">
+                {/* Icon */}
+                <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center z-10 ${
+                  item.type === 'form_streak' && (item.icon === 'fire') ? 'bg-orange-100 text-orange-600' :
+                  item.type === 'goal_streak' ? 'bg-blue-100 text-blue-600' :
+                  item.type === 'game_milestone' ? 'bg-green-100 text-green-600' :
+                  item.type === 'goal_milestone' ? 'bg-purple-100 text-purple-600' :
+                  item.type === 'leader_change' ? 'bg-amber-100 text-amber-600' :
+                  'bg-neutral-100 text-neutral-600'
+                }`}>
+                  {item.icon === 'trophy' && (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  )}
+                  {item.icon === 'goal' && (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  )}
+                  {item.icon === 'fire' && (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+                    </svg>
+                  )}
+                  {item.icon === 'chart' && (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                    </svg>
+                  )}
+                  {item.icon === 'soccer' && (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
+                    </svg>
+                  )}
+                  {item.icon === 'crown' && (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  )}
+                </div>
+                
+                {/* Content */}
+                <div className="flex-grow pt-2">
+                  <h3 className="font-semibold text-neutral-800">{item.player}</h3>
+                  <p className="text-neutral-700">{item.content}</p>
+                  {item.subtext && (
+                    <p className="text-sm text-neutral-500">{item.subtext}</p>
+                  )}
+                  {item.date && (
+                    <p className="text-sm text-neutral-400 mt-1">{item.date}</p>
+                  )}
+                </div>
               </div>
-              <div className="space-y-related">
-                {report.goalStreaks.map((streak, i) => (
-                  <p key={`goal-streak-${i}`} className="text-sm text-neutral-700">
-                    {streak.name} has scored in <span className="font-semibold">{streak.matches_with_goals} consecutive</span> matches 
-                    <span className="text-sm text-neutral-500 ml-related">
-                      ({streak.goals_in_streak} goals total)
-                    </span>
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Half-Season Leaders */}
-          {(report.halfSeasonGoalLeaders?.[0] || report.halfSeasonFantasyLeaders?.[0]) && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-element">
-                Current Leaders
-              </div>
-              <div className="space-y-element">
-                {/* Half-Season Goal Leaders */}
-                {report.halfSeasonGoalLeaders?.[0] && (
-                  <div className="text-neutral-700">
-                    <p className="font-medium text-neutral-800 mb-related text-sm">Goals</p>
-                    <div className="text-sm">
-                      {renderLeadershipText(report.halfSeasonGoalLeaders[0], 'goals', 'current Half-Season')}
-                    </div>
-                  </div>
-                )}
-
-                {/* Half-Season Fantasy Leaders */}
-                {report.halfSeasonFantasyLeaders?.[0] && (
-                  <div className="text-neutral-700 mt-element">
-                    <p className="font-medium text-neutral-800 mb-related text-sm">Fantasy Points</p>
-                    <div className="text-sm">
-                      {renderLeadershipText(report.halfSeasonFantasyLeaders[0], 'points', 'current Half-Season')}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Season Leaders */}
-          {(report.seasonGoalLeaders?.[0] || report.seasonFantasyLeaders?.[0]) && (
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <div className="font-semibold text-lg text-primary-600 mb-element">
-                Season Leaders
-              </div>
-              <div className="space-y-element">
-                {/* Season Goal Leaders */}
-                {report.seasonGoalLeaders?.[0] && (
-                  <div className="text-neutral-700">
-                    <p className="font-medium text-neutral-800 mb-related text-sm">Goals</p>
-                    <div className="text-sm">
-                      {renderLeadershipText(report.seasonGoalLeaders[0], 'goals', new Date().getFullYear() + ' Season')}
-                    </div>
-                  </div>
-                )}
-
-                {/* Season Fantasy Leaders */}
-                {report.seasonFantasyLeaders?.[0] && (
-                  <div className="text-neutral-700 mt-element">
-                    <p className="font-medium text-neutral-800 mb-related text-sm">Fantasy Points</p>
-                    <div className="text-sm">
-                      {renderLeadershipText(report.seasonFantasyLeaders[0], 'points', new Date().getFullYear() + ' Season')}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       </Card>
     );
