@@ -1469,10 +1469,34 @@ const TeamAlgorithm: React.FC = () => {
     
     // If the modal is not open yet, open it with current match data
     if (!showEditMatchModal) {
+      // Format the date properly for the date input (YYYY-MM-DD)
+      let formattedDate = '';
+      
+      if (activeMatch.date) {
+        // Try to create a valid date object
+        const dateObj = new Date(activeMatch.date);
+        if (!isNaN(dateObj.getTime())) {
+          // Format to YYYY-MM-DD for the date input
+          formattedDate = dateObj.toISOString().split('T')[0];
+        }
+      } else if (activeMatch.match_date) {
+        // Try with match_date as fallback
+        const dateObj = new Date(activeMatch.match_date);
+        if (!isNaN(dateObj.getTime())) {
+          formattedDate = dateObj.toISOString().split('T')[0];
+        }
+      }
+      
+      // If we couldn't get a valid date, use today's date
+      if (!formattedDate) {
+        formattedDate = new Date().toISOString().split('T')[0];
+        console.warn('Could not parse match date, using current date as fallback');
+      }
+      
       setNewMatchData({
-        match_date: activeMatch.date,
+        match_date: formattedDate,
         team_size: activeMatch.team_size,
-        date: activeMatch.date
+        date: formattedDate
       });
       
       setShowEditMatchModal(true);
