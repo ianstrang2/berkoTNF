@@ -61,10 +61,8 @@ const Matchday: React.FC = () => {
   const teamA = sortByName(players.filter(p => p.team === 'A'));
   const teamB = sortByName(players.filter(p => p.team === 'B'));
   
-  // For unbalanced view, show all players in alphabetical order
+  // For unbalanced view, sort all players alphabetically
   const allSorted = sortByName(players);
-  const leftCol = allSorted.slice(0, Math.ceil(allSorted.length / 2));
-  const rightCol = allSorted.slice(Math.ceil(allSorted.length / 2));
   
   if (isLoading) {
     return (
@@ -104,101 +102,77 @@ const Matchday: React.FC = () => {
     );
   }
   
+  // Format date nicely
+  const formattedDate = matchData.match_date 
+    ? format(new Date(matchData.match_date), 'EEEE, MMMM do yyyy')
+    : 'Date not set';
+  
   return (
     <Card>
-      <div className="mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-          <div>
-            <h2 className="text-xl font-semibold mb-2">
-              {matchData.match_date ? format(new Date(matchData.match_date), 'EEEE, MMMM do yyyy') : 'Date not set'}
-            </h2>
-            <p className="text-neutral-600">
-              Format: {matchData.team_size}v{matchData.team_size}
-            </p>
-          </div>
-          <div className="mt-2 md:mt-0 px-4 py-2 bg-neutral-100 rounded-md text-sm">
+      <div className="flex flex-col items-center mb-8">
+        <div className="absolute right-4 top-4">
+          <div className="px-4 py-2 bg-neutral-100 rounded-md text-sm">
             {players.length}/{matchData.team_size * 2} players confirmed
           </div>
+        </div>
+        <div className="text-center mb-2 mt-4">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{formattedDate}</h2>
+          <p className="text-lg text-neutral-600">Format: {matchData.team_size}v{matchData.team_size}</p>
         </div>
       </div>
       
       {matchData.is_balanced ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-8">
           {/* Orange Team */}
-          <div className="bg-white rounded-xl shadow-card">
-            <div className="p-4">
-              <h3 className="text-lg font-semibold text-orange-600 mb-4">Orange Team</h3>
-              <div className="space-y-2">
-                {teamA.map(player => (
-                  <div key={player.player_id} className="p-2 bg-neutral-50 rounded-md">
-                    <span className="text-sm font-medium">{player.name}</span>
-                  </div>
-                ))}
-                {Array(matchData.team_size - teamA.length).fill(0).map((_, i) => (
-                  <div key={`empty-a-${i}`} className="p-2 bg-neutral-50 rounded-md border border-dashed border-neutral-200">
-                    <span className="text-sm text-neutral-400">Player slot available</span>
-                  </div>
-                ))}
-              </div>
+          <div>
+            <h3 className="text-lg font-medium text-orange-600 mb-4">Orange Team</h3>
+            <div className="space-y-2.5">
+              {teamA.map(player => (
+                <div key={player.player_id} className="text-sm">
+                  {player.name}
+                </div>
+              ))}
+              {Array(matchData.team_size - teamA.length).fill(0).map((_, i) => (
+                <div key={`empty-a-${i}`} className="text-sm text-neutral-400">
+                  Player slot
+                </div>
+              ))}
             </div>
           </div>
           
           {/* Green Team */}
-          <div className="bg-white rounded-xl shadow-card">
-            <div className="p-4">
-              <h3 className="text-lg font-semibold text-green-600 mb-4">Green Team</h3>
-              <div className="space-y-2">
-                {teamB.map(player => (
-                  <div key={player.player_id} className="p-2 bg-neutral-50 rounded-md">
-                    <span className="text-sm font-medium">{player.name}</span>
-                  </div>
-                ))}
-                {Array(matchData.team_size - teamB.length).fill(0).map((_, i) => (
-                  <div key={`empty-b-${i}`} className="p-2 bg-neutral-50 rounded-md border border-dashed border-neutral-200">
-                    <span className="text-sm text-neutral-400">Player slot available</span>
-                  </div>
-                ))}
-              </div>
+          <div>
+            <h3 className="text-lg font-medium text-green-600 mb-4">Green Team</h3>
+            <div className="space-y-2.5">
+              {teamB.map(player => (
+                <div key={player.player_id} className="text-sm">
+                  {player.name}
+                </div>
+              ))}
+              {Array(matchData.team_size - teamB.length).fill(0).map((_, i) => (
+                <div key={`empty-b-${i}`} className="text-sm text-neutral-400">
+                  Player slot
+                </div>
+              ))}
             </div>
           </div>
         </div>
       ) : (
         <div>
-          <h2 className="text-xl font-bold mb-2">Confirmed Players</h2>
-          <p className="text-neutral-600 mb-6">Players confirmed for the next match</p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-2">
-              {leftCol.map(player => (
-                <div key={player.player_id} className="p-2 bg-neutral-50 rounded-md">
-                  <span className="text-sm font-medium">{player.name}</span>
+          <h3 className="text-lg font-medium mb-4">Confirmed Players</h3>
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-x-8 gap-y-2.5">
+            {allSorted.map(player => (
+              <div key={player.player_id} className="text-sm">
+                {player.name}
+              </div>
+            ))}
+            {players.length < matchData.team_size * 2 && 
+              Array(matchData.team_size * 2 - players.length).fill(0).map((_, i) => (
+                <div key={`empty-${i}`} className="text-sm text-neutral-400">
+                  Player slot
                 </div>
-              ))}
-              {players.length < matchData.team_size * 2 && 
-                Array(Math.min(Math.ceil(matchData.team_size), matchData.team_size * 2 - players.length)).fill(0).map((_, i) => (
-                  <div key={`empty-left-${i}`} className="p-2 bg-neutral-50 rounded-md border border-dashed border-neutral-200">
-                    <span className="text-sm text-neutral-400">Player slot available</span>
-                  </div>
-                ))
-              }
-            </div>
-            
-            {/* Right Column */}
-            <div className="space-y-2">
-              {rightCol.map(player => (
-                <div key={player.player_id} className="p-2 bg-neutral-50 rounded-md">
-                  <span className="text-sm font-medium">{player.name}</span>
-                </div>
-              ))}
-              {players.length < matchData.team_size * 2 && 
-                Array(Math.max(0, matchData.team_size * 2 - players.length - Math.min(Math.ceil(matchData.team_size), matchData.team_size * 2 - players.length))).fill(0).map((_, i) => (
-                  <div key={`empty-right-${i}`} className="p-2 bg-neutral-50 rounded-md border border-dashed border-neutral-200">
-                    <span className="text-sm text-neutral-400">Player slot available</span>
-                  </div>
-                ))
-              }
-            </div>
+              ))
+            }
           </div>
         </div>
       )}
