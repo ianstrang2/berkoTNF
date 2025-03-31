@@ -1,38 +1,23 @@
 'use client';
 import React from 'react';
 import { MainLayout } from '@/components/layout';
-import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the Dashboard component
+const Dashboard = dynamic(() => import('@/components/dashboard/Dashboard'), {
+  loading: () => (
+    <div className="flex justify-center items-center p-12">
+      <div className="w-12 h-12 border-4 border-neutral-300 border-t-primary-500 rounded-full animate-spin"></div>
+    </div>
+  ),
+});
 
 export default function Home() {
   return (
     <MainLayout>
-      <div className="relative h-[calc(100vh-64px)] w-full overflow-hidden">
-        {/* Splash Image */}
-        <div className="absolute inset-0 z-0">
-          <img 
-            src="/splash.webp" 
-            alt="Berko TNF Football" 
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        {/* Content overlay */}
-        <div className="relative z-10 h-full p-8 md:p-12">
-          <div className="mt-8 md:mt-12">
-            <h1 className="text-4xl md:text-5xl font-bold text-primary-600 drop-shadow-[0_2px_4px_rgba(255,255,255,0.5)] text-left">
-              Berko TNF
-            </h1>
-          </div>
-        </div>
+      <div className="py-6">
+        <Dashboard />
       </div>
-      
-      <footer className="py-4 bg-white border-t border-neutral-200">
-        <div className="max-w-7xl mx-auto px-4">
-          <p className="text-center text-sm text-neutral-500">
-            © {new Date().getFullYear()} ScoreDraw. All rights reserved.
-          </p>
-        </div>
-      </footer>
     </MainLayout>
   );
 } 
