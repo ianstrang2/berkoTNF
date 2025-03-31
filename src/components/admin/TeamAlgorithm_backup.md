@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { AttributeTooltip } from './AttributeGuide';
 import { format, parse } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import DraggablePlayerSlot from './DraggablePlayerSlot';
-import { TeamBalanceService } from '../../services/TeamBalanceService';
 
 // Types
 interface Player {
@@ -223,12 +221,6 @@ const getCurrentDateString = (): string => {
   return today.toISOString().split('T')[0];
 };
 
-// Add this for drag and drop
-interface DragItem {
-  slotNumber: number;
-  player: Player;
-}
-
 const TeamAlgorithm: React.FC = () => {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
@@ -258,6 +250,7 @@ const TeamAlgorithm: React.FC = () => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [usingPlannedMatch, setUsingPlannedMatch] = useState<boolean>(false);
+  const [creatingMatchReport, setCreatingMatchReport] = useState<boolean>(false);
   const [showCreateMatchModal, setShowCreateMatchModal] = useState<boolean>(false);
   const [showEditMatchModal, setShowEditMatchModal] = useState<boolean>(false);
   const [showClearMatchConfirm, setShowClearMatchConfirm] = useState<boolean>(false);
@@ -268,158 +261,12 @@ const TeamAlgorithm: React.FC = () => {
     team_size: 9,
     date: getCurrentDateString()
   });
-  
-  // Add drag and drop state
-  const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
-  const [highlightedSlot, setHighlightedSlot] = useState<number | null>(null);
 
   // Define INITIAL_SLOTS constant
   const INITIAL_SLOTS: Slot[] = Array(18).fill(null).map((_, i) => ({
     slot_number: i + 1,
     player_id: null
   }));
-
-  // Drag and drop handlers
-  const handleDragStart = (slotNumber: number, player: Player) => {
-    setDraggedItem({ slotNumber, player });
-  };
-  
-  const handleDragOver = (e: React.DragEvent, slotNumber: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setHighlightedSlot(slotNumber);
-  };
-  
-  const handleDrop = async (e: React.DragEvent, targetSlotNumber: number) => {
-    e.preventDefault();
-    setHighlightedSlot(null);
-    
-    if (!draggedItem) return;
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Get source and target slots
-      const sourceSlot = currentSlots.find(s => s.slot_number === draggedItem.slotNumber);
-      const targetSlot = currentSlots.find(s => s.slot_number === targetSlotNumber);
-      
-      if (!sourceSlot || !targetSlot) {
-        throw new Error('Invalid slot operation');
-      }
-      
-      // No need to do anything if dropping on the same slot
-      if (sourceSlot.slot_number === targetSlot.slot_number) {
-        return;
-      }
-      
-      // Check if target has a player
-      const targetPlayerId = targetSlot.player_id;
-      const sourcePlayerId = sourceSlot.player_id;
-      
-      if (!sourcePlayerId) {
-        throw new Error('No player in source slot');
-      }
-      
-      // Get the correct match ID
-      const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
-      
-      if (!matchId) {
-        throw new Error('No active match selected');
-      }
-      
-      // Determine the team based on slot number
-      const sourceTeam = sourceSlot.slot_number <= (activeMatch?.team_size || 9) ? 'A' : 'B';
-      const targetTeam = targetSlot.slot_number <= (activeMatch?.team_size || 9) ? 'A' : 'B';
-      
-      // Update source player to target slot
-      await fetch('/api/admin/upcoming-match-players', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          upcoming_match_id: matchId,
-          player_id: sourcePlayerId,
-          team: targetTeam,
-          slot_number: targetSlot.slot_number
-        })
-      });
-      
-      // If target has a player, update them to source slot (swap)
-      if (targetPlayerId) {
-        await fetch('/api/admin/upcoming-match-players', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            upcoming_match_id: matchId,
-            player_id: targetPlayerId,
-            team: sourceTeam,
-            slot_number: sourceSlot.slot_number
-          })
-        });
-      } else {
-        // If target was empty, remove the player from the source slot
-        await fetch('/api/admin/upcoming-match-players', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            upcoming_match_id: matchId,
-            slot_number: sourceSlot.slot_number
-          })
-        });
-      }
-      
-      // Update the local state
-      const updatedSlots = [...currentSlots];
-      
-      // Swap the player IDs between source and target slots
-      if (targetPlayerId) {
-        // Swap players between slots
-        updatedSlots[sourceSlot.slot_number - 1] = {
-          ...updatedSlots[sourceSlot.slot_number - 1],
-          player_id: targetPlayerId,
-          team: sourceTeam
-        };
-        
-        updatedSlots[targetSlot.slot_number - 1] = {
-          ...updatedSlots[targetSlot.slot_number - 1],
-          player_id: sourcePlayerId,
-          team: targetTeam
-        };
-      } else {
-        // Move player to empty slot
-        updatedSlots[sourceSlot.slot_number - 1] = {
-          ...updatedSlots[sourceSlot.slot_number - 1],
-          player_id: null,
-          team: sourceTeam
-        };
-        
-        updatedSlots[targetSlot.slot_number - 1] = {
-          ...updatedSlots[targetSlot.slot_number - 1],
-          player_id: sourcePlayerId,
-          team: targetTeam
-        };
-      }
-      
-      setCurrentSlots(updatedSlots);
-      setIsBalanced(false); // Teams are no longer balanced after a manual move
-      
-      // Refresh match data to ensure UI is updated correctly
-      await refreshMatchData();
-      
-    } catch (error) {
-      console.error('Error swapping players:', error);
-      setError(`Failed to swap players: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setDraggedItem(null);
-      setIsLoading(false);
-    }
-  };
 
   // Define refreshMatchData before it's used in useEffect
   const refreshMatchData = useCallback(async () => {
@@ -855,13 +702,6 @@ const TeamAlgorithm: React.FC = () => {
           player_id: null
         };
         setCurrentSlots(updatedSlots);
-        
-        // Mark match as unbalanced when players change
-        setIsBalanced(false);
-        
-        // Refresh match data to ensure UI is updated correctly
-        await refreshMatchData();
-        
         return;
       }
       
@@ -915,10 +755,6 @@ const TeamAlgorithm: React.FC = () => {
         
         // Mark match as unbalanced when players change
         setIsBalanced(false);
-        
-        // Refresh match data to ensure UI is updated correctly
-        await refreshMatchData();
-        
         return;
       }
       
@@ -952,9 +788,6 @@ const TeamAlgorithm: React.FC = () => {
       
       // Mark match as unbalanced when players change
       setIsBalanced(false);
-      
-      // Refresh match data to ensure UI is updated correctly
-      await refreshMatchData();
       
     } catch (error) {
       console.error('Error selecting player:', error);
@@ -990,10 +823,39 @@ const TeamAlgorithm: React.FC = () => {
       
       setBalanceProgress(50);
       
-      // Use the TeamBalanceService to balance teams
-      await TeamBalanceService.balanceTeams(matchId);
+      // Call the balance-planned-match endpoint
+      const response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, {
+        method: 'POST'
+      });
       
       setBalanceProgress(75);
+      
+      // Handle different error responses
+      if (!response.ok) {
+        console.error(`Balance API error (${response.status}):`, await response.text());
+        
+        // For 400 errors, show the error message
+        if (response.status === 400) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to balance teams');
+        }
+        
+        // For server errors, try the basic balancing fallback
+        if (response.status === 500) {
+          console.warn('Server error in balance API, falling back to basic team balance');
+          await performBasicTeamBalance(matchId);
+          return;
+        }
+        
+        throw new Error(`Failed to balance teams: ${response.status}`);
+      }
+      
+      // For successful API calls, process the response
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to balance teams');
+      }
       
       // Mark as balanced
       setIsBalanced(true);
@@ -1015,6 +877,153 @@ const TeamAlgorithm: React.FC = () => {
     }
   };
   
+  // Basic team balancing fallback when the API fails
+  const performBasicTeamBalance = async (matchId: string) => {
+    try {
+      console.log('Performing basic team balance');
+      
+      // Get players from current slots
+      const assignedPlayers = currentSlots
+        .filter(slot => slot.player_id !== null)
+        .map(slot => ({
+          player_id: slot.player_id,
+          player: players.find(p => p.id === slot.player_id)
+        }));
+      
+      // Sort by player skill (using goalscoring as a proxy)
+      assignedPlayers.sort((a, b) => 
+        ((b.player?.goalscoring || 3) + (b.player?.stamina_pace || 3)) - 
+        ((a.player?.goalscoring || 3) + (a.player?.stamina_pace || 3))
+      );
+      
+      // Alternate between teams (best player to team A, second best to team B, etc.)
+      const updates: Array<{ player_id: string | null; team: string; slot_number: number }> = [];
+      
+      assignedPlayers.forEach((player, index) => {
+        if (!player.player_id || !activeMatch) return;
+        
+        const team = index % 2 === 0 ? 'A' : 'B';
+        const teamSlotStart = team === 'A' ? 0 : activeMatch.team_size;
+        
+        // Find first empty slot in the appropriate team
+        const teamSlots = currentSlots
+          .slice(teamSlotStart, teamSlotStart + activeMatch.team_size)
+          .map((slot, idx) => ({ ...slot, realIndex: idx + teamSlotStart }));
+        
+        // Find position in team based on skill
+        let slotNumber;
+        
+        if (team === 'A') {
+          slotNumber = index / 2 + 1;
+        } else {
+          slotNumber = activeMatch.team_size + Math.floor(index / 2) + 1;
+        }
+        
+        // Ensure slot number is valid
+        if (slotNumber > currentSlots.length) {
+          slotNumber = currentSlots.length;
+        }
+        
+        updates.push({
+          player_id: player.player_id,
+          team,
+          slot_number: slotNumber
+        });
+      });
+      
+      // Update each player's team assignment in the database
+      await Promise.all(updates.map(update => 
+        fetch('/api/admin/upcoming-match-players', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            upcoming_match_id: matchId,
+            player_id: update.player_id,
+            team: update.team,
+            slot_number: update.slot_number
+          })
+        })
+      ));
+      
+      // Mark match as balanced
+      await fetch(`/api/admin/upcoming-matches`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          upcoming_match_id: matchId,
+          is_balanced: true
+        })
+      });
+      
+      setIsBalanced(true);
+      await refreshMatchData();
+      
+    } catch (error) {
+      console.error('Error in basic team balancing:', error);
+      throw new Error(`Basic team balancing failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const handleCreateMatchReport = async () => {
+    if (!activeMatch) return;
+    if (!isBalanced) {
+      setError('Teams must be balanced before creating a match report');
+      return;
+    }
+    
+    try {
+      setCreatingMatchReport(true);
+      setError(null);
+      
+      const assignedPlayers = currentSlots.filter(slot => slot.player_id !== null).length;
+      const requiredPlayers = activeMatch.team_size * 2;
+      
+      if (assignedPlayers < requiredPlayers) {
+        const proceed = window.confirm(
+          `Only ${assignedPlayers} of ${requiredPlayers} players are assigned. Do you still want to create a match report?`
+        );
+        
+        if (!proceed) {
+          setCreatingMatchReport(false);
+          return;
+        }
+      }
+      
+      // Get the correct match ID (prioritize upcoming_match_id)
+      const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
+      
+      if (!matchId) {
+        throw new Error('Could not determine match ID');
+      }
+      
+      // Call API to create match from planned match
+      const response = await fetch('/api/admin/create-match-from-planned', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          upcoming_match_id: matchId // Use the correct field name
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create match report');
+      }
+      
+      // Navigate to match manager to edit the new match
+      router.push(`/admin/match-manager?match_id=${data.data.match_id}`);
+      
+    } catch (error) {
+      console.error('Error creating match report:', error);
+      setError(`Failed to create match report: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setCreatingMatchReport(false);
+    }
+  };
+
   const formatTeamsForCopy = () => {
     const formatTeam = (teamSlots: Slot[]) => {
       return teamSlots
@@ -1189,20 +1198,16 @@ const TeamAlgorithm: React.FC = () => {
                   const availablePlayers = getAvailablePlayersFn(slot);
                   
                   return (
-                    <DraggablePlayerSlot
+                    <PlayerSlot
                       key={`${playerIdPrefix}${slot.slot_number}`}
                       slotNumber={slot.slot_number}
                       player={player}
                       players={availablePlayers}
                       onSelect={handlePlayerSelect}
-                      onDragStart={handleDragStart}
-                      onDragOver={handleDragOver}
-                      onDrop={handleDrop}
                       disabled={isLoading}
                       stats={playerStats}
                       position={position}
-                      highlighted={highlightedSlot === slot.slot_number}
-                      teamColor={teamType === 'a' ? 'orange' : 'green'}
+                      highlighted={false}
                     />
                   );
                 })}
@@ -1215,7 +1220,31 @@ const TeamAlgorithm: React.FC = () => {
   };
 
   const calculateTeamStats = (teamSlots: Slot[]) => {
-    return TeamBalanceService.calculateTeamStats(teamSlots, players);
+    // Filter out slots without player assignments
+    const slotsWithPlayers = teamSlots.filter(slot => slot.player_id);
+    if (slotsWithPlayers.length === 0) return null;
+    
+    // Get player objects for all assigned slots
+    const teamPlayers = slotsWithPlayers
+      .map(slot => players.find(p => p.id === slot.player_id))
+      .filter(Boolean) as Player[];
+    
+    if (teamPlayers.length === 0) return null;
+    
+    const calculateAvg = (field: keyof Player) => {
+      const sum = teamPlayers.reduce((total, player) => total + (Number(player[field]) || 0), 0);
+      return teamPlayers.length > 0 ? sum / teamPlayers.length : 0;
+    };
+    
+    return {
+      goalscoring: calculateAvg('goalscoring'),
+      defending: calculateAvg('defending'),
+      stamina_pace: calculateAvg('stamina_pace'),
+      control: calculateAvg('control'),
+      teamwork: calculateAvg('teamwork'),
+      resilience: calculateAvg('resilience'),
+      playerCount: teamPlayers.length
+    };
   };
 
   const renderTeamStats = (teamType: 'a' | 'b') => {
@@ -1250,7 +1279,32 @@ const TeamAlgorithm: React.FC = () => {
     const teamASlots = currentSlots.filter(s => s.slot_number <= 9);
     const teamBSlots = currentSlots.filter(s => s.slot_number > 9);
     
-    return TeamBalanceService.calculateComparativeStats(teamASlots, teamBSlots, players);
+    const statsA = calculateTeamStats(teamASlots);
+    const statsB = calculateTeamStats(teamBSlots);
+    
+    if (!statsA || !statsB) return null;
+    
+    // Calculate differences between teams
+    const diffs = {
+      goalscoring: Math.abs(statsA.goalscoring - statsB.goalscoring),
+      defending: Math.abs(statsA.defending - statsB.defending),
+      stamina_pace: Math.abs(statsA.stamina_pace - statsB.stamina_pace),
+      control: Math.abs(statsA.control - statsB.control),
+      teamwork: Math.abs(statsA.teamwork - statsB.teamwork),
+      resilience: Math.abs(statsA.resilience - statsB.resilience)
+    };
+    
+    // Calculate overall balance score (lower is better)
+    const totalDiff = Object.values(diffs).reduce((sum, diff) => sum + diff, 0);
+    const balanceScore = totalDiff / 6; // Average difference across all attributes
+    
+    return {
+      diffs,
+      balanceScore,
+      balanceQuality: balanceScore <= 0.3 ? 'Excellent' : 
+                       balanceScore <= 0.6 ? 'Good' : 
+                       balanceScore <= 0.9 ? 'Fair' : 'Poor'
+    };
   };
   
   const renderComparativeStats = () => {
@@ -1651,10 +1705,9 @@ const TeamAlgorithm: React.FC = () => {
           </div>
         )}
         
-      
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h2 className="text-xl font-bold">Team Assignment</h2>
+            <h2 className="text-xl font-bold">Available Players</h2>
             <p className="text-gray-600 text-sm">
               {currentSlots.filter(s => s.player_id !== null).length}/{activeMatch ? activeMatch.team_size * 2 : 0} players selected
             </p>
@@ -1668,16 +1721,9 @@ const TeamAlgorithm: React.FC = () => {
               Clear
             </button>
             <button
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              onClick={handleCopyTeams}
-              disabled={!activeMatch || isLoading}
-            >
-              Copy
-            </button>
-            <button
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               onClick={handleBalanceTeams}
-              disabled={!activeMatch || isLoading || currentSlots.filter(s => s.player_id !== null).length < 2}
+              disabled={!activeMatch || isLoading || currentSlots.filter(s => s.player_id !== null).length < (activeMatch?.team_size || 0) * 2}
             >
               {isLoading && balanceProgress > 0 ? `Balancing ${balanceProgress}%` : 'Balance'}
             </button>
@@ -1696,24 +1742,34 @@ const TeamAlgorithm: React.FC = () => {
           </div>
         )}
         
-        {/* Player selection now happens directly in team sections */}
+        {/* Player selection dropdowns in two-column grid */}
         {activeMatch && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Orange Team */}
-            <div>
-              {renderTeamSection('a', 
-                currentSlots.filter(s => s.slot_number <= activeMatch.team_size), 
-                getAvailablePlayers
-              )}
-            </div>
-            
-            {/* Green Team */}
-            <div>
-              {renderTeamSection('b', 
-                currentSlots.filter(s => s.slot_number > activeMatch.team_size && s.slot_number <= activeMatch.team_size * 2), 
-                getAvailablePlayers
-              )}
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {Array.from({ length: activeMatch.team_size * 2 }).map((_, i) => {
+              const slotNumber = i + 1;
+              const slot = currentSlots.find(s => s.slot_number === slotNumber) || { slot_number: slotNumber, player_id: null };
+              const player = players.find(p => p.id === slot.player_id);
+              
+              return (
+                <div key={slotNumber} className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500 w-6">•</span>
+                  <select
+                    value={slot.player_id || ''}
+                    onChange={(e) => handlePlayerSelect(slotNumber, e.target.value)}
+                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    disabled={isLoading}
+                    suppressHydrationWarning
+                  >
+                    <option value="">Select player</option>
+                    {getAvailablePlayers({ slot_number: slotNumber, player_id: slot.player_id }).map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
           </div>
         )}
         
@@ -1730,80 +1786,146 @@ const TeamAlgorithm: React.FC = () => {
         )}
       </div>
       
-      {/* Team Analysis Section */}
+      {/* Balanced Teams Section */}
       {activeMatch && (
         <>
           <div className="flex justify-between items-center mb-4">
             <div>
-              
+              <h2 className="text-2xl font-bold">Balanced Teams</h2>
+              <p className="text-gray-600">
+                {isBalanced ? "Teams have been balanced for optimal matchups" : "Balance teams to create closer, more entertaining games"}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                onClick={handleCopyTeams}
+                disabled={!isBalanced}
+              >
+                Copy Teams
+              </button>
             </div>
           </div>
           
-          {/* Team Comparison */}
-          <div className="bg-white rounded-lg shadow p-4 mb-8">
-            <h3 className="text-xl font-bold mb-4">Team Comparison</h3>
-            <div className="space-y-4">
+          {/* Display balanced teams in two columns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Orange Team */}
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="text-xl font-bold text-orange-600 mb-4">Orange Team</h3>
+              
               {!isBalanced && (
-                <div className="p-3 bg-yellow-100 text-yellow-800 rounded-md mb-4">
-                  Teams aren't balanced yet. Click the Balance button to create fair teams.
-                </div>
+                <p className="text-sm text-gray-500 italic mb-3">Teams will appear here after balancing</p>
               )}
-              {calculateComparativeStats() && Object.entries(calculateComparativeStats()?.diffs || {}).map(([key, value]) => {
-                const label = key.charAt(0).toUpperCase() + key.replace('_', '/').slice(1);
-                const orangeTeam = currentSlots.filter(s => s.slot_number <= activeMatch.team_size).map(s => players.find(p => p.id === s.player_id)).filter(Boolean);
-                const greenTeam = currentSlots.filter(s => s.slot_number > activeMatch.team_size).map(s => players.find(p => p.id === s.player_id)).filter(Boolean);
-                
-                const orangeVal = orangeTeam.reduce((sum, p) => sum + (Number(p?.[key as keyof Player]) || 0), 0) / (orangeTeam.length || 1);
-                const greenVal = greenTeam.reduce((sum, p) => sum + (Number(p?.[key as keyof Player]) || 0), 0) / (greenTeam.length || 1);
-                
-                const total = orangeVal + greenVal;
-                const orangePercent = total > 0 ? (orangeVal / total) * 100 : 50;
-                const greenPercent = total > 0 ? (greenVal / total) * 100 : 50;
+              
+              {isBalanced && orangePositionGroups.map(group => {
+                const positionPlayers = group.slots
+                  .map(slotNum => {
+                    const slot = currentSlots.find(s => s.slot_number === slotNum);
+                    if (!slot || !slot.player_id) return null;
+                    return players.find(p => p.id === slot.player_id);
+                  })
+                  .filter(Boolean);
                 
                 return (
-                  <div key={key} className="mb-2">
-                    <div className="flex justify-between mb-1">
-                      <span className="font-medium">{label}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-10 text-right mr-2 text-sm">
-                        {orangeVal.toFixed(1)}
-                      </div>
-                      <div className="flex-1 h-6 rounded-full overflow-hidden flex">
-                        <div 
-                          className="bg-orange-500 h-full"
-                          style={{ width: `${orangePercent}%` }}
-                        ></div>
-                        <div 
-                          className="bg-green-500 h-full"
-                          style={{ width: `${greenPercent}%` }}
-                        ></div>
-                      </div>
-                      <div className="w-10 ml-2 text-sm">
-                        {greenVal.toFixed(1)}
-                      </div>
+                  <div key={group.title} className="mb-4">
+                    <h4 className="text-lg font-semibold">{group.title}</h4>
+                    <div className="space-y-2 mt-1">
+                      {positionPlayers.map(player => (
+                        <div key={player?.id} className="bg-gray-50 p-2 rounded-md">
+                          {player?.name}
+                        </div>
+                      ))}
+                      {positionPlayers.length === 0 && (
+                        <p className="text-sm text-gray-500 italic">No players assigned</p>
+                      )}
                     </div>
                   </div>
                 );
               })}
+            </div>
+            
+            {/* Green Team */}
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="text-xl font-bold text-green-600 mb-4">Green Team</h3>
               
-              {/* Balance quality indicator */}
-              {calculateComparativeStats() && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Balance Quality:</span>
-                    <span className={`font-semibold ${
-                      calculateComparativeStats()?.balanceQuality === 'Excellent' ? 'text-emerald-600' :
-                      calculateComparativeStats()?.balanceQuality === 'Good' ? 'text-blue-600' :
-                      calculateComparativeStats()?.balanceQuality === 'Fair' ? 'text-amber-600' : 'text-red-600'
-                    }`}>
-                      {calculateComparativeStats()?.balanceScore.toFixed(2)} - {calculateComparativeStats()?.balanceQuality}
-                    </span>
-                  </div>
-                </div>
+              {!isBalanced && (
+                <p className="text-sm text-gray-500 italic mb-3">Teams will appear here after balancing</p>
               )}
+              
+              {isBalanced && greenPositionGroups.map(group => {
+                const positionPlayers = group.slots
+                  .map(slotNum => {
+                    const slot = currentSlots.find(s => s.slot_number === slotNum);
+                    if (!slot || !slot.player_id) return null;
+                    return players.find(p => p.id === slot.player_id);
+                  })
+                  .filter(Boolean);
+                
+                return (
+                  <div key={group.title} className="mb-4">
+                    <h4 className="text-lg font-semibold">{group.title}</h4>
+                    <div className="space-y-2 mt-1">
+                      {positionPlayers.map(player => (
+                        <div key={player?.id} className="bg-gray-50 p-2 rounded-md">
+                          {player?.name}
+                        </div>
+                      ))}
+                      {positionPlayers.length === 0 && (
+                        <p className="text-sm text-gray-500 italic">No players assigned</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
+          
+          {/* Team Comparison */}
+          {isBalanced && (
+            <div className="bg-white rounded-lg shadow p-4 mb-8">
+              <h3 className="text-xl font-bold mb-4">Team Comparison</h3>
+              <div className="space-y-4">
+                {calculateComparativeStats() && Object.entries(calculateComparativeStats()?.diffs || {}).map(([key, value]) => {
+                  const label = key.charAt(0).toUpperCase() + key.replace('_', '/').slice(1);
+                  const orangeTeam = currentSlots.filter(s => s.slot_number <= 9).map(s => players.find(p => p.id === s.player_id)).filter(Boolean);
+                  const greenTeam = currentSlots.filter(s => s.slot_number > 9).map(s => players.find(p => p.id === s.player_id)).filter(Boolean);
+                  
+                  const orangeVal = orangeTeam.reduce((sum, p) => sum + (Number(p?.[key as keyof Player]) || 0), 0) / (orangeTeam.length || 1);
+                  const greenVal = greenTeam.reduce((sum, p) => sum + (Number(p?.[key as keyof Player]) || 0), 0) / (greenTeam.length || 1);
+                  
+                  const total = orangeVal + greenVal;
+                  const orangePercent = total > 0 ? (orangeVal / total) * 100 : 50;
+                  const greenPercent = total > 0 ? (greenVal / total) * 100 : 50;
+                  
+                  return (
+                    <div key={key} className="mb-2">
+                      <div className="flex justify-between mb-1">
+                        <span className="font-medium">{label}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-10 text-right mr-2 text-sm">
+                          {orangeVal.toFixed(1)}
+                        </div>
+                        <div className="flex-1 h-6 rounded-full overflow-hidden flex">
+                          <div 
+                            className="bg-blue-500 h-full"
+                            style={{ width: `${orangePercent}%` }}
+                          ></div>
+                          <div 
+                            className="bg-green-500 h-full"
+                            style={{ width: `${greenPercent}%` }}
+                          ></div>
+                        </div>
+                        <div className="w-10 ml-2 text-sm">
+                          {greenVal.toFixed(1)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </>
       )}
       
