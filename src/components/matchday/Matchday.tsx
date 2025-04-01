@@ -64,6 +64,10 @@ const Matchday: React.FC = () => {
   // For unbalanced view, sort all players alphabetically
   const allSorted = sortByName(players);
   
+  // Validate team size
+  const teamSize = matchData?.team_size || 9; // Default to 9 if undefined
+  const validTeamSize = Math.max(5, Math.min(11, teamSize)); // Ensure between 5 and 11
+  
   if (isLoading) {
     return (
       <Card>
@@ -127,7 +131,7 @@ const Matchday: React.FC = () => {
                   {player.name}
                 </div>
               ))}
-              {Array(matchData.team_size - teamA.length).fill(0).map((_, i) => (
+              {Array(Math.max(0, validTeamSize - teamA.length)).fill(0).map((_, i) => (
                 <div key={`empty-a-${i}`} className="text-sm text-neutral-400">
                   Player slot
                 </div>
@@ -144,7 +148,7 @@ const Matchday: React.FC = () => {
                   {player.name}
                 </div>
               ))}
-              {Array(matchData.team_size - teamB.length).fill(0).map((_, i) => (
+              {Array(Math.max(0, validTeamSize - teamB.length)).fill(0).map((_, i) => (
                 <div key={`empty-b-${i}`} className="text-sm text-neutral-400">
                   Player slot
                 </div>
@@ -161,8 +165,8 @@ const Matchday: React.FC = () => {
                 {player.name}
               </div>
             ))}
-            {players.length < matchData.team_size * 2 && 
-              Array(matchData.team_size * 2 - players.length).fill(0).map((_, i) => (
+            {players.length < validTeamSize * 2 && 
+              Array(Math.max(0, validTeamSize * 2 - players.length)).fill(0).map((_, i) => (
                 <div key={`empty-${i}`} className="text-sm text-neutral-400">
                   Player slot
                 </div>

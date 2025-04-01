@@ -594,7 +594,8 @@ const TeamAlgorithm: React.FC = () => {
       ];
     } else if (teamSize <= 7) {
       // 6/7-a-side: 2 defenders, 3 midfielders, 2 attackers
-      const attackerSlots = Array.from({ length: teamSize - 5 }, (_, i) => startingSlot + 5 + i);
+      const attackerCount = Math.max(0, teamSize - 5);
+      const attackerSlots = Array.from({ length: attackerCount }, (_, i) => startingSlot + 5 + i);
       positions = [
         { 
           title: 'Defenders', 
@@ -620,7 +621,8 @@ const TeamAlgorithm: React.FC = () => {
       ];
     } else if (teamSize <= 9) {
       // 8/9-a-side: 3 defenders, 4 midfielders, 2 attackers
-      const attackerSlots = Array.from({ length: teamSize - 7 }, (_, i) => startingSlot + 7 + i);
+      const attackerCount = Math.max(0, teamSize - 7);
+      const attackerSlots = Array.from({ length: attackerCount }, (_, i) => startingSlot + 7 + i);
       positions = [
         { 
           title: 'Defenders', 
@@ -646,7 +648,8 @@ const TeamAlgorithm: React.FC = () => {
       ];
     } else {
       // 10/11-a-side: 4 defenders, 4 midfielders, 3 attackers
-      const attackerSlots = Array.from({ length: teamSize - 8 }, (_, i) => startingSlot + 8 + i);
+      const attackerCount = Math.max(0, teamSize - 8);
+      const attackerSlots = Array.from({ length: attackerCount }, (_, i) => startingSlot + 8 + i);
       positions = [
         { 
           title: 'Defenders', 
