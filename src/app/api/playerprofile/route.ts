@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Prevent static generation for this route
+export const dynamic = 'force-dynamic';
+
 // Fetch player profile by ID
 export async function GET(request: Request) {
   try {

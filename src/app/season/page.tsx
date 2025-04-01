@@ -3,7 +3,7 @@ import React from 'react';
 import { MainLayout } from '@/components/layout';
 import { CurrentHalfSeason, OverallSeasonPerformance } from '@/components/stats';
 import { Tabs, Tab } from '@/components/ui-kit';
-import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
+import { ErrorBoundary } from '@/components/ui-kit';
 
 export default function SeasonPage() {
   return (

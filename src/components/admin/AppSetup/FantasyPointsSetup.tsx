@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Button from '@/components/ui-kit/Button';
-import Card from '@/components/ui-kit/Card';
-import ConfirmationModal from '@/components/ui-kit/ConfirmationModal';
+import { Button, Card, ConfirmationModal } from '@/components/ui-kit';
 
 interface ConfigItem {
   config_key: string;

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Card from '@/components/ui-kit/Card';
-import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table';
-import Button from '@/components/ui-kit/Button';
-import PlayerFormModal from './PlayerFormModal';
+import Card from '@/components/ui-kit/Card.component';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
+import Button from '@/components/ui-kit/Button.component';
+import PlayerFormModal from './PlayerFormModal.component';
 
 // Import the AttributeKey type
 type AttributeKey = 'goalscoring' | 'defender' | 'stamina_pace' | 'control' | 'teamwork' | 'resilience';

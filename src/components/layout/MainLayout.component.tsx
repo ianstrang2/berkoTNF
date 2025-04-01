@@ -2,9 +2,9 @@
 import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { NavigationProvider, useNavigation } from '@/contexts/NavigationContext';
-import BottomNav from '@/components/navigation/BottomNav';
-import SideNav from '@/components/navigation/SideNav';
-import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
+import BottomNav from '@/components/navigation/BottomNav.component';
+import SideNav from '@/components/navigation/SideNav.component';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 interface MainLayoutProps {
   children: React.ReactNode;

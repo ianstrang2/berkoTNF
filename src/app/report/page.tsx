@@ -2,7 +2,7 @@
 import React from 'react';
 import { MainLayout } from '@/components/layout';
 import { MatchReport } from '@/components/match-report';
-import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
+import { ErrorBoundary } from '@/components/ui-kit';
 
 export default function ReportPage() {
   return (

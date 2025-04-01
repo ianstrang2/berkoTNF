@@ -1,1 +1,1 @@
-export { default as HonourRoll } from './HonourRoll'; 
+export { default as HonourRoll } from './HonourRoll.component'; 

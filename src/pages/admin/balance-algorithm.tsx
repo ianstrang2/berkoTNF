@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Button from '@/components/ui-kit/Button';
-import Card from '@/components/ui-kit/Card';
-import ConfirmationModal from '@/components/ui-kit/ConfirmationModal';
+import Button from '@/components/ui-kit/Button.component';
+import Card from '@/components/ui-kit/Card.component';
+import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
 
 // Define types
 interface Weight {

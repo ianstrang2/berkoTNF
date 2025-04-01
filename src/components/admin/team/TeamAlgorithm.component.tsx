@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { AttributeTooltip } from './AttributeGuide';
+import { AttributeTooltip } from '../AttributeGuide';
 import { format, parse } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import DraggablePlayerSlot from './DraggablePlayerSlot';
-import { TeamBalanceService } from '../../services/TeamBalanceService';
-import PlayerFormModal from './PlayerFormModal';
+import DraggablePlayerSlot from './DraggablePlayerSlot.component';
+import { TeamBalanceService } from '../../../services/TeamBalanceService';
+import PlayerFormModal from '../player/PlayerFormModal.component';
 
 // Types
 interface Player {
@@ -107,6 +107,12 @@ interface StatBarProps {
   value: number;
   maxValue?: number;
   color?: string;
+}
+
+interface Stats {
+  diffs: Record<string, number>;
+  balanceScore: number;
+  balanceQuality: string;
 }
 
 // Add this helper function after the other helper functions and before the component
@@ -1320,7 +1326,7 @@ const TeamAlgorithm: React.FC = () => {
     const stats = calculateComparativeStats();
     if (!stats) return null;
     
-    const { diffs, balanceScore, balanceQuality } = stats;
+    const { diffs, balanceScore, balanceQuality } = stats as Stats;
     
     const qualityColorClass = 
       balanceQuality === 'Excellent' ? 'text-emerald-600' :
@@ -1397,8 +1403,8 @@ const TeamAlgorithm: React.FC = () => {
       
       const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
       
-      // Call API to clear slots
-      const response = await fetch(`/api/admin/clear-planned-match-slots?match_id=${matchId}`, {
+      // Call API to clear slots - use the new API endpoint
+      const response = await fetch(`/api/admin/upcoming-match-players/clear?matchId=${matchId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

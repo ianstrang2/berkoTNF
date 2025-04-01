@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import NavItem from './NavItem';
+import NavItem from './NavItem.component';
 import { useNavigation } from '@/contexts/NavigationContext';
 
 export default function SideNav() {

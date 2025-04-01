@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/components/ui-kit';
 import { AdminLayout } from '@/components/layout';
 import dynamic from 'next/dynamic';
 
-const PlayerRatings = dynamic(() => import('@/components/admin/PlayerRatings'), { ssr: false });
+const PlayerRatings = dynamic(() => import('@/components/admin/player/PlayerRatings.component'), { ssr: false });
 
 export default function PlayerRatingsPage() {
   return (

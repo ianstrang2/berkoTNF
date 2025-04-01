@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AttributeTooltip, AttributeGuideModal } from './AttributeGuide';
+import { AttributeTooltip, AttributeGuideModal } from './AttributeGuide.component';
 import { Card, Table, TableHead, TableBody, TableRow, TableCell, Button } from '@/components/ui-kit';
 
 type AttributeType = 'goalscoring' | 'defender' | 'stamina_pace' | 'control' | 'teamwork' | 'resilience';

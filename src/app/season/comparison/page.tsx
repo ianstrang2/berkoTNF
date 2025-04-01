@@ -2,7 +2,7 @@
 import React from 'react';
 import { MainLayout } from '@/components/layout';
 import { OverallSeasonPerformance } from '@/components/stats';
-import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
+import { ErrorBoundary } from '@/components/ui-kit';
 
 export default function SeasonComparisonPage() {
   return (

@@ -1,10 +1,10 @@
-export { default as AdminPanel } from './AdminPanel';
-export { default as AdminNavbar } from './AdminNavbar';
-export { default as AppSetup } from './AppSetup';
-export { default as PlayerSlot } from './PlayerSlot';
+export { default as AdminPanel } from './layout/AdminPanel.component';
+export { default as AdminNavbar } from './layout/AdminNavbar.component';
+export { FantasyPointsSetup, MatchReportSetup, MatchSettingsSetup } from './AppSetup';
+export { default as PlayerSlot } from './player/PlayerSlot.component';
 export { default as AttributeGuide } from './AttributeGuide';
 export { default as MatchManager } from './MatchManager';
-export { default as PlayerRatings } from './PlayerRatings';
+export { default as PlayerRatings } from './player/PlayerRatings.component';
 export { default as TeamTemplates } from './TeamTemplates';
-export { default as TeamAlgorithm } from './TeamAlgorithm';
-export { default as PlayerManager } from './PlayerManager'; 
+export { default as TeamAlgorithm } from './team/TeamAlgorithm.component';
+export { default as PlayerManager } from './player/PlayerManager.component'; 

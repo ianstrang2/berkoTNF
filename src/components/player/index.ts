@@ -1,1 +1,1 @@
-export { default as PlayerProfile } from './PlayerProfile'; 
+export { default as PlayerProfile } from './PlayerProfile.component'; 

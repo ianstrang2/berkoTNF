@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/components/ui-kit';
 import { AdminLayout } from '@/components/layout';
 import dynamic from 'next/dynamic';
 
-const AppSetup = dynamic(() => import('@/components/admin/AppSetup'), { ssr: false });
+const AppSetup = dynamic(() => import('@/components/admin/config/AppSetup'), { ssr: false });
 
 export default function AdminSetupPage() {
   return (

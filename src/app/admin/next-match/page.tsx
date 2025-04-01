@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/components/ui-kit';
 import { AdminLayout } from '@/components/layout';
 import dynamic from 'next/dynamic';
 
-const TeamAlgorithm = dynamic(() => import('@/components/admin/TeamAlgorithm'), { ssr: false });
+const TeamAlgorithm = dynamic(() => import('@/components/admin/team/TeamAlgorithm.component'), { ssr: false });
 
 export default function NextMatchPage() {
   return (

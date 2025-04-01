@@ -3,11 +3,11 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, Button } from '@/components/ui-kit';
 
-const TeamAlgorithm = dynamic(() => import('@/components/admin/TeamAlgorithm'), { ssr: false });
-const PlayerRatings = dynamic(() => import('@/components/admin/PlayerRatings'), { ssr: false });
-const PlayerManager = dynamic(() => import('@/components/admin/PlayerManager'), { ssr: false });
+const TeamAlgorithm = dynamic(() => import('@/components/admin/team/TeamAlgorithm.component'), { ssr: false });
+const PlayerRatings = dynamic(() => import('@/components/admin/player/PlayerRatings.component'), { ssr: false });
+const PlayerManager = dynamic(() => import('@/components/admin/player/PlayerManager.component'), { ssr: false });
 const MatchManager = dynamic(() => import('@/components/admin/MatchManager'), { ssr: false });
-const AppSetup = dynamic(() => import('@/components/admin/AppSetup'), { ssr: false });
+const AppSetup = dynamic(() => import('@/components/admin/config/AppSetup'), { ssr: false });
 
 interface AdminItem {
   title: string;

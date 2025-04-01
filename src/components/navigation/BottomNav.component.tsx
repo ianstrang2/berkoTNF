@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import NavItem from './NavItem';
+import NavItem from './NavItem.component';
 
 export default function BottomNav() {
   return (

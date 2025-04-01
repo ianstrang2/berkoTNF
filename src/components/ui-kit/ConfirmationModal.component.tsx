@@ -1,5 +1,5 @@
 import React from 'react';
-import ConfirmationDialog from './ConfirmationDialog';
+import ConfirmationDialog from './ConfirmationDialog.component';
 
 interface ConfirmationModalProps {
   isOpen: boolean;

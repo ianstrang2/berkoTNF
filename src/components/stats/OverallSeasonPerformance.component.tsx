@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import Card from '@/components/ui-kit/Card';
-import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table';
-import { Tabs, Tab } from '@/components/ui-kit/Tabs';
+import Card from '@/components/ui-kit/Card.component';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
+import { Tabs, Tab } from '@/components/ui-kit/Tabs.component';
 
 interface PlayerStats {
   name: string;

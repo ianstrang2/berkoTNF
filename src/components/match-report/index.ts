@@ -1,1 +1,1 @@
-export { default as MatchReport } from './MatchReport'; 
+export { default as MatchReport } from './MatchReport.component'; 

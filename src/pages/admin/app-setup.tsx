@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { AdminLayout } from '@/components/layout';
-import AppSetup from '@/components/admin/AppSetup';
+import AppSetup from '@/components/admin/config/AppSetup';
 import { useAuth } from '@/hooks/useAuth';
 
 interface User {

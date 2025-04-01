@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import Card from '@/components/ui-kit/Card';
-import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table';
+import Card from '@/components/ui-kit/Card.component';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 
 interface PlayerStats {
   name: string;
@@ -63,31 +63,40 @@ const AllTimeStats: React.FC = () => {
     setSortConfig({ key, direction });
 
     const sortedData = [...stats].sort((a, b) => {
-      if (key === 'minutes_per_goal') {
+      // Handle null or undefined values
+      if (a[key] === null || a[key] === undefined) return 1;
+      if (b[key] === null || b[key] === undefined) return -1;
+
+      // Numerical fields: always convert to numbers for comparison
+      const numericFields: (keyof PlayerStats)[] = [
+        'fantasy_points', 'games_played', 'wins', 'draws', 'losses', 
+        'goals', 'win_percentage', 'minutes_per_goal', 'heavy_wins', 
+        'heavy_win_percentage', 'heavy_losses', 'heavy_loss_percentage', 
+        'clean_sheets', 'clean_sheet_percentage', 'points_per_game'
+      ];
+      
+      if (numericFields.includes(key)) {
         const valueA = parseFloat(String(a[key]));
         const valueB = parseFloat(String(b[key]));
         return direction === 'asc' ? valueA - valueB : valueB - valueA;
       }
-
-      if (a[key] === null || a[key] === undefined) return 1;
-      if (b[key] === null || b[key] === undefined) return -1;
       
-      if (key.includes('percentage' as keyof PlayerStats)) {
-        const valueA = parseFloat(String(a[key]));
-        const valueB = parseFloat(String(b[key]));
+      // String fields
+      if (typeof a[key] === 'string' && typeof b[key] === 'string') {
+        const valueA = (a[key] as string).toLowerCase();
+        const valueB = (b[key] as string).toLowerCase();
+        
         if (direction === 'asc') {
           return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
         }
         return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
       }
       
-      const valueA = typeof a[key] === 'string' ? (a[key] as string).toLowerCase() : a[key];
-      const valueB = typeof b[key] === 'string' ? (b[key] as string).toLowerCase() : b[key];
-      
+      // Boolean and other types
       if (direction === 'asc') {
-        return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+        return a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0;
       }
-      return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+      return a[key] < b[key] ? 1 : a[key] > b[key] ? -1 : 0;
     });
     
     setStats(sortedData);

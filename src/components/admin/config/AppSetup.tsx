@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Tabs, Tab } from '@/components/ui-kit/Tabs';
-import BalanceAlgorithmSetup from './AppSetup/BalanceAlgorithmSetup';
-import TeamTemplates from './TeamTemplates';
+import { Tabs, Tab } from '@/components/ui-kit/Tabs.component';
+import BalanceAlgorithmSetup from '../../../pages/admin/balance-algorithm';
+import TeamTemplates from '../TeamTemplates';
 import AppConfig from './AppConfig';
 
 const AppSetup: React.FC = () => {

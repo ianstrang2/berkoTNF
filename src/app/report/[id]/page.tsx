@@ -3,7 +3,7 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { MatchReport } from '@/components/match-report';
-import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 export default function SpecificMatchReportPage() {
   const params = useParams() || {};

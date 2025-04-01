@@ -3,7 +3,7 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { PlayerProfile } from '@/components/player';
-import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 export default function SpecificPlayerPage() {
   const params = useParams() || {};

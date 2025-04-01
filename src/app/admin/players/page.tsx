@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/components/ui-kit';
 import { AdminLayout } from '@/components/layout';
 import dynamic from 'next/dynamic';
 
-const PlayerManager = dynamic(() => import('@/components/admin/PlayerManager'), { ssr: false });
+const PlayerManager = dynamic(() => import('@/components/admin/player/PlayerManager.component'), { ssr: false });
 
 export default function AdminPlayersPage() {
   return (

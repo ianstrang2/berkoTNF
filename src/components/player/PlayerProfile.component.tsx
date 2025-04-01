@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import Card from '@/components/ui-kit/Card';
-import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table';
+import Card from '@/components/ui-kit/Card.component';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 
 interface PlayerProfileProps {
   id?: number;
