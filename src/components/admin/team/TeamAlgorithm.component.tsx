@@ -264,7 +264,7 @@ const createCopyModal = (text: string) => {
   return modal;
 };
 
-const TeamAlgorithm: React.FC = () => {
+const TeamAlgorithm: React.FC<{}> = () => {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentSlots, setCurrentSlots] = useState<Slot[]>(Array(18).fill(null).map((_, i) => ({
@@ -853,7 +853,7 @@ const TeamAlgorithm: React.FC = () => {
   }, [players, currentSlots]);
 
   // Function to handle selecting a player for a slot
-  const handlePlayerSelect = async (slotIndex: number, playerId: string) => {
+  const handlePlayerSelect = async (slotIndex: number, playerId: string): Promise<void> => {
     try {
       setError(null);
       
@@ -871,38 +871,50 @@ const TeamAlgorithm: React.FC = () => {
         // If the slot has no player, nothing to do
         if (!slot.player_id) return;
         
-        // Remove player from slot
-        const response = await fetch(`/api/admin/upcoming-match-players`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            upcoming_match_id: matchId,
-            player_id: slot.player_id
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to remove player');
+        try {
+          // Remove player from slot
+          const response = await fetch(`/api/admin/upcoming-match-players`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              upcoming_match_id: matchId,
+              player_id: slot.player_id
+            })
+          });
+          
+          // Even if we get an error because the player is not found,
+          // we should still update the local state
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.warn('Warning when removing player from slot:', errorData);
+            
+            // Only throw if it's not a 'Player assignment not found' error
+            if (errorData.error !== 'Player assignment not found') {
+              throw new Error(errorData.error || 'Failed to remove player');
+            }
+          }
+          
+          // Update local state
+          const updatedSlots = [...currentSlots];
+          updatedSlots[slotIndex - 1] = {
+            ...updatedSlots[slotIndex - 1],
+            player_id: null
+          };
+          setCurrentSlots(updatedSlots);
+          
+          // Mark match as unbalanced when players change
+          setIsBalanced(false);
+          
+          // Refresh match data to ensure UI is updated correctly
+          await refreshMatchData();
+          
+          return;
+        } catch (error) {
+          console.error('Error removing player from slot:', error);
+          throw error; // Re-throw to be caught by the parent try/catch
         }
-        
-        // Update local state
-        const updatedSlots = [...currentSlots];
-        updatedSlots[slotIndex - 1] = {
-          ...updatedSlots[slotIndex - 1],
-          player_id: null
-        };
-        setCurrentSlots(updatedSlots);
-        
-        // Mark match as unbalanced when players change
-        setIsBalanced(false);
-        
-        // Refresh match data to ensure UI is updated correctly
-        await refreshMatchData();
-        
-        return;
       }
       
       // Check if the player is already in a slot
