@@ -30,6 +30,11 @@ interface EditForm {
   resilience: number;
 }
 
+interface SortConfig {
+  key: keyof Player;
+  direction: 'asc' | 'desc';
+}
+
 // NOTE: StatCell has conditional formatting based on value (1-5) with colors from red to green
 // This conditional formatting is preserved for admin view to easily distinguish ratings
 const StatCell: React.FC<StatCellProps> = ({ value }) => {
@@ -55,8 +60,10 @@ const PlayerRatings: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
-  const [sortField, setSortField] = useState<keyof Player>('name');
-  const [sortDirection, setDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'name',
+    direction: 'asc'
+  });
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -96,26 +103,37 @@ const PlayerRatings: React.FC = () => {
   };
 
   const handleSort = (field: keyof Player): void => {
-    if (sortField === field) {
-      setDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setDirection('asc');
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfig.key === field && sortConfig.direction === 'desc') {
+      direction = 'asc';
     }
+    setSortConfig({ key: field, direction });
   };
 
   const sortPlayers = (playersToSort: Player[]): Player[] => {
     return [...playersToSort].sort((a, b) => {
-      if (sortField === 'name') {
-        return sortDirection === 'asc' 
+      if (sortConfig.key === 'name') {
+        return sortConfig.direction === 'asc' 
           ? a.name.localeCompare(b.name)
           : b.name.localeCompare(a.name);
       }
       
-      return sortDirection === 'asc'
-        ? (a[sortField] as number) - (b[sortField] as number)
-        : (b[sortField] as number) - (a[sortField] as number);
+      // For numeric attributes
+      return sortConfig.direction === 'asc'
+        ? (a[sortConfig.key] as number) - (b[sortConfig.key] as number)
+        : (b[sortConfig.key] as number) - (a[sortConfig.key] as number);
     });
+  };
+
+  const getSortIndicator = (key: keyof Player) => {
+    if (sortConfig.key === key) {
+      return (
+        <span className="ml-related text-primary-600">
+          {sortConfig.direction === 'desc' ? '▼' : '▲'}
+        </span>
+      );
+    }
+    return null;
   };
 
   const handleEditClick = (player: Player): void => {
@@ -288,26 +306,26 @@ const PlayerRatings: React.FC = () => {
         <Table responsive>
           <TableHead>
             <TableRow>
-              <TableCell isHeader onClick={() => handleSort('name')} className="cursor-pointer">
-                Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+              <TableCell isHeader onClick={() => handleSort('name')} className="cursor-pointer hover:text-primary-600">
+                Name {getSortIndicator('name')}
               </TableCell>
-              <TableCell isHeader onClick={() => handleSort('goalscoring')} className="cursor-pointer">
-                GOL {sortField === 'goalscoring' && (sortDirection === 'asc' ? '↑' : '↓')}
+              <TableCell isHeader onClick={() => handleSort('goalscoring')} className="cursor-pointer hover:text-primary-600">
+                GOL {getSortIndicator('goalscoring')}
               </TableCell>
-              <TableCell isHeader onClick={() => handleSort('defender')} className="cursor-pointer">
-                DEF {sortField === 'defender' && (sortDirection === 'asc' ? '↑' : '↓')}
+              <TableCell isHeader onClick={() => handleSort('defender')} className="cursor-pointer hover:text-primary-600">
+                DEF {getSortIndicator('defender')}
               </TableCell>
-              <TableCell isHeader onClick={() => handleSort('stamina_pace')} className="cursor-pointer">
-                S&P {sortField === 'stamina_pace' && (sortDirection === 'asc' ? '↑' : '↓')}
+              <TableCell isHeader onClick={() => handleSort('stamina_pace')} className="cursor-pointer hover:text-primary-600">
+                S&P {getSortIndicator('stamina_pace')}
               </TableCell>
-              <TableCell isHeader onClick={() => handleSort('control')} className="cursor-pointer">
-                CTL {sortField === 'control' && (sortDirection === 'asc' ? '↑' : '↓')}
+              <TableCell isHeader onClick={() => handleSort('control')} className="cursor-pointer hover:text-primary-600">
+                CTL {getSortIndicator('control')}
               </TableCell>
-              <TableCell isHeader onClick={() => handleSort('teamwork')} className="cursor-pointer">
-                TMW {sortField === 'teamwork' && (sortDirection === 'asc' ? '↑' : '↓')}
+              <TableCell isHeader onClick={() => handleSort('teamwork')} className="cursor-pointer hover:text-primary-600">
+                TMW {getSortIndicator('teamwork')}
               </TableCell>
-              <TableCell isHeader onClick={() => handleSort('resilience')} className="cursor-pointer">
-                RES {sortField === 'resilience' && (sortDirection === 'asc' ? '↑' : '↓')}
+              <TableCell isHeader onClick={() => handleSort('resilience')} className="cursor-pointer hover:text-primary-600">
+                RES {getSortIndicator('resilience')}
               </TableCell>
               <TableCell isHeader>{' '}</TableCell>
             </TableRow>

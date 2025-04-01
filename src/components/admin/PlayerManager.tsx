@@ -38,11 +38,18 @@ interface EditableRowData {
   is_retired: boolean;
 }
 
+interface SortConfig {
+  key: string;
+  direction: 'asc' | 'desc';
+}
+
 const PlayerManager: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [showRetired, setShowRetired] = useState<boolean>(false);
-  const [sortField, setSortField] = useState<string>('status');
-  const [sortDirection, setDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'status',
+    direction: 'asc'
+  });
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -108,33 +115,55 @@ const PlayerManager: React.FC = () => {
     }
   };
 
-  const handleSort = (field: string): void => {
-    if (sortField === field) {
-      setDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setDirection('asc');
+  const handleSort = (key: string): void => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
     }
+    setSortConfig({ key, direction });
   };
 
-  const sortPlayers = (players: Player[]): Player[] => {
-    return [...players].sort((a, b) => {
-      if (sortField === 'status') {
+  const sortPlayers = (playersToSort: Player[]): Player[] => {
+    return [...playersToSort].sort((a, b) => {
+      if (sortConfig.key === 'status') {
         // Sort by status (active first) then by name
         if (a.is_retired === b.is_retired) {
           return a.name.localeCompare(b.name);
         }
-        return a.is_retired === true ? 1 : -1;
+        return sortConfig.direction === 'asc' 
+          ? (a.is_retired === true ? 1 : -1)
+          : (a.is_retired === true ? -1 : 1);
       }
       
-      if (sortField === 'name') {
-        return sortDirection === 'asc' 
+      if (sortConfig.key === 'name') {
+        return sortConfig.direction === 'asc' 
           ? a.name.localeCompare(b.name)
           : b.name.localeCompare(a.name);
       }
       
+      if (sortConfig.key === 'ringer') {
+        // Sort by ringer status
+        if (a.is_ringer === b.is_ringer) {
+          return a.name.localeCompare(b.name);
+        }
+        return sortConfig.direction === 'asc'
+          ? (a.is_ringer === true ? 1 : -1)
+          : (a.is_ringer === true ? -1 : 1);
+      }
+      
       return 0;
     });
+  };
+
+  const getSortIndicator = (key: string) => {
+    if (sortConfig.key === key) {
+      return (
+        <span className="ml-related text-primary-600">
+          {sortConfig.direction === 'desc' ? '▼' : '▲'}
+        </span>
+      );
+    }
+    return null;
   };
 
   const filteredPlayers = sortPlayers(players).filter(player => {
@@ -304,13 +333,15 @@ const PlayerManager: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell onClick={() => handleSort('name')} className="cursor-pointer">
-                    Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  <TableCell onClick={() => handleSort('name')} className="cursor-pointer hover:text-primary-600">
+                    Name {getSortIndicator('name')}
                   </TableCell>
-                  <TableCell onClick={() => handleSort('status')} className="cursor-pointer">
-                    Status {sortField === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  <TableCell onClick={() => handleSort('status')} className="cursor-pointer hover:text-primary-600">
+                    Status {getSortIndicator('status')}
                   </TableCell>
-                  <TableCell>Ringer</TableCell>
+                  <TableCell onClick={() => handleSort('ringer')} className="cursor-pointer hover:text-primary-600">
+                    Ringer {getSortIndicator('ringer')}
+                  </TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>

@@ -29,13 +29,13 @@ interface PlayerFormModalProps {
 }
 
 const attributeDescriptions: Record<string, string> = {
-  goalscoring: "Ability to score goals and finish chances",
-  defending: "Defensive capabilities - tackling, marking, positioning",
-  stamina_pace: "Physical attributes - endurance, speed, acceleration",
-  control: "Ball control, passing, and technical ability",
-  teamwork: "Ability to work with teammates, positional awareness",
-  resilience: "Mental strength, reliability, consistency",
-  is_ringer: "Ringers are players who don't appear in the stats"
+  goalscoring: "Rating from 1 (rarely scores, misses chances) to 5 (prolific goal machine, always dangerous). This measures a player's ability to find the net.",
+  defending: "Rating from 1 (hates defending, avoids it) to 5 (prefers defending, loves the backline). This measures a player's preference and willingness to play in defensive positions, not necessarily skill.",
+  stamina_pace: "Rating from 1 (slow, tires quickly) to 5 (fast and tireless all game). This measures a player's physical attributes - speed, acceleration, and endurance.",
+  control: "Rating from 1 (sloppy, loses ball often) to 5 (composed, excellent touch and distribution). This measures a player's technical ability, ball control, and passing accuracy.",
+  teamwork: "Rating from 1 (lone wolf, ignores teammates) to 5 (team player, always collaborates). This measures how well a player works with others and prioritizes team success.",
+  resilience: "Rating from 1 (fragile, gives up when behind) to 5 (rock solid, thrives under pressure). This measures mental strength, consistency, and performance under pressure.",
+  is_ringer: "Ringers are players who don't appear in the regular stats. Often occasional players or short-term participants."
 };
 
 const AttributeTooltip: React.FC<AttributeTooltipProps> = ({ attribute, description }) => {
