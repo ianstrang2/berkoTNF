@@ -390,9 +390,6 @@ const MatchReport: React.FC = () => {
                   {item.subtext && (
                     <p className="text-sm text-neutral-500">{item.subtext}</p>
                   )}
-                  {item.date && (
-                    <p className="text-sm text-neutral-400 mt-1">{item.date}</p>
-                  )}
                 </div>
               </div>
             ))}
