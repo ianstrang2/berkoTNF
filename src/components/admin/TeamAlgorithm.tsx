@@ -1037,12 +1037,53 @@ const TeamAlgorithm: React.FC = () => {
   const handleCopyTeams = async () => {
     try {
       const teamText = formatTeamsForCopy();
-      await navigator.clipboard.writeText(teamText);
+      
+      // Try using the modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(teamText);
+      } else {
+        // Fallback for older browsers and non-HTTPS contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = teamText;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          document.execCommand('copy');
+          textArea.remove();
+        } catch (err) {
+          console.error('Fallback: Oops, unable to copy', err);
+          textArea.remove();
+          throw new Error('Failed to copy text');
+        }
+      }
+      
       setShowCopyToast(true);
       setTimeout(() => setShowCopyToast(false), 2000); // Hide after 2 seconds
     } catch (error) {
       console.error('Failed to copy teams:', error);
-      setError('Failed to copy teams to clipboard');
+      setError('Failed to copy teams to clipboard. Please try selecting and copying manually.');
+      
+      // Show the text in a modal for manual copying
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <h3 class="text-xl font-bold mb-4">Copy Teams</h3>
+          <p class="text-gray-600 mb-4">Please select and copy the text below:</p>
+          <pre class="bg-gray-100 p-4 rounded-md text-sm whitespace-pre-wrap mb-4">${teamText}</pre>
+          <div class="flex justify-end">
+            <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-800 transition-colors" onclick="this.closest('.fixed').remove()">
+              Close
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
     }
   };
 
@@ -1608,7 +1649,7 @@ const TeamAlgorithm: React.FC = () => {
     <div className="px-4 py-8 md:px-6 lg:px-8">
       {/* Match Info Section */}
       <div className="mb-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">Planned Match</h1>
             {activeMatch && (
@@ -1620,17 +1661,17 @@ const TeamAlgorithm: React.FC = () => {
               <p className="text-gray-600">Format: {activeMatch.team_size}v{activeMatch.team_size}</p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {activeMatch ? (
               <>
                 <button
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full sm:w-auto"
                   onClick={handleEditMatch}
                 >
                   Edit Match
                 </button>
                 <button
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors w-full sm:w-auto"
                   onClick={() => setShowClearMatchConfirm(true)}
                 >
                   Delete Match
@@ -1638,7 +1679,7 @@ const TeamAlgorithm: React.FC = () => {
               </>
             ) : (
               <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full sm:w-auto"
                 onClick={() => setShowCreateMatchModal(true)}
               >
                 Create Match
@@ -1676,30 +1717,30 @@ const TeamAlgorithm: React.FC = () => {
         )}
         
       
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div>
             <h2 className="text-xl font-bold">Team Assignment</h2>
             <p className="text-gray-600 text-sm">
               {currentSlots.filter(s => s.player_id !== null).length}/{activeMatch ? activeMatch.team_size * 2 : 0} players selected
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full sm:w-auto"
               onClick={() => setShowClearConfirm(true)}
               disabled={!activeMatch || isLoading}
             >
               Clear
             </button>
             <button
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full sm:w-auto"
               onClick={handleCopyTeams}
               disabled={!activeMatch || isLoading}
             >
               Copy
             </button>
             <button
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full sm:w-auto"
               onClick={handleBalanceTeams}
               disabled={!activeMatch || isLoading || currentSlots.filter(s => s.player_id !== null).length < 2}
             >
@@ -1772,10 +1813,12 @@ const TeamAlgorithm: React.FC = () => {
                   Teams aren't balanced yet. Click the Balance button to create fair teams.
                 </div>
               )}
-              {calculateComparativeStats() && Object.entries(calculateComparativeStats()?.diffs || {}).map(([key, value]) => {
+              {calculateComparativeStats() && Object.entries(calculateComparativeStats()?.diffs || {})
+                .filter(([key]) => key !== 'defending') // Filter out defending stat
+                .map(([key, value]) => {
                 const label = key.charAt(0).toUpperCase() + key.replace('_', '/').slice(1);
-                const orangeTeam = currentSlots.filter(s => s.slot_number <= activeMatch.team_size).map(s => players.find(p => p.id === s.player_id)).filter(Boolean);
-                const greenTeam = currentSlots.filter(s => s.slot_number > activeMatch.team_size).map(s => players.find(p => p.id === s.player_id)).filter(Boolean);
+                const orangeTeam = currentSlots.filter(s => s.slot_number <= (activeMatch?.team_size || 9)).map(s => players.find(p => p.id === s.player_id)).filter(Boolean);
+                const greenTeam = currentSlots.filter(s => s.slot_number > (activeMatch?.team_size || 9)).map(s => players.find(p => p.id === s.player_id)).filter(Boolean);
                 
                 const orangeVal = orangeTeam.reduce((sum, p) => sum + (Number(p?.[key as keyof Player]) || 0), 0) / (orangeTeam.length || 1);
                 const greenVal = greenTeam.reduce((sum, p) => sum + (Number(p?.[key as keyof Player]) || 0), 0) / (greenTeam.length || 1);

@@ -110,11 +110,6 @@ const Matchday: React.FC = () => {
   return (
     <Card>
       <div className="flex flex-col items-center mb-8">
-        <div className="absolute right-4 top-4">
-          <div className="px-4 py-2 bg-neutral-100 rounded-md text-sm">
-            {players.length}/{matchData.team_size * 2} players confirmed
-          </div>
-        </div>
         <div className="text-center mb-2 mt-4">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{formattedDate}</h2>
           <p className="text-lg text-neutral-600">Format: {matchData.team_size}v{matchData.team_size}</p>
