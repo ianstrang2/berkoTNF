@@ -1892,6 +1892,13 @@ const TeamAlgorithm: React.FC = () => {
               Copy
             </button>
             <button
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full sm:w-auto"
+              onClick={() => setShowRingerModal(true)}
+              disabled={isLoading}
+            >
+              Add Ringer
+            </button>
+            <button
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full sm:w-auto"
               onClick={handleBalanceTeams}
               disabled={!activeMatch || isLoading || currentSlots.filter(s => s.player_id !== null).length < 2}
