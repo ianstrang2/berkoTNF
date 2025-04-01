@@ -272,6 +272,8 @@ const TeamAlgorithm: React.FC = () => {
   // Add drag and drop state
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
   const [highlightedSlot, setHighlightedSlot] = useState<number | null>(null);
+  // Add new state for selected slot
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
 
   // Define INITIAL_SLOTS constant
   const INITIAL_SLOTS: Slot[] = Array(18).fill(null).map((_, i) => ({
@@ -1239,10 +1241,11 @@ const TeamAlgorithm: React.FC = () => {
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
+                      onTap={handleSlotTap}
                       disabled={isLoading}
                       stats={playerStats}
                       position={position}
-                      highlighted={highlightedSlot === slot.slot_number}
+                      highlighted={highlightedSlot === slot.slot_number || selectedSlot === slot.slot_number}
                       teamColor={teamType === 'a' ? 'orange' : 'green'}
                     />
                   );
@@ -1645,6 +1648,91 @@ const TeamAlgorithm: React.FC = () => {
     }
   };
 
+  // Add handler for slot selection/tap
+  const handleSlotTap = async (slotNumber: number) => {
+    if (!selectedSlot) {
+      // First tap - select the slot
+      setSelectedSlot(slotNumber);
+    } else if (selectedSlot === slotNumber) {
+      // Tapped same slot - deselect
+      setSelectedSlot(null);
+    } else {
+      // Second tap - perform swap
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Get the slots involved in the swap
+        const firstSlot = currentSlots.find(s => s.slot_number === selectedSlot);
+        const secondSlot = currentSlots.find(s => s.slot_number === slotNumber);
+        
+        if (!firstSlot || !secondSlot) {
+          throw new Error('Invalid slot operation');
+        }
+        
+        const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
+        
+        if (!matchId) {
+          throw new Error('No active match selected');
+        }
+        
+        // Determine teams
+        const firstTeam = firstSlot.slot_number <= (activeMatch?.team_size || 9) ? 'A' : 'B';
+        const secondTeam = secondSlot.slot_number <= (activeMatch?.team_size || 9) ? 'A' : 'B';
+        
+        // If second slot has a player, perform swap
+        if (secondSlot.player_id) {
+          await fetch('/api/admin/upcoming-match-players', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              upcoming_match_id: matchId,
+              player_id: secondSlot.player_id,
+              team: firstTeam,
+              slot_number: firstSlot.slot_number
+            })
+          });
+        }
+        
+        // Move first player to second slot
+        if (firstSlot.player_id) {
+          await fetch('/api/admin/upcoming-match-players', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              upcoming_match_id: matchId,
+              player_id: firstSlot.player_id,
+              team: secondTeam,
+              slot_number: secondSlot.slot_number
+            })
+          });
+        }
+        
+        // Update local state
+        const updatedSlots = [...currentSlots];
+        const firstIndex = firstSlot.slot_number - 1;
+        const secondIndex = secondSlot.slot_number - 1;
+        
+        // Swap the player IDs
+        [updatedSlots[firstIndex].player_id, updatedSlots[secondIndex].player_id] = 
+        [updatedSlots[secondIndex].player_id, updatedSlots[firstIndex].player_id];
+        
+        setCurrentSlots(updatedSlots);
+        setIsBalanced(false);
+        
+        // Refresh match data
+        await refreshMatchData();
+        
+      } catch (error) {
+        console.error('Error swapping players:', error);
+        setError(`Failed to swap players: ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        setIsLoading(false);
+        setSelectedSlot(null);
+      }
+    }
+  };
+
   return (
     <div className="px-4 py-8 md:px-6 lg:px-8">
       {/* Match Info Section */}
@@ -1653,12 +1741,17 @@ const TeamAlgorithm: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold">Planned Match</h1>
             {activeMatch && (
-              <p className="text-gray-600">
-                {formatDateSafely(activeMatch.date)}
-              </p>
-            )}
-            {activeMatch && (
-              <p className="text-gray-600">Format: {activeMatch.team_size}v{activeMatch.team_size}</p>
+              <>
+                <p className="text-gray-600">
+                  {formatDateSafely(activeMatch.date)}
+                </p>
+                {activeMatch.date && new Date(activeMatch.date) < new Date() && (
+                  <p className="text-red-600 text-sm mt-1">
+                    Warning: This match date is in the past
+                  </p>
+                )}
+                <p className="text-gray-600">Format: {activeMatch.team_size}v{activeMatch.team_size}</p>
+              </>
             )}
           </div>
           <div className="flex flex-col sm:flex-row gap-2">

@@ -21,7 +21,8 @@ interface DraggablePlayerSlotProps {
   onSelect: (slotIndex: number, playerId: string) => Promise<void>;
   onDragStart: (slotNumber: number, player: Player) => void;
   onDragOver: (e: React.DragEvent, slotNumber: number) => void;
-  onDrop: (e: React.DragEvent, targetSlotNumber: number) => void;
+  onDrop: (e: React.DragEvent, slotNumber: number) => void;
+  onTap: (slotNumber: number) => void;
   disabled: boolean;
   stats: string;
   position: string;
@@ -37,6 +38,7 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
   onDragStart,
   onDragOver,
   onDrop,
+  onTap,
   disabled,
   stats,
   position,
@@ -44,6 +46,17 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
   teamColor
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
+
+  const isTouchDevice = () => {
+    return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isTouchDevice()) {
+      e.preventDefault();
+      onTap(slotNumber);
+    }
+  };
 
   const handleEditClick = () => {
     setShowDropdown(true);
@@ -64,13 +77,11 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
   return (
     <div 
       className={`relative rounded-md border p-2 mb-2 ${colorClass} ${highlightClass}`}
-      draggable={!!player}
-      onDragStart={player ? (e) => {
-        e.dataTransfer.effectAllowed = 'move';
-        onDragStart(slotNumber, player);
-      } : undefined}
+      draggable={!disabled && !isTouchDevice()}
+      onDragStart={(e) => player && onDragStart(slotNumber, player)}
       onDragOver={(e) => onDragOver(e, slotNumber)}
       onDrop={(e) => onDrop(e, slotNumber)}
+      onClick={handleClick}
     >
       {player ? (
         // Player assigned to slot
