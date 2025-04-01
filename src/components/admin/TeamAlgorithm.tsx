@@ -4,6 +4,7 @@ import { format, parse } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import DraggablePlayerSlot from './DraggablePlayerSlot';
 import { TeamBalanceService } from '../../services/TeamBalanceService';
+import PlayerFormModal from './PlayerFormModal';
 
 // Types
 interface Player {
@@ -1896,7 +1897,7 @@ const TeamAlgorithm: React.FC = () => {
               onClick={() => setShowRingerModal(true)}
               disabled={isLoading}
             >
-              Add Ringer
+              Create Player
             </button>
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full sm:w-auto"
@@ -2222,69 +2223,51 @@ const TeamAlgorithm: React.FC = () => {
       )}
       
       {/* Add Ringer Modal */}
-      {showRingerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
-            <h3 className="text-xl font-bold mb-4">Add Ringer Player</h3>
+      <PlayerFormModal 
+        isOpen={showRingerModal}
+        onClose={() => setShowRingerModal(false)}
+        onSubmit={async (playerData) => {
+          try {
+            setIsAddingRinger(true);
+            setError(null);
             
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-1">Player Name</label>
-              <input
-                type="text"
-                value={ringerForm.name}
-                onChange={(e) => setRingerForm({ ...ringerForm, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter player name"
-                suppressHydrationWarning
-              />
-            </div>
+            const response = await fetch('/api/admin/add-ringer', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                name: playerData.name,
+                goalscoring: parseFloat(playerData.goalscoring.toString()),
+                defending: parseFloat(playerData.defending.toString()),
+                stamina_pace: parseFloat(playerData.stamina_pace.toString()),
+                control: parseFloat(playerData.control.toString()),
+                teamwork: parseFloat(playerData.teamwork.toString()),
+                resilience: parseFloat(playerData.resilience.toString())
+              })
+            });
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              {['goalscoring', 'defending', 'stamina_pace', 'control', 'teamwork', 'resilience'].map((attr) => (
-                <div key={attr} className="mb-2">
-                  <label className="block text-gray-700 mb-1">
-                    {attr.charAt(0).toUpperCase() + attr.replace('_', '/').slice(1)}
-                  </label>
-                  <div className="flex items-center">
-                    <input
-                      type="range"
-                      min="1"
-                      max="5"
-                      step="0.5"
-                      value={ringerForm[attr as keyof RingerForm]}
-                      onChange={(e) => setRingerForm({ 
-                        ...ringerForm, 
-                        [attr]: parseFloat(e.target.value) 
-                      })}
-                      className="w-full"
-                      suppressHydrationWarning
-                    />
-                    <span className="ml-2 w-10 text-center">
-                      {ringerForm[attr as keyof RingerForm]}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            const data = await response.json();
             
-            <div className="flex justify-end gap-3">
-              <button
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-800 transition-colors"
-                onClick={() => setShowRingerModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-                onClick={handleAddRinger}
-                disabled={isAddingRinger}
-              >
-                {isAddingRinger ? 'Adding...' : 'Add Player'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            if (!response.ok) {
+              throw new Error(data.error || 'Failed to add ringer');
+            }
+            
+            // Add the new player to the local state
+            setPlayers([...players, data.data]);
+            
+          } catch (error) {
+            console.error('Error adding ringer:', error);
+            setError(`Failed to add player: ${error instanceof Error ? error.message : String(error)}`);
+            throw error; // Re-throw to make sure the modal stays open
+          } finally {
+            setIsAddingRinger(false);
+          }
+        }}
+        isProcessing={isAddingRinger}
+        title="Add Player"
+        submitButtonText="Create Player"
+      />
       
       {/* Copy success toast */}
       {showCopyToast && (
