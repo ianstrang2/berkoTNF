@@ -1326,16 +1326,35 @@ const TeamAlgorithm: React.FC = () => {
       balanceQuality === 'Good' ? 'text-blue-600' :
       balanceQuality === 'Fair' ? 'text-amber-600' : 'text-red-600';
     
+    // Get color for the balance bar
+    const getBalanceColor = (score: number) => {
+      if (score <= 0.3) return "bg-emerald-500";
+      if (score <= 0.6) return "bg-blue-500";
+      if (score <= 0.9) return "bg-amber-500";
+      return "bg-red-500";
+    };
+    
     return (
       <div className="bg-white rounded-md shadow p-3 mt-4">
         <h3 className="text-lg font-bold text-neutral-800">Team Balance Analysis</h3>
         
         <div className="mb-2 mt-3">
-          <div className="flex justify-between items-center">
-            <span className="text-neutral-700">Balance Score:</span>
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-neutral-700">Balance Quality:</span>
             <span className={`font-semibold ${qualityColorClass}`}>
-              {balanceScore.toFixed(2)} - {balanceQuality}
+              {balanceQuality}
             </span>
+          </div>
+          
+          {/* Balance quality visual indicator */}
+          <div className="relative h-2.5 w-full bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className={`absolute top-0 left-0 h-full ${getBalanceColor(balanceScore)}`}
+              style={{ 
+                width: `${Math.max(0, 100 - (balanceScore * 100))}%`,
+                transition: 'width 0.5s ease-out'
+              }}
+            />
           </div>
         </div>
         
@@ -1990,15 +2009,30 @@ const TeamAlgorithm: React.FC = () => {
               {/* Balance quality indicator */}
               {calculateComparativeStats() && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mb-1">
                     <span className="font-medium">Balance Quality:</span>
                     <span className={`font-semibold ${
                       calculateComparativeStats()?.balanceQuality === 'Excellent' ? 'text-emerald-600' :
                       calculateComparativeStats()?.balanceQuality === 'Good' ? 'text-blue-600' :
                       calculateComparativeStats()?.balanceQuality === 'Fair' ? 'text-amber-600' : 'text-red-600'
                     }`}>
-                      {calculateComparativeStats()?.balanceScore.toFixed(2)} - {calculateComparativeStats()?.balanceQuality}
+                      {calculateComparativeStats()?.balanceQuality}
                     </span>
+                  </div>
+                  
+                  {/* Balance quality visual indicator */}
+                  <div className="relative h-2.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className={`absolute top-0 left-0 h-full ${
+                        calculateComparativeStats()?.balanceQuality === 'Excellent' ? 'bg-emerald-500' :
+                        calculateComparativeStats()?.balanceQuality === 'Good' ? 'bg-blue-500' :
+                        calculateComparativeStats()?.balanceQuality === 'Fair' ? 'bg-amber-500' : 'bg-red-500'
+                      }`}
+                      style={{ 
+                        width: `${Math.max(0, 100 - ((calculateComparativeStats()?.balanceScore || 0) * 100))}%`,
+                        transition: 'width 0.5s ease-out'
+                      }}
+                    />
                   </div>
                 </div>
               )}
