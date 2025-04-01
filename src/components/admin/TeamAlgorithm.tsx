@@ -229,6 +229,34 @@ interface DragItem {
   player: Player;
 }
 
+// Add this function before TeamAlgorithm component
+const createCopyModal = (text: string) => {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  
+  const pre = document.createElement('pre');
+  pre.className = 'bg-gray-100 p-4 rounded-md text-sm whitespace-pre-wrap mb-4';
+  pre.textContent = text;
+  
+  const modalContent = document.createElement('div');
+  modalContent.className = 'bg-white p-6 rounded-lg shadow-lg max-w-md w-full';
+  modalContent.innerHTML = `
+    <h3 class="text-xl font-bold mb-4">Copy Teams</h3>
+    <p class="text-gray-600 mb-4">Please select and copy the text below:</p>
+    <div class="flex justify-end">
+      <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-800 transition-colors" onclick="this.closest('.fixed').remove()">
+        Close
+      </button>
+    </div>
+  `;
+  
+  // Insert the pre element after the paragraph
+  modalContent.insertBefore(pre, modalContent.lastElementChild);
+  modal.appendChild(modalContent);
+  
+  return modal;
+};
+
 const TeamAlgorithm: React.FC = () => {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
@@ -1038,15 +1066,15 @@ const TeamAlgorithm: React.FC = () => {
 
   const handleCopyTeams = async () => {
     try {
-      const teamText = formatTeamsForCopy();
+      const teams = formatTeamsForCopy();
       
       // Try using the modern clipboard API first
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(teamText);
+        await navigator.clipboard.writeText(teams);
       } else {
         // Fallback for older browsers and non-HTTPS contexts
         const textArea = document.createElement('textarea');
-        textArea.value = teamText;
+        textArea.value = teams;
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
@@ -1070,22 +1098,9 @@ const TeamAlgorithm: React.FC = () => {
       console.error('Failed to copy teams:', error);
       setError('Failed to copy teams to clipboard. Please try selecting and copying manually.');
       
-      // Show the text in a modal for manual copying
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-      modal.innerHTML = `
-        <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-          <h3 class="text-xl font-bold mb-4">Copy Teams</h3>
-          <p class="text-gray-600 mb-4">Please select and copy the text below:</p>
-          <pre class="bg-gray-100 p-4 rounded-md text-sm whitespace-pre-wrap mb-4">${teamText}</pre>
-          <div class="flex justify-end">
-            <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-800 transition-colors" onclick="this.closest('.fixed').remove()">
-              Close
-            </button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
+      // Add the modal to the document
+      const teams = formatTeamsForCopy();
+      document.body.appendChild(createCopyModal(teams));
     }
   };
 
