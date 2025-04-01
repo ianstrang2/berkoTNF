@@ -1695,7 +1695,30 @@ const TeamAlgorithm: React.FC = () => {
         const firstTeam = firstSlot.slot_number <= (activeMatch?.team_size || 9) ? 'A' : 'B';
         const secondTeam = secondSlot.slot_number <= (activeMatch?.team_size || 9) ? 'A' : 'B';
         
-        // If second slot has a player, perform swap
+        // First, remove both players from their slots
+        if (firstSlot.player_id) {
+          await fetch('/api/admin/upcoming-match-players', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              upcoming_match_id: matchId,
+              player_id: firstSlot.player_id
+            })
+          });
+        }
+        
+        if (secondSlot.player_id) {
+          await fetch('/api/admin/upcoming-match-players', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              upcoming_match_id: matchId,
+              player_id: secondSlot.player_id
+            })
+          });
+        }
+        
+        // Then, add them to their new slots
         if (secondSlot.player_id) {
           await fetch('/api/admin/upcoming-match-players', {
             method: 'PUT',
@@ -1709,7 +1732,6 @@ const TeamAlgorithm: React.FC = () => {
           });
         }
         
-        // Move first player to second slot
         if (firstSlot.player_id) {
           await fetch('/api/admin/upcoming-match-players', {
             method: 'PUT',
@@ -1735,7 +1757,7 @@ const TeamAlgorithm: React.FC = () => {
         setCurrentSlots(updatedSlots);
         setIsBalanced(false);
         
-        // Refresh match data
+        // Refresh match data to ensure UI is updated correctly
         await refreshMatchData();
         
       } catch (error) {
