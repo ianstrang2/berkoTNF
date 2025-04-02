@@ -349,22 +349,6 @@ export async function PUT(request: NextRequest) {
 // DELETE: Remove a player from an upcoming match
 export async function DELETE(request: NextRequest) {
   try {
-    // First try to parse the request body, as this is how the frontend is sending data
-    let bodyData: any = null;
-    
-    try {
-      bodyData = await request.json();
-    } catch (parseError) {
-      // If parsing fails, it's not a JSON body - we'll use query params instead
-      console.log('No JSON body in DELETE request, using query params');
-    }
-    
-    // If we got a valid JSON body with required fields, use it
-    if (bodyData && (bodyData.player_id || bodyData.upcoming_match_id || bodyData.match_id)) {
-      return await handleDeleteWithBody(bodyData);
-    }
-    
-    // Otherwise, fall back to query parameters
     const searchParams = request.nextUrl.searchParams;
     const playerId = searchParams.get('playerId');
     const matchId = searchParams.get('matchId');
@@ -372,10 +356,24 @@ export async function DELETE(request: NextRequest) {
     const slotNumber = searchParams.get('slotNumber');
     const active = searchParams.get('active') === 'true';
     
+    // If no params provided, check request body (for bulk deletion)
     if (!playerId && !slotNumber && !upcomingMatchId && !matchId && !active) {
+      try {
+        const body = await request.json();
+        if (body && (body.player_id || body.upcoming_match_id || body.match_id)) {
+          // Handle DELETE with JSON body
+          return await handleDeleteWithBody(body);
+        }
+      } catch (parseError) {
+        // If parsing fails, likely not a JSON body, continue with query params
+        console.log('No JSON body in DELETE request, using query params');
+      }
+    }
+    
+    if (!playerId && !slotNumber) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Either Player ID, Slot Number, or Match ID is required' 
+        error: 'Either Player ID or Slot Number is required' 
       }, { status: 400 });
     }
     

@@ -872,15 +872,8 @@ const TeamAlgorithm: React.FC = () => {
         if (!slot.player_id) return;
         
         // Remove player from slot
-        const response = await fetch(`/api/admin/upcoming-match-players`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            upcoming_match_id: matchId,
-            player_id: slot.player_id
-          })
+        const response = await fetch(`/api/admin/upcoming-match-players?upcoming_match_id=${matchId}&player_id=${slot.player_id}&slot_number=${slotIndex}`, {
+          method: 'DELETE'
         });
         
         if (!response.ok) {
