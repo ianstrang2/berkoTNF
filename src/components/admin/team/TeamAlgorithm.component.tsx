@@ -1599,13 +1599,14 @@ const TeamAlgorithm: React.FC = () => {
       const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
       
       // Call API to update match
-      const response = await fetch(`/api/admin/update-planned-match?match_id=${matchId}`, {
+      const response = await fetch(`/api/admin/upcoming-matches`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          date: newMatchData.date,
+          match_id: matchId,
+          match_date: newMatchData.date,
           team_size: newMatchData.team_size
         })
       });
