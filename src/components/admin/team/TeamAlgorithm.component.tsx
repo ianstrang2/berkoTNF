@@ -703,7 +703,7 @@ const TeamAlgorithm: React.FC = () => {
         setError(null);
         
         // Make essential API calls first to get the UI interactive quickly
-        const playersResponse = await fetch('/api/admin/players');
+        const playersResponse = await fetch(`/api/admin/players?t=${Date.now()}`);
         if (!playersResponse.ok) throw new Error('Failed to fetch players');
         const playersData = await playersResponse.json();
         if (!playersData.success) throw new Error(playersData.error || 'Failed to fetch players');

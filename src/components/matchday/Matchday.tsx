@@ -26,7 +26,7 @@ const Matchday: React.FC = () => {
   useEffect(() => {
     async function fetchMatchData() {
       try {
-        const response = await fetch('/api/admin/upcoming-matches?active=true');
+        const response = await fetch(`/api/admin/upcoming-matches?active=true&t=${Date.now()}`);
         if (!response.ok) return;
         
         const result = await response.json();

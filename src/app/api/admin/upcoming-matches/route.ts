@@ -79,9 +79,21 @@ export async function GET(request: NextRequest) {
             ...p.player
           }))
         };
-        return NextResponse.json({ success: true, data: formattedMatch });
+        return new NextResponse(JSON.stringify({ success: true, data: formattedMatch }), {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        });
       }
-      return NextResponse.json({ success: true, data: null });
+      return new NextResponse(JSON.stringify({ success: true, data: null }), {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
     } else if (matchId) {
       // Get specific match
       const match = await prisma.upcoming_matches.findUnique({

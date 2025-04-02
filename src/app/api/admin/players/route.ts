@@ -15,9 +15,15 @@ export async function GET() {
         name: 'asc',
       },
     });
-    return NextResponse.json({ 
+    return new NextResponse(JSON.stringify({ 
       success: true,
       data: serializeData(players) 
+    }), {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
   } catch (error) {
     console.error('Error fetching players:', error);
