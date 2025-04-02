@@ -82,10 +82,9 @@ const CurrentHalfSeason: React.FC = () => {
         const currentPeriod = getCurrentHalf();
         console.log('Current period:', currentPeriod);
 
-        const response = await fetch('/api/stats', {
+        const response = await fetch('/api/stats/half-season', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ startDate: currentPeriod.startDate, endDate: currentPeriod.endDate })
+          headers: { 'Content-Type': 'application/json' }
         });
 
         console.log('API Response:', response.status);

@@ -53,6 +53,7 @@ model players {
   aggregated_match_streaks aggregated_match_streaks[]
   recent_performance       aggregated_recent_performance?
   season_stats             aggregated_season_stats[]
+  half_season_stats        aggregated_half_season_stats?
   player_matches           player_matches[]
   team_slots               team_slots[]
   upcoming_match_players   upcoming_match_players[]
@@ -190,6 +191,27 @@ model aggregated_season_stats {
 
   @@unique([player_id, season_start_date, season_end_date])
   @@index([season_start_date, season_end_date], map: "idx_agg_season_stats_dates")
+}
+
+/// This model stores pre-aggregated half-season stats for faster retrieval
+model aggregated_half_season_stats {
+  id               Int      @id @default(autoincrement())
+  player_id        Int      @unique
+  games_played     Int
+  wins             Int
+  draws            Int
+  losses           Int
+  goals            Int
+  heavy_wins       Int
+  heavy_losses     Int
+  clean_sheets     Int
+  win_percentage   Decimal  @db.Decimal(10, 1)
+  fantasy_points   Int
+  points_per_game  Decimal  @db.Decimal(10, 1)
+  last_updated     DateTime @default(now()) @db.Timestamptz(6)
+  player           players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([player_id], map: "idx_agg_half_season_stats_player_id")
 }
 
 /// This model stores pre-aggregated all-time stats for faster retrieval
