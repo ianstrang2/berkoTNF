@@ -264,7 +264,7 @@ const createCopyModal = (text: string) => {
   return modal;
 };
 
-const TeamAlgorithm: React.FC = () => {
+const TeamAlgorithm: React.FC<{}> = () => {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentSlots, setCurrentSlots] = useState<Slot[]>(Array(18).fill(null).map((_, i) => ({
@@ -463,6 +463,7 @@ const TeamAlgorithm: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
+      console.log('Refreshing match data...');
 
       // Fetch updated match data
       const matchResponse = await fetch('/api/admin/upcoming-matches?active=true');
@@ -487,6 +488,11 @@ const TeamAlgorithm: React.FC = () => {
       
       // Set the active match
       const activeMatchData = matchData.data;
+      console.log('Active match data loaded:', {
+        id: activeMatchData.upcoming_match_id || activeMatchData.match_id,
+        playerCount: activeMatchData.players?.length || 0,
+        isBalanced: activeMatchData.is_balanced
+      });
       
       // Ensure date field is valid
       if (activeMatchData.date) {
@@ -526,6 +532,8 @@ const TeamAlgorithm: React.FC = () => {
       
       // Fill in existing players if any
       if (activeMatchData.players && activeMatchData.players.length > 0) {
+        console.log(`Found ${activeMatchData.players.length} players in active match`);
+        
         // Map players to their respective slots
         activeMatchData.players.forEach((player: { slot_number?: number; player_id: string; team?: string; position?: string }) => {
           // Handle case where slot_number might be missing
@@ -533,6 +541,8 @@ const TeamAlgorithm: React.FC = () => {
             (player.team === 'A' ? 
               (Math.floor(Math.random() * teamSize) + 1) : 
               (Math.floor(Math.random() * teamSize) + teamSize + 1));
+          
+          console.log(`Assigning player ${player.player_id} to slot ${slotNumber} (team ${player.team || 'unknown'})`);
           
           // Ensure slot number is within range
           if (slotNumber > 0 && slotNumber <= matchPlayerSlots.length) {
@@ -542,8 +552,12 @@ const TeamAlgorithm: React.FC = () => {
               team: player.team || matchPlayerSlots[slotNumber - 1].team, // Use existing team if player.team is missing
               position: player.position
             };
+          } else {
+            console.warn(`Invalid slot number ${slotNumber} for player ${player.player_id}`);
           }
         });
+      } else {
+        console.log('No players found in active match');
       }
       
       // Update state
@@ -551,6 +565,8 @@ const TeamAlgorithm: React.FC = () => {
       setIsBalanced(activeMatchData.is_balanced);
       setCurrentSlots(matchPlayerSlots);
       setUsingPlannedMatch(true);
+      
+      console.log('Match data refresh complete');
     } catch (error) {
       console.error('Error refreshing match data:', error);
       setError(`Failed to refresh match data: ${error instanceof Error ? error.message : String(error)}`);
@@ -566,134 +582,126 @@ const TeamAlgorithm: React.FC = () => {
     }
   }, []); // Empty dependency array to avoid circular reference
 
-  // Helper function to determine position groups based on team size
-  const determinePositionGroups = useCallback((teamSize: number, team: string): PositionGroup[] => {
-    const isOrange = team.toLowerCase() === 'orange';
-    const startingSlot = isOrange ? 1 : teamSize + 1;
-    
-    // Adjust position distribution based on team size
-    let positions: PositionGroup[] = [];
-    
-    if (teamSize <= 5) {
-      // 5-a-side: 2 defenders, 2 midfielders, 1 attacker
-      positions = [
-        { 
-          title: 'Defenders', 
-          slots: [startingSlot, startingSlot + 1],
-          position: 'Defenders',
-          startSlot: startingSlot,
-          endSlot: startingSlot + 1
-        },
-        { 
-          title: 'Midfielders', 
-          slots: [startingSlot + 2, startingSlot + 3],
-          position: 'Midfielders',
-          startSlot: startingSlot + 2,
-          endSlot: startingSlot + 3
-        },
-        { 
-          title: 'Attackers', 
-          slots: [startingSlot + 4],
-          position: 'Attackers',
-          startSlot: startingSlot + 4,
-          endSlot: startingSlot + 4
+  // Define a forced refresh function that bypasses caching
+  const refreshMatchDataForced = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Performing forced refresh of match data...');
+
+      // Add timestamp to avoid any browser caching
+      const timestamp = new Date().getTime();
+      // Fetch updated match data with cache-busting
+      const matchResponse = await fetch(`/api/admin/upcoming-matches?active=true&_t=${timestamp}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
-      ];
-    } else if (teamSize <= 7) {
-      // 6/7-a-side: 2 defenders, 3 midfielders, 2 attackers
-      const attackerCount = Math.max(0, teamSize - 5);
-      const attackerSlots = Array.from({ length: attackerCount }, (_, i) => startingSlot + 5 + i);
-      positions = [
-        { 
-          title: 'Defenders', 
-          slots: [startingSlot, startingSlot + 1],
-          position: 'Defenders',
-          startSlot: startingSlot,
-          endSlot: startingSlot + 1
-        },
-        { 
-          title: 'Midfielders', 
-          slots: [startingSlot + 2, startingSlot + 3, startingSlot + 4],
-          position: 'Midfielders',
-          startSlot: startingSlot + 2,
-          endSlot: startingSlot + 4
-        },
-        { 
-          title: 'Attackers', 
-          slots: attackerSlots,
-          position: 'Attackers',
-          startSlot: startingSlot + 5,
-          endSlot: startingSlot + teamSize - 1
+      });
+      
+      if (!matchResponse.ok) {
+        const responseText = await matchResponse.text();
+        console.error(`Error fetching match data (${matchResponse.status}): ${responseText}`);
+        throw new Error(`Failed to fetch updated match: ${matchResponse.status} ${responseText.substring(0, 100)}`);
+      }
+      
+      const matchData = await matchResponse.json();
+      
+      if (!matchData.success || !matchData.data) {
+        console.error('No active match data found:', matchData);
+        // Clear active match if none found
+        setActiveMatch(null);
+        setCurrentSlots([]);
+        setIsBalanced(false);
+        setUsingPlannedMatch(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Set the active match
+      const activeMatchData = matchData.data;
+      console.log('Active match data loaded (forced refresh):', {
+        id: activeMatchData.upcoming_match_id || activeMatchData.match_id,
+        playerCount: activeMatchData.players?.length || 0,
+        isBalanced: activeMatchData.is_balanced
+      });
+      
+      // Update match in state
+      setActiveMatch(activeMatchData);
+      
+      // Ensure date field is valid
+      if (activeMatchData.date) {
+        // Validate date format
+        const dateObj = new Date(activeMatchData.date);
+        if (isNaN(dateObj.getTime())) {
+          console.warn('Invalid date format received:', activeMatchData.date);
+          // Try to fix common date format issues
+          if (typeof activeMatchData.date === 'string') {
+            // If date is in format DD/MM/YYYY, convert to YYYY-MM-DD
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(activeMatchData.date)) {
+              const [day, month, year] = activeMatchData.date.split('/');
+              activeMatchData.date = `${year}-${month}-${day}`;
+            }
+          }
         }
-      ];
-    } else if (teamSize <= 9) {
-      // 8/9-a-side: 3 defenders, 4 midfielders, 2 attackers
-      const attackerCount = Math.max(0, teamSize - 7);
-      const attackerSlots = Array.from({ length: attackerCount }, (_, i) => startingSlot + 7 + i);
-      positions = [
-        { 
-          title: 'Defenders', 
-          slots: [startingSlot, startingSlot + 1, startingSlot + 2],
-          position: 'Defenders',
-          startSlot: startingSlot,
-          endSlot: startingSlot + 2
-        },
-        { 
-          title: 'Midfielders', 
-          slots: [startingSlot + 3, startingSlot + 4, startingSlot + 5, startingSlot + 6],
-          position: 'Midfielders',
-          startSlot: startingSlot + 3,
-          endSlot: startingSlot + 6
-        },
-        { 
-          title: 'Attackers', 
-          slots: attackerSlots,
-          position: 'Attackers',
-          startSlot: startingSlot + 7,
-          endSlot: startingSlot + teamSize - 1
+      } else if (activeMatchData.match_date) {
+        // Use match_date as a fallback
+        activeMatchData.date = activeMatchData.match_date;
+      }
+      
+      // For backward compatibility, ensure match_id exists
+      if (activeMatchData.upcoming_match_id && !activeMatchData.match_id) {
+        activeMatchData.match_id = activeMatchData.upcoming_match_id;
+      }
+      
+      // Create slot assignments from match players
+      const teamSize = activeMatchData.team_size || 9; // Default to 9 if missing
+      const matchPlayerSlots: Slot[] = Array(teamSize * 2)
+        .fill(null)
+        .map((_, i) => ({
+          slot_number: i + 1,
+          player_id: null,
+          team: i < teamSize ? 'A' : 'B',
+          position: null
+        }));
+      
+      // Explicitly fetch the players for this match to avoid inconsistencies
+      const playersResponse = await fetch(`/api/admin/upcoming-match-players?upcoming_match_id=${activeMatchData.upcoming_match_id}&_t=${timestamp}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
-      ];
-    } else {
-      // 10/11-a-side: 4 defenders, 4 midfielders, 3 attackers
-      const attackerCount = Math.max(0, teamSize - 8);
-      const attackerSlots = Array.from({ length: attackerCount }, (_, i) => startingSlot + 8 + i);
-      positions = [
-        { 
-          title: 'Defenders', 
-          slots: [startingSlot, startingSlot + 1, startingSlot + 2, startingSlot + 3],
-          position: 'Defenders',
-          startSlot: startingSlot,
-          endSlot: startingSlot + 3
-        },
-        { 
-          title: 'Midfielders', 
-          slots: [startingSlot + 4, startingSlot + 5, startingSlot + 6, startingSlot + 7],
-          position: 'Midfielders',
-          startSlot: startingSlot + 4,
-          endSlot: startingSlot + 7
-        },
-        { 
-          title: 'Attackers', 
-          slots: attackerSlots,
-          position: 'Attackers',
-          startSlot: startingSlot + 8,
-          endSlot: startingSlot + teamSize - 1
-        }
-      ];
+      });
+      
+      if (playersResponse.ok) {
+        const playersData = await playersResponse.json();
+        
+        // Update match in state
+        setActiveMatch(activeMatchData);
+        setIsBalanced(activeMatchData.is_balanced);
+        setCurrentSlots(matchPlayerSlots);
+        setUsingPlannedMatch(true);
+        
+        console.log('Match data refresh complete');
+      } else {
+        console.error('Error fetching players:', playersResponse.statusText);
+      }
+    } catch (error) {
+      console.error('Error refreshing match data:', error);
+      setError(`Failed to refresh match data: ${error instanceof Error ? error.message : String(error)}`);
+      // Keep the UI in a usable state
+      setCurrentSlots(prevSlots => {
+        // Only clear slots if we don't have an active match
+        // This avoids a state update loop during render
+        return prevSlots.length > 0 ? prevSlots : [];
+      });
+      setUsingPlannedMatch(false);
+    } finally {
+      setIsLoading(false);
     }
-    
-    return positions;
   }, []);
-
-  // Create memoized position groups for rendering optimization 
-  // Now positioned after determinePositionGroups is defined
-  const orangePositionGroups = useMemo(() => {
-    return activeMatch ? determinePositionGroups(activeMatch.team_size, 'orange') : [];
-  }, [activeMatch, determinePositionGroups]);
-
-  const greenPositionGroups = useMemo(() => {
-    return activeMatch ? determinePositionGroups(activeMatch.team_size, 'green') : [];
-  }, [activeMatch, determinePositionGroups]);
 
   // Fetch initial data
   useEffect(() => {
@@ -720,45 +728,20 @@ const TeamAlgorithm: React.FC = () => {
         // Set players immediately to reduce perceived loading time
         setPlayers(sortedPlayers);
         
-        // Check if there's an active match first
-        const activeMatchResponse = await fetch('/api/admin/upcoming-matches?active=true');
-        let hasActiveMatch = false;
-        
-        if (activeMatchResponse.ok) {
-          const activeMatchData = await activeMatchResponse.json();
-          hasActiveMatch = activeMatchData.success && activeMatchData.data;
-          
-          if (hasActiveMatch) {
-            // If we have an active match, update the state immediately
-            // but load detailed data later
-            setActiveMatch(activeMatchData.data);
-          } else {
-            // If there's no active match, we can immediately disable loading
-            setActiveMatch(null);
-            setUsingPlannedMatch(false);
-            setIsLoading(false);
-          }
-        } else {
-          // Failed to check for active match
-          setActiveMatch(null);
-          setUsingPlannedMatch(false);
-          setIsLoading(false);
-        }
+        // Force a clean refresh of match data to ensure consistency between local and production
+        // This bypasses any potential caching or stale data issues
+        await refreshMatchDataForced();
         
         // Now load settings in the background - doesn't block UI interaction
         loadSettingsInBackground();
-        
-        // If there's an active match, now load the detailed data
-        if (hasActiveMatch) {
-          await refreshMatchData();
-        }
       } catch (error) {
         console.error('Error fetching data:', error);
         setError(`Failed to load data: ${error instanceof Error ? error.message : String(error)}`);
         setIsLoading(false);
       }
     };
-    
+
+    // Load settings function
     const loadSettingsInBackground = async () => {
       try {
         // These settings aren't critical for initial UI rendering
@@ -807,833 +790,7 @@ const TeamAlgorithm: React.FC = () => {
     };
 
     fetchData();
-  }, [refreshMatchData, determinePositionGroups]); // Add determinePositionGroups to dependencies
-
-  // Calculate warning message when slots or balance status changes
-  useEffect(() => {
-    // Move this to a useEffect to avoid state updates during render
-    setWarning(getWarningMessage(currentSlots, isBalanced, error));
-  }, [currentSlots, isBalanced, error]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (tooltipRef.current && event.target instanceof Node && !tooltipRef.current.contains(event.target)) {
-        setActiveTooltip(null);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Memoize the getAvailablePlayers function to avoid recalculations
-  const getAvailablePlayers = useCallback((currentSlot: Slot): Player[] => {
-    if (!players.length) return [];
-    
-    // Get IDs of players assigned to other slots
-    const takenPlayerIds = new Set(
-      currentSlots
-        .filter(s => s.slot_number !== currentSlot.slot_number && s.player_id !== null)
-        .map(s => s.player_id)
-    );
-
-    // Get current player in this slot
-    const currentPlayerId = currentSlots.find(s => s.slot_number === currentSlot.slot_number)?.player_id;
-
-    // Return available players (only unassigned + current player in this slot)
-    return players
-      .filter(p => !takenPlayerIds.has(p.id) || p.id === currentPlayerId)
-      .sort((a, b) => {
-        if (a.id === currentPlayerId) return -1; // Current player first
-        if (b.id === currentPlayerId) return 1;
-        return a.name.localeCompare(b.name); // Then alphabetical
-      });
-  }, [players, currentSlots]);
-
-  // Function to handle selecting a player for a slot
-  const handlePlayerSelect = async (slotIndex: number, playerId: string) => {
-    try {
-      setError(null);
-      
-      // Get the correct match ID (prioritize upcoming_match_id)
-      const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
-      
-      if (!matchId) {
-        throw new Error('No active match selected');
-      }
-      
-      if (!playerId) {
-        // Handle removing player from slot
-        const slot = currentSlots[slotIndex - 1];
-        
-        // If the slot has no player, nothing to do
-        if (!slot.player_id) return;
-        
-        // Remove player from slot
-        const response = await fetch(`/api/admin/upcoming-match-players`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            upcoming_match_id: matchId,
-            player_id: slot.player_id
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to remove player');
-        }
-        
-        // Update local state
-        const updatedSlots = [...currentSlots];
-        updatedSlots[slotIndex - 1] = {
-          ...updatedSlots[slotIndex - 1],
-          player_id: null
-        };
-        setCurrentSlots(updatedSlots);
-        
-        // Mark match as unbalanced when players change
-        setIsBalanced(false);
-        
-        // Refresh match data to ensure UI is updated correctly
-        await refreshMatchData();
-        
-        return;
-      }
-      
-      // Check if the player is already in a slot
-      const existingSlotIndex = currentSlots.findIndex(s => s.player_id === playerId);
-      
-      if (existingSlotIndex !== -1) {
-        // If player is already in this exact slot, nothing to do
-        if (existingSlotIndex === slotIndex - 1) return;
-        
-        // Move player from one slot to another
-        const updatedSlots = [...currentSlots];
-        
-        // Remove from old slot
-        updatedSlots[existingSlotIndex] = {
-          ...updatedSlots[existingSlotIndex],
-          player_id: null
-        };
-        
-        // Calculate team assignment based on slot number
-        const team = slotIndex <= (activeMatch?.team_size || 9) ? 'A' : 'B';
-        
-        // Add to new slot
-        updatedSlots[slotIndex - 1] = {
-          ...updatedSlots[slotIndex - 1],
-          player_id: playerId,
-          team: team
-        };
-        
-        // Update database
-        const response = await fetch('/api/admin/upcoming-match-players', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            upcoming_match_id: matchId,
-            player_id: playerId,
-            team: team,
-            slot_number: slotIndex
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to move player');
-        }
-        
-        // Update local state
-        setCurrentSlots(updatedSlots);
-        
-        // Mark match as unbalanced when players change
-        setIsBalanced(false);
-        
-        // Refresh match data to ensure UI is updated correctly
-        await refreshMatchData();
-        
-        return;
-      }
-      
-      // Adding a new player to a slot
-      const response = await fetch('/api/admin/upcoming-match-players', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          upcoming_match_id: matchId,
-          player_id: playerId,
-          team: slotIndex <= (activeMatch?.team_size || 9) ? 'A' : 'B',
-          slot_number: slotIndex
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add player');
-      }
-      
-      // Update local state
-      const updatedSlots = [...currentSlots];
-      updatedSlots[slotIndex - 1] = {
-        ...updatedSlots[slotIndex - 1],
-        player_id: playerId,
-        team: slotIndex <= (activeMatch?.team_size || 9) ? 'A' : 'B'
-      };
-      setCurrentSlots(updatedSlots);
-      
-      // Mark match as unbalanced when players change
-      setIsBalanced(false);
-      
-      // Refresh match data to ensure UI is updated correctly
-      await refreshMatchData();
-      
-    } catch (error) {
-      console.error('Error selecting player:', error);
-      setError(`Failed to update player assignment: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-
-  // Function to handle team balancing
-  const handleBalanceTeams = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      setBalanceProgress(0); // Reset progress first
-      
-      // Short delay to ensure UI updates and shows the loading state
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      setBalanceProgress(25);
-      
-      // Get the correct match ID (prioritize upcoming_match_id)
-      const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
-      
-      if (!matchId) {
-        throw new Error('No active match selected');
-      }
-      
-      // Count players assigned to avoid needless API calls
-      const assignedPlayerCount = currentSlots.filter(slot => slot.player_id !== null).length;
-      
-      if (assignedPlayerCount < 2) {
-        throw new Error('Please assign at least 2 players before balancing');
-      }
-      
-      setBalanceProgress(50);
-      
-      // Use the TeamBalanceService to balance teams
-      await TeamBalanceService.balanceTeams(matchId);
-      
-      setBalanceProgress(75);
-      
-      // Mark as balanced
-      setIsBalanced(true);
-      
-      // Refresh data to get updated team assignments
-      await refreshMatchData();
-      
-    } catch (error) {
-      console.error('Error balancing teams:', error);
-      setError(`Failed to balance teams: ${error instanceof Error ? error.message : String(error)}`);
-      setBalanceProgress(0); // Reset progress on error
-    } finally {
-      setBalanceProgress(100);
-      // Delay clearing the progress bar to give a sense of completion
-      setTimeout(() => {
-        setBalanceProgress(0);
-        setIsLoading(false);
-      }, 500);
-    }
-  };
-  
-  const formatTeamsForCopy = () => {
-    const formatTeam = (teamSlots: Slot[]) => {
-      return teamSlots
-        .filter(slot => slot.player_id)
-        .map(slot => {
-          const player = players.find(p => p.id === slot.player_id);
-          return player ? player.name : '';
-        })
-        .filter(name => name) // Remove empty names
-        .sort()
-        .join('\n');
-    };
-
-    const teamASlots = currentSlots.filter(s => s.slot_number <= 9);
-    const teamBSlots = currentSlots.filter(s => s.slot_number > 9);
-
-    return `Orange\n${formatTeam(teamASlots)}\n\nGreen\n${formatTeam(teamBSlots)}`;
-  };
-
-  const handleCopyTeams = async () => {
-    try {
-      const teams = formatTeamsForCopy();
-      
-      // Try using the modern clipboard API first
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(teams);
-      } else {
-        // Fallback for older browsers and non-HTTPS contexts
-        const textArea = document.createElement('textarea');
-        textArea.value = teams;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        
-        try {
-          document.execCommand('copy');
-          textArea.remove();
-        } catch (err) {
-          console.error('Fallback: Oops, unable to copy', err);
-          textArea.remove();
-          throw new Error('Failed to copy text');
-        }
-      }
-      
-      setShowCopyToast(true);
-      setTimeout(() => setShowCopyToast(false), 2000); // Hide after 2 seconds
-    } catch (error) {
-      console.error('Failed to copy teams:', error);
-      setError('Failed to copy teams to clipboard. Please try selecting and copying manually.');
-      
-      // Add the modal to the document
-      const teams = formatTeamsForCopy();
-      document.body.appendChild(createCopyModal(teams));
-    }
-  };
-
-  const getPlayerStats = (player: Player | undefined, role: string): string => {
-    if (!player) return '';
-    
-    switch (role) {
-      case 'defender':
-        return `G:${player.goalscoring} | S&P:${player.stamina_pace} | C:${player.control}`;
-      case 'midfielder':
-        return `C:${player.control} | S&P:${player.stamina_pace} | G:${player.goalscoring}`;
-      case 'attacker':
-        return `G:${player.goalscoring} | S&P:${player.stamina_pace} | C:${player.control}`;
-      default:
-        return '';
-    }
-  };
-
-  const getPositionFromSlot = (slotNumber: number): string => {
-    if (slotNumber <= 3 || (slotNumber >= 10 && slotNumber <= 12)) return 'defender';
-    if (slotNumber <= 7 || (slotNumber >= 13 && slotNumber <= 16)) return 'midfielder';
-    return 'attacker';
-  };
-
-  const StatBar: React.FC<StatBarProps> = ({ label, value, maxValue = 5, color = 'green' }) => {
-    const percentage = (value / maxValue) * 100;
-    const colorClasses: Record<string, string> = {
-      green: 'bg-green-500',
-      orange: 'bg-orange-500'
-    };
-    
-    return (
-      <div className="flex items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
-        <span className="text-xs sm:text-sm text-neutral-700 w-16 sm:w-20">{label}</span>
-        <div className="flex-1 bg-neutral-200 h-4 sm:h-6 rounded-md overflow-hidden">
-          <div 
-            className={`h-full ${colorClasses[color]} transition-all duration-300`}
-            style={{ width: `${percentage}%` }}
-          ></div>
-        </div>
-        <span className="text-xs sm:text-sm text-neutral-700 w-10 sm:w-12 text-right">{value.toFixed(1)}</span>
-      </div>
-    );
-  };
-
-  const calculateSectionStats = (players: Player[], position: string) => {
-    if (!players.length) return null;
-    
-    const avg = (field: keyof Player) => 
-      players.reduce((sum, p) => sum + (Number(p[field]) || 0), 0) / players.length;
-
-    // Convert plural position names to singular
-    const role = position.endsWith('s') ? position.slice(0, -1) : position;
-
-    const stats: Record<string, Record<string, number>> = {
-      defender: {
-        goalscoring: avg('goalscoring'),
-        physical: avg('stamina_pace'),
-        control: avg('control')
-      },
-      midfielder: {
-        control: avg('control'),
-        stamina_pace: avg('stamina_pace'),
-        goalscoring: avg('goalscoring')
-      },
-      attacker: {
-        goalscoring: avg('goalscoring'),
-        stamina_pace: avg('stamina_pace'),
-        control: avg('control')
-      }
-    };
-
-    const roleStats = stats[role] || {};
-
-    return Object.entries(roleStats).map(([key, value]) => ({
-      label: key.charAt(0).toUpperCase() + key.slice(1),
-      value: value || 0
-    }));
-  };
-
-  const renderTeamSection = (
-    teamType: 'a' | 'b',
-    slots: Slot[], 
-    getAvailablePlayersFn: (slot: Slot) => Player[]
-  ) => {
-    const teamClass = teamType === 'a' ? 'text-orange-600' : 'text-emerald-600';
-    const teamName = teamType === 'a' ? 'Orange' : 'Green';
-    const playerIdPrefix = teamType === 'a' ? 'teamA-player-' : 'teamB-player-';
-    
-    // Get team size if we have an active match
-    const teamSize = activeMatch?.team_size || 5;
-    
-    const positionGroups = teamType === 'a' ? orangePositionGroups : greenPositionGroups;
-    
-    return (
-      <div className="mb-4">
-        <h3 className={`text-xl font-bold ${teamClass}`}>{teamName}</h3>
-        
-        {/* Build position groups for this team */}
-        {positionGroups.map((group) => {
-          // Filter slots for current group
-          const positionSlots = slots.filter(
-            slot => slot.slot_number >= group.startSlot && slot.slot_number <= group.endSlot
-          );
-          
-          const assignedSlots = positionSlots.filter(slot => slot.player_id !== null);
-          const assignedPlayers = assignedSlots.map(slot => 
-            players.find(p => p.id === slot.player_id)
-          ).filter(Boolean) as Player[];
-          
-          const stats = calculateSectionStats(assignedPlayers, group.position);
-          
-          return (
-            <div key={`${teamType}-${group.position}`} className="my-2 p-2 bg-white rounded-md shadow">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-semibold text-md">{group.position}</h4>
-                {assignedSlots.length > 0 && (
-                  <div className="text-sm text-neutral-500">
-                    {assignedSlots.length}/{positionSlots.length}
-                  </div>
-                )}
-              </div>
-              
-              {/* Position section stats */}
-              {stats && stats.length > 0 && (
-                <div className="my-2 px-2 py-1 bg-gray-50 rounded">
-                  {stats.map((stat, i) => (
-                    <StatBar 
-                      key={`${teamType}-${group.position}-stat-${i}`}
-                      label={stat.label}
-                      value={stat.value}
-                      color={teamType === 'a' ? 'orange' : 'green'}
-                    />
-                  ))}
-                </div>
-              )}
-              
-              {/* Player slots for this position */}
-              <div className="grid grid-cols-1 gap-2">
-                {positionSlots.map(slot => {
-                  const player = players.find(p => p.id === slot.player_id);
-                  const position = getPositionFromSlot(slot.slot_number);
-                  const playerStats = getPlayerStats(player, position);
-                  const availablePlayers = getAvailablePlayersFn(slot);
-                  
-                  return (
-                    <DraggablePlayerSlot
-                      key={`${playerIdPrefix}${slot.slot_number}`}
-                      slotNumber={slot.slot_number}
-                      player={player}
-                      players={availablePlayers}
-                      onSelect={handlePlayerSelect}
-                      onDragStart={handleDragStart}
-                      onDragOver={handleDragOver}
-                      onDrop={handleDrop}
-                      onTap={handleSlotTap}
-                      disabled={isLoading}
-                      stats={playerStats}
-                      position={position}
-                      highlighted={highlightedSlot === slot.slot_number || selectedSlot === slot.slot_number}
-                      teamColor={teamType === 'a' ? 'orange' : 'green'}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const calculateTeamStats = (teamSlots: Slot[]) => {
-    return TeamBalanceService.calculateTeamStats(teamSlots, players);
-  };
-
-  const renderTeamStats = (teamType: 'a' | 'b') => {
-    const teamSlots = teamType === 'a' 
-      ? currentSlots.filter(s => s.slot_number <= 9)
-      : currentSlots.filter(s => s.slot_number > 9);
-    
-    const stats = calculateTeamStats(teamSlots);
-    if (!stats) return null;
-    
-    const teamColor = teamType === 'a' ? 'orange' : 'green';
-    const teamName = teamType === 'a' ? 'Team Orange' : 'Team Green';
-    
-    return (
-      <div className="bg-white rounded-md shadow p-3 mb-4">
-        <h3 className={`text-lg font-bold ${teamType === 'a' ? 'text-orange-600' : 'text-emerald-600'}`}>
-          {teamName} ({stats.playerCount} players)
-        </h3>
-        <div className="mt-2">
-          <StatBar label="Goalscoring" value={stats.goalscoring} color={teamColor} />
-          <StatBar label="Defending" value={stats.defending} color={teamColor} />
-          <StatBar label="Stamina/Pace" value={stats.stamina_pace} color={teamColor} />
-          <StatBar label="Control" value={stats.control} color={teamColor} />
-          <StatBar label="Teamwork" value={stats.teamwork} color={teamColor} />
-          <StatBar label="Resilience" value={stats.resilience} color={teamColor} />
-        </div>
-      </div>
-    );
-  };
-
-  const calculateComparativeStats = () => {
-    const teamASlots = currentSlots.filter(s => s.slot_number <= 9);
-    const teamBSlots = currentSlots.filter(s => s.slot_number > 9);
-    
-    return TeamBalanceService.calculateComparativeStats(teamASlots, teamBSlots, players);
-  };
-  
-  const renderComparativeStats = () => {
-    const stats = calculateComparativeStats();
-    if (!stats) return null;
-    
-    const { diffs, balanceScore, balanceQuality } = stats as Stats;
-    
-    const qualityColorClass = 
-      balanceQuality === 'Excellent' ? 'text-emerald-600' :
-      balanceQuality === 'Good' ? 'text-blue-600' :
-      balanceQuality === 'Fair' ? 'text-amber-600' : 'text-red-600';
-    
-    // Get color for the balance bar
-    const getBalanceColor = (score: number) => {
-      if (score <= 0.3) return "bg-emerald-500";
-      if (score <= 0.6) return "bg-blue-500";
-      if (score <= 0.9) return "bg-amber-500";
-      return "bg-red-500";
-    };
-    
-    return (
-      <div className="bg-white rounded-md shadow p-3 mt-4">
-        <h3 className="text-lg font-bold text-neutral-800">Team Balance Analysis</h3>
-        
-        <div className="mb-2 mt-3">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-neutral-700">Balance Quality:</span>
-            <span className={`font-semibold ${qualityColorClass}`}>
-              {balanceQuality}
-            </span>
-          </div>
-          
-          {/* Balance quality visual indicator */}
-          <div className="relative h-2.5 w-full bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className={`absolute top-0 left-0 h-full ${getBalanceColor(balanceScore)}`}
-              style={{ 
-                width: `${Math.max(0, 100 - (balanceScore * 100))}%`,
-                transition: 'width 0.5s ease-out'
-              }}
-            />
-          </div>
-        </div>
-        
-        <div className="mt-3">
-          <div className="text-sm text-neutral-600 mb-1">Attribute Differences:</div>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(diffs).map(([key, value]) => {
-              const label = key.charAt(0).toUpperCase() + key.replace('_', '/').slice(1);
-              const diffClass = 
-                value <= 0.3 ? 'text-emerald-600' :
-                value <= 0.6 ? 'text-blue-600' :
-                value <= 0.9 ? 'text-amber-600' : 'text-red-600';
-              
-              return (
-                <div key={key} className="flex justify-between">
-                  <span className="text-sm">{label}:</span>
-                  <span className={`text-sm font-medium ${diffClass}`}>{value.toFixed(2)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const handleClearSlots = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      setShowClearConfirm(false);
-      
-      if (!activeMatch) {
-        // Just clear the local state if no active match
-        setCurrentSlots(currentSlots.map(slot => ({ ...slot, player_id: null })));
-        setIsBalanced(false);
-        return;
-      }
-      
-      const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
-      
-      // Call API to clear slots - use the new API endpoint
-      const response = await fetch(`/api/admin/upcoming-match-players/clear?matchId=${matchId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to clear slots');
-      }
-      
-      // Update local state with empty slots
-      setCurrentSlots(currentSlots.map(slot => ({ ...slot, player_id: null })));
-      setIsBalanced(false);
-      
-      // Refresh match data to get updated state
-      refreshMatchData();
-      
-    } catch (error) {
-      console.error('Error clearing slots:', error);
-      setError(`Failed to clear slots: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleClearMatch = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      setShowClearMatchConfirm(false);
-      
-      // Call API to clear active match
-      const response = await fetch('/api/admin/clear-active-match', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to clear active match');
-      }
-      
-      // Reset all local state
-      setCurrentSlots(INITIAL_SLOTS.map(s => ({ ...s, player_id: null })));
-      setIsBalanced(false);
-      setActiveMatch(null);
-      setUsingPlannedMatch(false);
-      
-    } catch (error) {
-      console.error('Error clearing active match:', error);
-      setError(`Failed to clear active match: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const validateMatchData = (matchData: NewMatchData): string | null => {
-    if (!matchData.date) {
-      return 'Match date is required';
-    }
-    
-    const matchDateObj = new Date(matchData.date);
-    if (isNaN(matchDateObj.getTime())) {
-      return 'Invalid match date';
-    }
-    
-    if (!matchData.team_size || matchData.team_size < 5 || matchData.team_size > 11) {
-      return 'Team size must be between 5 and 11';
-    }
-    
-    return null;
-  };
-
-  const handleCreateMatch = async () => {
-    try {
-      // Validate input data
-      const validationError = validateMatchData(newMatchData);
-      if (validationError) {
-        setCreateMatchError(validationError);
-        return;
-      }
-      
-      setIsLoading(true);
-      setCreateMatchError(null);
-      setError(null);
-      
-      // Check if there's already an active match
-      if (activeMatch) {
-        const proceed = window.confirm(
-          'There is already an active match. Creating a new one will replace it. Do you want to continue?'
-        );
-        
-        if (!proceed) {
-          setShowCreateMatchModal(false);
-          return;
-        }
-      }
-      
-      // Format the date for API request
-      const formattedDate = newMatchData.date;
-      
-      // Call API to create match
-      const response = await fetch('/api/admin/create-planned-match', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          date: formattedDate,
-          team_size: newMatchData.team_size
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create match');
-      }
-      
-      // Close modal and refresh data
-      setShowCreateMatchModal(false);
-      refreshMatchData();
-      
-      // Reset form
-      setNewMatchData({
-        match_date: defaultMatchDate,
-        team_size: 5,
-        date: defaultMatchDate
-      });
-      
-    } catch (error) {
-      console.error('Error creating match:', error);
-      setCreateMatchError(`Failed to create match: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleEditMatch = async () => {
-    // If no activeMatch, show error
-    if (!activeMatch) {
-      setCreateMatchError('No active match to edit');
-      return;
-    }
-    
-    // If the modal is not open yet, open it with current match data
-    if (!showEditMatchModal) {
-      // Format the date properly for the date input (YYYY-MM-DD)
-      let formattedDate = '';
-      
-      if (activeMatch.date) {
-        // Try to create a valid date object
-        const dateObj = new Date(activeMatch.date);
-        if (!isNaN(dateObj.getTime())) {
-          // Format to YYYY-MM-DD for the date input
-          formattedDate = dateObj.toISOString().split('T')[0];
-        }
-      } else if (activeMatch.match_date) {
-        // Try with match_date as fallback
-        const dateObj = new Date(activeMatch.match_date);
-        if (!isNaN(dateObj.getTime())) {
-          formattedDate = dateObj.toISOString().split('T')[0];
-        }
-      }
-      
-      // If we couldn't get a valid date, use today's date
-      if (!formattedDate) {
-        formattedDate = new Date().toISOString().split('T')[0];
-        console.warn('Could not parse match date, using current date as fallback');
-      }
-      
-      setNewMatchData({
-        match_date: formattedDate,
-        team_size: activeMatch.team_size,
-        date: formattedDate
-      });
-      
-      setShowEditMatchModal(true);
-      return;
-    }
-    
-    try {
-      // Validate input data
-      const validationError = validateMatchData(newMatchData);
-      if (validationError) {
-        setCreateMatchError(validationError);
-        return;
-      }
-      
-      setIsLoading(true);
-      setCreateMatchError(null);
-      setError(null);
-      
-      const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
-      
-      // Call API to update match
-      const response = await fetch(`/api/admin/update-planned-match?match_id=${matchId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          date: newMatchData.date,
-          team_size: newMatchData.team_size
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update match');
-      }
-      
-      // Close modal and refresh data
-      setShowEditMatchModal(false);
-      refreshMatchData();
-      
-    } catch (error) {
-      console.error('Error updating match:', error);
-      setCreateMatchError(`Failed to update match: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, []); // Removing refreshMatchData from dependencies to avoid circular references
 
   const handleAddRinger = async () => {
     try {

@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Define interfaces for request body types
-interface DeleteRequestBody {
-  player_id?: string | number;
-  match_id?: string | number;
-  upcoming_match_id?: string | number;
-}
-
 // GET: Fetch players for an upcoming match
 export async function GET(request: NextRequest) {
   try {
@@ -356,21 +349,22 @@ export async function PUT(request: NextRequest) {
 // DELETE: Remove a player from an upcoming match
 export async function DELETE(request: NextRequest) {
   try {
-    // First try to parse the body for JSON data
-    let bodyData: DeleteRequestBody | null = null;
+    // First try to parse the request body, as this is how the frontend is sending data
+    let bodyData: any = null;
+    
     try {
-      bodyData = await request.json() as DeleteRequestBody;
+      bodyData = await request.json();
     } catch (parseError) {
-      // If parsing fails, that's okay, we'll use query parameters instead
+      // If parsing fails, it's not a JSON body - we'll use query params instead
       console.log('No JSON body in DELETE request, using query params');
     }
     
-    // If we have a valid body with required fields, use the handleDeleteWithBody helper
+    // If we got a valid JSON body with required fields, use it
     if (bodyData && (bodyData.player_id || bodyData.upcoming_match_id || bodyData.match_id)) {
       return await handleDeleteWithBody(bodyData);
     }
     
-    // Otherwise, fall back to query params
+    // Otherwise, fall back to query parameters
     const searchParams = request.nextUrl.searchParams;
     const playerId = searchParams.get('playerId');
     const matchId = searchParams.get('matchId');
@@ -378,10 +372,10 @@ export async function DELETE(request: NextRequest) {
     const slotNumber = searchParams.get('slotNumber');
     const active = searchParams.get('active') === 'true';
     
-    if (!playerId && !slotNumber) {
+    if (!playerId && !slotNumber && !upcomingMatchId && !matchId && !active) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Either Player ID or Slot Number is required' 
+        error: 'Either Player ID, Slot Number, or Match ID is required' 
       }, { status: 400 });
     }
     
@@ -465,13 +459,13 @@ export async function DELETE(request: NextRequest) {
 }
 
 // Helper function to handle DELETE with request body
-async function handleDeleteWithBody(body: DeleteRequestBody) {
-  const { player_id: rawPlayerId, match_id: rawMatchId, upcoming_match_id: rawUpcomingId } = body;
+async function handleDeleteWithBody(body: any) {
+  let { player_id, match_id, upcoming_match_id } = body;
   
   // Convert numeric parameters to integers
-  const player_id = rawPlayerId ? parseInt(String(rawPlayerId), 10) : null;
-  const match_id = rawMatchId ? parseInt(String(rawMatchId), 10) : null;
-  const upcoming_match_id = rawUpcomingId ? parseInt(String(rawUpcomingId), 10) : null;
+  player_id = player_id ? parseInt(player_id, 10) : null;
+  match_id = match_id ? parseInt(match_id, 10) : null;
+  upcoming_match_id = upcoming_match_id ? parseInt(upcoming_match_id, 10) : null;
   
   // Determine which match to use
   let targetMatchId = upcoming_match_id || match_id;
