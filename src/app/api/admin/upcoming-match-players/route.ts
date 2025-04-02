@@ -350,10 +350,10 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const playerId = searchParams.get('playerId');
+    const playerId = searchParams.get('player_id');
     const matchId = searchParams.get('matchId');
     const upcomingMatchId = searchParams.get('upcoming_match_id');
-    const slotNumber = searchParams.get('slotNumber');
+    const slotNumber = searchParams.get('slot_number');
     const active = searchParams.get('active') === 'true';
     
     // If no params provided, check request body (for bulk deletion)
