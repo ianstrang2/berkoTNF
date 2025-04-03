@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Card from '@/components/ui-kit/Card.component';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 import { Tabs, Tab } from '@/components/ui-kit/Tabs.component';
@@ -59,13 +59,28 @@ const CurrentHalfSeason: React.FC = () => {
     goalStats: [],
     formData: []
   });
-
   const [activeTab, setActiveTab] = useState<string>("performance");
+  // Track component mount state
+  const isMounted = useRef(true);
+  // Client-side only rendering for hydration safety
+  const [isClient, setIsClient] = useState(false);
+
+  // Set up isMounted ref cleanup
+  useEffect(() => {
+    isMounted.current = true;
+    setIsClient(true);
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const getCurrentHalf = (): HalfSeasonPeriod => {
-    const now = new Date(new Date().setFullYear(new Date().getFullYear()));
-    const year = now.getFullYear();
-    const isFirstHalf = now.getMonth() < 6;
+    // Server-safe implementation that doesn't depend on the browser's time
+    // This helps avoid hydration mismatches
+    const serverDate = new Date();
+    const year = serverDate.getFullYear();
+    const month = serverDate.getMonth();
+    const isFirstHalf = month < 6;
 
     return {
       year,
@@ -77,8 +92,12 @@ const CurrentHalfSeason: React.FC = () => {
   };
 
   useEffect(() => {
+    let isCancelled = false;
+    
     const fetchData = async () => {
       try {
+        if (!isMounted.current) return;
+        
         const currentPeriod = getCurrentHalf();
         console.log('Current period:', currentPeriod);
 
@@ -86,30 +105,46 @@ const CurrentHalfSeason: React.FC = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
+        
+        // Exit if component unmounted during fetch
+        if (!isMounted.current || isCancelled) return;
 
         console.log('API Response:', response.status);
         const result = await response.json();
         console.log('API Data:', result);
 
         if (result.data && result.data.seasonStats && result.data.seasonStats.length > 0) {
-          setStats(result.data);
+          if (isMounted.current && !isCancelled) {
+            setStats(result.data);
+          }
         } else {
           console.log('No data received from API');
-          setStats({
-            seasonStats: [],
-            goalStats: [],
-            formData: []
-          });
+          if (isMounted.current && !isCancelled) {
+            setStats({
+              seasonStats: [],
+              goalStats: [],
+              formData: []
+            });
+          }
         }
 
-        setLoading(false);
+        if (isMounted.current && !isCancelled) {
+          setLoading(false);
+        }
       } catch (error) {
         console.error('Error fetching stats:', error);
-        setLoading(false);
+        if (isMounted.current && !isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+    
+    // Cleanup to prevent state updates after unmount
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   const renderMainStats = () => (
@@ -237,7 +272,11 @@ const CurrentHalfSeason: React.FC = () => {
   return (
     <div className="space-y-section">
       <h2 className="text-2xl font-bold text-center text-neutral-900 tracking-tight">
-        Current Half-Season Performance - {getCurrentHalf().description}
+        {isClient ? (
+          `Current Half-Season Performance - ${getCurrentHalf().description}`
+        ) : (
+          'Current Half-Season Performance'
+        )}
       </h2>
 
       {stats.seasonStats.length === 0 ? (

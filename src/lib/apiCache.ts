@@ -79,8 +79,13 @@ class ApiCache {
   }
 
   // Get cached data
-  async get(cacheKey: CacheKey, specificParam?: string): Promise<any | null> {
+  async get(cacheKey: CacheKey, specificParam?: string, ignoreValidation: boolean = false): Promise<any | null> {
     const fullKey = specificParam ? `${cacheKey}:${specificParam}` : cacheKey;
+    
+    // If ignoreValidation is true, return cache data regardless of validity
+    if (ignoreValidation) {
+      return this.cache.get(fullKey)?.data || null;
+    }
     
     // Check if cache is valid
     const isValid = await this.isValid(cacheKey, specificParam);

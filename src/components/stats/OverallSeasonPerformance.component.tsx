@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Card from '@/components/ui-kit/Card.component';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 import { Tabs, Tab } from '@/components/ui-kit/Tabs.component';
@@ -44,10 +44,28 @@ const OverallSeasonPerformance: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(2025);
   const [activeTab, setActiveTab] = useState<string>("performance");
   const yearOptions: number[] = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011];
+  const isMounted = useRef(true); // Track component mount state
 
   useEffect(() => {
+    // Set isMounted ref to true when component mounts
+    isMounted.current = true;
+    
+    // Clean up function that runs when component unmounts
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false; // For preventing race conditions
+    
     const fetchData = async () => {
       try {
+        // Early return if component is unmounting
+        if (!isMounted.current) return;
+        
+        setLoading(true);
+        
         const response = await fetch('/api/stats', {
           method: 'POST',
           headers: {
@@ -59,27 +77,44 @@ const OverallSeasonPerformance: React.FC = () => {
           })
         });
         
+        // Early return if component is unmounting or request was cancelled
+        if (!isMounted.current || isCancelled) return;
+        
         const result = await response.json();
         
         if (result.data && result.data.seasonStats && result.data.seasonStats.length > 0) {
-          setStats(result.data);
+          // Only update state if component is still mounted
+          if (isMounted.current && !isCancelled) {
+            setStats(result.data);
+          }
         } else {
           console.log('No data received from API');
-          setStats({
-            seasonStats: [],
-            goalStats: [],
-            formData: []
-          });
+          if (isMounted.current && !isCancelled) {
+            setStats({
+              seasonStats: [],
+              goalStats: [],
+              formData: []
+            });
+          }
         }
         
-        setLoading(false);
+        if (isMounted.current && !isCancelled) {
+          setLoading(false);
+        }
       } catch (error) {
         console.error('Error fetching stats:', error);
-        setLoading(false);
+        if (isMounted.current && !isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedYear]);
 
   const renderMainStats = () => {
@@ -156,6 +191,12 @@ const OverallSeasonPerformance: React.FC = () => {
     </Card>
   );
 
+  // Client-side only rendering for select dropdown to avoid hydration mismatch
+  const [isBrowser, setIsBrowser] = useState(false);
+  useEffect(() => {
+    setIsBrowser(true);
+  }, []);
+
   if (loading) {
     return (
       <Card className="text-center">
@@ -171,15 +212,21 @@ const OverallSeasonPerformance: React.FC = () => {
     <div className="space-y-section">
       <div className="flex flex-col items-center gap-element mb-6">
         <div className="inline-block relative w-40">
-          <select 
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="block appearance-none w-full bg-white border border-neutral-300 hover:border-neutral-400 px-4 py-2 pr-8 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-center"
-          >
-            {yearOptions.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
+          {isBrowser ? (
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="block appearance-none w-full bg-white border border-neutral-300 hover:border-neutral-400 px-4 py-2 pr-8 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-center"
+            >
+              {yearOptions.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="block w-full bg-white border border-neutral-300 px-4 py-2 pr-8 rounded-md shadow-sm text-center">
+              {selectedYear}
+            </div>
+          )}
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-neutral-700">
             <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
               <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>

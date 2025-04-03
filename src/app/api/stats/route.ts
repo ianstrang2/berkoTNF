@@ -32,15 +32,18 @@ export async function POST(request: NextRequest) {
     // Check cache first
     const cachedData = await apiCache.get('season_stats', `${startDate}_${endDate}`);
     if (cachedData) {
-      console.log('Returning cached data:', cachedData);
+      console.log('Returning cached data');
       return NextResponse.json({ data: cachedData });
     }
 
     console.log('Cache miss, fetching fresh data');
     console.log('Fetching pre-aggregated season stats');
     
+    // Add timeout for database operations
+    const dbTimeout = 5000; // 5 seconds timeout
+    
     // Get the latest end date for the current period
-    const latestStats = await prisma.aggregated_season_stats.findFirst({
+    const latestStatsPromise = prisma.aggregated_season_stats.findFirst({
       where: {
         season_start_date: new Date(startDate)
       },
@@ -51,6 +54,14 @@ export async function POST(request: NextRequest) {
         season_end_date: true
       }
     });
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timed out')), dbTimeout);
+    });
+    
+    // Race the database query against the timeout
+    const latestStats = await Promise.race([latestStatsPromise, timeoutPromise]) as any;
 
     if (!latestStats) {
       console.log('No stats found for period');
@@ -64,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get pre-aggregated season stats using the latest end date
-    const preAggregatedData = await prisma.aggregated_season_stats.findMany({
+    const preAggregatedDataPromise = prisma.aggregated_season_stats.findMany({
       where: {
         season_start_date: new Date(startDate),
         season_end_date: latestStats.season_end_date
@@ -77,11 +88,17 @@ export async function POST(request: NextRequest) {
         }
       }
     });
+    
+    // Race this query against a new timeout
+    const preAggregatedData = await Promise.race([preAggregatedDataPromise, new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Season stats query timed out')), dbTimeout);
+    })]) as any;
+    
     console.log('Pre-aggregated data count:', preAggregatedData.length);
 
-    // Get recent performance data from pre-aggregated table
+    // Get recent performance data from pre-aggregated table with timeout
     console.log('Fetching pre-aggregated recent performance');
-    const recentPerformance = await prisma.aggregated_recent_performance.findMany({
+    const recentPerformancePromise = prisma.aggregated_recent_performance.findMany({
       include: {
         player: {
           select: {
@@ -90,6 +107,11 @@ export async function POST(request: NextRequest) {
         }
       }
     });
+    
+    const recentPerformance = await Promise.race([recentPerformancePromise, new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Recent performance query timed out')), dbTimeout);
+    })]) as any;
+    
     console.log('Recent performance data count:', recentPerformance.length);
 
     // Format season stats
@@ -150,6 +172,24 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in stats API:', error);
+    
+    // Try to get stale cache data in case of error
+    try {
+      const { startDate, endDate } = await request.json();
+      const cachedData = await apiCache.get('season_stats', `${startDate}_${endDate}`, true); // true = ignore validation
+      
+      if (cachedData) {
+        console.log('Returning stale cached data due to error');
+        return NextResponse.json({ 
+          data: cachedData,
+          stale: true,
+          error: 'Using cached data due to server error'
+        });
+      }
+    } catch (cacheError) {
+      console.error('Cache fallback also failed:', cacheError);
+    }
+    
     return NextResponse.json(
       { 
         success: false, 

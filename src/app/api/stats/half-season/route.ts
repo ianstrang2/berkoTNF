@@ -51,12 +51,20 @@ export async function POST(request: NextRequest) {
 
     console.log('Cache miss, fetching fresh half-season data');
     
-    // Use a raw query to get half-season stats
-    const preAggregatedData = await prisma.$queryRaw<HalfSeasonStats[]>`
+    // Use a raw query to get half-season stats with a timeout
+    const queryPromise = prisma.$queryRaw<HalfSeasonStats[]>`
       SELECT hs.*, p.name as player_name 
       FROM aggregated_half_season_stats hs
       JOIN players p ON hs.player_id = p.player_id
     `;
+    
+    // Create a timeout for the query
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      setTimeout(() => reject(new Error('Query timed out after 5 seconds')), 5000);
+    });
+    
+    // Wait for either the query to complete or timeout
+    const preAggregatedData = await Promise.race([queryPromise, timeoutPromise]) as HalfSeasonStats[];
     console.log('Half-season pre-aggregated data count:', preAggregatedData.length);
 
     // Get recent performance data from pre-aggregated table
@@ -128,6 +136,22 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in half-season stats API:', error);
+    
+    // Try to return cached data even if it's stale in case of an error
+    try {
+      const cachedData = await apiCache.get('season_stats', 'current_half', true); // true = ignore validation
+      if (cachedData) {
+        console.log('Returning stale cached data due to error');
+        return NextResponse.json({ 
+          data: cachedData,
+          stale: true,
+          error: 'Using cached data due to server error'
+        });
+      }
+    } catch (cacheError) {
+      console.error('Cache fallback also failed:', cacheError);
+    }
+    
     return NextResponse.json(
       { 
         success: false, 
