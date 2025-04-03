@@ -144,6 +144,30 @@ const MatchReport: React.FC = () => {
     return num + "th";
   };
 
+  // Add this helper function after getOrdinalSuffix
+  const formatDateSafely = (dateString: string | undefined | null): string => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      
+      // Use toLocaleDateString with explicit locale for consistency
+      return date.toLocaleDateString('en-GB', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '';
+    }
+  };
+
   const fetchReport = async () => {
     try {
       setLoading(true);
@@ -178,8 +202,8 @@ const MatchReport: React.FC = () => {
           <div className="text-2xl sm:text-3xl font-bold text-center mb-2 tracking-tight">
             Team A ({matchInfo.team_a_score}) - ({matchInfo.team_b_score}) Team B
           </div>
-          <div className="text-center text-lg text-neutral-600 mb-section">
-            {new Date(matchInfo.match_date).toLocaleDateString()}
+          <div className="text-center text-lg text-neutral-600 mb-section" suppressHydrationWarning>
+            {formatDateSafely(matchInfo.match_date)}
           </div>
         </div>
         
@@ -216,7 +240,7 @@ const MatchReport: React.FC = () => {
     if (!report) return null;
     
     // Get match date string
-    const matchDate = report.matchInfo.match_date ? new Date(report.matchInfo.match_date).toLocaleDateString() : '';
+    const matchDate = report.matchInfo.match_date ? formatDateSafely(report.matchInfo.match_date) : '';
     
     // Create a unified timeline of all stats/achievements
     const timelineItems: TimelineItem[] = [];
@@ -436,7 +460,7 @@ const MatchReport: React.FC = () => {
     
     // Basic match info
     sections.push(
-      `Match Result - ${new Date(matchInfo.match_date).toLocaleDateString()}\n` +
+      `Match Result - ${formatDateSafely(matchInfo.match_date)}\n` +
       `Team A ${matchInfo.team_a_score} - ${matchInfo.team_b_score} Team B\n\n` +
       `Team A: ${matchInfo.team_a_players.join(', ')}\n` +
       (matchInfo.team_a_scorers ? `Scorers: ${matchInfo.team_a_scorers}\n` : '') +

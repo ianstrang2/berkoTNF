@@ -4,7 +4,7 @@ import { MainLayout } from '@/components/layout';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the Matchday component
-const Matchday = dynamic(() => import('@/components/matchday/Matchday'), {
+const Matchday = dynamic(() => import('@/components/matchday/Matchday.component'), {
   loading: () => (
     <div className="flex justify-center items-center p-12">
       <div className="w-12 h-12 border-4 border-neutral-300 border-t-primary-500 rounded-full animate-spin"></div>

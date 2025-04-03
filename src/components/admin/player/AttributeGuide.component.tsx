@@ -1,22 +1,104 @@
-import React from 'react';
-import { Card } from '@/components/ui-kit';
+import React, { useState } from 'react';
 
-interface AttributeTooltipProps {
-  children: React.ReactNode;
-  attribute: string;
+type AttributeKey = 'goalscoring' | 'defender' | 'stamina_pace' | 'control' | 'teamwork' | 'resilience';
+
+interface AttributeScale {
+  value: number;
+  label: string;
   description: string;
 }
 
-export const AttributeTooltip: React.FC<AttributeTooltipProps> = ({ children, attribute, description }) => {
+interface AttributeGuide {
+  title: string;
+  scales: AttributeScale[];
+}
+
+interface AttributeGuides {
+  [key: string]: AttributeGuide;
+}
+
+const attributeGuides: AttributeGuides = {
+  goalscoring: {
+    title: 'Goalscoring',
+    scales: [
+      { value: 1, label: 'Rarely scores', description: 'misses chances, barely threatens' },
+      { value: 2, label: 'Occasional scorer', description: 'nabs one now and then' },
+      { value: 3, label: 'Average scorer', description: 'consistent but not standout' },
+      { value: 4, label: 'Frequent scorer', description: 'often on the scoresheet' },
+      { value: 5, label: 'Prolific', description: 'goal machine, always dangerous' },
+    ],
+  },
+  defender: {
+    title: 'Defender',
+    scales: [
+      { value: 1, label: 'Hates defending', description: 'avoids it, stays forward' },
+      { value: 2, label: 'Reluctant defender', description: 'grumbles but does it' },
+      { value: 3, label: 'Neutral', description: 'will defend if asked, no preference' },
+      { value: 4, label: 'Willing defender', description: 'happy to drop back' },
+      { value: 5, label: 'Prefers defending', description: 'loves the backline, thrives there' },
+    ],
+  },
+  stamina_pace: {
+    title: 'Stamina & Pace',
+    scales: [
+      { value: 1, label: 'Slow and fades', description: 'lacks speed, tires quickly' },
+      { value: 2, label: 'Steady but sluggish', description: 'moderate endurance, little burst' },
+      { value: 3, label: 'Balanced mover', description: 'decent stamina, average pace' },
+      { value: 4, label: 'Quick endurer', description: 'good speed, lasts well' },
+      { value: 5, label: 'Relentless sprinter', description: 'fast and tireless all game' },
+    ],
+  },
+  control: {
+    title: 'Control',
+    scales: [
+      { value: 1, label: 'Sloppy', description: 'loses ball often, wild passes' },
+      { value: 2, label: 'Shaky', description: 'inconsistent touch, hit-or-miss passing' },
+      { value: 3, label: 'Steady', description: 'decent retention, reliable passes' },
+      { value: 4, label: 'Skilled', description: 'good control, accurate distribution' },
+      { value: 5, label: 'Composed', description: 'excellent touch, precise playmaking' },
+    ],
+  },
+  teamwork: {
+    title: 'Teamwork',
+    scales: [
+      { value: 1, label: 'Lone wolf', description: 'solo runs, ignores teammates' },
+      { value: 2, label: 'Selfish leaner', description: 'plays for self more than team' },
+      { value: 3, label: 'Cooperative', description: 'works with others when convenient' },
+      { value: 4, label: 'Supportive', description: 'links up well, helps teammates' },
+      { value: 5, label: 'Team player', description: 'always collaborates, team-first mindset' },
+    ],
+  },
+  resilience: {
+    title: 'Resilience',
+    scales: [
+      { value: 1, label: 'Fragile', description: 'head drops fast, gives up when behind' },
+      { value: 2, label: 'Wobbly', description: 'loses focus if losing, inconsistent effort' },
+      { value: 3, label: 'Steady', description: 'keeps going, unaffected by score' },
+      { value: 4, label: 'Gritty', description: 'fights harder when down, lifts others' },
+      { value: 5, label: 'Rock solid', description: 'unshakable, thrives under pressure' },
+    ],
+  },
+};
+
+interface AttributeTooltipProps {
+  attribute: AttributeKey;
+}
+
+export const AttributeTooltip: React.FC<AttributeTooltipProps> = ({ attribute }) => {
+  const guide = attributeGuides[attribute];
+  if (!guide) return null;
+
   return (
-    <div className="group relative inline-block">
-      {children}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block">
-        <div className="bg-neutral-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-          <div className="font-medium">{attribute}</div>
-          <div className="text-neutral-300">{description}</div>
-        </div>
-      </div>
+    <div className="absolute z-50 w-64 p-3 text-sm bg-white border border-neutral-200 rounded-lg shadow-lg">
+      <h4 className="font-semibold mb-2">{guide.title}</h4>
+      <ul className="space-y-1">
+        {guide.scales.map(({ value, label, description }) => (
+          <li key={value} className="flex items-start text-xs">
+            <span className="font-medium mr-1">{value}:</span>
+            <span>{label} ({description})</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
@@ -27,76 +109,117 @@ interface AttributeGuideModalProps {
 }
 
 export const AttributeGuideModal: React.FC<AttributeGuideModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+  const [activeTab, setActiveTab] = useState<AttributeKey>('goalscoring');
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-          <div className="absolute inset-0 bg-neutral-500 opacity-75"></div>
-        </div>
+    isOpen && (
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          <div className="fixed inset-0 transition-opacity" onClick={onClose}>
+            <div className="absolute inset-0 bg-neutral-500 opacity-75"></div>
+          </div>
 
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
-          &#8203;
-        </span>
+          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div className="sm:flex sm:items-start">
+                <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg leading-6 font-medium text-neutral-900">
+                      Player Grading Guide
+                    </h3>
+                    <button
+                      onClick={onClose}
+                      className="text-neutral-400 hover:text-neutral-500"
+                    >
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <Card>
-            <div className="px-4 pt-5 pb-4 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-neutral-900 mb-4">
-                Attribute Guide
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-neutral-900">Goalscoring</h4>
-                  <p className="text-sm text-neutral-500">
-                    Ability to score goals and finish chances
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-neutral-900">Defender</h4>
-                  <p className="text-sm text-neutral-500">
-                    Defensive abilities and positioning
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-neutral-900">Stamina & Pace</h4>
-                  <p className="text-sm text-neutral-500">
-                    Physical attributes including speed and endurance
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-neutral-900">Control</h4>
-                  <p className="text-sm text-neutral-500">
-                    Ball control and technical ability
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-neutral-900">Teamwork</h4>
-                  <p className="text-sm text-neutral-500">
-                    Ability to work with teammates and follow tactics
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-neutral-900">Resilience</h4>
-                  <p className="text-sm text-neutral-500">
-                    Mental strength and ability to handle pressure
-                  </p>
+                  {/* Tabs for desktop, accordion for mobile */}
+                  <div className="mt-4">
+                    <div className="sm:hidden">
+                      {/* Mobile accordion */}
+                      <div className="space-y-4">
+                        {Object.entries(attributeGuides).map(([key, guide]) => (
+                          <div key={key} className="border rounded-lg overflow-hidden">
+                            <button
+                              className="w-full px-4 py-2 text-left font-medium bg-neutral-50 hover:bg-neutral-100"
+                              onClick={() => setActiveTab(key as AttributeKey)}
+                            >
+                              {guide.title}
+                            </button>
+                            {activeTab === key && (
+                              <div className="p-4 border-t">
+                                <ul className="space-y-2">
+                                  {guide.scales.map(({ value, label, description }) => (
+                                    <li key={value} className="flex items-start">
+                                      <span className="font-medium mr-2">{value}:</span>
+                                      <span>{label} ({description})</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="hidden sm:block">
+                      {/* Desktop tabs */}
+                      <div className="border-b border-neutral-200">
+                        <nav className="-mb-px flex space-x-8">
+                          {Object.entries(attributeGuides).map(([key, guide]) => (
+                            <button
+                              key={key}
+                              className={`
+                                whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm
+                                ${activeTab === key
+                                  ? 'border-primary-500 text-primary-600'
+                                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                                }
+                              `}
+                              onClick={() => setActiveTab(key as AttributeKey)}
+                            >
+                              {guide.title}
+                            </button>
+                          ))}
+                        </nav>
+                      </div>
+
+                      <div className="mt-4">
+                        {Object.entries(attributeGuides).map(([key, guide]) => (
+                          activeTab === key && (
+                            <div key={key} className="space-y-4">
+                              <ul className="space-y-3">
+                                {guide.scales.map(({ value, label, description }) => (
+                                  <li key={value} className="flex items-start">
+                                    <span className="font-medium mr-2">{value}:</span>
+                                    <span>{label} ({description})</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button
-                type="button"
-                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm"
-                onClick={onClose}
-              >
-                Close
-              </button>
-            </div>
-          </Card>
+          </div>
         </div>
       </div>
-    </div>
+    )
   );
-}; 
+};
+
+const AttributeGuide = {
+  AttributeTooltip,
+  AttributeGuideModal
+};
+
+export default AttributeGuide; 

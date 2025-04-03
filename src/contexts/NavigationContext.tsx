@@ -1,14 +1,14 @@
 'use client';
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-type NavigationContextType = {
+interface NavigationContextType {
   expandedSection: string | null;
   setExpandedSection: (section: string | null) => void;
-};
+}
 
 const NavigationContext = createContext<NavigationContextType | null>(null);
 
-export function NavigationProvider({ children }: { children: ReactNode }) {
+export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   
   return (
@@ -16,12 +16,12 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       {children}
     </NavigationContext.Provider>
   );
-}
+};
 
-export function useNavigation() {
+export const useNavigation = () => {
   const context = useContext(NavigationContext);
   if (!context) {
     throw new Error('useNavigation must be used within a NavigationProvider');
   }
   return context;
-} 
+}; 

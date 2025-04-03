@@ -211,7 +211,7 @@ const HonourRoll: React.FC = () => {
                     </TableCell>
                     <TableCell className="text-sm">
                       {data.records.most_goals_in_game.map((record, index) => (
-                        <div key={index}>
+                        <div key={`game-${index}`} className="mb-1" suppressHydrationWarning>
                           {record.name}: {new Date(record.date).toLocaleDateString()}
                         </div>
                       ))}
@@ -234,7 +234,7 @@ const HonourRoll: React.FC = () => {
                       <TableCell>{streakData.holders[0].streak} games</TableCell>
                       <TableCell className="text-sm">
                         {streakData.holders.map((holder, index) => (
-                          <div key={index}>
+                          <div key={`streak-${index}`} className="mb-1" suppressHydrationWarning>
                             {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
                             {new Date(holder.end_date).toLocaleDateString()}
                           </div>
@@ -253,7 +253,7 @@ const HonourRoll: React.FC = () => {
                     <TableCell>{data.records.consecutive_goals.holders[0].streak} games</TableCell>
                     <TableCell className="text-sm">
                       {data.records.consecutive_goals.holders.map((holder, index) => (
-                        <div key={index}>
+                        <div key={`consecutive-${index}`} className="mb-1" suppressHydrationWarning>
                           {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
                           {new Date(holder.end_date).toLocaleDateString()}
                         </div>
@@ -284,7 +284,9 @@ const HonourRoll: React.FC = () => {
                       {data.records.biggest_victory[0].team_a_score}-{data.records.biggest_victory[0].team_b_score}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {new Date(data.records.biggest_victory[0].date).toLocaleDateString()}
+                      <p className="text-neutral-500 mb-1" suppressHydrationWarning>
+                        {new Date(data.records.biggest_victory[0].date).toLocaleDateString()}
+                      </p>
                     </TableCell>
                   </TableRow>
                 )}

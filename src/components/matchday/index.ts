@@ -1,1 +1,1 @@
-export { default as Matchday } from './Matchday'; 
+export { default as Matchday } from './Matchday.component'; 

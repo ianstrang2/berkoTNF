@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
@@ -462,75 +463,44 @@ const BalanceAlgorithmSetup: React.FC = () => {
               );
             })}
           </div>
-          
-          <div className="mt-10 border-t pt-6">
-            <h3 className="font-medium text-md mb-4">How Team Balancing Works</h3>
-            
-            <ol className="space-y-3">
-              <li className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">1</div>
-                <div>Players are first allocated as defenders, based on highest desire to defend.</div>
-              </li>
-              <li className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">2</div>
-                <div>Next, players are assigned as attackers, prioritising those with highest goalscoring ability.</div>
-              </li>
-              <li className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">3</div>
-                <div>Remaining players are assigned to midfield positions.</div>
-              </li>
-              <li className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">4</div>
-                <div>Each player is evaluated within their assigned position using the position-specific weights you've set above. This creates a skill score for each player.</div>
-              </li>
-              <li className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">5</div>
-                <div>Players are distributed between teams in a "snake draft" pattern. The highest-scored defender goes to Team A, second-highest to Team B, and alternating from there. This repeats for midfielders and attackers.</div>
-              </li>
-              <li className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">6</div>
-                <div>Finally, <strong>Resilience</strong> and <strong>Teamwork</strong> attributes are applied according to their weights. These are processed last, and their impact is proportional to the weight you've assigned them in the settings above.</div>
-              </li>
-            </ol>
-          </div>
-          
-          <div className="mt-6 bg-blue-50 p-4 rounded-md text-sm">
-            <div className="font-medium text-blue-800 mb-1">Important Note on Weights</div>
-            <p className="text-blue-700">
-              For each position group (Defenders, Midfielders, Attackers), the weights for technical attributes (Stamina & Pace, Ball Control, Goalscoring) should total 100%. Each slider will adjust in 5% increments. The system will validate the totals before saving.
-            </p>
-          </div>
         </>
       )}
       
-      {/* Save Confirmation Modal */}
-      {showConfirmation && (
-        <ConfirmationModal
-          isOpen={showConfirmation}
-          title="Save Changes"
-          message="Are you sure you want to save these changes? This will affect how teams are balanced in future matches."
-          confirmText="Save Changes"
-          cancelText="Cancel"
-          onConfirm={saveWeights}
-          onClose={() => setShowConfirmation(false)}
-          isConfirming={saving}
-        />
-      )}
-      
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={saveWeights}
+        title="Save Balance Algorithm Changes"
+        message="Are you sure you want to save your changes to the balance algorithm? This will affect how teams are balanced in future matches."
+        confirmText="Save Changes"
+        cancelText="Cancel"
+      />
+
       {/* Reset Confirmation Modal */}
-      {showResetConfirmation && (
-        <ConfirmationModal
-          isOpen={showResetConfirmation}
-          title="Reset to Default"
-          message="Are you sure you want to reset all balance algorithm settings to their default values? This action cannot be undone."
-          confirmText="Reset to Default"
-          cancelText="Cancel"
-          onConfirm={resetWeights}
-          onClose={() => setShowResetConfirmation(false)}
-          isConfirming={isResetting}
-          confirmButtonClass="bg-red-500 hover:bg-red-600"
-        />
-      )}
+      <ConfirmationModal
+        isOpen={showResetConfirmation}
+        onClose={() => setShowResetConfirmation(false)}
+        onConfirm={resetWeights}
+        title="Reset Balance Algorithm"
+        message="Are you sure you want to reset the balance algorithm to default values? This will discard all your customizations."
+        confirmText="Reset to Defaults"
+        cancelText="Cancel"
+      />
+
+      {/* Validation Error Modal */}
+      <ConfirmationModal
+        isOpen={showValidationError}
+        onClose={() => setShowValidationError(false)}
+        onConfirm={() => setShowValidationError(false)}
+        title="Validation Error"
+        message={Object.keys(validationErrors).length > 0 ? 
+          `The following errors must be fixed before saving: ${Object.values(validationErrors).join(', ')}` : 
+          'Please fix validation errors before saving.'
+        }
+        confirmText="OK"
+        cancelText="Cancel"
+      />
     </Card>
   );
 };

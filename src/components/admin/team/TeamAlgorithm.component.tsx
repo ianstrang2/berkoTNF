@@ -1,9 +1,10 @@
+'use client';
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { AttributeTooltip } from '../AttributeGuide';
 import { format, parse } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import DraggablePlayerSlot from './DraggablePlayerSlot.component';
-import { TeamBalanceService } from '../../../services/TeamBalanceService';
+import { TeamBalanceService } from '@/services/TeamBalanceService';
 import PlayerFormModal from '../player/PlayerFormModal.component';
 
 // Types
@@ -119,19 +120,21 @@ interface Stats {
 const formatDateSafely = (dateString: string | undefined | null): string => {
   if (!dateString) return 'Date not set';
   
-  const date = new Date(dateString);
-  
-  // Check if date is valid
-  if (isNaN(date.getTime())) {
-    return 'Invalid date';
-  }
-  
+  // For server/client consistency, return a simple format
   try {
+    const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    // Use toLocaleDateString with explicit locale for consistency
     return date.toLocaleDateString('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
+      year: 'numeric',
       month: 'long',
-      year: 'numeric'
+      day: 'numeric',
+      weekday: 'long'
     });
   } catch (error) {
     console.error('Error formatting date:', error);
@@ -1802,11 +1805,20 @@ const TeamAlgorithm: React.FC = () => {
             <h1 className="text-2xl font-bold">Planned Match</h1>
             {activeMatch && (
               <>
-                <p className="text-gray-600">
+                <p className="text-gray-600" suppressHydrationWarning>
                   {formatDateSafely(activeMatch.date)}
                 </p>
-                {activeMatch.date && new Date(activeMatch.date) < new Date() && (
-                  <p className="text-red-600 text-sm mt-1">
+                {activeMatch.date && (() => {
+                  const matchDate = new Date(activeMatch.date);
+                  const today = new Date();
+                  
+                  // Set both dates to midnight to compare just the date portion
+                  matchDate.setHours(0, 0, 0, 0);
+                  today.setHours(0, 0, 0, 0);
+                  
+                  return matchDate < today;
+                })() && (
+                  <p className="text-red-600 text-sm mt-1" suppressHydrationWarning>
                     Warning: This match date is in the past
                   </p>
                 )}

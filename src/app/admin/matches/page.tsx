@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/components/ui-kit';
 import { AdminLayout } from '@/components/layout';
 import dynamic from 'next/dynamic';
 
-const MatchManager = dynamic(() => import('@/components/admin/MatchManager'), { ssr: false });
+const MatchManager = dynamic(() => import('@/components/admin/matches/MatchManager.component'), { ssr: false });
 
 export default function AdminMatchesPage() {
   return (

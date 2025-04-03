@@ -1,0 +1,33 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "cursorAi.conventions": {
+    "naming": {
+      "components": "{ComponentName}.component.tsx",
+      "pages": "{PageName}.page.tsx",
+      "layouts": "{LayoutName}.layout.tsx",
+      "hooks": "use{HookName}.hook.ts",
+      "utils": "{utilName}.util.ts",
+      "services": "{ServiceName}.service.ts"
+    },
+    "imports": {
+      "uiComponents": "Import UI components individually from their files, not using barrel exports",
+      "example": "import Button from '@/components/ui-kit/Button.component';"
+    },
+    "organization": {
+      "featureFolders": "Organize code by feature rather than type",
+      "appRouter": "Use App Router structure instead of Pages Router"
+    },
+    "generalRules": [
+      "Use 'use client' directive for React server components that need client-side interactivity",
+      "Prefer explicit imports over barrel imports",
+      "Use .component.tsx suffix for all React components",
+      "Organize components by feature in the directory structure"
+    ]
+  }
+} 
