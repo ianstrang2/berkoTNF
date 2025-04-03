@@ -4,7 +4,6 @@ import { Card } from '@/components/ui-kit';
 import { MatchReport } from '@/components/match-report';
 import { MainLayout } from '@/components/layout';
 import { ErrorBoundary } from '@/components/ui-kit';
-import { AdminLayout } from '@/components/layout';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the Matchday component
@@ -24,26 +23,24 @@ export default function AdminDashboardPage() {
       <div className="py-6">
         <div className="bg-white rounded-xl shadow-card p-6">
           <ErrorBoundary>
-            <AdminLayout>
-              <div className="space-y-section">
-                {/* Page Header */}
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-primary-600 tracking-tight">Dashboard</h1>
-                </div>
-
-                {/* Matchday Section */}
-                <section>
-                  <h2 className="text-xl font-semibold mb-4">Next Match</h2>
-                  <Matchday />
-                </section>
-
-                {/* Match Report Section */}
-                <section>
-                  <h2 className="text-xl font-semibold mb-4">Latest Match Report</h2>
-                  <MatchReport />
-                </section>
+            <div className="space-y-section">
+              {/* Page Header */}
+              <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-primary-600 tracking-tight">Dashboard</h1>
               </div>
-            </AdminLayout>
+
+              {/* Matchday Section */}
+              <section>
+                <h2 className="text-xl font-semibold mb-4">Next Match</h2>
+                <Matchday />
+              </section>
+
+              {/* Match Report Section */}
+              <section>
+                <h2 className="text-xl font-semibold mb-4">Latest Match Report</h2>
+                <MatchReport />
+              </section>
+            </div>
           </ErrorBoundary>
         </div>
       </div>
