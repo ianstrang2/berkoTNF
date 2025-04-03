@@ -6,7 +6,7 @@ import { Card, Button } from '@/components/ui-kit';
 const TeamAlgorithm = dynamic(() => import('@/components/admin/team/TeamAlgorithm.component'), { ssr: false });
 const PlayerRatings = dynamic(() => import('@/components/admin/player/PlayerRatings.component'), { ssr: false });
 const PlayerManager = dynamic(() => import('@/components/admin/player/PlayerManager.component'), { ssr: false });
-const MatchManager = dynamic(() => import('@/components/admin/MatchManager'), { ssr: false });
+const MatchManager = dynamic(() => import('@/components/admin/matches/MatchManager.component'), { ssr: false });
 const AppSetup = dynamic(() => import('@/components/admin/config/AppSetup'), { ssr: false });
 
 interface AdminItem {
