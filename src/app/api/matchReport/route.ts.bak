@@ -56,10 +56,6 @@ interface MatchReportCache {
   team_b_scorers: string | null;
   game_milestones: Milestone[] | null;
   goal_milestones: Milestone[] | null;
-  half_season_goal_leaders: LeaderData[] | null;
-  half_season_fantasy_leaders: LeaderData[] | null;
-  season_goal_leaders: LeaderData[] | null;
-  season_fantasy_leaders: LeaderData[] | null;
   config_values: {
     win_streak_threshold: number;
     unbeaten_streak_threshold: number;
@@ -67,7 +63,6 @@ interface MatchReportCache {
     winless_streak_threshold: number;
     goal_streak_threshold: number;
   };
-  last_updated?: Date;
 }
 
 interface ApiResponse {
@@ -283,17 +278,11 @@ export async function GET() {
 
     try {
       console.log('Fetching match report from cache...');
-      
-      // Get the raw database record first to inspect its structure
-      const rawMatchReport = await prisma.aggregated_match_report.findFirst({
+      const matchReportCache = await prisma.aggregated_match_report.findFirst({
         orderBy: {
           match_date: 'desc'
         }
       });
-      
-      console.log('RAW DB RECORD:', JSON.stringify(rawMatchReport));
-      
-      const matchReportCache = rawMatchReport as unknown as MatchReportCache;
 
       if (!matchReportCache) {
         console.log('No match data found in cache');
@@ -381,12 +370,8 @@ export async function GET() {
           // Safely get data from database with error handling for each query
           let streaksCache: any[] = [];
           let goalStreaksCache: any[] = [];
-          
-          // Initialize arrays for leader data
-          let extractedHalfSeasonGoalLeaders: LeaderData[] = [];
-          let extractedHalfSeasonFantasyLeaders: LeaderData[] = [];
-          let extractedSeasonGoalLeaders: LeaderData[] = [];
-          let extractedSeasonFantasyLeaders: LeaderData[] = [];
+          let halfSeasonLeaders: any[] = [];
+          let seasonLeaders: any[] = [];
 
           try {
             // Get data from aggregated_match_streaks cache
@@ -425,172 +410,34 @@ export async function GET() {
             console.error('Error fetching goal streaks cache:', error);
           }
 
-          // Extract leader data directly from the match report cache
           try {
-            console.log('Extracting leader data from match report cache...');
-            console.log('KEYS in matchReportCache:', Object.keys(matchReportCache));
-            console.log('KEYS in rawMatchReport:', rawMatchReport ? Object.keys(rawMatchReport) : 'null');
-            
-            // Important: Check if these fields are stored as JSON in the database
-            // In Postgres with Prisma, sometimes JSON fields come back already parsed
-            const processJsonField = (field: any): any[] => {
-              if (!field) return [];
-              
-              // If it's a string, try to parse it
-              if (typeof field === 'string') {
-                try {
-                  return JSON.parse(field);
-                } catch (e) {
-                  console.error('Error parsing JSON string:', e);
-                  return [];
-                }
+            // Get half-season leaders
+            halfSeasonLeaders = await prisma.aggregated_match_streaks.findMany({
+              where: {
+                OR: [
+                  { half_season_goals: { not: null } },
+                  { half_season_fantasy_points: { not: null } }
+                ]
               }
-              
-              // If it's already an array, return it
-              if (Array.isArray(field)) {
-                return field;
-              }
-              
-              // If it's an object with a type property that indicates it's Json, handle special
-              if (field && typeof field === 'object' && 'type' in field && field.type === 'Json') {
-                try {
-                  if (typeof field.value === 'string') {
-                    return JSON.parse(field.value);
-                  } else {
-                    return field.value || [];
-                  }
-                } catch (e) {
-                  console.error('Error parsing Json field:', e);
-                  return [];
-                }
-              }
-              
-              return [];
-            };
-            
-            // Use the helper function to process each field
-            if (rawMatchReport) {
-              extractedHalfSeasonGoalLeaders = processJsonField((rawMatchReport as any).half_season_goal_leaders) || 
-                processJsonField((rawMatchReport as any).halfSeasonGoalLeaders);
-              
-              extractedHalfSeasonFantasyLeaders = processJsonField((rawMatchReport as any).half_season_fantasy_leaders) || 
-                processJsonField((rawMatchReport as any).halfSeasonFantasyLeaders);
-              
-              extractedSeasonGoalLeaders = processJsonField((rawMatchReport as any).season_goal_leaders) || 
-                processJsonField((rawMatchReport as any).seasonGoalLeaders);
-              
-              extractedSeasonFantasyLeaders = processJsonField((rawMatchReport as any).season_fantasy_leaders) || 
-                processJsonField((rawMatchReport as any).seasonFantasyLeaders);
-              
-              console.log('Extracted leader data:', {
-                halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders,
-                halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders,
-                seasonGoalLeaders: extractedSeasonGoalLeaders,
-                seasonFantasyLeaders: extractedSeasonFantasyLeaders
-              });
-            }
-              
-            // Log the exact raw values
-            console.log('RAW half_season_goal_leaders:', matchReportCache.half_season_goal_leaders);
-            console.log('TYPE of half_season_goal_leaders:', typeof matchReportCache.half_season_goal_leaders);
-            
-            console.log('RAW half_season_fantasy_leaders:', matchReportCache.half_season_fantasy_leaders);
-            console.log('RAW season_goal_leaders:', matchReportCache.season_goal_leaders);
-            console.log('RAW season_fantasy_leaders:', matchReportCache.season_fantasy_leaders);
-            
-            // Try alternate property names based on Prisma schema
-            console.log('Trying alternate property names:');
-            if (rawMatchReport) {
-              console.log('halfSeasonGoalLeaders:', (rawMatchReport as any).halfSeasonGoalLeaders);
-              console.log('half_season_goal_leaders:', (rawMatchReport as any).half_season_goal_leaders);
-              
-              // Determine which property names are actually in the database
-              const hasSnakeCase = 'half_season_goal_leaders' in rawMatchReport;
-              const hasCamelCase = 'halfSeasonGoalLeaders' in rawMatchReport;
-              console.log('Property name format check:', { hasSnakeCase, hasCamelCase });
-            } else {
-              console.log('rawMatchReport is null');
-            }
-            
-            // Validate half-season goal leaders
-            // Try both snake_case and camelCase property names
-            const halfSeasonGoalLeadersData = 
-              matchReportCache.half_season_goal_leaders || 
-              (rawMatchReport as any).halfSeasonGoalLeaders || 
-              (rawMatchReport as any).half_season_goal_leaders;
-              
-            if (halfSeasonGoalLeadersData) {
-              try {
-                if (typeof halfSeasonGoalLeadersData === 'string') {
-                  extractedHalfSeasonGoalLeaders = JSON.parse(halfSeasonGoalLeadersData);
-                } else {
-                  extractedHalfSeasonGoalLeaders = halfSeasonGoalLeadersData as LeaderData[];
-                }
-                console.log('Half-season goal leaders extracted:', extractedHalfSeasonGoalLeaders.length, 'items');
-                console.log('Extracted data:', JSON.stringify(extractedHalfSeasonGoalLeaders));
-              } catch (error) {
-                console.error('Error parsing half-season goal leaders:', error);
-              }
-            }
-            
-            // Validate half-season fantasy leaders
-            const halfSeasonFantasyLeadersData = 
-              matchReportCache.half_season_fantasy_leaders || 
-              (rawMatchReport as any).halfSeasonFantasyLeaders || 
-              (rawMatchReport as any).half_season_fantasy_leaders;
-              
-            if (halfSeasonFantasyLeadersData) {
-              try {
-                if (typeof halfSeasonFantasyLeadersData === 'string') {
-                  extractedHalfSeasonFantasyLeaders = JSON.parse(halfSeasonFantasyLeadersData);
-                } else {
-                  extractedHalfSeasonFantasyLeaders = halfSeasonFantasyLeadersData as LeaderData[];
-                }
-                console.log('Half-season fantasy leaders extracted:', extractedHalfSeasonFantasyLeaders.length, 'items');
-              } catch (error) {
-                console.error('Error parsing half-season fantasy leaders:', error);
-              }
-            }
-            
-            // Validate season goal leaders
-            const seasonGoalLeadersData = 
-              matchReportCache.season_goal_leaders || 
-              (rawMatchReport as any).seasonGoalLeaders || 
-              (rawMatchReport as any).season_goal_leaders;
-              
-            if (seasonGoalLeadersData) {
-              try {
-                if (typeof seasonGoalLeadersData === 'string') {
-                  extractedSeasonGoalLeaders = JSON.parse(seasonGoalLeadersData);
-                } else {
-                  extractedSeasonGoalLeaders = seasonGoalLeadersData as LeaderData[];
-                }
-                console.log('Season goal leaders extracted:', extractedSeasonGoalLeaders.length, 'items');
+            }) as any[];
+            console.log('Half-season leaders fetched:', halfSeasonLeaders.length, 'items');
           } catch (error) {
-                console.error('Error parsing season goal leaders:', error);
+            console.error('Error fetching half season leaders:', error);
+          }
+
+          try {
+            // Get season leaders
+            seasonLeaders = await prisma.aggregated_match_streaks.findMany({
+              where: {
+                OR: [
+                  { season_goals: { not: null } },
+                  { season_fantasy_points: { not: null } }
+                ]
               }
-            }
-            
-            // Validate season fantasy leaders
-            const seasonFantasyLeadersData = 
-              matchReportCache.season_fantasy_leaders || 
-              (rawMatchReport as any).seasonFantasyLeaders || 
-              (rawMatchReport as any).season_fantasy_leaders;
-              
-            if (seasonFantasyLeadersData) {
-              try {
-                if (typeof seasonFantasyLeadersData === 'string') {
-                  extractedSeasonFantasyLeaders = JSON.parse(seasonFantasyLeadersData);
-                } else {
-                  extractedSeasonFantasyLeaders = seasonFantasyLeadersData as LeaderData[];
-                }
-                console.log('Season fantasy leaders extracted:', extractedSeasonFantasyLeaders.length, 'items');
-              } catch (error) {
-                console.error('Error parsing season fantasy leaders:', error);
-              }
-            }
+            }) as any[];
+            console.log('Season leaders fetched:', seasonLeaders.length, 'items');
           } catch (error) {
-            console.error('Error extracting leader data from match report cache:', error);
+            console.error('Error fetching season leaders:', error);
           }
 
           console.log('Formatting streaks data...');
@@ -631,12 +478,113 @@ export async function GET() {
           console.log('Formatted goal streaks:', formattedGoalStreaks.length, 'items');
 
           console.log('Formatting leader data...');
-          
-          // Directly use the extracted leader data, with no filtering
-          // All data was formatted correctly in SQL when aggregated_match_report was populated
-          console.log('Using extracted leader data directly');
-          
-          const responseData = {
+          // Format half-season goal leaders
+          const halfSeasonGoalLeaders = halfSeasonLeaders
+            .filter(leader => leader.half_season_goals_status === 'leader')
+            .map(leader => {
+              const previousLeader = halfSeasonLeaders.find(
+                l => l.player_id === leader.previous_half_season_goals_leader_id
+              );
+              
+              let changeType: LeaderData['change_type'] = 'remains';
+              if (!previousLeader) {
+                changeType = 'new_leader';
+              } else if (leader.half_season_goals === previousLeader.half_season_goals) {
+                changeType = 'tied';
+              } else if (leader.player_id !== previousLeader.player_id) {
+                changeType = 'overtake';
+              }
+              
+              return {
+                new_leader: leader.name,
+                new_leader_goals: leader.half_season_goals,
+                previous_leader: previousLeader?.name || null,
+                previous_leader_goals: previousLeader?.half_season_goals || null,
+                change_type: changeType
+              };
+            });
+
+          // Format half-season fantasy leaders
+          const halfSeasonFantasyLeaders = halfSeasonLeaders
+            .filter(leader => leader.half_season_fantasy_status === 'leader')
+            .map(leader => {
+              const previousLeader = halfSeasonLeaders.find(
+                l => l.player_id === leader.previous_half_season_fantasy_leader_id
+              );
+              
+              let changeType: LeaderData['change_type'] = 'remains';
+              if (!previousLeader) {
+                changeType = 'new_leader';
+              } else if (leader.half_season_fantasy_points === previousLeader.half_season_fantasy_points) {
+                changeType = 'tied';
+              } else if (leader.player_id !== previousLeader.player_id) {
+                changeType = 'overtake';
+              }
+              
+              return {
+                new_leader: leader.name,
+                new_leader_points: leader.half_season_fantasy_points,
+                previous_leader: previousLeader?.name || null,
+                previous_leader_points: previousLeader?.half_season_fantasy_points || null,
+                change_type: changeType
+              };
+            });
+
+          // Format season goal leaders
+          const seasonGoalLeaders = seasonLeaders
+            .filter(leader => leader.season_goals_status === 'leader')
+            .map(leader => {
+              const previousLeader = seasonLeaders.find(
+                l => l.player_id === leader.previous_season_goals_leader_id
+              );
+              
+              let changeType: LeaderData['change_type'] = 'remains';
+              if (!previousLeader) {
+                changeType = 'new_leader';
+              } else if (leader.season_goals === previousLeader.season_goals) {
+                changeType = 'tied';
+              } else if (leader.player_id !== previousLeader.player_id) {
+                changeType = 'overtake';
+              }
+              
+              return {
+                new_leader: leader.name,
+                new_leader_goals: leader.season_goals,
+                previous_leader: previousLeader?.name || null,
+                previous_leader_goals: previousLeader?.season_goals || null,
+                change_type: changeType
+              };
+            });
+
+            // Format season fantasy leaders
+            const seasonFantasyLeaders = seasonLeaders
+              .filter(leader => leader.season_fantasy_status === 'leader')
+              .map(leader => {
+                const previousLeader = seasonLeaders.find(
+                  l => l.player_id === leader.previous_season_fantasy_leader_id
+                );
+                
+                let changeType: LeaderData['change_type'] = 'remains';
+                if (!previousLeader) {
+                  changeType = 'new_leader';
+                } else if (leader.season_fantasy_points === previousLeader.season_fantasy_points) {
+                  changeType = 'tied';
+                } else if (leader.player_id !== previousLeader.player_id) {
+                  changeType = 'overtake';
+                }
+                
+                return {
+                  new_leader: leader.name,
+                  new_leader_points: leader.season_fantasy_points,
+                  previous_leader: previousLeader?.name || null,
+                  previous_leader_points: previousLeader?.season_fantasy_points || null,
+                  change_type: changeType
+                };
+              });
+
+          console.log('All data formatted, preparing response...');
+          // Return the match report
+          return NextResponse.json({
             success: true,
             data: {
               matchInfo: matchInfo,
@@ -644,55 +592,12 @@ export async function GET() {
               goalsMilestones: validateMilestones(matchReportCache.goal_milestones) || [],
               streaks: formattedStreaks || [],
               goalStreaks: formattedGoalStreaks || [],
-              halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders || [],
-              halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders || [],
-              seasonGoalLeaders: extractedSeasonGoalLeaders || [],
-              seasonFantasyLeaders: extractedSeasonFantasyLeaders || []
+              halfSeasonGoalLeaders: halfSeasonGoalLeaders || [],
+              halfSeasonFantasyLeaders: halfSeasonFantasyLeaders || [],
+              seasonGoalLeaders: seasonGoalLeaders || [],
+              seasonFantasyLeaders: seasonFantasyLeaders || []
             }
-          } as ApiResponse;
-          
-          // Final verification step: ensure leader data is present and properly formatted
-          const leaderDataSample: LeaderData[] = [
-            {
-              new_leader: "Tarik Windle",
-              change_type: "remains" as const,
-              previous_leader: "Tarik Windle",
-              new_leader_goals: 14,
-              previous_leader_goals: 12
-            }
-          ];
-          
-          const fantasyLeaderDataSample: LeaderData[] = [
-            {
-              new_leader: "Ali Wilson",
-              change_type: "remains" as const,
-              previous_leader: "Ali Wilson",
-              new_leader_points: 160,
-              previous_leader_points: 140
-            }
-          ];
-          
-          // If we don't have any leader data after all our extraction attempts but the data exists in the DB
-          if (responseData.data?.halfSeasonGoalLeaders?.length === 0) {
-            console.log('Using fallback leader data from sample');
-            responseData.data.halfSeasonGoalLeaders = leaderDataSample;
-          }
-          
-          if (responseData.data?.halfSeasonFantasyLeaders?.length === 0) {
-            responseData.data.halfSeasonFantasyLeaders = fantasyLeaderDataSample;
-          }
-          
-          if (responseData.data?.seasonGoalLeaders?.length === 0) {
-            responseData.data.seasonGoalLeaders = leaderDataSample;
-          }
-          
-          if (responseData.data?.seasonFantasyLeaders?.length === 0) {
-            responseData.data.seasonFantasyLeaders = fantasyLeaderDataSample;
-          }
-          
-          console.log('Final API response:', JSON.stringify(responseData));
-          
-          return NextResponse.json(responseData);
+          } as ApiResponse);
           
         } catch (validationError) {
           console.error('Error during validation step:', validationError);

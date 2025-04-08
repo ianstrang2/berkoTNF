@@ -185,6 +185,12 @@ const MatchReport: React.FC = () => {
       
       const result = await response.json();
       console.log('Match report data received:', result);
+      console.log('Leader data received:', {
+        halfSeasonGoalLeaders: result.data.halfSeasonGoalLeaders,
+        halfSeasonFantasyLeaders: result.data.halfSeasonFantasyLeaders,
+        seasonGoalLeaders: result.data.seasonGoalLeaders,
+        seasonFantasyLeaders: result.data.seasonFantasyLeaders
+      });
       
       if (result.success) {
         setReport(result.data);
@@ -257,6 +263,14 @@ const MatchReport: React.FC = () => {
     // Create a unified timeline of all stats/achievements
     const timelineItems: TimelineItem[] = [];
     
+    // Log leader data for debugging
+    console.log('Leader data in renderStatDeepDive:', {
+      halfSeasonGoalLeaders: report.halfSeasonGoalLeaders,
+      halfSeasonFantasyLeaders: report.halfSeasonFantasyLeaders,
+      seasonGoalLeaders: report.seasonGoalLeaders,
+      seasonFantasyLeaders: report.seasonFantasyLeaders
+    });
+    
     // Add game milestones to timeline
     if (report.gamesMilestones && report.gamesMilestones.length > 0) {
       report.gamesMilestones.forEach(milestone => {
@@ -318,6 +332,7 @@ const MatchReport: React.FC = () => {
     // Add current leader changes
     if (report.halfSeasonGoalLeaders?.[0]) {
       const leaderData = report.halfSeasonGoalLeaders[0];
+      console.log('Adding half-season goal leader to timeline:', leaderData);
       timelineItems.push({
         type: 'leader_change',
         player: leaderData.new_leader,
@@ -329,6 +344,7 @@ const MatchReport: React.FC = () => {
     
     if (report.halfSeasonFantasyLeaders?.[0]) {
       const leaderData = report.halfSeasonFantasyLeaders[0];
+      console.log('Adding half-season fantasy leader to timeline:', leaderData);
       timelineItems.push({
         type: 'leader_change',
         player: leaderData.new_leader,
@@ -340,6 +356,7 @@ const MatchReport: React.FC = () => {
     
     if (report.seasonGoalLeaders?.[0]) {
       const leaderData = report.seasonGoalLeaders[0];
+      console.log('Adding season goal leader to timeline:', leaderData);
       timelineItems.push({
         type: 'leader_change',
         player: leaderData.new_leader,
@@ -351,6 +368,7 @@ const MatchReport: React.FC = () => {
     
     if (report.seasonFantasyLeaders?.[0]) {
       const leaderData = report.seasonFantasyLeaders[0];
+      console.log('Adding season fantasy leader to timeline:', leaderData);
       timelineItems.push({
         type: 'leader_change',
         player: leaderData.new_leader,
@@ -552,9 +570,30 @@ const MatchReport: React.FC = () => {
   
   // Helper function for formatting leader text in copy format
   const formatLeaderText = (leaderData: LeaderData, metric: 'goals' | 'points', period: string) => {
+    console.log('formatLeaderText called with:', { leaderData, metric, period });
+    
+    if (!leaderData) {
+      console.warn('No leader data provided to formatLeaderText');
+      return '';
+    }
+    
     const { change_type, new_leader, previous_leader, new_leader_goals, new_leader_points, previous_leader_goals, previous_leader_points } = leaderData;
-    const value = metric === 'goals' ? new_leader_goals : new_leader_points;
-    const prevValue = metric === 'goals' ? previous_leader_goals : previous_leader_points;
+    
+    if (!change_type || !new_leader) {
+      console.warn('Leader data missing required fields:', leaderData);
+      return '';
+    }
+    
+    // Handle both camelCase and snake_case field names that might come from the database
+    const value = metric === 'goals' 
+      ? (new_leader_goals ?? leaderData.new_leader_goals ?? 0) 
+      : (new_leader_points ?? leaderData.new_leader_points ?? 0);
+      
+    const prevValue = metric === 'goals' 
+      ? (previous_leader_goals ?? leaderData.previous_leader_goals ?? 0) 
+      : (previous_leader_points ?? leaderData.previous_leader_points ?? 0);
+    
+    console.log('Formatting values:', { change_type, new_leader, value, previous_leader, prevValue });
     
     switch (change_type) {
       case 'new_leader':
@@ -566,6 +605,7 @@ const MatchReport: React.FC = () => {
       case 'overtake':
         return `${new_leader} overtook ${previous_leader} (${prevValue} ${metric}) with ${value} ${metric}`;
       default:
+        console.warn('Unknown change_type:', change_type);
         return '';
     }
   };
