@@ -275,8 +275,8 @@ model aggregated_match_report {
   team_b_score      Int
   team_a_players    Json?     @db.JsonB  // Array of player names
   team_b_players    Json?     @db.JsonB  // Array of player names
-  team_a_scorers    Json?     @db.JsonB  // Array of {name: string, goals: number}
-  team_b_scorers    Json?     @db.JsonB  // Array of {name: string, goals: number}
+  team_a_scorers    String?   // Text field with comma-separated player names and goals
+  team_b_scorers    String?   // Text field with comma-separated player names and goals
   game_milestones   Json?     @db.JsonB  // Array of {name: string, total_games: number}
   goal_milestones   Json?     @db.JsonB  // Array of {name: string, total_goals: number}
   config_values     Json?     @db.JsonB  // Object containing threshold values as strings

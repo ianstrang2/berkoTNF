@@ -85,32 +85,63 @@ export async function POST(request: Request) {
       };
     }).filter(Boolean); // Remove any null players (retired ones)
 
-    // Create match and player_matches in a transaction
-    const match = await prisma.$transaction(async (prisma) => {
-      const newMatch = await prisma.matches.create({
+    console.log(`Creating match with ${processedPlayers.length} players`);
+    
+    // Split the transaction into smaller operations to avoid timeouts
+    let newMatch;
+    try {
+      // Step 1: Create the match
+      console.log('1. Creating match record...');
+      newMatch = await prisma.matches.create({
         data: {
           match_date: new Date(match_date),
           team_a_score,
           team_b_score,
         },
       });
-
-      // Create player_matches entries with result data
+      console.log(`2. Match created with ID: ${newMatch.match_id}`);
+      
+      // Step 2: Create player_matches entries
+      console.log('3. Creating player matches...');
       await prisma.player_matches.createMany({
         data: processedPlayers.map(player => ({
           match_id: newMatch.match_id,
           ...player
         })),
       });
+      console.log(`4. Created ${processedPlayers.length} player matches`);
+    } catch (transactionError) {
+      console.error('Transaction error:', transactionError);
+      
+      // If match was created but player_matches failed, clean up the match
+      if (newMatch) {
+        try {
+          console.log(`Cleanup: Deleting match ${newMatch.match_id} due to error`);
+          await prisma.matches.delete({
+            where: { match_id: newMatch.match_id }
+          });
+        } catch (cleanupError) {
+          console.error('Error during cleanup:', cleanupError);
+        }
+      }
+      
+      throw transactionError;
+    }
 
-      return newMatch;
-    });
-
-    return NextResponse.json({ data: match });
-  } catch (error) {
-    console.error('Error creating match:', error);  // Log the error
+    return NextResponse.json({ data: newMatch });
+  } catch (error: any) {
+    console.error('Error creating match:', error);
+    
+    // Better error details for debugging
+    const errorDetails = {
+      message: error.message || 'Unknown error',
+      name: error.name,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+    
     return NextResponse.json(
-      { error: 'Failed to create match', details: error.message },
+      { error: 'Failed to create match', details: errorDetails },
       { status: 500 }
     );
   }
@@ -121,6 +152,8 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
     const { match_id, match_date, team_a_score, team_b_score, players } = body;
+
+    console.log(`Updating match with ID: ${match_id}`);
 
     // Calculate win/loss/clean sheet for each player
     const processedPlayers = players.map(player => {
@@ -148,10 +181,14 @@ export async function PUT(request: Request) {
       };
     }).filter(Boolean); // Remove any null players (retired ones)
 
-    // Update match and player_matches in a transaction
-    const updatedMatch = await prisma.$transaction(async (prisma) => {
-      // Update match
-      const match = await prisma.matches.update({
+    console.log(`Update will include ${processedPlayers.length} players`);
+
+    // Split the operations to avoid transaction timeouts
+    let updatedMatch;
+    try {
+      // Step 1: Update match details
+      console.log('1. Updating match record...');
+      updatedMatch = await prisma.matches.update({
         where: { match_id },
         data: {
           match_date: new Date(match_date),
@@ -159,27 +196,83 @@ export async function PUT(request: Request) {
           team_b_score,
         },
       });
-
-      // Delete existing player_matches
-      await prisma.player_matches.deleteMany({
+      console.log(`2. Match updated: ${updatedMatch.match_id}`);
+      
+      // Step 2: Delete existing player_matches
+      console.log('3. Deleting existing player matches...');
+      const deleteResult = await prisma.player_matches.deleteMany({
         where: { match_id },
       });
-
-      // Create new player_matches entries
+      console.log(`4. Deleted ${deleteResult.count} player matches`);
+      
+      // Step 3: Create new player_matches entries
+      console.log('5. Creating new player matches...');
       await prisma.player_matches.createMany({
         data: processedPlayers.map(player => ({
           match_id,
           ...player
         })),
       });
-
-      return match;
-    });
+      console.log(`6. Created ${processedPlayers.length} player matches`);
+    } catch (error) {
+      console.error('Error during match update operations:', error);
+      throw error;
+    }
 
     return NextResponse.json({ data: updatedMatch });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error updating match:', error);
+    
+    // Better error details for debugging
+    const errorDetails = {
+      message: error.message || 'Unknown error',
+      name: error.name,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+    
     return NextResponse.json(
-      { error: 'Failed to update match', details: error },
+      { error: 'Failed to update match', details: errorDetails },
+      { status: 500 }
+    );
+  }
+}
+
+// Delete a match
+export async function DELETE(request: Request) {
+  try {
+    // Get match ID from URL params
+    const url = new URL(request.url);
+    const matchId = url.searchParams.get('matchId');
+    
+    if (!matchId) {
+      return NextResponse.json(
+        { error: 'Match ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    const parsedMatchId = parseInt(matchId);
+    console.log(`Deleting match with ID: ${parsedMatchId}`);
+    
+    // Delete player_matches first to maintain referential integrity
+    console.log('1. Deleting player_matches...');
+    await prisma.$executeRaw`DELETE FROM player_matches WHERE match_id = ${parsedMatchId}`;
+    console.log('2. Player_matches deleted');
+    
+    // Delete the match
+    console.log('3. Deleting match...');
+    await prisma.$executeRaw`DELETE FROM matches WHERE match_id = ${parsedMatchId}`;
+    console.log('4. Match deleted');
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Match successfully deleted'
+    });
+  } catch (error) {
+    console.error('Error deleting match:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete match', details: error },
       { status: 500 }
     );
   }

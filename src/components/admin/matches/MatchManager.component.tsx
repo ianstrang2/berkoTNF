@@ -82,6 +82,12 @@ const MatchManager: React.FC = () => {
       if (data.data) {
         // Ensure data is an array before setting state
         if (Array.isArray(data.data)) {
+          // Add more detailed logging to check player data
+          data.data.forEach((match, index) => {
+            console.log(`Match ${index} (ID: ${match.match_id}) - Player matches:`, 
+              match.player_matches ? match.player_matches.length : 0);
+          });
+          
           setMatches(data.data);
         } else {
           console.error('Invalid matches data:', data.data);
@@ -183,33 +189,54 @@ const MatchManager: React.FC = () => {
       const method = selectedMatch ? 'PUT' : 'POST';
   
       console.log('Sending match data:', matchData);  // Debugging log
+      
+      // Create an AbortController to handle timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
   
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(matchData),
-      });
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(matchData),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId); // Clear the timeout if request completes
   
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Server response error:', response.status, errorText);
+          throw new Error(`Server error: ${response.status} - ${errorText || 'No error details'}`);
+        }
+  
+        const data = await response.json();
+        if (data.error) {
+          console.error('API error:', data.error, data.details);
+          throw new Error(data.error);
+        }
+  
+        // Reset form and refresh matches
+        setFormData({
+          match_date: new Date().toISOString().split('T')[0],
+          team_a: Array(9).fill(0).map(() => ({ player_id: '', goals: 0 })),
+          team_b: Array(9).fill(0).map(() => ({ player_id: '', goals: 0 })),
+          team_a_score: 0,
+          team_b_score: 0,
+        });
+        setSelectedMatch(null);
+        fetchMatches();
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timeout - the server took too long to respond. Try again or check server logs.');
+        }
+        throw fetchError;
       }
-  
-      // Reset form and refresh matches
-      setFormData({
-        match_date: new Date().toISOString().split('T')[0],
-        team_a: [...defaultTeamState],
-        team_b: [...defaultTeamState],
-        team_a_score: 0,
-        team_b_score: 0,
-      });
-      setSelectedMatch(null);
-      fetchMatches();
     } catch (error) {
       console.error('Error updating match:', error);  // Debugging log
-      setError((error as Error).message);
+      setError((error as Error).message || 'Unknown error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -217,20 +244,44 @@ const MatchManager: React.FC = () => {
 
   const handleEdit = (match: Match): void => {
     setSelectedMatch(match);
+    
+    // Log detailed information about the match being edited
+    console.log('Editing match:', {
+      match_id: match.match_id,
+      team_a_score: match.team_a_score,
+      team_b_score: match.team_b_score,
+      player_matches_count: match.player_matches ? match.player_matches.length : 0,
+      player_matches: match.player_matches
+    });
 
     // Process players into team A and team B
-    const teamA: TeamPlayer[] = Array(9).fill({ player_id: '', goals: 0 });
-    const teamB: TeamPlayer[] = Array(9).fill({ player_id: '', goals: 0 });
+    // Create arrays with independent objects to avoid reference issues
+    const teamA: TeamPlayer[] = Array(9).fill(0).map(() => ({ player_id: '', goals: 0 }));
+    const teamB: TeamPlayer[] = Array(9).fill(0).map(() => ({ player_id: '', goals: 0 }));
+    
+    if (!match.player_matches || match.player_matches.length === 0) {
+      console.warn('No player matches found for this match!');
+    } else {
+      match.player_matches.forEach((pm, index) => {
+        console.log(`Processing player match ${index}:`, pm);
+        const team = pm.team === 'A' ? teamA : teamB;
+        const emptySlot = team.findIndex(p => !p.player_id);
+        if (emptySlot !== -1) {
+          team[emptySlot] = {
+            player_id: pm.player_id,
+            goals: pm.goals,
+          };
+        } else {
+          console.warn(`No empty slot found for player ${pm.player_id} in team ${pm.team}`);
+        }
+      });
+    }
 
-    match.player_matches.forEach(pm => {
-      const team = pm.team === 'A' ? teamA : teamB;
-      const emptySlot = team.findIndex(p => !p.player_id);
-      if (emptySlot !== -1) {
-        team[emptySlot] = {
-          player_id: pm.player_id,
-          goals: pm.goals,
-        };
-      }
+    console.log('Populated teams:', { 
+      teamA: teamA.map(p => p.player_id ? p : null).filter(Boolean).length + ' players', 
+      teamB: teamB.map(p => p.player_id ? p : null).filter(Boolean).length + ' players',
+      teamA_raw: teamA,
+      teamB_raw: teamB
     });
 
     setFormData({
@@ -240,6 +291,32 @@ const MatchManager: React.FC = () => {
       team_a_score: match.team_a_score,
       team_b_score: match.team_b_score,
     });
+  };
+
+  const handleDelete = async (matchId: number): Promise<void> => {
+    if (!window.confirm("Are you sure you want to delete this match? This cannot be reversed!")) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/admin/matches?matchId=${matchId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Refresh matches after deletion
+      fetchMatches();
+    } catch (error) {
+      console.error('Error deleting match:', error);
+      setError((error as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -407,12 +484,20 @@ const MatchManager: React.FC = () => {
                   {match.team_a_score} - {match.team_b_score}
                 </TableCell>
                 <TableCell>
-                  <button
-                    onClick={() => handleEdit(match)}
-                    className="text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(match)}
+                      className="text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(match.match_id)}
+                      className="text-red-500 hover:text-red-700 font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

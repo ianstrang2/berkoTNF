@@ -172,8 +172,19 @@ const MatchReport: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('Fetching match report...');
+      
       const response = await fetch('/api/matchReport');
+      console.log('Match report response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(`API error: ${response.status} - ${errorText || 'No details'}`);
+      }
+      
       const result = await response.json();
+      console.log('Match report data received:', result);
       
       if (result.success) {
         setReport(result.data);
@@ -182,6 +193,7 @@ const MatchReport: React.FC = () => {
         setError(new Error(result.error || 'Failed to fetch match report'));
       }
     } catch (error) {
+      console.error('Error in fetchReport:', error);
       setError(error instanceof Error ? error : new Error('Failed to fetch match report'));
     } finally {
       setLoading(false);
