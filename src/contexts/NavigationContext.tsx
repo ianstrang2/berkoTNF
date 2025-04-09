@@ -7,6 +7,8 @@ interface NavigationContextType {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   isMobileView: boolean;
+  isSidebarMini: boolean;
+  toggleSidebarMini: () => void;
 }
 
 const NavigationContext = createContext<NavigationContextType | null>(null);
@@ -15,6 +17,11 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [isMobileView, setIsMobileView] = useState<boolean>(false);
+  const [isSidebarMini, setIsSidebarMini] = useState<boolean>(false);
+  
+  const toggleSidebarMini = () => {
+    setIsSidebarMini(prev => !prev);
+  };
   
   useEffect(() => {
     // Check if we're on the client side
@@ -48,7 +55,9 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       setExpandedSection,
       sidebarOpen,
       setSidebarOpen,
-      isMobileView
+      isMobileView,
+      isSidebarMini,
+      toggleSidebarMini
     }}>
       {children}
     </NavigationContext.Provider>

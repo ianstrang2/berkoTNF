@@ -28,12 +28,43 @@ const navigationItems = [
   },
   {
     label: 'Records',
-    href: '/records',
+    href: '#',
+    toggleOnly: true,
     icon: (
       <svg className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
       </svg>
-    )
+    ),
+    hasSubItems: true,
+    subItems: [
+      { 
+        label: 'Players',
+        href: '/records/players',
+        icon: (
+          <svg className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        )
+      },
+      { 
+        label: 'All-Time Stats',
+        href: '/records/all-time',
+        icon: (
+          <svg className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        )
+      },
+      { 
+        label: 'Hall of Fame',
+        href: '/records/hall-of-fame',
+        icon: (
+          <svg className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+          </svg>
+        )
+      }
+    ]
   },
   {
     label: 'Admin',
@@ -53,12 +84,12 @@ interface MainLayoutProps {
 
 function MainLayoutContent({ children }: MainLayoutProps) {
   const pathname = usePathname() || '';
-  const { setExpandedSection, sidebarOpen } = useNavigation();
+  const { setExpandedSection, sidebarOpen, isSidebarMini } = useNavigation();
   
   useEffect(() => {
     // Set expandedSection based on current pathname
     if (pathname.startsWith('/records/')) {
-      setExpandedSection('more');
+      setExpandedSection('records');
     } else if (pathname.startsWith('/admin/')) {
       setExpandedSection('admin');
     } else {
@@ -83,7 +114,7 @@ function MainLayoutContent({ children }: MainLayoutProps) {
     : 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] m-0 font-sans">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white">
       {/* Sidebar Component */}
       <Sidebar 
         logoLight="/logo.png"
@@ -92,8 +123,8 @@ function MainLayoutContent({ children }: MainLayoutProps) {
         isNeedHelp={true}
       />
       
-      {/* Main Content Area - adjusted margin only on md and above */}
-      <div className="w-full transition-all duration-200 ease-soft-in-out md:ml-68">
+      {/* Main Content Area */}
+      <main className={`relative h-full max-h-screen transition-all duration-200 ease-soft-in-out ${isSidebarMini ? 'xl:ml-24' : 'xl:ml-[17rem]'} rounded-xl`}>
         {/* Navbar Component */}
         <Navbar 
           pageTitle={pageTitle}
@@ -107,7 +138,7 @@ function MainLayoutContent({ children }: MainLayoutProps) {
             {children}
           </ErrorBoundary>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
