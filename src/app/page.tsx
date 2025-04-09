@@ -15,9 +15,7 @@ const Dashboard = dynamic(() => import('@/app/admin/dashboard/page'), {
 export default function Home() {
   return (
     <MainLayout>
-      <div className="py-6">
-        <Dashboard />
-      </div>
+      <Dashboard />
     </MainLayout>
   );
 } 

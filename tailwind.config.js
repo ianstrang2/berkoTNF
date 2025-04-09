@@ -89,9 +89,12 @@ module.exports = {
           800: '#424242',
           900: '#212121',
         },
+        slate: {
+          500: '#67748e'
+        },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Open Sans', 'Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         // Heading sizes
@@ -121,6 +124,7 @@ module.exports = {
         'related': '0.5rem', // 8px between related elements
         'grid': '1.5rem',    // 24px for grid gaps
         'form': '1rem',      // 16px for form element gaps
+        '2.7': '0.675rem',
       },
       borderRadius: {
         'none': '0',
@@ -130,7 +134,11 @@ module.exports = {
         'lg': '0.5rem',      // 8px - Button radius
         'xl': '0.75rem',     // 12px
         '2xl': '1rem',       // 16px
+        '3xl': '1.5rem',     // 24px
+        '4xl': '2rem',       // 32px
         'full': '9999px',
+        'circle': '50%',
+        'blur': '40px',
       },
       boxShadow: {
         'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
@@ -139,6 +147,19 @@ module.exports = {
         'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
         'card-base': '0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)',
         'elevated-base': '0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23)',
+        // Soft UI shadows
+        'soft-xxs': '0 1px 5px 1px #ddd',
+        'soft-xs': '0 3px 5px -1px rgba(0,0,0,.09),0 2px 3px -1px rgba(0,0,0,.07)',
+        'soft-sm': '0 .25rem .375rem -.0625rem hsla(0,0%,8%,.12),0 .125rem .25rem -.0625rem hsla(0,0%,8%,.07)',
+        'soft-md': '0 4px 7px -1px rgba(0,0,0,.11),0 2px 4px -1px rgba(0,0,0,.07)',
+        'soft-lg': '0 2px 12px 0 rgba(0,0,0,.16)',
+        'soft-xl': '0 20px 27px 0 rgba(0,0,0,.05)',
+        'soft-dark-xl': '0 2px 2px 0 rgba(0,0,0,.14),0 3px 1px -2px rgba(0,0,0,.2),0 1px 5px 0 rgba(0,0,0,.12)',
+        'soft-2xl': '0 .3125rem .625rem 0 rgba(0,0,0,.12)',
+        'soft-3xl': '0 8px 26px -4px hsla(0,0%,8%,.15),0 8px 9px -5px hsla(0,0%,8%,.06)',
+        'soft-primary-outline': '0 0 0 2px #e9aede',
+        'blur': 'inset 0 0 1px 1px hsla(0,0%,100%,.9),0 20px 27px 0 rgba(0,0,0,.05)',
+        'dark-blur': 'inset 0 0 1px 1px hsla(0,0%,100%,.4),0 20px 27px 0 rgba(0,0,0,.05)',
       },
       // Component-specific theme extensions
       button: {
@@ -173,9 +194,61 @@ module.exports = {
           compact: 'px-3 py-1',
         },
       },
+      blur: {
+        DEFAULT: '8px',
+        md: '12px',
+        lg: '16px',
+        xl: '24px',
+        '2xl': '30px',
+        '3xl': '64px',
+      },
+      // Soft UI utility classes
+      backgroundImage: {
+        'gradient-to-t': 'linear-gradient(to top, var(--tw-gradient-stops))',
+        'gradient-to-tr': 'linear-gradient(to top right, var(--tw-gradient-stops))',
+        'gradient-to-r': 'linear-gradient(to right, var(--tw-gradient-stops))',
+        'gradient-to-br': 'linear-gradient(to bottom right, var(--tw-gradient-stops))',
+        'gradient-to-b': 'linear-gradient(to bottom, var(--tw-gradient-stops))',
+        'gradient-to-bl': 'linear-gradient(to bottom left, var(--tw-gradient-stops))',
+        'gradient-to-l': 'linear-gradient(to left, var(--tw-gradient-stops))',
+        'gradient-to-tl': 'linear-gradient(to top left, var(--tw-gradient-stops))',
+      },
+      transitionTimingFunction: {
+        'bounce': 'cubic-bezier(0.34, 1.61, 0.7, 1.3)',
+        'soft': 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        'soft-in': 'cubic-bezier(0.42, 0, 1, 1)',
+        'soft-in-out': 'cubic-bezier(0.42, 0, 0.58, 1)',
+        'soft-out': 'cubic-bezier(0, 0, 0.58, 1)',
+      },
     },
   },
   plugins: [
-    require('./src/plugins/tailwind-standards.js')
+    require('./src/plugins/tailwind-standards.js'),
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.transform3d': {
+          transform: 'perspective(999px) rotateX(0deg) translateZ(0)',
+        },
+        '.transform3d-hover': {
+          transform: 'perspective(999px) rotateX(7deg) translate3d(0,-4px,5px)',
+        },
+        '.transform-dropdown': {
+          transform: 'perspective(999px) rotateX(-10deg) translateZ(0) translate3d(0,37px,0)',
+        },
+        '.transform-dropdown-show': {
+          transform: 'perspective(999px) rotateX(0deg) translateZ(0) translate3d(0,37px,5px)',
+        },
+        '.transform-dropdown-nested': {
+          transform: 'perspective(999px) rotateX(0deg) translateZ(0) translateZ(5px)',
+        },
+        '.translate-z': {
+          transform: 'translateZ(var(--tw-translate-z))',
+        },
+        '.bg-gradient': {
+          backgroundImage: 'linear-gradient(var(--tw-gradient-angle), var(--tw-gradient-stops))',
+        },
+      }
+      addUtilities(newUtilities)
+    }
   ],
 } 
