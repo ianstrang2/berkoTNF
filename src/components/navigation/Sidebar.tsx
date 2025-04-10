@@ -82,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <img src={logoLight} className="inline-block h-full max-w-full transition-all duration-200 ease-soft-in-out max-h-8 dark:hidden" alt="main_logo" />
           <img src={logoDark} className="hidden h-full max-w-full transition-all duration-200 ease-soft-in-out max-h-8 dark:inline-block" alt="main_logo" />
           {(!isSidebarMini || isHovering) && (
-            <span className="ml-1 font-semibold transition-all duration-200 ease-soft-in-out">ScoreDraw</span>
+            <span className="ml-1 font-semibold transition-all duration-200 ease-soft-in-out">StatKick</span>
           )}
         </Link>
       </div>

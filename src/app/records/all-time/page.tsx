@@ -7,13 +7,9 @@ import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 export default function AllTimeStatsPage() {
   return (
     <MainLayout>
-      <div className="py-6">
-        <div className="bg-white rounded-xl shadow-card p-6">
-          <ErrorBoundary>
-            <AllTimeStats />
-          </ErrorBoundary>
-        </div>
-      </div>
+      <ErrorBoundary>
+        <AllTimeStats />
+      </ErrorBoundary>
     </MainLayout>
   );
 } 

@@ -12,7 +12,7 @@ export default function SideNav() {
       <div className="flex items-center justify-between p-4 border-b border-neutral-200">
         {!isCollapsed && (
           <div className="flex items-center justify-center w-full">
-            <img src="/logo.png" alt="ScoreDraw" className="h-8 w-auto" />
+            <img src="/logo.png" alt="StatKick" className="h-8 w-auto" />
           </div>
         )}
         <button 

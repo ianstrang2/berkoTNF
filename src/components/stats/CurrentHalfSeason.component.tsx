@@ -1,17 +1,5 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import Card from '@/components/ui-kit/Card.component';
-import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
-import { Tabs, Tab } from '@/components/ui-kit/Tabs.component';
-
-// First, let's check the actual props for TableCell
-interface TableCellProps {
-  children: React.ReactNode;
-  className?: string;
-  isHeader?: boolean;
-  clickable?: boolean;
-  onClick?: () => void; // Make onClick optional
-}
 
 interface PlayerStats {
   name: string;
@@ -59,7 +47,6 @@ const CurrentHalfSeason: React.FC = () => {
     goalStats: [],
     formData: []
   });
-  const [activeTab, setActiveTab] = useState<string>("performance");
   // Track component mount state
   const isMounted = useRef(true);
   // Client-side only rendering for hydration safety
@@ -116,6 +103,7 @@ const CurrentHalfSeason: React.FC = () => {
         if (result.data && result.data.seasonStats && result.data.seasonStats.length > 0) {
           if (isMounted.current && !isCancelled) {
             setStats(result.data);
+            console.log('Stats updated in state:', result.data);
           }
         } else {
           console.log('No data received from API');
@@ -148,165 +136,195 @@ const CurrentHalfSeason: React.FC = () => {
   }, []);
 
   const renderMainStats = () => (
-    <Card>
-      <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">Points Leaderboard</h3>
-      <Table responsive>
-        <TableHead>
-          <TableRow>
-            <TableCell isHeader className="min-w-[150px]">Player</TableCell>
-            <TableCell isHeader className="w-20">Points</TableCell>
-            <TableCell isHeader className="w-16">P</TableCell>
-            <TableCell isHeader className="w-16">W</TableCell>
-            <TableCell isHeader className="w-16">D</TableCell>
-            <TableCell isHeader className="w-16">L</TableCell>
-            <TableCell isHeader className="w-16">G</TableCell>
-            <TableCell isHeader className="w-16">HW</TableCell>
-            <TableCell isHeader className="w-16">HL</TableCell>
-            <TableCell isHeader className="w-20">CS</TableCell>
-            <TableCell isHeader className="w-20">Win %</TableCell>
-            <TableCell isHeader className="w-36">Last 5</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {stats.seasonStats.map((player, index) => {
-            const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
-            const losses = player.games_played - player.wins - player.draws;
-            return (
-              <TableRow key={index}>
-                <TableCell className="font-medium text-primary-600">{player.name}</TableCell>
-                <TableCell className="font-bold">{player.fantasy_points}</TableCell>
-                <TableCell>{player.games_played}</TableCell>
-                <TableCell>{player.wins}</TableCell>
-                <TableCell>{player.draws}</TableCell>
-                <TableCell>{losses}</TableCell>
-                <TableCell>{player.goals}</TableCell>
-                <TableCell>{player.heavy_wins}</TableCell>
-                <TableCell>{player.heavy_losses}</TableCell>
-                <TableCell>{player.clean_sheets}</TableCell>
-                <TableCell>{Math.round(player.win_percentage)}%</TableCell>
-                <TableCell>
-                  <div className="flex gap-related">
-                    {form.map((result, i) => (
-                      <span 
-                        key={i} 
-                        className={`px-1.5 py-0.5 rounded text-sm font-medium ${
-                          result.includes('W') 
-                            ? 'bg-success-50 text-success-600' 
-                            : result === 'D' 
-                              ? 'bg-warning-50 text-warning-600' 
-                              : 'bg-error-50 text-error-600'
-                        }`}
-                      >
-                        {result.replace('H', '')}
-                      </span>
-                    ))}
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </Card>
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+      <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+        <h5 className="mb-0">Points Leaderboard</h5>
+      </div>
+      <div className="overflow-x-auto px-0 pt-0 pb-2">
+        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+          <thead className="align-bottom">
+            <tr>
+              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
+              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">P</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">W</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">D</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">L</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">G</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HW</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HL</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">CS</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Win %</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Last 5</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.seasonStats.map((player, index) => {
+              const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
+              const losses = player.games_played - player.wins - player.draws;
+              return (
+                <tr key={index}>
+                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                    <div className="flex px-2 py-1">
+                      <div className="flex flex-col justify-center">
+                        <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                    <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasy_points}</p>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.games_played}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.wins}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.draws}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{losses}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.goals}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.heavy_wins}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.heavy_losses}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.clean_sheets}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <div className="flex justify-center gap-2">
+                      {form.map((result, i) => (
+                        <span 
+                          key={i} 
+                          className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white rounded-full ${
+                            result.includes('W') 
+                              ? 'bg-green-500' 
+                              : result === 'D' 
+                                ? 'bg-amber-500' 
+                                : 'bg-red-500'
+                          }`}
+                        >
+                          {result.replace('H', '')}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 
   const renderGoalStats = () => (
-    <Card>
-      <h3 className="text-xl font-semibold text-center text-primary-600 mb-section tracking-tight">Goalscoring Leaderboard</h3>
-      <Table responsive>
-        <TableHead>
-          <TableRow>
-            <TableCell isHeader className="min-w-[150px]">Player</TableCell>
-            <TableCell isHeader className="w-20">Goals</TableCell>
-            <TableCell isHeader className="w-20">MPG</TableCell>
-            <TableCell isHeader className="w-36">Last 5</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {stats.goalStats
-            .filter(player => player.total_goals > 0)
-            .map((player, index) => (
-            <TableRow key={index}>
-              <TableCell className="font-medium text-primary-600">{player.name}</TableCell>
-              <TableCell>{player.total_goals}</TableCell>
-              <TableCell className={player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-success-600 font-medium' : ''}>
-                {player.minutes_per_goal}
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-related">
-                  {player.last_five_games?.split(',').map((goals, i) => {
-                    const goalCount = parseInt(goals);
-                    return (
-                      <span 
-                        key={i} 
-                        className={`px-1.5 py-0.5 rounded text-sm font-medium ${
-                          goalCount > 0 
-                            ? 'bg-success-50 text-success-600' 
-                            : 'bg-neutral-100 text-neutral-600'
-                        }`}
-                      >
-                        {goalCount}
-                      </span>
-                    );
-                  })}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+      <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+        <h5 className="mb-0">Goalscoring Leaderboard</h5>
+      </div>
+      <div className="overflow-x-auto px-0 pt-0 pb-2">
+        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+          <thead className="align-bottom">
+            <tr>
+              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Goals</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">MPG</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Last 5</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.goalStats
+              .filter(player => player.total_goals > 0)
+              .map((player, index) => (
+              <tr key={index}>
+                <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                  <div className="flex px-2 py-1">
+                    <div className="flex flex-col justify-center">
+                      <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                    </div>
+                  </div>
+                </td>
+                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                  <span className="font-semibold leading-normal text-sm">{player.total_goals}</span>
+                </td>
+                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                  <span className={`leading-normal text-sm ${player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
+                    {player.minutes_per_goal}
+                  </span>
+                </td>
+                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                  <div className="flex justify-center gap-2">
+                    {player.last_five_games?.split(',').map((goals, i) => {
+                      const goalCount = parseInt(goals);
+                      return (
+                        <span 
+                          key={i} 
+                          className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none rounded-full ${
+                            goalCount > 0 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-gray-200 text-gray-600'
+                          }`}
+                        >
+                          {goalCount}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 
   if (loading) {
     return (
-      <Card className="text-center">
-        <div className="text-xl font-semibold text-primary-600 mb-element">Loading...</div>
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+      <div className="w-full">
+        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+          <div className="text-center">
+            <h6 className="mb-2 text-lg">Loading...</h6>
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+            </div>
+          </div>
         </div>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-section">
-      <h2 className="text-2xl font-bold text-center text-neutral-900 tracking-tight">
-        {isClient ? (
-          `Current Half-Season Performance - ${getCurrentHalf().description}`
-        ) : (
-          'Current Half-Season Performance'
-        )}
-      </h2>
-
+    <div className="w-full">
       {stats.seasonStats.length === 0 ? (
-        <Card className="text-center">
-          <div className="text-xl font-semibold text-primary-600 mb-element">No stats available for this period</div>
-        </Card>
+        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+          <div className="text-center">
+            <h6 className="mb-0 text-lg">No stats available for this period</h6>
+          </div>
+        </div>
       ) : (
-        <>
-          {/* Desktop view */}
-          <div className="hidden md:grid md:grid-cols-2 gap-grid">
+        <div className="flex flex-wrap -mx-3">
+          {/* Points Leaderboard */}
+          <div className="w-auto px-3 mb-6 flex-none">
             {renderMainStats()}
+          </div>
+          
+          {/* Goalscoring Leaderboard */}
+          <div className="w-auto px-3 mb-6 flex-none">
             {renderGoalStats()}
           </div>
-
-          {/* Mobile view */}
-          <div className="md:hidden">
-            <Tabs 
-              defaultTab={activeTab === 'performance' ? 0 : 1} 
-              onChange={(index) => setActiveTab(index === 0 ? 'performance' : 'goals')}
-              variant="pills"
-            >
-              <Tab label="Points">
-                {renderMainStats()}
-              </Tab>
-              <Tab label="Goals">
-                {renderGoalStats()}
-              </Tab>
-            </Tabs>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
