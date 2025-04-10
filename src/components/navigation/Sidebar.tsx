@@ -18,6 +18,7 @@ interface SidebarProps {
   logoDark?: string;
   navItems: NavItem[];
   isNeedHelp?: boolean;
+  isSidebarMini?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -25,10 +26,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   logoDark = "/logo.png", 
   navItems = [], 
   isNeedHelp = false,
+  isSidebarMini: propIsSidebarMini,
 }) => {
-  const { sidebarOpen, setSidebarOpen, expandedSection, setExpandedSection, isSidebarMini, toggleSidebarMini } = useNavigation();
+  const { sidebarOpen, setSidebarOpen, expandedSection, setExpandedSection, isSidebarMini: contextIsSidebarMini, toggleSidebarMini } = useNavigation();
   const pathname = usePathname() || ''; // Provide empty string as fallback
   const [isHovering, setIsHovering] = useState(false);
+  
+  // Use the prop value if provided, otherwise fall back to the context value
+  const isSidebarMini = propIsSidebarMini !== undefined ? propIsSidebarMini : contextIsSidebarMini;
 
   // Check if any subItem is active to highlight parent
   const checkIfParentActive = (item: NavItem): boolean => {
@@ -95,47 +100,75 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             return (
               <li key={index} className="mt-0.5 w-full">
-                {/* Main Menu Item */}
                 {item.hasSubItems ? (
+                  // Menu item with submenu
                   <>
                     <a 
-                      href="javascript:;"
+                      href={item.toggleOnly || item.hasSubItems ? "javascript:;" : item.href}
                       onClick={(e) => {
-                        e.preventDefault();
-                        toggleSection(item.label.toLowerCase());
+                        if (item.toggleOnly || item.hasSubItems) {
+                          e.preventDefault();
+                          toggleSection(item.label.toLowerCase());
+                        } else if (!item.hasSubItems) {
+                          handleNavItemClick();
+                        }
                       }}
-                      className={`after:ease-soft-in-out after:font-awesome-5-free ease-soft-in-out text-sm py-2.7 my-0 mx-4 flex items-center whitespace-nowrap rounded-lg px-4 transition-all after:ml-auto after:inline-block after:font-bold after:text-slate-800/50 after:antialiased after:transition-all after:duration-200 ${isExpanded ? 'after:rotate-180' : ''} after:content-['\f107'] dark:text-white dark:opacity-80 dark:after:text-white/50 dark:after:text-white ${isActive ? 'bg-white xl:shadow-soft-xl font-semibold text-slate-700' : 'font-medium text-slate-500'}`}
-                      aria-expanded={isExpanded ? "true" : "false"}
+                      className={`ease-soft-in-out text-sm py-2.7 my-0 mx-4 flex items-center whitespace-nowrap rounded-lg transition-all
+                        ${isActive ? 'xl:shadow-soft-xl bg-white font-semibold text-slate-700' : 'font-normal text-slate-500'} 
+                        ${isSidebarMini && !isHovering ? 'px-2 justify-center' : 'px-4'}
+                        ${item.hasSubItems && (!isSidebarMini || isHovering) ? "after:content-['\\f107'] after:ml-auto after:font-bold after:font-[Font_Awesome_5_Free] after:text-slate-800/50 after:text-xs after:transition-all after:duration-200" : ''}
+                        ${isExpanded && item.hasSubItems && (!isSidebarMini || isHovering) ? 'after:rotate-180' : ''}`}
+                      aria-expanded={item.hasSubItems ? (isExpanded ? "true" : "false") : undefined}
                     >
-                      <div className={`${isActive ? 'stroke-none shadow-soft-sm bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : 'stroke-none shadow-soft-2xl bg-white text-center text-black'} mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-center fill-current p-2.5`}>
+                      <div 
+                        className={`flex-none h-8 w-8 flex items-center justify-center rounded-lg p-2.5 bg-center ${isActive ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-sm' : 'bg-white text-slate-700 shadow-soft-2xl'} 
+                        ${isSidebarMini && !isHovering ? 'mx-0' : 'mr-2'}`}
+                      >
                         {item.icon}
                       </div>
+                      
                       {(!isSidebarMini || isHovering) && (
                         <span className="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
                           {item.label}
                         </span>
                       )}
+
+                      {/* Mini mode indicator */}
+                      {isSidebarMini && !isHovering && item.hasSubItems && (
+                        <i className={`fa fa-caret-down text-xs absolute top-1 right-1 opacity-50 ${isExpanded ? 'rotate-180' : ''}`}></i>
+                      )}
                     </a>
                     
-                    {/* Sub Menu Items */}
-                    <div className={`h-auto overflow-hidden transition-all duration-200 ease-soft-in-out ${(isExpanded && (!isSidebarMini || isHovering)) ? '' : 'max-h-0'}`} id={`${item.label.toLowerCase()}Examples`}>
-                      <ul className="flex flex-wrap pl-4 mb-0 ml-6 list-none transition-all duration-200 ease-soft-in-out">
+                    {/* Submenu */}
+                    <div 
+                      className={`transition-all duration-200 ease-soft-in-out overflow-hidden ${isExpanded ? 'h-auto' : 'h-0'}`}
+                    >
+                      <ul className={`${isSidebarMini && !isHovering ? 'flex flex-col items-center pt-1' : 'flex flex-wrap pl-4 mb-0 ml-6 list-none'}`}>
                         {item.subItems?.map((subItem, subIndex) => {
                           const isSubActive = pathname === subItem.href;
-                          
                           return (
-                            <li key={`${index}-${subIndex}`} className="w-full">
+                            <li key={`${index}-${subIndex}`} className="w-full mt-0.5">
                               <Link
                                 href={subItem.href}
                                 onClick={handleNavItemClick}
-                                className={`ease-soft-in-out py-1.6 ml-5.4 pl-4 text-sm relative my-0 mr-4 flex items-center whitespace-nowrap rounded-lg bg-transparent pr-4 shadow-none transition-colors ${isSubActive 
-                                  ? 'before:-left-5 before:h-2 before:w-2 font-semibold text-slate-800 before:absolute before:top-1/2 before:-translate-y-1/2 before:rounded-3xl before:bg-slate-800 before:content-[""] dark:text-white dark:opacity-100 dark:before:bg-white dark:before:opacity-80' 
-                                  : 'before:-left-4.5 before:h-1.25 before:w-1.25 font-medium text-slate-800/50 before:absolute before:top-1/2 before:-translate-y-1/2 before:rounded-3xl before:bg-slate-800/50 before:content-[""] dark:text-white dark:opacity-60 dark:before:bg-white dark:before:opacity-80'}`}
+                                className={`ease-soft-in-out py-1.6 ${isSidebarMini && !isHovering ? 'text-center flex justify-center my-1' : 'ml-5.4 pl-4 relative my-0 mr-4 flex items-center'} text-sm whitespace-nowrap bg-transparent transition-colors
+                                  ${isSubActive 
+                                  ? `${isSidebarMini && !isHovering ? '' : 'before:-left-5 before:h-2 before:w-2'} font-semibold text-slate-800 ${isSidebarMini && !isHovering ? '' : 'before:absolute before:top-1/2 before:-translate-y-1/2 before:rounded-3xl before:bg-slate-800 before:content-[""]'}` 
+                                  : `${isSidebarMini && !isHovering ? '' : 'before:-left-4.5 before:h-1.25 before:w-1.25'} font-medium text-slate-800/50 ${isSidebarMini && !isHovering ? '' : 'before:absolute before:top-1/2 before:-translate-y-1/2 before:rounded-3xl before:bg-slate-800/50 before:content-[""]'}`}`}
                               >
                                 {isSidebarMini && !isHovering ? (
-                                  <span className="block text-sm text-center">{subItem.label.slice(0, 1)}</span>
+                                  <span className="text-xs text-center text-slate-800/50">
+                                    {subItem.label.slice(0, 1)}
+                                  </span>
                                 ) : (
-                                  <span className="transition-all duration-100 pointer-events-none ease-soft">{subItem.label}</span>
+                                  <>
+                                    <span className="w-0 text-center transition-all duration-200 opacity-0 pointer-events-none ease-soft-in-out">
+                                      {subItem.label.slice(0, 1)}
+                                    </span>
+                                    <span className="transition-all duration-100 pointer-events-none ease-soft">
+                                      {subItem.label}
+                                    </span>
+                                  </>
                                 )}
                               </Link>
                             </li>
@@ -145,28 +178,25 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                   </>
                 ) : (
-                  <Link 
-                    href={item.toggleOnly ? '#' : item.href}
-                    onClick={(e) => {
-                      if (item.toggleOnly) {
-                        e.preventDefault();
-                        toggleSection(item.label.toLowerCase());
-                      } else {
-                        handleNavItemClick();
-                      }
-                    }}
-                    className={`group ease-soft-in-out text-sm py-2.7 my-0 mx-4 flex items-center whitespace-nowrap rounded-lg px-4 transition-all ${isActive ? 'bg-white shadow-soft-xl font-semibold text-slate-700' : 'font-medium text-slate-500'} dark:text-white dark:opacity-80`}
+                  // Simple menu item without submenu
+                  <Link
+                    href={item.href}
+                    onClick={handleNavItemClick}
+                    className={`ease-soft-in-out text-sm py-2.7 my-0 mx-4 flex items-center whitespace-nowrap rounded-lg transition-all
+                      ${isActive ? 'xl:shadow-soft-xl bg-white font-semibold text-slate-700' : 'font-normal text-slate-500'} 
+                      ${isSidebarMini && !isHovering ? 'px-2 justify-center' : 'px-4'}`}
                   >
-                    <div className={`${isActive ? 'stroke-none shadow-soft-sm bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : 'stroke-none shadow-soft-2xl bg-white text-center text-black'} mr-2 flex h-8 w-8 items-center justify-center rounded-lg bg-center fill-current p-2.5 z-10`}>
+                    <div 
+                      className={`flex-none h-8 w-8 flex items-center justify-center rounded-lg p-2.5 bg-center ${isActive ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-sm' : 'bg-white text-slate-700 shadow-soft-2xl'} 
+                      ${isSidebarMini && !isHovering ? 'mx-0' : 'mr-2'}`}
+                    >
                       {item.icon}
                     </div>
+                    
                     {(!isSidebarMini || isHovering) && (
                       <span className="ml-1 duration-300 opacity-100 pointer-events-none ease-soft">
                         {item.label}
                       </span>
-                    )}
-                    {item.toggleOnly && !isSidebarMini && (
-                      <i className={`ml-auto fa fa-caret-down text-xs transition-transform duration-300 ease-soft-in-out ${expandedSection === item.label.toLowerCase() ? 'rotate-180' : ''} opacity-60 text-slate-500`}></i>
                     )}
                   </Link>
                 )}
@@ -177,19 +207,21 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Help Card - Positioned relative to the bottom of the navigation */}
-      {isNeedHelp && (!isSidebarMini || isHovering) && (
-        <div className="pt-4 mx-4 mt-4">
-          <div className="after:opacity-65 after:bg-gradient-to-tl after:from-slate-600 after:to-slate-300 relative flex min-w-0 flex-col items-center break-words rounded-2xl border-0 border-solid border-blue-900 bg-white bg-clip-border shadow-none after:absolute after:top-0 after:bottom-0 after:left-0 after:z-10 after:block after:h-full after:w-full after:rounded-2xl after:content-['']" data-sidenav-card>
+      {isNeedHelp && (
+        <div className={`${isSidebarMini && !isHovering ? 'pt-2 mx-auto mt-4 w-16' : 'pt-4 mx-4 mt-4'}`}>
+          <div className={`${isSidebarMini && !isHovering ? 'h-16 w-16' : ''} after:opacity-65 after:bg-gradient-to-tl after:from-slate-600 after:to-slate-300 relative flex min-w-0 flex-col items-center break-words rounded-2xl border-0 border-solid border-blue-900 bg-white bg-clip-border shadow-none after:absolute after:top-0 after:bottom-0 after:left-0 after:z-10 after:block after:h-full after:w-full after:rounded-2xl after:content-['']`} data-sidenav-card>
             <div className="absolute w-full h-full bg-center bg-cover mb-7 rounded-2xl" style={{backgroundImage: "url('/assets/img/curved-images/white-curved.jpg')"}}></div>
-            <div className="relative z-20 flex-auto w-full p-4 text-left text-white">
-              <div className="flex items-center justify-center w-8 h-8 mb-4 text-center bg-white bg-center rounded-lg icon shadow-soft-2xl">
+            <div className={`relative z-20 flex-auto w-full ${isSidebarMini && !isHovering ? 'p-2 flex justify-center items-center' : 'p-4 text-left'} text-white`}>
+              <div className={`flex items-center justify-center ${isSidebarMini && !isHovering ? 'w-8 h-8 mb-0' : 'w-8 h-8 mb-4'} text-center bg-white bg-center rounded-lg icon shadow-soft-2xl`}>
                 <i className="top-0 z-10 text-lg leading-none text-transparent ni ni-diamond bg-gradient-to-tl from-slate-600 to-slate-300 bg-clip-text opacity-80" aria-hidden="true" data-sidenav-card-icon></i>
               </div>
-              <div className="transition-all duration-200 ease-nav-brand">
-                <h6 className="mb-0 text-white">Need help?</h6>
-                <p className="mt-0 mb-4 text-xs font-semibold leading-tight">Please check our docs</p>
-                <a href="#" target="_blank" className="inline-block w-full px-8 py-2 mb-0 text-xs font-bold text-center text-black uppercase transition-all ease-in bg-white border-0 border-white rounded-lg shadow-soft-md bg-150 leading-pro hover:shadow-soft-2xl hover:scale-102">Documentation</a>
-              </div>
+              {(!isSidebarMini || isHovering) && (
+                <div className="transition-all duration-200 ease-nav-brand">
+                  <h6 className="mb-0 text-white">Need help?</h6>
+                  <p className="mt-0 mb-4 text-xs font-semibold leading-tight">Please check our docs</p>
+                  <a href="#" target="_blank" className="inline-block w-full px-8 py-2 mb-0 text-xs font-bold text-center text-black uppercase transition-all ease-in bg-white border-0 border-white rounded-lg shadow-soft-md bg-150 leading-pro hover:shadow-soft-2xl hover:scale-102">Documentation</a>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -203,12 +235,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (mainContent) {
       if (isSidebarMini && !isHovering) {
         mainContent.classList.remove('xl:ml-[17rem]');
-        mainContent.classList.add('xl:ml-24');
+        mainContent.classList.add('xl:ml-20');
       } else if (isSidebarMini && isHovering) {
-        mainContent.classList.remove('xl:ml-24');
+        mainContent.classList.remove('xl:ml-20');
         mainContent.classList.add('xl:ml-[17rem]');
       } else if (!isSidebarMini) {
-        mainContent.classList.remove('xl:ml-24');
+        mainContent.classList.remove('xl:ml-20');
         mainContent.classList.add('xl:ml-[17rem]');
       }
     }
@@ -227,7 +259,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Sidebar - hidden on small screens, visible on xl and above */}
       <aside 
         data-mini={isSidebarMini ? "true" : "false"}
-        className={`fixed inset-y-0 left-0 flex-wrap items-center justify-between block p-0 my-4 overflow-hidden transition-all duration-200 ease-soft-in-out z-990 ${isSidebarMini && !isHovering ? 'w-[80px]' : 'w-64'} rounded-2xl xl:ml-4 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} bg-white border-0 shadow-none dark:bg-gray-950 xl:translate-x-0 xl:bg-transparent`}
+        className={`fixed inset-y-0 left-0 flex-wrap items-center justify-between block p-0 my-4 overflow-hidden transition-all duration-200 ease-soft-in-out z-990 ${isSidebarMini && !isHovering ? 'w-20' : 'w-64'} rounded-2xl xl:ml-4 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} bg-white border-0 shadow-none dark:bg-gray-950 xl:translate-x-0 xl:bg-transparent`}
         id="sidenav-main"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}

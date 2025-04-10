@@ -1,5 +1,6 @@
 import './globals.css';
 import '../styles/soft-ui-dashboard-tailwind.css'; // ✅ Add this line
+import '@fortawesome/fontawesome-free/css/all.min.css';
 import "@/styles/nucleo-icons.css";
 import "@/styles/nucleo-svg.css"; // Add Nucleo SVG Icons
 import { Inter } from 'next/font/google';

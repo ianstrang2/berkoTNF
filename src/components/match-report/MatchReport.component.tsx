@@ -335,7 +335,7 @@ const MatchReport: React.FC = () => {
       console.log('Adding half-season goal leader to timeline:', leaderData);
       timelineItems.push({
         type: 'leader_change',
-        player: leaderData.new_leader,
+        player: 'Current Leader (Goals)',
         content: formatLeaderText(leaderData, 'goals', 'current Half-Season'),
         icon: 'crown',
         date: matchDate
@@ -347,31 +347,35 @@ const MatchReport: React.FC = () => {
       console.log('Adding half-season fantasy leader to timeline:', leaderData);
       timelineItems.push({
         type: 'leader_change',
-        player: leaderData.new_leader,
+        player: 'Current Leader (Points)',
         content: formatLeaderText(leaderData, 'points', 'current Half-Season'),
         icon: 'crown',
         date: matchDate
       });
     }
     
-    if (report.seasonGoalLeaders?.[0]) {
+    // Only show season leaders in the second half of the year (Jul-Dec)
+    const currentDate = report.matchInfo.match_date ? new Date(report.matchInfo.match_date) : new Date();
+    const isSecondHalf = currentDate.getMonth() >= 6; // getMonth() is 0-based, so 6 = July
+    
+    if (isSecondHalf && report.seasonGoalLeaders?.[0]) {
       const leaderData = report.seasonGoalLeaders[0];
       console.log('Adding season goal leader to timeline:', leaderData);
       timelineItems.push({
         type: 'leader_change',
-        player: leaderData.new_leader,
+        player: 'Season Leader (Goals)',
         content: formatLeaderText(leaderData, 'goals', new Date().getFullYear() + ' Season'),
         icon: 'crown',
         date: matchDate
       });
     }
     
-    if (report.seasonFantasyLeaders?.[0]) {
+    if (isSecondHalf && report.seasonFantasyLeaders?.[0]) {
       const leaderData = report.seasonFantasyLeaders[0];
       console.log('Adding season fantasy leader to timeline:', leaderData);
       timelineItems.push({
         type: 'leader_change',
-        player: leaderData.new_leader,
+        player: 'Season Leader (Points)',
         content: formatLeaderText(leaderData, 'points', new Date().getFullYear() + ' Season'),
         icon: 'crown',
         date: matchDate
@@ -531,7 +535,12 @@ const MatchReport: React.FC = () => {
     // Leaders
     const { halfSeasonGoalLeaders, halfSeasonFantasyLeaders, seasonGoalLeaders, seasonFantasyLeaders } = report;
     
-    if (halfSeasonGoalLeaders?.[0] || halfSeasonFantasyLeaders?.[0] || seasonGoalLeaders?.[0] || seasonFantasyLeaders?.[0]) {
+    // Check if we're in the second half of the year
+    const currentDate = report.matchInfo.match_date ? new Date(report.matchInfo.match_date) : new Date();
+    const isSecondHalf = currentDate.getMonth() >= 6; // getMonth() is 0-based, so 6 = July
+    
+    if (halfSeasonGoalLeaders?.[0] || halfSeasonFantasyLeaders?.[0] || 
+        (isSecondHalf && (seasonGoalLeaders?.[0] || seasonFantasyLeaders?.[0]))) {
       const leadersSection: string[] = [];
       
       if (halfSeasonGoalLeaders?.[0] || halfSeasonFantasyLeaders?.[0]) {
@@ -548,7 +557,8 @@ const MatchReport: React.FC = () => {
         }
       }
       
-      if (seasonGoalLeaders?.[0] || seasonFantasyLeaders?.[0]) {
+      // Only include season leaders in the second half of the year
+      if (isSecondHalf && (seasonGoalLeaders?.[0] || seasonFantasyLeaders?.[0])) {
         leadersSection.push('\nSeason Leaders:');
         
         if (seasonGoalLeaders?.[0]) {

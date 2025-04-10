@@ -121,6 +121,7 @@ function MainLayoutContent({ children }: MainLayoutProps) {
         logoDark="/logo.png"
         navItems={navigationItems}
         isNeedHelp={true}
+        isSidebarMini={isSidebarMini}
       />
       
       {/* Main Content Area */}

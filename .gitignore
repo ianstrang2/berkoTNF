@@ -418,6 +418,9 @@ FodyWeavers.xsd
 .DS_Store
 *.pem
 
+# Ignore the embedded soft-ui template folder
+soft-ui/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
