@@ -7,13 +7,9 @@ import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 export default function HallOfFamePage() {
   return (
     <MainLayout>
-      <div className="py-6">
-        <div className="bg-white rounded-xl shadow-card p-6">
-          <ErrorBoundary>
-            <HonourRoll />
-          </ErrorBoundary>
-        </div>
-      </div>
+      <ErrorBoundary>
+        <HonourRoll />
+      </ErrorBoundary>
     </MainLayout>
   );
 } 
