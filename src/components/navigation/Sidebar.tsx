@@ -225,7 +225,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="transition-all duration-200 ease-nav-brand">
                   <h6 className="mb-0 text-white">Need help?</h6>
                   <p className="mt-0 mb-4 text-xs font-semibold leading-tight">Please check our docs</p>
-                  <a href="#" target="_blank" className="inline-block w-full px-8 py-2 mb-0 text-xs font-bold text-center text-black uppercase transition-all ease-in bg-white border-0 border-white rounded-lg shadow-soft-md bg-150 leading-pro hover:shadow-soft-2xl hover:scale-102">Documentation</a>
+                  <div className="inline-block w-full px-8 py-2 mb-0 text-xs font-bold text-center text-black uppercase transition-all ease-in bg-white border-0 border-white rounded-lg shadow-soft-md bg-150 leading-pro">Documentation</div>
                 </div>
               )}
             </div>

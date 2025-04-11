@@ -99,167 +99,169 @@ const Feats: React.FC = () => {
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
           <h5 className="mb-0">Record Breakers</h5>
         </div>
-        <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
-          <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
-            <thead className="align-bottom">
-              <tr>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                  Record
-                </th>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
-                  Player(s)
-                </th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                  Details
-                </th>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                  Date
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.records && (
-                <>
-                  {data.records.most_goals_in_game && (
-                    <tr>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
-                      </td>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        <div className="flex px-2 py-1">
-                          <div className="flex flex-col justify-center">
-                            <h6 className="mb-0 leading-normal text-sm font-semibold">
-                              {formatNames(data.records.most_goals_in_game)}
-                            </h6>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                        <span className="font-normal leading-normal text-sm">
-                          {data.records.most_goals_in_game[0].goals} goals
-                        </span>
-                      </td>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        {data.records.most_goals_in_game.map((record, index) => (
-                          <div key={`game-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
-                            {record.name}: {new Date(record.date).toLocaleDateString()}
-                          </div>
-                        ))}
-                      </td>
-                    </tr>
-                  )}
-
-                  {data.records.streaks && Object.entries(data.records.streaks).map(([streakType, streakData]) => 
-                    streakData && (
-                      <tr key={streakType}>
+        <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
+          <div className="table-responsive" style={{position: 'relative'}}>
+            <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+              <thead className="align-bottom">
+                <tr>
+                  <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    Record
+                  </th>
+                  <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
+                    Player(s)
+                  </th>
+                  <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    Details
+                  </th>
+                  <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    Date
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.records && (
+                  <>
+                    {data.records.most_goals_in_game && (
+                      <tr>
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                          <span className="font-normal leading-normal text-sm">
-                            {streakType === 'Win Streak' ? 'Longest Win Streak' :
-                            streakType === 'Loss Streak' ? 'Longest Losing Streak' :
-                            streakType === 'No Win Streak' ? 'Longest Streak Without a Win' :
-                            'Longest Undefeated Streak'}
-                          </span>
+                          <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
                         </td>
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                           <div className="flex px-2 py-1">
                             <div className="flex flex-col justify-center">
                               <h6 className="mb-0 leading-normal text-sm font-semibold">
-                                {formatNames(streakData.holders)}
+                                {formatNames(data.records.most_goals_in_game)}
                               </h6>
                             </div>
                           </div>
                         </td>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                           <span className="font-normal leading-normal text-sm">
-                            {streakData.holders[0].streak} games
+                            {data.records.most_goals_in_game[0].goals} goals
                           </span>
                         </td>
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                          {streakData.holders.map((holder, index) => (
-                            <div key={`streak-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
+                          {data.records.most_goals_in_game.map((record, index) => (
+                            <div key={`game-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
+                              {record.name}: {new Date(record.date).toLocaleDateString()}
+                            </div>
+                          ))}
+                        </td>
+                      </tr>
+                    )}
+
+                    {data.records.streaks && Object.entries(data.records.streaks).map(([streakType, streakData]) => 
+                      streakData && (
+                        <tr key={streakType}>
+                          <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                            <span className="font-normal leading-normal text-sm">
+                              {streakType === 'Win Streak' ? 'Longest Win Streak' :
+                              streakType === 'Loss Streak' ? 'Longest Losing Streak' :
+                              streakType === 'No Win Streak' ? 'Longest Streak Without a Win' :
+                              'Longest Undefeated Streak'}
+                            </span>
+                          </td>
+                          <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                            <div className="flex px-2 py-1">
+                              <div className="flex flex-col justify-center">
+                                <h6 className="mb-0 leading-normal text-sm font-semibold">
+                                  {formatNames(streakData.holders)}
+                                </h6>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                            <span className="font-normal leading-normal text-sm">
+                              {streakData.holders[0].streak} games
+                            </span>
+                          </td>
+                          <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                            {streakData.holders.map((holder, index) => (
+                              <div key={`streak-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
+                                {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
+                                {new Date(holder.end_date).toLocaleDateString()}
+                              </div>
+                            ))}
+                          </td>
+                        </tr>
+                      )
+                    )}
+
+                    {data.records.consecutive_goals && (
+                      <tr>
+                        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                          <span className="font-normal leading-normal text-sm">Most Consecutive Games Scoring</span>
+                        </td>
+                        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                          <div className="flex px-2 py-1">
+                            <div className="flex flex-col justify-center">
+                              <h6 className="mb-0 leading-normal text-sm font-semibold">
+                                {formatNames(data.records.consecutive_goals.holders)}
+                              </h6>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                          <span className="font-normal leading-normal text-sm">
+                            {data.records.consecutive_goals.holders[0].streak} games
+                          </span>
+                        </td>
+                        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                          {data.records.consecutive_goals.holders.map((holder, index) => (
+                            <div key={`consecutive-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
                               {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
                               {new Date(holder.end_date).toLocaleDateString()}
                             </div>
                           ))}
                         </td>
                       </tr>
-                    )
-                  )}
+                    )}
 
-                  {data.records.consecutive_goals && (
-                    <tr>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        <span className="font-normal leading-normal text-sm">Most Consecutive Games Scoring</span>
-                      </td>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        <div className="flex px-2 py-1">
-                          <div className="flex flex-col justify-center">
-                            <h6 className="mb-0 leading-normal text-sm font-semibold">
-                              {formatNames(data.records.consecutive_goals.holders)}
-                            </h6>
+                    {data.records.biggest_victory && data.records.biggest_victory[0] && (
+                      <tr>
+                        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                          <span className="font-normal leading-normal text-sm">Biggest Victory</span>
+                        </td>
+                        <td className="p-2 align-middle bg-transparent border-b">
+                          <div className="flex-col px-2 py-1">
+                            {data.records.biggest_victory[0].winning_team === 'A' ? (
+                              <>
+                                <div className="mb-1 text-sm font-semibold">
+                                  Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
+                                </div>
+                                <div className="mb-0 text-sm">
+                                  Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="mb-1 text-sm font-semibold">
+                                  Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
+                                </div>
+                                <div className="mb-0 text-sm">
+                                  Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
+                                </div>
+                              </>
+                            )}
                           </div>
-                        </div>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                        <span className="font-normal leading-normal text-sm">
-                          {data.records.consecutive_goals.holders[0].streak} games
-                        </span>
-                      </td>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        {data.records.consecutive_goals.holders.map((holder, index) => (
-                          <div key={`consecutive-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
-                            {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
-                            {new Date(holder.end_date).toLocaleDateString()}
-                          </div>
-                        ))}
-                      </td>
-                    </tr>
-                  )}
-
-                  {data.records.biggest_victory && data.records.biggest_victory[0] && (
-                    <tr>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        <span className="font-normal leading-normal text-sm">Biggest Victory</span>
-                      </td>
-                      <td className="p-2 align-middle bg-transparent border-b">
-                        <div className="flex-col px-2 py-1">
-                          {data.records.biggest_victory[0].winning_team === 'A' ? (
-                            <>
-                              <div className="mb-1 text-sm font-semibold">
-                                Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
-                              </div>
-                              <div className="mb-0 text-sm">
-                                Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="mb-1 text-sm font-semibold">
-                                Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
-                              </div>
-                              <div className="mb-0 text-sm">
-                                Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                        <span className="font-normal leading-normal text-sm">
-                          {data.records.biggest_victory[0].team_a_score}-{data.records.biggest_victory[0].team_b_score}
-                        </span>
-                      </td>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        <span className="text-sm text-slate-400" suppressHydrationWarning>
-                          {new Date(data.records.biggest_victory[0].date).toLocaleDateString()}
-                        </span>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              )}
-            </tbody>
-          </table>
+                        </td>
+                        <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                          <span className="font-normal leading-normal text-sm">
+                            {data.records.biggest_victory[0].team_a_score}-{data.records.biggest_victory[0].team_b_score}
+                          </span>
+                        </td>
+                        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                          <span className="text-sm text-slate-400" suppressHydrationWarning>
+                            {new Date(data.records.biggest_victory[0].date).toLocaleDateString()}
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
@@ -284,7 +286,7 @@ const Feats: React.FC = () => {
 
   return (
     <div className="flex flex-wrap justify-start -mx-3">
-      <div className="inline-block align-top px-3 mb-6">
+      <div className="w-full px-3 mb-6">
         {renderRecords()}
       </div>
     </div>

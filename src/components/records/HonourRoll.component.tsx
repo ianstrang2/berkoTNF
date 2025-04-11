@@ -111,50 +111,52 @@ const HonourRoll: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Season Winners</h5>
       </div>
-      <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
-        <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
-          <thead className="align-bottom">
-            <tr>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Year
-              </th>
-              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Champion
-              </th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Points
-              </th>
-              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
-                Runners Up
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.seasonWinners.map((season) => (
-              <tr key={season.year}>
-                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <span className="font-normal leading-normal text-sm">{season.year}</span>
-                </td>
-                <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                  <div className="flex px-2 py-1">
-                    <div className="flex flex-col justify-center">
-                      <h6 className="mb-0 leading-normal text-sm font-semibold">{season.winners.winner}</h6>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <span className="font-normal leading-normal text-sm">{season.winners.winner_points}</span>
-                </td>
-                <td className="p-2 align-middle bg-transparent border-b whitespace-normal">
-                  <span className="font-normal leading-normal text-sm">
-                    {season.winners.runners_up?.map(runner => 
-                      `${runner.name} (${runner.points})`).join(', ')}
-                  </span>
-                </td>
+      <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
+        <div className="table-responsive" style={{position: 'relative'}}>
+          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+            <thead className="align-bottom">
+              <tr>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  Year
+                </th>
+                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  Champion
+                </th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  Points
+                </th>
+                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
+                  Runners Up
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.seasonWinners.map((season) => (
+                <tr key={season.year}>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{season.year}</span>
+                  </td>
+                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                    <div className="flex px-2 py-1">
+                      <div className="flex flex-col justify-center">
+                        <h6 className="mb-0 leading-normal text-sm font-semibold">{season.winners.winner}</h6>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{season.winners.winner_points}</span>
+                  </td>
+                  <td className="p-2 align-middle bg-transparent border-b whitespace-normal">
+                    <span className="font-normal leading-normal text-sm">
+                      {season.winners.runners_up?.map(runner => 
+                        `${runner.name} (${runner.points})`).join(', ')}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -164,50 +166,52 @@ const HonourRoll: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Top Scorers</h5>
       </div>
-      <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
-        <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
-          <thead className="align-bottom">
-            <tr>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Year
-              </th>
-              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Player
-              </th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Goals
-              </th>
-              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
-                Runners Up
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.topScorers.map((season) => (
-              <tr key={season.year}>
-                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <span className="font-normal leading-normal text-sm">{season.year}</span>
-                </td>
-                <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                  <div className="flex px-2 py-1">
-                    <div className="flex flex-col justify-center">
-                      <h6 className="mb-0 leading-normal text-sm font-semibold">{season.scorers.winner}</h6>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <span className="font-normal leading-normal text-sm">{season.scorers.winner_goals}</span>
-                </td>
-                <td className="p-2 align-middle bg-transparent border-b whitespace-normal">
-                  <span className="font-normal leading-normal text-sm">
-                    {season.scorers.runners_up?.map(runner => 
-                      `${runner.name} (${runner.goals})`).join(', ')}
-                  </span>
-                </td>
+      <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
+        <div className="table-responsive" style={{position: 'relative'}}>
+          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+            <thead className="align-bottom">
+              <tr>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  Year
+                </th>
+                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  Player
+                </th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  Goals
+                </th>
+                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
+                  Runners Up
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.topScorers.map((season) => (
+                <tr key={season.year}>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{season.year}</span>
+                  </td>
+                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                    <div className="flex px-2 py-1">
+                      <div className="flex flex-col justify-center">
+                        <h6 className="mb-0 leading-normal text-sm font-semibold">{season.scorers.winner}</h6>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{season.scorers.winner_goals}</span>
+                  </td>
+                  <td className="p-2 align-middle bg-transparent border-b whitespace-normal">
+                    <span className="font-normal leading-normal text-sm">
+                      {season.scorers.runners_up?.map(runner => 
+                        `${runner.name} (${runner.goals})`).join(', ')}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

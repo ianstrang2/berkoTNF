@@ -142,90 +142,92 @@ const CurrentHalfSeason: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Points Leaderboard</h5>
       </div>
-      <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
-        <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
-          <thead className="align-bottom">
-            <tr>
-              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">P</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">W</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">D</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">L</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">G</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HW</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HL</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">CS</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Win %</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Last 5</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.seasonStats.map((player, index) => {
-              const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
-              const losses = player.games_played - player.wins - player.draws;
-              return (
-                <tr key={index}>
-                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                    <div className="flex px-2 py-1">
-                      <div className="flex flex-col justify-center">
-                        <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+      <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
+        <div className="table-responsive" style={{position: 'relative'}}>
+          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+            <thead className="align-bottom">
+              <tr>
+                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">P</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">W</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">D</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">L</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">G</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HW</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HL</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">CS</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Win %</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Last 5</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.seasonStats.map((player, index) => {
+                const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
+                const losses = player.games_played - player.wins - player.draws;
+                return (
+                  <tr key={index}>
+                    <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                      <div className="flex px-2 py-1">
+                        <div className="flex flex-col justify-center">
+                          <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasy_points}</p>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.games_played}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.wins}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.draws}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{losses}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.goals}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.heavy_wins}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.heavy_losses}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.clean_sheets}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <div className="flex justify-center gap-2">
-                      {form.map((result, i) => (
-                        <span 
-                          key={i} 
-                          className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white rounded-full ${
-                            result.includes('W') 
-                              ? 'bg-green-500' 
-                              : result === 'D' 
-                                ? 'bg-amber-500' 
-                                : 'bg-red-500'
-                          }`}
-                        >
-                          {result.replace('H', '')}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasy_points}</p>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{player.games_played}</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{player.wins}</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{player.draws}</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{losses}</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{player.goals}</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{player.heavy_wins}</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{player.heavy_losses}</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{player.clean_sheets}</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
+                    </td>
+                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                      <div className="flex justify-center gap-2">
+                        {form.map((result, i) => (
+                          <span 
+                            key={i} 
+                            className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white rounded-full ${
+                              result.includes('W') 
+                                ? 'bg-green-500' 
+                                : result === 'D' 
+                                  ? 'bg-amber-500' 
+                                  : 'bg-red-500'
+                            }`}
+                          >
+                            {result.replace('H', '')}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -235,59 +237,61 @@ const CurrentHalfSeason: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Goalscoring Leaderboard</h5>
       </div>
-      <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
-        <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
-          <thead className="align-bottom">
-            <tr>
-              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Goals</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">MPG</th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Last 5</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.goalStats
-              .filter(player => player.total_goals > 0)
-              .map((player, index) => (
-              <tr key={index}>
-                <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                  <div className="flex px-2 py-1">
-                    <div className="flex flex-col justify-center">
-                      <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <span className="font-semibold leading-normal text-sm">{player.total_goals}</span>
-                </td>
-                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <span className={`leading-normal text-sm ${player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
-                    {player.minutes_per_goal}
-                  </span>
-                </td>
-                <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <div className="flex justify-center gap-2">
-                    {player.last_five_games?.split(',').map((goals, i) => {
-                      const goalCount = parseInt(goals);
-                      return (
-                        <span 
-                          key={i} 
-                          className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none rounded-full ${
-                            goalCount > 0 
-                              ? 'bg-green-500 text-white' 
-                              : 'bg-gray-200 text-gray-600'
-                          }`}
-                        >
-                          {goalCount}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </td>
+      <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
+        <div className="table-responsive" style={{position: 'relative'}}>
+          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+            <thead className="align-bottom">
+              <tr>
+                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Goals</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">MPG</th>
+                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Last 5</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {stats.goalStats
+                .filter(player => player.total_goals > 0)
+                .map((player, index) => (
+                <tr key={index}>
+                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                    <div className="flex px-2 py-1">
+                      <div className="flex flex-col justify-center">
+                        <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-semibold leading-normal text-sm">{player.total_goals}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className={`leading-normal text-sm ${player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
+                      {player.minutes_per_goal}
+                    </span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <div className="flex justify-center gap-2">
+                      {player.last_five_games?.split(',').map((goals, i) => {
+                        const goalCount = parseInt(goals);
+                        return (
+                          <span 
+                            key={i} 
+                            className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none rounded-full ${
+                              goalCount > 0 
+                                ? 'bg-green-500 text-white' 
+                                : 'bg-gray-200 text-gray-600'
+                            }`}
+                          >
+                            {goalCount}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

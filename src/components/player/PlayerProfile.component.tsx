@@ -118,11 +118,11 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   };
 
   const statOptions: string[] = [
-    'Games Played',
-    'Goals Scored',
-    'Minutes Per Goal',
-    'Points Per Game',
-    'Fantasy Points'
+    'Games',
+    'Goals',
+    'MPG',
+    'PPG',
+    'Points'
   ];
 
   const yearlyPerformanceData: YearlyPerformanceData[] | undefined = profile?.yearly_stats.map(year => {
@@ -225,10 +225,10 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
       {/* Stats Cards */}
       <div className="w-full max-w-full px-3 mb-6">
-        <div className="flex flex-wrap gap-6 max-w-[1000px]">
-          <div className="flex-[1_1_calc(50%-12px)]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-[1000px]">
+          <div>
             <StatsCard
-              title="Games Played"
+              title="Games"
               value={games_played}
               icon={
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -237,9 +237,9 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               }
             />
           </div>
-          <div className="flex-[1_1_calc(50%-12px)]">
+          <div>
             <StatsCard
-              title="Fantasy Points"
+              title="Points"
               value={fantasy_points}
               icon={
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -248,7 +248,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               }
             />
           </div>
-          <div className="flex-[1_1_calc(50%-12px)]">
+          <div>
             <StatsCard
               title="Most Game Goals"
               value={most_game_goals}
@@ -260,7 +260,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               }
             />
           </div>
-          <div className="flex-[1_1_calc(50%-12px)]">
+          <div>
             <StatsCard
               title="Most Season Goals"
               value={most_season_goals}
@@ -272,7 +272,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               }
             />
           </div>
-          <div className="flex-[1_1_calc(50%-12px)]">
+          <div>
             <StatsCard
               title="Win Streak"
               value={win_streak}
@@ -284,7 +284,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               }
             />
           </div>
-          <div className="flex-[1_1_calc(50%-12px)]">
+          <div>
             <StatsCard
               title="Undefeated Streak"
               value={undefeated_streak}
@@ -296,7 +296,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               }
             />
           </div>
-          <div className="flex-[1_1_calc(50%-12px)]">
+          <div>
             <StatsCard
               title="Losing Streak"
               value={losing_streak}
@@ -308,7 +308,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               }
             />
           </div>
-          <div className="flex-[1_1_calc(50%-12px)]">
+          <div>
             <StatsCard
               title="Winless Streak"
               value={winless_streak}
@@ -340,16 +340,28 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           </div>
           <div className="flex-auto p-6 pt-0">
             <p className="leading-normal text-sm mb-4 dark:text-white/60">
-              Showing {selectedStat.toLowerCase()} over time
+              Showing {
+                selectedStat === 'Games' ? 'games played' : 
+                selectedStat === 'Goals' ? 'goals scored' : 
+                selectedStat === 'MPG' ? 'minutes per goal' : 
+                selectedStat === 'PPG' ? 'points per game' : 
+                'fantasy points'
+              } over time
             </p>
-            <div className="h-[350px]">
+            <div className="h-[250px] sm:h-[300px] md:h-[350px]">
               <Chart
                 title=""
                 data={yearlyPerformanceData || []}
                 type="line"
-                dataKey={selectedStat.toLowerCase().replace(/\s+/g, '_')}
+                dataKey={
+                  selectedStat === 'Games' ? 'games_played' : 
+                  selectedStat === 'Goals' ? 'goals_scored' : 
+                  selectedStat === 'MPG' ? 'minutes_per_goal' : 
+                  selectedStat === 'PPG' ? 'points_per_game' : 
+                  'fantasy_points'
+                }
                 gradient={{ from: 'purple-700', to: 'pink-500' }}
-                reverseYAxis={selectedStat === 'Minutes Per Goal'}
+                reverseYAxis={selectedStat === 'MPG'}
               />
             </div>
           </div>

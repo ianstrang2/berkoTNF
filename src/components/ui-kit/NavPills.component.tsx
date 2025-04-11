@@ -139,7 +139,7 @@ export const NavPills = <T extends string>({
           >
             <a
               href="javascript:;"
-              className="block w-full py-1 transition-colors border-0 rounded-lg ease-soft-in-out bg-inherit bg-none dark:text-white"
+              className="block w-full py-1 transition-colors border-0 rounded-lg ease-soft-in-out bg-inherit bg-none dark:text-white text-xs md:text-sm"
               onClick={() => onTabChange(item.value)}
               role="tab"
               aria-selected={activeTab === item.value}
