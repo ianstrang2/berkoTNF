@@ -11,6 +11,43 @@ body {
   font-family: 'Open Sans', sans-serif;
 }
 
+/* 
+ * Custom scrollbar styles - replaced by perfect-scrollbar
+ *
+.scrollbar-hide {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;     
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  
+}
+
+.hover\:scrollbar-default:hover {
+  -ms-overflow-style: auto;  
+  scrollbar-width: auto;     
+}
+
+.hover\:scrollbar-default:hover::-webkit-scrollbar {
+  display: block;  
+  height: 8px;
+  width: 8px;
+}
+
+.hover\:scrollbar-default:hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hover\:scrollbar-default:hover::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);  
+  border-radius: 4px;
+}
+
+.hover\:scrollbar-default:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);  
+}
+*/
+
 .ease-soft {
   transition-timing-function: cubic-bezier(0.34, 1.61, 0.7, 1.3);
 }

@@ -49,13 +49,10 @@ const CurrentHalfSeason: React.FC = () => {
   });
   // Track component mount state
   const isMounted = useRef(true);
-  // Client-side only rendering for hydration safety
-  const [isClient, setIsClient] = useState(false);
-
+  
   // Set up isMounted ref cleanup
   useEffect(() => {
     isMounted.current = true;
-    setIsClient(true);
     return () => {
       isMounted.current = false;
     };
@@ -87,6 +84,9 @@ const CurrentHalfSeason: React.FC = () => {
         
         const currentPeriod = getCurrentHalf();
         console.log('Current period:', currentPeriod);
+
+        // Add a slight delay to ensure component has fully hydrated
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         const response = await fetch('/api/stats/half-season', {
           method: 'POST',
@@ -140,8 +140,8 @@ const CurrentHalfSeason: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Points Leaderboard</h5>
       </div>
-      <div className="overflow-x-auto px-0 pt-0 pb-2">
-        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+      <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
+        <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
           <thead className="align-bottom">
             <tr>
               <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
@@ -233,8 +233,8 @@ const CurrentHalfSeason: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Goalscoring Leaderboard</h5>
       </div>
-      <div className="overflow-x-auto px-0 pt-0 pb-2">
-        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+      <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
+        <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
           <thead className="align-bottom">
             <tr>
               <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
@@ -290,41 +290,42 @@ const CurrentHalfSeason: React.FC = () => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="w-full">
-        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
-          <div className="text-center">
-            <h6 className="mb-2 text-lg">Loading...</h6>
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
-              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+  return (
+    <div className="flex flex-wrap justify-start -mx-3">
+      {loading ? (
+        <div className="w-full max-w-full px-3 flex-none">
+          <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+            <div className="text-center">
+              <h6 className="mb-2 text-lg">Loading half-season stats...</h6>
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full">
-      {stats.seasonStats.length === 0 ? (
-        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
-          <div className="text-center">
-            <h6 className="mb-0 text-lg">No stats available for this period</h6>
-          </div>
-        </div>
       ) : (
-        <div className="flex flex-wrap -mx-3">
-          {/* Points Leaderboard */}
-          <div className="w-auto px-3 mb-6 flex-none">
-            {renderMainStats()}
-          </div>
-          
-          {/* Goalscoring Leaderboard */}
-          <div className="w-auto px-3 mb-6 flex-none">
-            {renderGoalStats()}
-          </div>
-        </div>
+        <>
+          {stats.seasonStats.length === 0 ? (
+            <div className="w-full max-w-full px-3 flex-none">
+              <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+                <div className="text-center py-4">
+                  <h5 className="mb-2">No Data Available</h5>
+                  <p className="text-sm text-gray-600">Statistics for this half-season period are not yet available.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="inline-block align-top px-3 mb-6">
+                {renderMainStats()}
+              </div>
+              
+              <div className="inline-block align-top px-3 mb-6">
+                {renderGoalStats()}
+              </div>
+            </>
+          )}
+        </>
       )}
     </div>
   );

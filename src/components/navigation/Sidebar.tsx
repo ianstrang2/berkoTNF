@@ -31,9 +31,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   const { sidebarOpen, setSidebarOpen, expandedSection, setExpandedSection, isSidebarMini: contextIsSidebarMini, toggleSidebarMini } = useNavigation();
   const pathname = usePathname() || ''; // Provide empty string as fallback
   const [isHovering, setIsHovering] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   
   // Use the prop value if provided, otherwise fall back to the context value
   const isSidebarMini = propIsSidebarMini !== undefined ? propIsSidebarMini : contextIsSidebarMini;
+
+  // Ensure component is fully mounted before any DOM manipulation
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Check if any subItem is active to highlight parent
   const checkIfParentActive = (item: NavItem): boolean => {
@@ -230,6 +236,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   );
 
   useEffect(() => {
+    // Only run this effect on the client side after hydration
+    if (!isClient) return;
+    
     // This effect will update the main content margin when sidebar state changes
     const mainContent = document.querySelector('main');
     if (mainContent) {
@@ -244,7 +253,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         mainContent.classList.add('xl:ml-[17rem]');
       }
     }
-  }, [isSidebarMini, isHovering]);
+  }, [isSidebarMini, isHovering, isClient]);
 
   return (
     <>

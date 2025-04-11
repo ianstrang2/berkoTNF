@@ -121,8 +121,8 @@ const OverallSeasonPerformance: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Points Leaderboard</h5>
       </div>
-      <div className="overflow-x-auto px-0 pt-0 pb-2">
-        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+      <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
+        <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
           <thead className="align-bottom">
             <tr>
               <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
@@ -214,8 +214,8 @@ const OverallSeasonPerformance: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Goalscoring Leaderboard</h5>
       </div>
-      <div className="overflow-x-auto px-0 pt-0 pb-2">
-        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+      <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
+        <table className="items-center w-auto mb-0 align-top border-gray-200 text-slate-500">
           <thead className="align-bottom">
             <tr>
               <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
@@ -251,14 +251,19 @@ const OverallSeasonPerformance: React.FC = () => {
     </div>
   );
 
-  if (loading) {
+  if (loading || !isClient) {
     return (
-      <div className="w-full">
-        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
-          <div className="text-center">
-            <h6 className="mb-2 text-lg">Loading...</h6>
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
-              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+      <div className="flex flex-wrap justify-start -mx-3">
+        <div className="w-full max-w-full px-3 flex-none">
+          <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+            <div className="flex items-center justify-center p-5">
+              <div className="text-center">
+                <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-surface motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                </div>
+                <h6 className="mt-3 mb-0 text-lg">Loading season statistics...</h6>
+                <p className="text-sm text-slate-400">Please wait while we fetch the data</p>
+              </div>
             </div>
           </div>
         </div>
@@ -267,47 +272,57 @@ const OverallSeasonPerformance: React.FC = () => {
   }
 
   return (
-    <div className="w-full">
-      {/* Year Selector - Soft UI Style */}
-      <div className="flex justify-end mb-4">
-        <div className="w-40 relative">
-          {isClient && (
-            <select 
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="block w-full bg-white border border-gray-200 text-sm shadow-soft-md rounded-lg font-medium py-2 px-3 text-gray-700 appearance-none focus:outline-none"
-            >
-              {yearOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
-          )}
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-            </svg>
+    <div className="flex flex-wrap justify-start -mx-3">
+      {/* Year Selector */}
+      <div className="w-full max-w-full px-3 mb-4">
+        <div className="flex justify-end">
+          <div className="w-40 relative">
+            {isClient && (
+              <select 
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="block w-full bg-white border border-gray-200 text-sm shadow-soft-md rounded-lg font-medium py-2 px-3 text-gray-700 appearance-none focus:outline-none"
+              >
+                {yearOptions.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            )}
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+              </svg>
+            </div>
           </div>
         </div>
       </div>
       
       {stats.seasonStats.length === 0 ? (
-        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
-          <div className="text-center">
-            <h6 className="mb-0 text-lg">No stats available for {selectedYear}</h6>
+        <div className="w-full max-w-full px-3 flex-none">
+          <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+            <div className="flex items-center justify-center p-5">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 text-slate-400 bg-slate-100 rounded-xl mb-4">
+                  <i className="fa fa-search text-3xl"></i>
+                </div>
+                <h6 className="mb-1 text-lg">No data available</h6>
+                <p className="mb-0 text-sm text-slate-400">No statistics available for {selectedYear}</p>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap -mx-3">
+        <>
           {/* Points Leaderboard */}
-          <div className="w-auto px-3 mb-6 flex-none">
+          <div className="inline-block align-top px-3 mb-6">
             {renderMainStats()}
           </div>
           
           {/* Goalscoring Leaderboard */}
-          <div className="w-auto px-3 mb-6 flex-none">
+          <div className="inline-block align-top px-3 mb-6">
             {renderGoalStats()}
           </div>
-        </div>
+        </>
       )}
     </div>
   );

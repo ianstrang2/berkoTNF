@@ -24,9 +24,18 @@ const Navbar: React.FC<NavbarProps> = ({
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLLIElement>(null);
   const pathname = usePathname() || '';
+  const [isClient, setIsClient] = useState(false);
+
+  // Mark as client-side rendered
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Close notifications dropdown when clicking outside
   useEffect(() => {
+    // Skip during server rendering
+    if (!isClient) return;
+    
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setNotificationsOpen(false);
@@ -37,7 +46,7 @@ const Navbar: React.FC<NavbarProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isClient]);
 
   // Generate page title from pathname if not provided
   const displayPageTitle = pageTitle || pathname.split('/').pop() || 'Dashboard';

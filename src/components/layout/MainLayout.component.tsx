@@ -1,7 +1,7 @@
 'use client';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
-import { NavigationProvider, useNavigation } from '@/contexts/NavigationContext';
+import { useNavigation } from '@/contexts/NavigationContext';
 import Sidebar from '@/components/navigation/Sidebar';
 import Navbar from '@/components/navigation/Navbar';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
@@ -165,12 +165,18 @@ interface MainLayoutProps {
   children: React.ReactNode;
 }
 
-function MainLayoutContent({ children }: MainLayoutProps) {
+export default function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname() || '';
   const { setExpandedSection, sidebarOpen, isSidebarMini } = useNavigation();
+  const [isClient, setIsClient] = useState(false);
   
   // Use memoized navigation items to avoid recalculation on each render
   const navigationItems = useMemo(() => getNavigationItems(), []);
+
+  // Mark when component is mounted on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     // Set expandedSection based on current pathname
@@ -200,7 +206,21 @@ function MainLayoutContent({ children }: MainLayoutProps) {
     ? pathSegments[pathSegments.length - 1].charAt(0).toUpperCase() + 
       pathSegments[pathSegments.length - 1].slice(1).replace(/-/g, ' ')
     : 'Dashboard';
+    
+  // Render a simple loading state during server rendering and initial hydration
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white flex justify-center items-center">
+        <div className="text-center p-8">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
+  // Only render full layout on client side after hydration
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white">
       {/* Sidebar Component */}
@@ -222,22 +242,12 @@ function MainLayoutContent({ children }: MainLayoutProps) {
         />
         
         {/* Main Content */}
-        <div className="w-full px-6 py-4">
+        <div className="w-full p-6 mx-auto">
           <ErrorBoundary>
             {children}
           </ErrorBoundary>
         </div>
       </main>
     </div>
-  );
-}
-
-export default function MainLayout({ children }: MainLayoutProps) {
-  return (
-    <NavigationProvider>
-      <MainLayoutContent>
-        {children}
-      </MainLayoutContent>
-    </NavigationProvider>
   );
 } 

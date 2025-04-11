@@ -18,12 +18,21 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [isMobileView, setIsMobileView] = useState<boolean>(false);
   const [isSidebarMini, setIsSidebarMini] = useState<boolean>(false);
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
   
   const toggleSidebarMini = () => {
     setIsSidebarMini(prev => !prev);
   };
   
+  // Mark component as hydrated on client-side
   useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+  
+  useEffect(() => {
+    // Skip this effect during server-side rendering and initial client render
+    if (!isHydrated) return;
+    
     // Check if we're on the client side
     if (typeof window !== 'undefined') {
       // Initial check
@@ -47,7 +56,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
         window.removeEventListener('resize', handleResize);
       };
     }
-  }, [sidebarOpen]);
+  }, [sidebarOpen, isHydrated]);
   
   return (
     <NavigationContext.Provider value={{ 

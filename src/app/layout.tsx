@@ -1,8 +1,5 @@
 import './globals.css';
-import '../styles/soft-ui-dashboard-tailwind.css'; // ✅ Add this line
 import '@fortawesome/fontawesome-free/css/all.min.css';
-import "@/styles/nucleo-icons.css";
-import "@/styles/nucleo-svg.css"; // Add Nucleo SVG Icons
 import { Inter } from 'next/font/google';
 import { ReactNode } from 'react';
 import { NavigationProvider } from '@/contexts/NavigationContext';
@@ -26,10 +23,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         {/* Material Icons still needs to be loaded this way */}
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
+        {/* Main Soft UI Dashboard CSS */}
+        <link href="/assets/css/soft-ui-dashboard-tailwind.css" rel="stylesheet" />
         {/* Add direct link to nucleo-icons.css */}
         <link href="/assets/css/nucleo-icons.css" rel="stylesheet" />
         {/* Add nucleo-svg.css for additional icon styles */}
         <link href="/assets/css/nucleo-svg.css" rel="stylesheet" />
+        {/* Perfect Scrollbar CSS */}
+        <link href="/assets/css/perfect-scrollbar.css" rel="stylesheet" />
+        {/* Datatable CSS */}
+        <link href="/assets/css/datatable.css" rel="stylesheet" />
         {/* Font Awesome Icons */}
         <script src="https://kit.fontawesome.com/42d5adcbca.js" crossOrigin="anonymous"></script>
       </head>
@@ -62,10 +65,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
         
-        {/* Additional JavaScript libraries from soft-ui */}
-        {/* Only add the ones you need for your project */}
-        {/* <script src="/assets/js/plugins/perfect-scrollbar.min.js"></script> */}
-        {/* <script src="/assets/js/soft-ui-dashboard-tailwind.js"></script> */}
+        {/* Perfect Scrollbar JS */}
+        <script src="/assets/js/plugins/perfect-scrollbar.min.js"></script>
+        <script src="/assets/js/perfect-scrollbar.js"></script>
+        
+        {/* Soft UI Dashboard Pro JS */}
+        <script src="/assets/js/soft-ui-dashboard-pro-tailwind.js"></script>
       </body>
     </html>
   );
