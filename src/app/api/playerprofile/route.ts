@@ -39,7 +39,7 @@ export async function GET(request: Request) {
                 WHEN pm.result = 'loss' THEN -10
                 ELSE 0 END
             ) as fantasy_points,
-            MAX(pm.goals) as most_goals,
+            MAX(pm.goals) as most_game_goals,
             (
               SELECT m2.match_date::text
               FROM player_matches pm2
@@ -50,7 +50,35 @@ export async function GET(request: Request) {
                 WHERE pm3.player_id = p.player_id
               )
               LIMIT 1
-            ) as most_goals_date
+            ) as most_game_goals_date,
+            (
+              SELECT goals_scored
+              FROM (
+                SELECT 
+                  EXTRACT(YEAR FROM m2.match_date) as year,
+                  SUM(pm2.goals) as goals_scored,
+                  ROW_NUMBER() OVER (ORDER BY SUM(pm2.goals) DESC) as rn
+                FROM player_matches pm2
+                JOIN matches m2 ON pm2.match_id = m2.match_id
+                WHERE pm2.player_id = p.player_id
+                GROUP BY EXTRACT(YEAR FROM m2.match_date)
+              ) yearly_goals
+              WHERE rn = 1
+            ) as most_season_goals,
+            (
+              SELECT year::text
+              FROM (
+                SELECT 
+                  EXTRACT(YEAR FROM m2.match_date) as year,
+                  SUM(pm2.goals) as goals_scored,
+                  ROW_NUMBER() OVER (ORDER BY SUM(pm2.goals) DESC) as rn
+                FROM player_matches pm2
+                JOIN matches m2 ON pm2.match_id = m2.match_id
+                WHERE pm2.player_id = p.player_id
+                GROUP BY EXTRACT(YEAR FROM m2.match_date)
+              ) yearly_goals
+              WHERE rn = 1
+            ) as most_season_goals_year
           FROM players p
           LEFT JOIN player_matches pm ON p.player_id = pm.player_id
           WHERE p.player_id = ${numericId}
@@ -76,6 +104,15 @@ export async function GET(request: Request) {
             FROM numbered_matches
             WHERE result = 'win'
           ),
+          loss_gaps AS (
+            SELECT 
+              player_id,
+              match_date,
+              match_num,
+              match_num - ROW_NUMBER() OVER (ORDER BY match_date) as grp
+            FROM numbered_matches
+            WHERE result = 'loss'
+          ),
           undefeated_gaps AS (
             SELECT 
               player_id,
@@ -85,6 +122,15 @@ export async function GET(request: Request) {
             FROM numbered_matches
             WHERE result != 'loss'
           ),
+          winless_gaps AS (
+            SELECT 
+              player_id,
+              match_date,
+              match_num,
+              match_num - ROW_NUMBER() OVER (ORDER BY match_date) as grp
+            FROM numbered_matches
+            WHERE result != 'win'
+          ),
           win_streak AS (
             SELECT 
               player_id,
@@ -93,6 +139,19 @@ export async function GET(request: Request) {
               MAX(match_date) as end_date
             FROM win_gaps
             GROUP BY player_id, grp
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          ),
+          loss_streak AS (
+            SELECT 
+              player_id,
+              COUNT(*) as streak,
+              MIN(match_date) as start_date,
+              MAX(match_date) as end_date
+            FROM loss_gaps
+            GROUP BY player_id, grp
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
           ),
           undefeated_streak AS (
             SELECT 
@@ -102,19 +161,41 @@ export async function GET(request: Request) {
               MAX(match_date) as end_date
             FROM undefeated_gaps
             GROUP BY player_id, grp
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          ),
+          winless_streak AS (
+            SELECT 
+              player_id,
+              COUNT(*) as streak,
+              MIN(match_date) as start_date,
+              MAX(match_date) as end_date
+            FROM winless_gaps
+            GROUP BY player_id, grp
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
           )
           SELECT 
             ws.player_id,
-            MAX(ws.streak) as win_streak,
-            MIN(ws.start_date)::text as win_streak_start,
-            MAX(ws.end_date)::text as win_streak_end,
-            MAX(us.streak) as undefeated_streak,
-            MIN(us.start_date)::text as undefeated_streak_start,
-            MAX(us.end_date)::text as undefeated_streak_end
+            ws.streak as win_streak,
+            ws.start_date::text as win_streak_start,
+            ws.end_date::text as win_streak_end,
+            ls.streak as losing_streak,
+            ls.start_date::text as losing_streak_start,
+            ls.end_date::text as losing_streak_end,
+            us.streak as undefeated_streak,
+            us.start_date::text as undefeated_streak_start,
+            us.end_date::text as undefeated_streak_end,
+            wls.streak as winless_streak,
+            wls.start_date::text as winless_streak_start,
+            wls.end_date::text as winless_streak_end
           FROM win_streak ws
+          CROSS JOIN loss_streak ls
           CROSS JOIN undefeated_streak us
-          WHERE ws.player_id = us.player_id
-          GROUP BY ws.player_id
+          CROSS JOIN winless_streak wls
+          WHERE ws.player_id = ls.player_id 
+            AND ws.player_id = us.player_id
+            AND ws.player_id = wls.player_id
         ),
         yearly_stats AS (
           SELECT 
@@ -152,9 +233,15 @@ export async function GET(request: Request) {
         s.win_streak, 
         s.win_streak_start, 
         s.win_streak_end, 
+        s.losing_streak,
+        s.losing_streak_start,
+        s.losing_streak_end,
         s.undefeated_streak, 
         s.undefeated_streak_start, 
         s.undefeated_streak_end,
+        s.winless_streak,
+        s.winless_streak_start,
+        s.winless_streak_end,
         (
           SELECT json_agg(ys.*)
           FROM yearly_stats ys
@@ -174,9 +261,12 @@ export async function GET(request: Request) {
       ...playerProfile[0],
       games_played: Number(playerProfile[0].games_played),
       fantasy_points: Number(playerProfile[0].fantasy_points),
-      most_goals: Number(playerProfile[0].most_goals),
+      most_game_goals: Number(playerProfile[0].most_game_goals),
+      most_season_goals: Number(playerProfile[0].most_season_goals),
       win_streak: Number(playerProfile[0].win_streak),
+      losing_streak: Number(playerProfile[0].losing_streak),
       undefeated_streak: Number(playerProfile[0].undefeated_streak),
+      winless_streak: Number(playerProfile[0].winless_streak),
       yearly_stats: playerProfile[0].yearly_stats?.map(stat => ({
         year: Number(stat.year),
         games_played: Number(stat.games_played),
@@ -185,8 +275,14 @@ export async function GET(request: Request) {
         minutes_per_goal: Number(stat.minutes_per_goal) || 'N/A',
         points_per_game: Number(stat.points_per_game) || 'N/A',
       })),
-      win_streak_dates: `${playerProfile[0].win_streak_start} to ${playerProfile[0].win_streak_end}`,
-      undefeated_streak_dates: `${playerProfile[0].undefeated_streak_start} to ${playerProfile[0].undefeated_streak_end}`
+      win_streak_dates: playerProfile[0].win_streak_start && playerProfile[0].win_streak_end ? 
+        `${playerProfile[0].win_streak_start} to ${playerProfile[0].win_streak_end}` : '',
+      losing_streak_dates: playerProfile[0].losing_streak_start && playerProfile[0].losing_streak_end ? 
+        `${playerProfile[0].losing_streak_start} to ${playerProfile[0].losing_streak_end}` : '',
+      undefeated_streak_dates: playerProfile[0].undefeated_streak_start && playerProfile[0].undefeated_streak_end ? 
+        `${playerProfile[0].undefeated_streak_start} to ${playerProfile[0].undefeated_streak_end}` : '',
+      winless_streak_dates: playerProfile[0].winless_streak_start && playerProfile[0].winless_streak_end ? 
+        `${playerProfile[0].winless_streak_start} to ${playerProfile[0].winless_streak_end}` : ''
     };
 
     // Return the serialized profile

@@ -10,11 +10,9 @@ export default function PlayersPage() {
   return (
     <MainLayout>
       <div className="py-6">
-        <div className="bg-white rounded-xl shadow-card p-6">
-          <ErrorBoundary>
-            <PlayerProfile id={selectedPlayerId} />
-          </ErrorBoundary>
-        </div>
+        <ErrorBoundary>
+          <PlayerProfile id={selectedPlayerId} />
+        </ErrorBoundary>
       </div>
     </MainLayout>
   );
