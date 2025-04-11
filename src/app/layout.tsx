@@ -3,7 +3,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import { Inter } from 'next/font/google';
 import { ReactNode } from 'react';
 import { NavigationProvider } from '@/contexts/NavigationContext';
-
+import Script from 'next/script';
 
 // Initialize the Inter font
 const inter = Inter({
@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* Datatable CSS */}
         <link href="/assets/css/datatable.css" rel="stylesheet" />
         {/* Font Awesome Icons */}
-        <script src="https://kit.fontawesome.com/42d5adcbca.js" crossOrigin="anonymous"></script>
+        <Script src="https://kit.fontawesome.com/42d5adcbca.js" crossOrigin="anonymous" strategy="beforeInteractive" />
       </head>
       <body className="h-full bg-gray-50">
         <NavigationProvider>
@@ -42,7 +42,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </NavigationProvider>
 
         {/* This script helps avoid hydration errors by making client rendering match server exactly */}
-        <script
+        <Script
+          id="hydration-fix"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -66,14 +68,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
         
         {/* Perfect Scrollbar JS */}
-        <script src="/assets/js/plugins/perfect-scrollbar.min.js"></script>
-        <script src="/assets/js/perfect-scrollbar.js"></script>
+        <Script src="/assets/js/plugins/perfect-scrollbar.min.js" strategy="afterInteractive" />
+        <Script src="/assets/js/perfect-scrollbar.js" strategy="afterInteractive" />
         
         {/* Nav Pills JS */}
-        <script src="/assets/js/nav-pills.js"></script>
+        <Script src="/assets/js/nav-pills.js" strategy="afterInteractive" />
         
         {/* Soft UI Dashboard Pro JS */}
-        <script src="/assets/js/soft-ui-dashboard-pro-tailwind.js"></script>
+        <Script src="/assets/js/soft-ui-dashboard-pro-tailwind.js" strategy="afterInteractive" />
       </body>
     </html>
   );
