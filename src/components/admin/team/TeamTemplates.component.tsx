@@ -308,8 +308,6 @@ const TeamTemplates = () => {
       {!isLoading && (
         <Card
           title="Team Templates"
-          icon={null}
-          footer={null}
           className="shadow"
         >
           <p className="text-base text-neutral-600 mb-6">

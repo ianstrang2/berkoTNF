@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { ReactNode } from 'react';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import Script from 'next/script';
+// Note: we'll use style tags for CSS in public directory
 
 // Initialize the Inter font
 const inter = Inter({
@@ -23,16 +24,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         {/* Material Icons still needs to be loaded this way */}
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
-        {/* Main Soft UI Dashboard CSS */}
-        <link href="/assets/css/soft-ui-dashboard-tailwind.css" rel="stylesheet" />
-        {/* Add direct link to nucleo-icons.css */}
-        <link href="/assets/css/nucleo-icons.css" rel="stylesheet" />
-        {/* Add nucleo-svg.css for additional icon styles */}
-        <link href="/assets/css/nucleo-svg.css" rel="stylesheet" />
-        {/* Perfect Scrollbar CSS */}
-        <link href="/assets/css/perfect-scrollbar.css" rel="stylesheet" />
-        {/* Datatable CSS */}
-        <link href="/assets/css/datatable.css" rel="stylesheet" />
+        {/* CSS stylesheets */}
+        <link rel="stylesheet" href="/assets/css/soft-ui-dashboard-tailwind.css" />
+        <link rel="stylesheet" href="/assets/css/nucleo-icons.css" />
+        <link rel="stylesheet" href="/assets/css/nucleo-svg.css" />
+        <link rel="stylesheet" href="/assets/css/perfect-scrollbar.css" />
+        <link rel="stylesheet" href="/assets/css/datatable.css" />
         {/* Font Awesome Icons */}
         <Script src="https://kit.fontawesome.com/42d5adcbca.js" crossOrigin="anonymous" strategy="beforeInteractive" />
       </head>
