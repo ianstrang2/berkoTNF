@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
+import NavPills from '@/components/ui-kit/NavPills.component';
 
 interface PlayerStats {
   name: string;
@@ -42,6 +43,7 @@ interface HalfSeasonPeriod {
 
 const CurrentHalfSeason: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'stats' | 'goals'>('stats');
   const [stats, setStats] = useState<StatsData>({
     seasonStats: [],
     goalStats: [],
@@ -145,7 +147,7 @@ const CurrentHalfSeason: React.FC = () => {
           <thead className="align-bottom">
             <tr>
               <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
-              <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
               <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">P</th>
               <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">W</th>
               <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">D</th>
@@ -171,7 +173,7 @@ const CurrentHalfSeason: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasy_points}</p>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
@@ -316,12 +318,32 @@ const CurrentHalfSeason: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="inline-block align-top px-3 mb-6">
-                {renderMainStats()}
+              {/* Mobile Nav Pills - Only visible on mobile */}
+              <div className="w-full px-3 mb-4 lg:hidden">
+                <NavPills<'stats' | 'goals'>
+                  items={[
+                    { label: 'Points', value: 'stats' },
+                    { label: 'Goals', value: 'goals' }
+                  ]}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                />
               </div>
-              
-              <div className="inline-block align-top px-3 mb-6">
-                {renderGoalStats()}
+
+              {/* Desktop Layout - Hidden on mobile */}
+              <div className="hidden lg:block">
+                <div className="inline-block align-top px-3 mb-6">
+                  {renderMainStats()}
+                </div>
+                <div className="inline-block align-top px-3 mb-6">
+                  {renderGoalStats()}
+                </div>
+              </div>
+
+              {/* Mobile Layout - Hidden on desktop */}
+              <div className="block lg:hidden w-full px-3">
+                {activeTab === 'stats' && renderMainStats()}
+                {activeTab === 'goals' && renderGoalStats()}
               </div>
             </>
           )}

@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import NavPills from '@/components/ui-kit/NavPills.component';
 
 interface Runner {
   name: string;
@@ -76,6 +77,7 @@ interface HonourRollData {
 
 const HonourRoll: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'winners' | 'scorers'>('winners');
   const [data, setData] = useState<HonourRollData>({
     seasonWinners: [],
     topScorers: []
@@ -229,14 +231,35 @@ const HonourRoll: React.FC = () => {
 
   return (
     <div className="flex flex-wrap justify-start -mx-3">
-      {/* Season Winners Card */}
-      <div className="inline-block align-top px-3 mb-6">
-        {renderSeasonWinners()}
+      {/* Mobile Nav Pills - Only visible on mobile */}
+      <div className="w-full px-3 mb-4 lg:hidden">
+        <NavPills<'winners' | 'scorers'>
+          items={[
+            { label: 'Season Winners', value: 'winners' },
+            { label: 'Top Scorers', value: 'scorers' }
+          ]}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
       </div>
-      
-      {/* Top Scorers Card */}
-      <div className="inline-block align-top px-3 mb-6">
-        {renderTopScorers()}
+
+      {/* Desktop Layout - Hidden on mobile */}
+      <div className="hidden lg:block">
+        {/* Season Winners Card */}
+        <div className="inline-block align-top px-3 mb-6">
+          {renderSeasonWinners()}
+        </div>
+        
+        {/* Top Scorers Card */}
+        <div className="inline-block align-top px-3 mb-6">
+          {renderTopScorers()}
+        </div>
+      </div>
+
+      {/* Mobile Layout - Hidden on desktop */}
+      <div className="block lg:hidden w-full px-3">
+        {activeTab === 'winners' && renderSeasonWinners()}
+        {activeTab === 'scorers' && renderTopScorers()}
       </div>
     </div>
   );

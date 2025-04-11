@@ -69,6 +69,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script src="/assets/js/plugins/perfect-scrollbar.min.js"></script>
         <script src="/assets/js/perfect-scrollbar.js"></script>
         
+        {/* Nav Pills JS */}
+        <script src="/assets/js/nav-pills.js"></script>
+        
         {/* Soft UI Dashboard Pro JS */}
         <script src="/assets/js/soft-ui-dashboard-pro-tailwind.js"></script>
       </body>
