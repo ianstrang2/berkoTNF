@@ -399,7 +399,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
               return (
                 <div key={position} className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-medium text-md text-slate-700">{getPositionName(position)}</h3>
+                    <h3 className="font-medium text-slate-700">{getPositionName(position)}</h3>
                     {isTechnicalGroup && (
                       <div className="text-sm text-gray-500">
                         Total: <span className={Math.abs(technicalTotal! - 1) > 0.001 ? 'text-amber-500 font-medium' : 'text-gray-500'}>

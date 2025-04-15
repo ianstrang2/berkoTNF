@@ -11,13 +11,11 @@ export default function PlayerRatingsPage() {
   return (
     <MainLayout>
       <div className="py-6">
-        <div className="bg-white rounded-xl shadow-card p-6">
-          <ErrorBoundary>
-            <AdminLayout>
-              <PlayerRatings />
-            </AdminLayout>
-          </ErrorBoundary>
-        </div>
+        <ErrorBoundary>
+          <AdminLayout>
+            <PlayerRatings />
+          </AdminLayout>
+        </ErrorBoundary>
       </div>
     </MainLayout>
   );

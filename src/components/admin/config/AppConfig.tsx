@@ -41,7 +41,12 @@ const fantasyPointsDisplayNames: Record<string, string> = {
   'heavy_loss': 'Heavy Loss'
 };
 
-const AppConfig = () => {
+// Add props interface at the beginning of the file before the component definition
+interface AppConfigProps {
+  configGroup?: string;
+}
+
+const AppConfig: React.FC<AppConfigProps> = ({ configGroup }) => {
   const [configGroups, setConfigGroups] = useState<ConfigGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +68,18 @@ const AppConfig = () => {
     'match_settings': 'Customise default values that appear when creating new matches. For example, setting the first value to 7 days for weekly matches will save time during match creation.'
   };
 
+  // Generate title and subtitle based on the configGroup
+  const getConfigTitle = (): string => {
+    if (configGroup === 'fantasy_points') return 'Fantasy Points';
+    if (configGroup === 'match_report') return 'Milestone Settings';
+    if (configGroup === 'match_settings') return 'Match Settings';
+    return 'Configuration';
+  };
+  
+  const getConfigDescription = (): string => {
+    return groupSubtitles[configGroup || ''] || '';
+  };
+
   // Fetch config data
   useEffect(() => {
     const fetchConfigData = async () => {
@@ -70,7 +87,12 @@ const AppConfig = () => {
         setIsLoading(true);
         setError(null);
         
-        const response = await fetch('/api/admin/app-config');
+        // Add groupFilter parameter if configGroup is provided
+        const url = configGroup 
+          ? `/api/admin/app-config?group=${configGroup}` 
+          : '/api/admin/app-config';
+        
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error('Failed to fetch configuration settings');
         }
@@ -136,7 +158,7 @@ const AppConfig = () => {
     };
     
     fetchConfigData();
-  }, []);
+  }, [configGroup]);
 
   // Check for changes when formData is updated
   useEffect(() => {
@@ -257,6 +279,67 @@ const AppConfig = () => {
     });
   };
 
+  // Add this function back before handleResetGroup
+  const refetchConfigData = async () => {
+    try {
+      // Add group parameter if configGroup is specified
+      const url = configGroup 
+        ? `/api/admin/app-config?group=${configGroup}` 
+        : '/api/admin/app-config';
+        
+      const refetchResponse = await fetch(url);
+      const refetchData = await refetchResponse.json();
+      
+      if (refetchResponse.ok && refetchData.success) {
+        // Process the refetched data the same way as in the initial load
+        const groupedData: Record<string, AppConfig[]> = {};
+        refetchData.data.forEach((config: AppConfig) => {
+          if (!groupedData[config.config_group]) {
+            groupedData[config.config_group] = [];
+          }
+          groupedData[config.config_group].push(config);
+        });
+        
+        const groupsArray: ConfigGroup[] = Object.entries(groupedData).map(([group_name, configs]) => ({
+          group_name,
+          configs,
+          subtitle: groupSubtitles[group_name]
+        }));
+        
+        groupsArray.sort((a, b) => a.group_name.localeCompare(b.group_name));
+        
+        groupsArray.forEach(group => {
+          if (group.group_name === 'fantasy_points') {
+            group.configs.sort((a, b) => {
+              const aIndex = fantasyPointsOrder.indexOf(a.config_key);
+              const bIndex = fantasyPointsOrder.indexOf(b.config_key);
+              if (aIndex === -1 && bIndex === -1) return a.config_key.localeCompare(b.config_key);
+              if (aIndex === -1) return 1;
+              if (bIndex === -1) return -1;
+              return aIndex - bIndex;
+            });
+          } else {
+            group.configs.sort((a, b) => a.config_key.localeCompare(b.config_key));
+          }
+        });
+        
+        setConfigGroups(groupsArray);
+        
+        const refreshedFormData: Record<string, string> = {};
+        refetchData.data.forEach((config: AppConfig) => {
+          refreshedFormData[config.config_key] = config.config_value;
+        });
+        
+        setFormData(refreshedFormData);
+        setOriginalData(refreshedFormData);
+        
+        console.log('Successfully refetched and updated config data');
+      }
+    } catch (error) {
+      console.error('Error refetching config data:', error);
+    }
+  };
+
   const handleResetGroup = async () => {
     if (!resetConfirmation.groupName) return;
     
@@ -374,62 +457,6 @@ const AppConfig = () => {
       });
       
       // Manually trigger a re-fetch of the data to ensure UI is in sync
-      const refetchConfigData = async () => {
-        try {
-          const refetchResponse = await fetch('/api/admin/app-config');
-          const refetchData = await refetchResponse.json();
-          
-          if (refetchResponse.ok && refetchData.success) {
-            // Process the refetched data the same way as in the initial load
-            const groupedData: Record<string, AppConfig[]> = {};
-            refetchData.data.forEach((config: AppConfig) => {
-              if (!groupedData[config.config_group]) {
-                groupedData[config.config_group] = [];
-              }
-              groupedData[config.config_group].push(config);
-            });
-            
-            const groupsArray: ConfigGroup[] = Object.entries(groupedData).map(([group_name, configs]) => ({
-              group_name,
-              configs,
-              subtitle: groupSubtitles[group_name]
-            }));
-            
-            groupsArray.sort((a, b) => a.group_name.localeCompare(b.group_name));
-            
-            groupsArray.forEach(group => {
-              if (group.group_name === 'fantasy_points') {
-                group.configs.sort((a, b) => {
-                  const aIndex = fantasyPointsOrder.indexOf(a.config_key);
-                  const bIndex = fantasyPointsOrder.indexOf(b.config_key);
-                  if (aIndex === -1 && bIndex === -1) return a.config_key.localeCompare(b.config_key);
-                  if (aIndex === -1) return 1;
-                  if (bIndex === -1) return -1;
-                  return aIndex - bIndex;
-                });
-              } else {
-                group.configs.sort((a, b) => a.config_key.localeCompare(b.config_key));
-              }
-            });
-            
-            setConfigGroups(groupsArray);
-            
-            const refreshedFormData: Record<string, string> = {};
-            refetchData.data.forEach((config: AppConfig) => {
-              refreshedFormData[config.config_key] = config.config_value;
-            });
-            
-            setFormData(refreshedFormData);
-            setOriginalData(refreshedFormData);
-            
-            console.log('Successfully refetched and updated config data');
-          }
-        } catch (error) {
-          console.error('Error refetching config data:', error);
-        }
-      };
-      
-      // Wait a moment for the database changes to be committed before refetching
       setTimeout(() => {
         refetchConfigData();
       }, 500);
@@ -465,65 +492,113 @@ const AppConfig = () => {
     return formData[configKey] !== originalData[configKey];
   };
 
+  // Only display the groups matching the configGroup prop
+  const filteredConfigGroups = configGroup 
+    ? configGroups.filter(group => group.group_name === configGroup)
+    : configGroups;
+
   const renderConfigGroup = (group: ConfigGroup) => (
     <div key={group.group_name} className="mb-8">
-      <div className="border-black/12.5 border-b-0 border-solid pb-0">
-        <div className="flex items-center justify-between mb-2">
-          <h5 className="mb-0 font-bold text-slate-700">{formatConfigKey(group.group_name)}</h5>
-          <div className="flex items-center gap-2">
-            {/* Always show the Save button, but disable it if no changes */}
-            <Button
-              onClick={() => handleSaveGroup(group.group_name)}
-              disabled={isSaving[group.group_name] || !hasGroupChanges(group.group_name)}
-              variant="primary"
-              size="sm"
-              className={`flex items-center gap-2 ${
-                hasGroupChanges(group.group_name) 
-                  ? 'bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md' 
-                  : 'bg-gradient-to-tl from-slate-300 to-slate-400 opacity-60'
-              }`}
-            >
-              {isSaving[group.group_name] ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]"></span>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Save Changes
-                </>
-              )}
-            </Button>
-            <Button
-              onClick={() => openResetConfirmation(group.group_name)}
-              disabled={isResetting[group.group_name]}
-              variant="outline"
-              size="sm"
-              className="text-slate-700 border-slate-200 hover:bg-slate-100 flex items-center gap-2"
-            >
-              {isResetting[group.group_name] ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]"></span>
-                  Resetting...
-                </>
-              ) : (
-                <>
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Reset
-                </>
-              )}
-            </Button>
+      {/* Only show the group title and subtitle if no configGroup prop is provided */}
+      {!configGroup && (
+        <div className="border-black/12.5 border-b-0 border-solid pb-0">
+          <div className="flex items-center justify-between mb-2">
+            <h5 className="mb-0 font-bold text-slate-700">{formatConfigKey(group.group_name)}</h5>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => openResetConfirmation(group.group_name)}
+                disabled={isResetting[group.group_name]}
+                variant="outline"
+                size="sm"
+                className="text-slate-700 border-slate-200 hover:bg-slate-100 flex items-center gap-2"
+              >
+                {isResetting[group.group_name] ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]"></span>
+                    Resetting...
+                  </>
+                ) : (
+                  <>
+                    Reset to Defaults
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => handleSaveGroup(group.group_name)}
+                disabled={isSaving[group.group_name] || !hasGroupChanges(group.group_name)}
+                variant="primary"
+                size="sm"
+                className={`flex items-center gap-2 ${
+                  hasGroupChanges(group.group_name) 
+                    ? 'bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md' 
+                    : 'bg-gradient-to-tl from-slate-300 to-slate-400 opacity-60'
+                }`}
+              >
+                {isSaving[group.group_name] ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]"></span>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
+          {group.subtitle && (
+            <p className="text-sm text-slate-500 mb-4">{group.subtitle}</p>
+          )}
         </div>
-        {group.subtitle && (
-          <p className="text-sm text-slate-500 mb-4">{group.subtitle}</p>
-        )}
-      </div>
+      )}
+      
+      {/* If configGroup is provided, show the save/reset buttons at the top */}
+      {configGroup && (
+        <div className="flex justify-end mb-4 gap-2">
+          <Button
+            onClick={() => openResetConfirmation(group.group_name)}
+            disabled={isResetting[group.group_name]}
+            variant="outline"
+            size="sm"
+            className="text-slate-700 border-slate-200 hover:bg-slate-100 flex items-center gap-2"
+          >
+            {isResetting[group.group_name] ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]"></span>
+                Resetting...
+              </>
+            ) : (
+              <>
+                Reset to Defaults
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={() => handleSaveGroup(group.group_name)}
+            disabled={isSaving[group.group_name] || !hasGroupChanges(group.group_name)}
+            variant="primary"
+            size="sm"
+            className={`flex items-center gap-2 ${
+              hasGroupChanges(group.group_name) 
+                ? 'bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md' 
+                : 'bg-gradient-to-tl from-slate-300 to-slate-400 opacity-60'
+            }`}
+          >
+            {isSaving[group.group_name] ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]"></span>
+                Saving...
+              </>
+            ) : (
+              <>
+                Save Changes
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+      
       <div className="pt-0">
         <div className="overflow-hidden">
           {group.configs.map((config) => (
@@ -561,6 +636,13 @@ const AppConfig = () => {
 
   return (
     <div className="w-full">
+      {configGroup && (
+        <div className="mb-6">
+          <h4 className="mb-1 text-xl font-bold text-slate-700">{getConfigTitle()}</h4>
+          <p className="text-sm text-slate-500">{getConfigDescription()}</p>
+        </div>
+      )}
+      
       {isLoading && (
         <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-6 text-slate-700 shadow-soft-sm">
           <div className="flex items-center">
@@ -584,7 +666,7 @@ const AppConfig = () => {
         </div>
       )}
       
-      {!isLoading && configGroups.map(renderConfigGroup)}
+      {!isLoading && filteredConfigGroups.map(renderConfigGroup)}
 
       {/* Reset Confirmation Dialog */}
       <SoftUIConfirmationModal

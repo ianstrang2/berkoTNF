@@ -27,12 +27,6 @@ export default function AdminSetupPage() {
     <MainLayout>
       <React.Suspense fallback={<LoadingIndicator />}>
         <div className="flex flex-col w-full">
-          <div className="mb-6">
-            <h5 className="mb-1 text-2xl font-bold">Application Setup</h5>
-            <p className="text-sm text-slate-500">
-              Configure app settings, team templates, and balance algorithm
-            </p>
-          </div>
           <div className="min-w-0 max-w-3xl">
             <ErrorBoundary>
               <AppSetup />

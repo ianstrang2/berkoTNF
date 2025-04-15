@@ -428,9 +428,9 @@ const TeamTemplates = () => {
                         ) : (
                           <Button
                             onClick={() => setEditingTemplateId(template.template_id)}
-                            variant="primary"
+                            variant="outline"
                             size="sm"
-                            className="bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md inline-flex visibility-visible opacity-100"
+                            className="text-slate-700 border-slate-200 hover:bg-slate-100"
                           >
                             Edit
                           </Button>

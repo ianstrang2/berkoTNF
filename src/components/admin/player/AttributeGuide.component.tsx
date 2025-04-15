@@ -19,7 +19,7 @@ interface AttributeGuides {
 
 const attributeGuides: AttributeGuides = {
   goalscoring: {
-    title: 'Goalscoring',
+    title: 'GOL',
     scales: [
       { value: 1, label: 'Rarely scores', description: 'misses chances, barely threatens' },
       { value: 2, label: 'Occasional scorer', description: 'nabs one now and then' },
@@ -29,7 +29,7 @@ const attributeGuides: AttributeGuides = {
     ],
   },
   defender: {
-    title: 'Defender',
+    title: 'DEF',
     scales: [
       { value: 1, label: 'Hates defending', description: 'avoids it, stays forward' },
       { value: 2, label: 'Reluctant defender', description: 'grumbles but does it' },
@@ -39,7 +39,7 @@ const attributeGuides: AttributeGuides = {
     ],
   },
   stamina_pace: {
-    title: 'Stamina & Pace',
+    title: 'S&P',
     scales: [
       { value: 1, label: 'Slow and fades', description: 'lacks speed, tires quickly' },
       { value: 2, label: 'Steady but sluggish', description: 'moderate endurance, little burst' },
@@ -49,7 +49,7 @@ const attributeGuides: AttributeGuides = {
     ],
   },
   control: {
-    title: 'Control',
+    title: 'CTL',
     scales: [
       { value: 1, label: 'Sloppy', description: 'loses ball often, wild passes' },
       { value: 2, label: 'Shaky', description: 'inconsistent touch, hit-or-miss passing' },
@@ -59,7 +59,7 @@ const attributeGuides: AttributeGuides = {
     ],
   },
   teamwork: {
-    title: 'Teamwork',
+    title: 'TMW',
     scales: [
       { value: 1, label: 'Lone wolf', description: 'solo runs, ignores teammates' },
       { value: 2, label: 'Selfish leaner', description: 'plays for self more than team' },
@@ -69,7 +69,7 @@ const attributeGuides: AttributeGuides = {
     ],
   },
   resilience: {
-    title: 'Resilience',
+    title: 'RES',
     scales: [
       { value: 1, label: 'Fragile', description: 'head drops fast, gives up when behind' },
       { value: 2, label: 'Wobbly', description: 'loses focus if losing, inconsistent effort' },
@@ -111,109 +111,87 @@ interface AttributeGuideModalProps {
 export const AttributeGuideModal: React.FC<AttributeGuideModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<AttributeKey>('goalscoring');
 
+  if (!isOpen) return null;
+
   return (
-    isOpen && (
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-          <div className="fixed inset-0 transition-opacity" onClick={onClose}>
-            <div className="absolute inset-0 bg-neutral-500 opacity-75"></div>
+    <div className="fixed inset-0 z-[9999] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div className="flex items-center justify-center min-h-screen p-4">
+        {/* Background overlay */}
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true"></div>
+        
+        {/* Modal panel */}
+        <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-2xl transform transition-all p-5">
+          {/* Header with close button */}
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-slate-700" id="modal-title">
+              Player Grading Guide
+            </h3>
+            <button 
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-
-          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <div className="sm:flex sm:items-start">
-                <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg leading-6 font-medium text-neutral-900">
-                      Player Grading Guide
-                    </h3>
-                    <button
-                      onClick={onClose}
-                      className="text-neutral-400 hover:text-neutral-500"
-                    >
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Tabs for desktop, accordion for mobile */}
-                  <div className="mt-4">
-                    <div className="sm:hidden">
-                      {/* Mobile accordion */}
-                      <div className="space-y-4">
-                        {Object.entries(attributeGuides).map(([key, guide]) => (
-                          <div key={key} className="border rounded-lg overflow-hidden">
-                            <button
-                              className="w-full px-4 py-2 text-left font-medium bg-neutral-50 hover:bg-neutral-100"
-                              onClick={() => setActiveTab(key as AttributeKey)}
-                            >
-                              {guide.title}
-                            </button>
-                            {activeTab === key && (
-                              <div className="p-4 border-t">
-                                <ul className="space-y-2">
-                                  {guide.scales.map(({ value, label, description }) => (
-                                    <li key={value} className="flex items-start">
-                                      <span className="font-medium mr-2">{value}:</span>
-                                      <span>{label} ({description})</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="hidden sm:block">
-                      {/* Desktop tabs */}
-                      <div className="border-b border-neutral-200">
-                        <nav className="-mb-px flex space-x-8">
-                          {Object.entries(attributeGuides).map(([key, guide]) => (
-                            <button
-                              key={key}
-                              className={`
-                                whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm
-                                ${activeTab === key
-                                  ? 'border-primary-500 text-primary-600'
-                                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                                }
-                              `}
-                              onClick={() => setActiveTab(key as AttributeKey)}
-                            >
-                              {guide.title}
-                            </button>
-                          ))}
-                        </nav>
-                      </div>
-
-                      <div className="mt-4">
-                        {Object.entries(attributeGuides).map(([key, guide]) => (
-                          activeTab === key && (
-                            <div key={key} className="space-y-4">
-                              <ul className="space-y-3">
-                                {guide.scales.map(({ value, label, description }) => (
-                                  <li key={value} className="flex items-start">
-                                    <span className="font-medium mr-2">{value}:</span>
-                                    <span>{label} ({description})</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+          
+          {/* Tab navigation */}
+          <div className="border-b border-slate-200 mb-4">
+            <nav className="-mb-px flex justify-between">
+              {Object.entries(attributeGuides).map(([key, guide]) => (
+                <button
+                  key={key}
+                  className={`pb-2 px-0 border-b-2 font-medium text-xs transition-colors focus:outline-none
+                    ${activeTab === key 
+                      ? 'border-fuchsia-500 text-fuchsia-600' 
+                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`
+                  }
+                  onClick={() => setActiveTab(key as AttributeKey)}
+                >
+                  {guide.title}
+                </button>
+              ))}
+            </nav>
+          </div>
+          
+          {/* Tab content */}
+          <div className="mb-5 max-h-60 overflow-y-auto">
+            {Object.entries(attributeGuides).map(([key, guide]) => (
+              activeTab === key && (
+                <div key={key} className="space-y-3">
+                  <ul className="space-y-2 text-slate-600">
+                    {guide.scales.map(({ value, label, description }) => (
+                      <li key={value} className="flex items-start">
+                        <div className="inline-flex items-center justify-center w-5 h-5 mr-2 rounded-full bg-gradient-to-tl 
+                          from-slate-100 to-slate-200 shadow-soft-xs text-slate-700 font-bold text-[10px] flex-shrink-0">
+                          {value}
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium text-slate-700">{label}</span>
+                          <span className="ml-1 text-slate-500 text-xs">({description})</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
-            </div>
+              )
+            ))}
+          </div>
+          
+          {/* Footer with close button */}
+          <div className="flex justify-end pt-1 border-t border-slate-200">
+            <button
+              onClick={onClose}
+              className="mt-3 inline-block px-4 py-2 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
-    )
+    </div>
   );
 };
 
