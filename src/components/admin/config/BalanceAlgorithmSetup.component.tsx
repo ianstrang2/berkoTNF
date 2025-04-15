@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
-import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
+import { SoftUIConfirmationModal } from '@/components/ui-kit';
 
 // Define types
 interface Weight {
@@ -306,7 +306,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
 
   // Get position-specific color
   const getPositionColor = (positionGroup: string): string => {
-    return '#3B82F6'; // blue for all positions
+    return '#8B5CF6'; // purple for all positions (matches tailwind purple-500)
   };
 
   // Format attribute name for display
@@ -331,45 +331,51 @@ const BalanceAlgorithmSetup: React.FC = () => {
   };
 
   return (
-    <Card>
-      <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Balance Algorithm Settings</h2>
-        <div className="flex space-x-2">
-          <Button
-            onClick={() => setShowResetConfirmation(true)}
-            variant="secondary"
-            disabled={loading || saving || isResetting}
-          >
-            Reset to Defaults
-          </Button>
-          <Button
-            onClick={() => setShowConfirmation(true)}
-            disabled={!hasChanges || loading || saving || isResetting}
-          >
-            Save Changes
-          </Button>
+    <div className="w-full">
+      <div className="mb-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-slate-700">Balance Algorithm Settings</h2>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowResetConfirmation(true)}
+              variant="outline"
+              size="sm"
+              disabled={loading || saving || isResetting}
+              className="text-slate-700 border-slate-200 hover:bg-slate-100"
+            >
+              Reset to Defaults
+            </Button>
+            <Button
+              onClick={() => setShowConfirmation(true)}
+              variant="primary"
+              size="sm"
+              disabled={!hasChanges || loading || saving || isResetting}
+              className="bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md"
+            >
+              Save Changes
+            </Button>
+          </div>
         </div>
+        <p className="text-sm text-slate-500 mt-2">
+          Define how different player attributes are weighted when balancing teams
+        </p>
       </div>
       
       {(error || success) && (
-        <div className={`mb-4 p-3 rounded-md ${error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+        <div className={`mb-6 p-4 rounded-lg ${error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
           {error || success}
         </div>
       )}
       
       {loading ? (
         <div className="py-8 text-center">
-          <div className="inline-block w-8 h-8 border-4 border-t-primary-500 border-r-primary-300 border-b-primary-200 border-l-primary-100 rounded-full animate-spin"></div>
-          <p className="mt-2 text-neutral-600">Loading balance settings...</p>
+          <div className="inline-block w-8 h-8 border-4 border-t-purple-500 border-r-purple-300 border-b-purple-200 border-l-purple-100 rounded-full animate-spin"></div>
+          <p className="mt-2 text-slate-600">Loading balance settings...</p>
         </div>
       ) : (
         <>
-          <p className="mb-4 text-neutral-600">
-            Define how different player attributes are weighted when balancing teams
-          </p>
-          
           {showValidationError && Object.keys(validationErrors).length > 0 && (
-            <div className="mb-4 p-3 bg-amber-50 text-amber-700 rounded-md">
+            <div className="mb-6 p-4 bg-amber-50 text-amber-700 rounded-lg border border-amber-200">
               <p className="font-medium mb-1">Please fix the following errors before saving:</p>
               <ul className="list-disc pl-5">
                 {Object.entries(validationErrors).map(([group, error]) => (
@@ -393,10 +399,10 @@ const BalanceAlgorithmSetup: React.FC = () => {
               return (
                 <div key={position} className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-medium text-md">{getPositionName(position)}</h3>
+                    <h3 className="font-medium text-md text-slate-700">{getPositionName(position)}</h3>
                     {isTechnicalGroup && (
                       <div className="text-sm text-gray-500">
-                        Total: <span className={Math.abs(technicalTotal! - 1) > 0.001 ? 'text-amber-500' : 'text-gray-500'}>
+                        Total: <span className={Math.abs(technicalTotal! - 1) > 0.001 ? 'text-amber-500 font-medium' : 'text-gray-500'}>
                           {(technicalTotal! * 100).toFixed(0)}%
                         </span>
                       </div>
@@ -411,19 +417,18 @@ const BalanceAlgorithmSetup: React.FC = () => {
                       .map(weight => (
                         <div key={weight.attribute_id} className="my-4">
                           <div className="flex justify-between items-center mb-1">
-                            <div className="text-sm">
+                            <div className="text-sm text-slate-700">
                               {formatAttributeName(weight.name)}
                               {weight.name === 'stamina_pace' && <span className="text-gray-400 text-xs"> (i)</span>}
                             </div>
-                            <div className="font-medium">{formatWeight(weight.weight)}</div>
+                            <div className="font-medium text-slate-700">{formatWeight(weight.weight)}</div>
                           </div>
                           <div className="h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer" 
                             onClick={(e) => handleBarClick(e, weight.attribute_id)}
                           >
                             <div 
-                              className="h-full rounded-full"
+                              className="h-full rounded-full bg-gradient-to-tl from-purple-700 to-pink-500"
                               style={{ 
-                                backgroundColor: getPositionColor(position),
                                 width: `${weight.weight * 100}%`
                               }}
                             />
@@ -437,19 +442,18 @@ const BalanceAlgorithmSetup: React.FC = () => {
                         {positionWeights.map(weight => (
                           <div key={weight.attribute_id} className="my-4">
                             <div className="flex justify-between items-center mb-1">
-                              <div className="text-sm">
+                              <div className="text-sm text-slate-700">
                                 {formatAttributeName(weight.name)}
                                 {weight.name === 'resilience' && <span className="text-gray-400 text-xs"> (i)</span>}
                               </div>
-                              <div className="font-medium">{formatWeight(weight.weight)}</div>
+                              <div className="font-medium text-slate-700">{formatWeight(weight.weight)}</div>
                             </div>
                             <div className="h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
                               onClick={(e) => handleBarClick(e, weight.attribute_id)}
                             >
                               <div 
-                                className="h-full rounded-full"
+                                className="h-full rounded-full bg-gradient-to-tl from-purple-700 to-pink-500"
                                 style={{ 
-                                  backgroundColor: getPositionColor(position),
                                   width: `${weight.weight * 100}%`
                                 }}
                               />
@@ -467,7 +471,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
       )}
       
       {/* Confirmation Modal */}
-      <ConfirmationModal
+      <SoftUIConfirmationModal
         isOpen={showConfirmation}
         onClose={() => setShowConfirmation(false)}
         onConfirm={saveWeights}
@@ -475,10 +479,11 @@ const BalanceAlgorithmSetup: React.FC = () => {
         message="Are you sure you want to save your changes to the balance algorithm? This will affect how teams are balanced in future matches."
         confirmText="Save Changes"
         cancelText="Cancel"
+        isConfirming={saving}
       />
 
       {/* Reset Confirmation Modal */}
-      <ConfirmationModal
+      <SoftUIConfirmationModal
         isOpen={showResetConfirmation}
         onClose={() => setShowResetConfirmation(false)}
         onConfirm={resetWeights}
@@ -486,10 +491,11 @@ const BalanceAlgorithmSetup: React.FC = () => {
         message="Are you sure you want to reset the balance algorithm to default values? This will discard all your customizations."
         confirmText="Reset to Defaults"
         cancelText="Cancel"
+        isConfirming={isResetting}
       />
 
       {/* Validation Error Modal */}
-      <ConfirmationModal
+      <SoftUIConfirmationModal
         isOpen={showValidationError}
         onClose={() => setShowValidationError(false)}
         onConfirm={() => setShowValidationError(false)}
@@ -501,7 +507,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
         confirmText="OK"
         cancelText="Cancel"
       />
-    </Card>
+    </div>
   );
 };
 

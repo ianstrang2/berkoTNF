@@ -272,167 +272,177 @@ const TeamTemplates = () => {
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-neutral-900">Team Templates</h1>
-      </div>
-      
+    <div className="w-full">
       {isLoading && (
-        <div className="p-4 bg-info-50 border border-info-200 rounded-md mb-6">
-          <span className="text-base text-info-700">Loading team templates...</span>
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-6 text-slate-700 shadow-soft-sm">
+          <div className="flex items-center">
+            <div className="mr-3">
+              <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]" role="status"></div>
+            </div>
+            <span>Loading team templates...</span>
+          </div>
         </div>
       )}
       
       {error && (
-        <div className="p-4 bg-error-50 border border-error-200 rounded-md mb-6 text-error-700">
-          <span className="text-base">{error}</span>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-6 text-red-700 shadow-soft-sm">
+          <span>{error}</span>
         </div>
       )}
       
       {successMessage && (
-        <div className="p-4 bg-success-50 border border-success-200 rounded-md mb-6 text-success-700">
-          <span className="text-base">{successMessage}</span>
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-6 text-green-700 shadow-soft-sm">
+          <span>{successMessage}</span>
         </div>
       )}
 
-      <p className="mb-6 text-base text-neutral-600">
-        Manage team formations by adjusting the number of players in each position. 
-        The total number of players must match the team size.
-        {defaultTeamSize && (
-          <span className="block mt-2">
-            The default team size for new matches is currently set to <strong>{defaultTeamSize}-a-side</strong> and can be changed in App Configuration.
-          </span>
-        )}
-      </p>
-      
       {!isLoading && (
-        <Card
-          title="Team Templates"
-          className="shadow"
-        >
-          <p className="text-base text-neutral-600 mb-6">
-            Recommended: Keep the default values, which have been tested and proven effective over many games.
-          </p>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-neutral-200">
-              <thead>
-                <tr>
-                  <th className="px-3 py-2 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Team Size
-                  </th>
-                  <th className="px-3 py-2 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Defenders
-                  </th>
-                  <th className="px-3 py-2 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Midfielders
-                  </th>
-                  <th className="px-3 py-2 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Attackers
-                  </th>
-                  <th className="px-3 py-2 bg-neutral-50 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-neutral-200">
-                {templates.map(template => (
-                  <tr key={template.template_id}>
-                    <td className="px-3 py-2 whitespace-nowrap text-base font-medium text-neutral-900">
-                      {template.team_size}-a-side
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-neutral-500">
-                      {editingTemplateId === template.template_id ? (
-                        <input
-                          type="number"
-                          min="0"
-                          max={template.team_size}
-                          value={formData[template.template_id]?.defenders || 0}
-                          onChange={(e) => handleInputChange(
-                            template.template_id, 
-                            'defenders', 
-                            parseInt(e.target.value) || 0
-                          )}
-                          className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                        />
-                      ) : (
-                        template.defenders
-                      )}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-neutral-500">
-                      {editingTemplateId === template.template_id ? (
-                        <input
-                          type="number"
-                          min="0"
-                          max={template.team_size}
-                          value={formData[template.template_id]?.midfielders || 0}
-                          onChange={(e) => handleInputChange(
-                            template.template_id, 
-                            'midfielders', 
-                            parseInt(e.target.value) || 0
-                          )}
-                          className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                        />
-                      ) : (
-                        template.midfielders
-                      )}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-neutral-500">
-                      {editingTemplateId === template.template_id ? (
-                        <input
-                          type="number"
-                          min="0"
-                          max={template.team_size}
-                          value={formData[template.template_id]?.attackers || 0}
-                          onChange={(e) => handleInputChange(
-                            template.template_id, 
-                            'attackers', 
-                            parseInt(e.target.value) || 0
-                          )}
-                          className="w-16 rounded-md border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                        />
-                      ) : (
-                        template.attackers
-                      )}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-right text-base font-medium">
-                      {editingTemplateId === template.template_id ? (
-                        <div className="flex justify-end gap-3">
-                          <Button
-                            onClick={() => openResetConfirmation(template.template_id)}
-                            disabled={isResetting === template.template_id}
-                            variant="outline"
-                          >
-                            {isResetting === template.template_id ? 'Resetting...' : 'Reset to Default'}
-                          </Button>
-                          <Button
-                            onClick={() => cancelEdit(template.template_id)}
-                            variant="outline"
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={() => handleSave(template.template_id)}
-                            disabled={isSaving === template.template_id}
-                            variant="primary"
-                          >
-                            {isSaving === template.template_id ? 'Saving...' : 'Save'}
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => setEditingTemplateId(template.template_id)}
-                          variant="primary"
-                        >
-                          Edit
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          <div className="border-black/12.5 border-b-0 border-solid pb-0">
+            <h5 className="mb-2 font-bold text-slate-700">Team Templates</h5>
+            <p className="text-sm text-slate-500 mb-2">
+              Manage team formations by adjusting the number of players in each position. 
+              The total number of players must match the team size.
+              {defaultTeamSize && (
+                <span className="block mt-2">
+                  The default team size for new matches is currently set to <strong>{defaultTeamSize}-a-side</strong> and can be changed in App Configuration.
+                </span>
+              )}
+            </p>
+            <p className="mt-2 mb-4 text-sm text-slate-500">
+              Recommended: Keep the default values, which have been tested and proven effective over many games.
+            </p>
           </div>
-        </Card>
+          <div className="pt-0">
+            <div className="overflow-x-auto">
+              <table className="items-center w-full mb-0 align-top border-slate-200 text-slate-500">
+                <thead className="align-bottom">
+                  <tr>
+                    <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      Team Size
+                    </th>
+                    <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      Defenders
+                    </th>
+                    <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      Midfielders
+                    </th>
+                    <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      Attackers
+                    </th>
+                    <th className="px-6 py-3 font-bold text-right uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {templates.map(template => (
+                    <tr key={template.template_id}>
+                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                        <p className="mb-0 font-semibold leading-normal text-sm">{template.team_size}-a-side</p>
+                      </td>
+                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                        {editingTemplateId === template.template_id ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max={template.team_size}
+                            value={formData[template.template_id]?.defenders || 0}
+                            onChange={(e) => handleInputChange(
+                              template.template_id, 
+                              'defenders', 
+                              parseInt(e.target.value) || 0
+                            )}
+                            className="w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+                          />
+                        ) : (
+                          <span className="font-normal leading-normal text-sm">{template.defenders}</span>
+                        )}
+                      </td>
+                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                        {editingTemplateId === template.template_id ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max={template.team_size}
+                            value={formData[template.template_id]?.midfielders || 0}
+                            onChange={(e) => handleInputChange(
+                              template.template_id, 
+                              'midfielders', 
+                              parseInt(e.target.value) || 0
+                            )}
+                            className="w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+                          />
+                        ) : (
+                          <span className="font-normal leading-normal text-sm">{template.midfielders}</span>
+                        )}
+                      </td>
+                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                        {editingTemplateId === template.template_id ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max={template.team_size}
+                            value={formData[template.template_id]?.attackers || 0}
+                            onChange={(e) => handleInputChange(
+                              template.template_id, 
+                              'attackers', 
+                              parseInt(e.target.value) || 0
+                            )}
+                            className="w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+                          />
+                        ) : (
+                          <span className="font-normal leading-normal text-sm">{template.attackers}</span>
+                        )}
+                      </td>
+                      <td className="p-2 text-right align-middle bg-transparent border-b whitespace-nowrap">
+                        {editingTemplateId === template.template_id ? (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              onClick={() => openResetConfirmation(template.template_id)}
+                              disabled={isResetting === template.template_id}
+                              variant="outline"
+                              size="sm"
+                              className="text-slate-700 border-slate-200 hover:bg-slate-100"
+                            >
+                              {isResetting === template.template_id ? 'Resetting...' : 'Reset'}
+                            </Button>
+                            <Button
+                              onClick={() => cancelEdit(template.template_id)}
+                              variant="outline"
+                              size="sm"
+                              className="text-slate-700 border-slate-200 hover:bg-slate-100"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={() => handleSave(template.template_id)}
+                              disabled={isSaving === template.template_id}
+                              variant="primary"
+                              size="sm"
+                              className="bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md"
+                            >
+                              {isSaving === template.template_id ? 'Saving...' : 'Save'}
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => setEditingTemplateId(template.template_id)}
+                            variant="primary"
+                            size="sm"
+                            className="bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md inline-flex visibility-visible opacity-100"
+                          >
+                            Edit
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Reset Confirmation Dialog */}
