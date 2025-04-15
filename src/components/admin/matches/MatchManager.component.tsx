@@ -41,6 +41,8 @@ const MatchManager: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [matchToDelete, setMatchToDelete] = useState<number | null>(null);
 
   const defaultTeamState: TeamPlayer[] = Array(9).fill({ player_id: '', goals: 0 });
 
@@ -293,14 +295,17 @@ const MatchManager: React.FC = () => {
     });
   };
 
-  const handleDelete = async (matchId: number): Promise<void> => {
-    if (!window.confirm("Are you sure you want to delete this match? This cannot be reversed!")) {
-      return;
-    }
+  const handleDeleteClick = (matchId: number): void => {
+    setMatchToDelete(matchId);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async (): Promise<void> => {
+    if (!matchToDelete) return;
 
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/admin/matches?matchId=${matchId}`, {
+      const response = await fetch(`/api/admin/matches?matchId=${matchToDelete}`, {
         method: 'DELETE',
       });
 
@@ -311,6 +316,8 @@ const MatchManager: React.FC = () => {
 
       // Refresh matches after deletion
       fetchMatches();
+      setShowDeleteModal(false);
+      setMatchToDelete(null);
     } catch (error) {
       console.error('Error deleting match:', error);
       setError((error as Error).message);
@@ -319,192 +326,302 @@ const MatchManager: React.FC = () => {
     }
   };
 
+  const handleDeleteCancel = (): void => {
+    setShowDeleteModal(false);
+    setMatchToDelete(null);
+  };
+
   return (
-    <Card className="space-y-section">
-      <h2 className="text-2xl font-bold text-primary-600 tracking-tight">
-        {selectedMatch ? 'Edit Match' : 'Add New Match'}
-      </h2>
-
-      <form onSubmit={handleSubmit} className="space-y-section">
-        {/* Match Date */}
-        <div className="space-y-related">
-          <label className="block text-sm font-medium text-neutral-700">Match Date</label>
-          <input
-            type="date"
-            value={formData.match_date}
-            onChange={(e) => setFormData({ ...formData, match_date: e.target.value })}
-            className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-grid">
-          {/* Team A */}
-          <div className="space-y-element">
-            <h3 className="text-lg font-semibold text-primary-600">Team A</h3>
-            <div className="space-y-element">
-              {formData.team_a.map((player, index) => (
-                <div key={`team-a-${index}`} className="grid grid-cols-4 gap-element">
-                  <div className="col-span-3">
-                    <select
-                      value={player.player_id}
-                      onChange={(e) => handlePlayerChange('a', index, 'player_id', e.target.value)}
-                      className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                    >
-                      <option value="">Select Player</option>
-                      {players.map((p) => (
-                        <option key={p.player_id} value={p.player_id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+    <div className="flex flex-col max-w-7xl">
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Form Card */}
+        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:mb-0 max-w-fit lg:flex-1">
+          <div className="flex-auto p-6">
+            <form onSubmit={handleSubmit}>
+              {/* Match Date */}
+              <div className="mb-4">
+                <label className="mb-2 ml-1 text-xs font-bold text-slate-700">Match Date</label>
+                <div className="relative max-w-xs">
                   <input
-                    type="number"
-                    min="0"
-                    value={player.goals}
-                    onChange={(e) => handlePlayerChange('a', index, 'goals', parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                    type="date"
+                    value={formData.match_date}
+                    onChange={(e) => setFormData({ ...formData, match_date: e.target.value })}
+                    className="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-fuchsia-300 focus:outline-none"
+                    required
                   />
                 </div>
-              ))}
-            </div>
-            <div className="mt-element">
-              <label className="block text-sm font-medium text-neutral-700">Team A Score</label>
-              <input
-                type="number"
-                min="0"
-                value={formData.team_a_score}
-                onChange={(e) => setFormData({ ...formData, team_a_score: parseInt(e.target.value) || 0 })}
-                className="mt-related w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-          </div>
+              </div>
 
-          {/* Team B */}
-          <div className="space-y-element">
-            <h3 className="text-lg font-semibold text-primary-600">Team B</h3>
-            <div className="space-y-element">
-              {formData.team_b.map((player, index) => (
-                <div key={`team-b-${index}`} className="grid grid-cols-4 gap-element">
-                  <div className="col-span-3">
-                    <select
-                      value={player.player_id}
-                      onChange={(e) => handlePlayerChange('b', index, 'player_id', e.target.value)}
-                      className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                    >
-                      <option value="">Select Player</option>
-                      {players.map((p) => (
-                        <option key={p.player_id} value={p.player_id}>
-                          {p.name}
-                        </option>
+              <div className="flex flex-wrap -mx-3 mb-6">
+                {/* Team A */}
+                <div className="w-full px-3 lg:w-1/2">
+                  <div className="relative flex flex-col min-w-0 break-words bg-white rounded-xl border border-gray-200 bg-clip-border mb-4">
+                    <div className="p-4 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-t-xl">
+                      <h6 className="mb-0 font-bold text-white">Team A</h6>
+                    </div>
+                    <div className="flex-auto p-4">
+                      {/* Player/Goals Header */}
+                      <div className="flex mb-2">
+                        <div className="w-3/4 pr-2">
+                          <span className="text-xs font-bold text-slate-700 uppercase">Player</span>
+                        </div>
+                        <div className="w-1/4">
+                          <span className="text-xs font-bold text-slate-700 uppercase">Goals</span>
+                        </div>
+                      </div>
+                      
+                      {formData.team_a.map((player, index) => (
+                        <div key={`team-a-${index}`} className="flex flex-wrap mb-3">
+                          <div className="w-3/4 pr-2">
+                            <select
+                              value={player.player_id}
+                              onChange={(e) => handlePlayerChange('a', index, 'player_id', e.target.value)}
+                              className="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-fuchsia-300 focus:outline-none"
+                            >
+                              <option value="">Select Player</option>
+                              {players.map((p) => (
+                                <option key={p.player_id} value={p.player_id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="w-1/4">
+                            <input
+                              type="number"
+                              min="0"
+                              value={player.goals}
+                              onChange={(e) => handlePlayerChange('a', index, 'goals', parseInt(e.target.value) || 0)}
+                              className="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-16 appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-2 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-fuchsia-300 focus:outline-none"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
                       ))}
-                    </select>
+                      <div className="mt-4">
+                        <label className="mb-2 ml-1 text-xs font-bold text-slate-700">Team A Score</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.team_a_score}
+                            onChange={(e) => setFormData({ ...formData, team_a_score: parseInt(e.target.value) || 0 })}
+                            className="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-16 appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-2 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-fuchsia-300 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <input
-                    type="number"
-                    min="0"
-                    value={player.goals}
-                    onChange={(e) => handlePlayerChange('b', index, 'goals', parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
                 </div>
-              ))}
-            </div>
-            <div className="mt-element">
-              <label className="block text-sm font-medium text-neutral-700">Team B Score</label>
-              <input
-                type="number"
-                min="0"
-                value={formData.team_b_score}
-                onChange={(e) => setFormData({ ...formData, team_b_score: parseInt(e.target.value) || 0 })}
-                className="mt-related w-full px-4 py-2 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
+
+                {/* Team B */}
+                <div className="w-full px-3 lg:w-1/2">
+                  <div className="relative flex flex-col min-w-0 break-words bg-white rounded-xl border border-gray-200 bg-clip-border mb-4">
+                    <div className="p-4 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-t-xl">
+                      <h6 className="mb-0 font-bold text-white">Team B</h6>
+                    </div>
+                    <div className="flex-auto p-4">
+                      {/* Player/Goals Header */}
+                      <div className="flex mb-2">
+                        <div className="w-3/4 pr-2">
+                          <span className="text-xs font-bold text-slate-700 uppercase">Player</span>
+                        </div>
+                        <div className="w-1/4">
+                          <span className="text-xs font-bold text-slate-700 uppercase">Goals</span>
+                        </div>
+                      </div>
+                      
+                      {formData.team_b.map((player, index) => (
+                        <div key={`team-b-${index}`} className="flex flex-wrap mb-3">
+                          <div className="w-3/4 pr-2">
+                            <select
+                              value={player.player_id}
+                              onChange={(e) => handlePlayerChange('b', index, 'player_id', e.target.value)}
+                              className="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-fuchsia-300 focus:outline-none"
+                            >
+                              <option value="">Select Player</option>
+                              {players.map((p) => (
+                                <option key={p.player_id} value={p.player_id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="w-1/4">
+                            <input
+                              type="number"
+                              min="0"
+                              value={player.goals}
+                              onChange={(e) => handlePlayerChange('b', index, 'goals', parseInt(e.target.value) || 0)}
+                              className="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-16 appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-2 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-fuchsia-300 focus:outline-none"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <div className="mt-4">
+                        <label className="mb-2 ml-1 text-xs font-bold text-slate-700">Team B Score</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.team_b_score}
+                            onChange={(e) => setFormData({ ...formData, team_b_score: parseInt(e.target.value) || 0 })}
+                            className="focus:shadow-soft-primary-outline text-sm leading-5.6 ease-soft block w-16 appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-2 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-fuchsia-300 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {error && (
+                <div className="my-4 p-3 bg-red-50 border border-red-100 text-red-500 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex mt-6">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="inline-block px-6 py-3 mr-3 font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
+                >
+                  {isLoading
+                    ? 'Saving...'
+                    : selectedMatch
+                    ? 'Update Match'
+                    : 'Add Match'}
+                </button>
+
+                {selectedMatch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMatch(null);
+                      setFormData({
+                        match_date: new Date().toISOString().split('T')[0],
+                        team_a: [...defaultTeamState],
+                        team_b: [...defaultTeamState],
+                        team_a_score: 0,
+                        team_b_score: 0,
+                      });
+                    }}
+                    className="inline-block px-6 py-3 font-bold text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-300 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft hover:bg-slate-100 hover:scale-102 active:opacity-85"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+            </form>
           </div>
         </div>
 
-        {error && (
-          <p className="text-red-500 text-sm font-medium text-center">{error}</p>
-        )}
-
-        <div className="flex flex-col sm:flex-row space-y-element sm:space-y-0 sm:space-x-element">
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="flex-1"
-          >
-            {isLoading
-              ? 'Saving...'
-              : selectedMatch
-              ? 'Update Match'
-              : 'Add Match'}
-          </Button>
-
-          {selectedMatch && (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setSelectedMatch(null);
-                setFormData({
-                  match_date: new Date().toISOString().split('T')[0],
-                  team_a: [...defaultTeamState],
-                  team_b: [...defaultTeamState],
-                  team_a_score: 0,
-                  team_b_score: 0,
-                });
-              }}
-              className="flex-1"
-            >
-              Cancel Edit
-            </Button>
-          )}
+        {/* Match List */}
+        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border max-w-lg lg:max-w-none lg:flex-1">
+          <div className="p-6 mb-0 bg-white border-b-0 rounded-t-2xl">
+            <h6 className="mb-1 font-bold text-xl text-slate-700">Match History</h6>
+            <p className="text-sm text-slate-500">View and manage past matches</p>
+          </div>
+          
+          <div className="flex-auto p-6">
+            <div className="overflow-y-auto max-h-[600px]">
+              <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+                <thead className="sticky top-0 bg-white z-10">
+                  <tr>
+                    <th className="px-4 py-3 font-bold text-left uppercase align-middle bg-white border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">Date</th>
+                    <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">Score</th>
+                    <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {matches.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="p-4 text-center text-sm text-slate-500">
+                        No matches found. Add a match to get started.
+                      </td>
+                    </tr>
+                  ) : (
+                    matches.map((match) => (
+                      <tr key={match.match_id} className="hover:bg-slate-50">
+                        <td className="p-2 align-middle bg-transparent whitespace-nowrap">
+                          <p className="mb-0 font-semibold leading-tight text-sm">
+                            {format(new Date(match.match_date), 'dd/MM/yyyy')}
+                          </p>
+                        </td>
+                        <td className="p-2 text-center align-middle bg-transparent">
+                          <span className="font-semibold text-slate-700">
+                            {match.team_a_score} - {match.team_b_score}
+                          </span>
+                        </td>
+                        <td className="p-2 text-center align-middle bg-transparent">
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => handleEdit(match)}
+                              className="inline-block px-2 py-1 text-xs font-bold text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
+                            >
+                              EDIT
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(match.match_id)}
+                              className="inline-block px-2 py-1 text-xs font-bold text-center text-white uppercase align-middle transition-all bg-transparent border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-gradient-to-tl from-red-500 to-orange-400 shadow-soft-md bg-150 bg-x-25"
+                            >
+                              DELETE
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </form>
-
-      {/* Match List */}
-      <div className="mt-section">
-        <h3 className="text-xl font-semibold text-primary-600 mb-element tracking-tight">Match History</h3>
-        <Table responsive>
-          <TableHead>
-            <TableRow>
-              <TableCell isHeader>Date</TableCell>
-              <TableCell isHeader>Score</TableCell>
-              <TableCell isHeader>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {matches.map((match) => (
-              <TableRow key={match.match_id} className="hover:bg-neutral-50">
-                <TableCell className="font-medium">
-                  {format(new Date(match.match_date), 'dd/MM/yyyy')}
-                </TableCell>
-                <TableCell>
-                  {match.team_a_score} - {match.team_b_score}
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(match)}
-                      className="text-primary-600 hover:text-primary-700 font-medium"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(match.match_id)}
-                      className="text-red-500 hover:text-red-700 font-medium"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
       </div>
-    </Card>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[9999] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-center justify-center min-h-screen p-4">
+            {/* Background overlay */}
+            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={handleDeleteCancel} aria-hidden="true"></div>
+            
+            {/* Modal panel */}
+            <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6">
+              {/* Modal content */}
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center rounded-full bg-red-100">
+                  <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-slate-700 mb-2" id="modal-title">Delete Match</h3>
+                <p className="text-sm text-slate-500 mb-6">
+                  Are you sure you want to delete this match? This action cannot be undone.
+                </p>
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={handleDeleteCancel}
+                    className="inline-block px-6 py-3 font-bold text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-300 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft hover:bg-slate-100 hover:scale-102 active:opacity-85"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteConfirm}
+                    disabled={isLoading}
+                    className="inline-block px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft bg-gradient-to-tl from-red-500 to-orange-400 shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
+                  >
+                    {isLoading ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

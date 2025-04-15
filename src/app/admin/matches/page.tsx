@@ -11,13 +11,11 @@ export default function AdminMatchesPage() {
   return (
     <MainLayout>
       <div className="py-6">
-        <div className="bg-white rounded-xl shadow-card p-6">
-          <ErrorBoundary>
-            <AdminLayout>
-              <MatchManager />
-            </AdminLayout>
-          </ErrorBoundary>
-        </div>
+        <ErrorBoundary>
+          <AdminLayout>
+            <MatchManager />
+          </AdminLayout>
+        </ErrorBoundary>
       </div>
     </MainLayout>
   );

@@ -269,7 +269,7 @@ const PlayerRatings: React.FC = () => {
               <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
               {player.is_ringer && (
                 <span className="ml-2 inline-flex px-1.5 py-0.5 text-xxs font-medium leading-none text-slate-600 rounded-full bg-slate-100 border border-slate-200 shadow-soft-xs opacity-80">
-                  R
+                  RINGER
                 </span>
               )}
             </div>
@@ -419,7 +419,7 @@ const PlayerRatings: React.FC = () => {
                           <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
                           {player.is_ringer && (
                             <span className="ml-2 inline-flex px-1.5 py-0.5 text-xxs font-medium leading-none text-slate-600 rounded-full bg-slate-100 border border-slate-200 shadow-soft-xs opacity-80">
-                              R
+                              RINGER
                             </span>
                           )}
                         </div>

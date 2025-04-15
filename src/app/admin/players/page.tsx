@@ -11,13 +11,11 @@ export default function AdminPlayersPage() {
   return (
     <MainLayout>
       <div className="py-6">
-        <div className="bg-white rounded-xl shadow-card p-6">
-          <ErrorBoundary>
-            <AdminLayout>
-              <PlayerManager />
-            </AdminLayout>
-          </ErrorBoundary>
-        </div>
+        <ErrorBoundary>
+          <AdminLayout>
+            <PlayerManager />
+          </AdminLayout>
+        </ErrorBoundary>
       </div>
     </MainLayout>
   );

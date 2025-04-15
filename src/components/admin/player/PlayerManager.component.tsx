@@ -158,7 +158,7 @@ const PlayerManager: React.FC = () => {
   const getSortIndicator = (key: string) => {
     if (sortConfig.key === key) {
       return (
-        <span className="ml-related text-primary-600">
+        <span className="ml-1 text-fuchsia-500">
           {sortConfig.direction === 'desc' ? '▼' : '▲'}
         </span>
       );
@@ -236,173 +236,204 @@ const PlayerManager: React.FC = () => {
     if (!editData) return <></>;
 
     return (
-      <TableRow key={player.player_id} className="bg-blue-50">
-        <TableCell>
-          <input
-            type="text"
-            value={editData.name}
-            onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-            className="w-full px-2 py-1 border border-blue-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-          />
-        </TableCell>
-        <TableCell>
+      <tr key={player.player_id} className="bg-gradient-to-r from-fuchsia-50 to-slate-50">
+        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+          <div className="flex px-2 py-1">
+            <input
+              type="text"
+              value={editData.name}
+              onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+              className="w-full px-2 py-1 border border-fuchsia-200 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
+            />
+          </div>
+        </td>
+        <td className="p-2 text-center align-middle bg-transparent border-b">
           <button
             onClick={() => setEditData({ ...editData, is_retired: !editData.is_retired })}
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              editData.is_retired ? 'bg-neutral-100 text-neutral-800' : 'bg-green-100 text-green-800'
+            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${
+              editData.is_retired 
+                ? 'bg-gradient-to-tl from-red-600 to-rose-400 text-white' 
+                : 'bg-slate-100 text-slate-700'
             }`}
           >
             {editData.is_retired ? 'Retired' : 'Active'}
           </button>
-        </TableCell>
-        <TableCell>
+        </td>
+        <td className="p-2 text-center align-middle bg-transparent border-b">
           <button
             onClick={() => setEditData({ ...editData, is_ringer: !editData.is_ringer })}
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              editData.is_ringer ? 'bg-blue-100 text-blue-800' : 'bg-neutral-100 text-neutral-800'
+            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${
+              editData.is_ringer 
+                ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' 
+                : 'bg-slate-100 text-slate-700'
             }`}
           >
-            {editData.is_ringer ? 'Yes' : 'No'}
+            {editData.is_ringer ? 'YES' : 'NO'}
           </button>
-        </TableCell>
-        <TableCell>
-          <div className="flex space-x-2">
+        </td>
+        <td className="p-2 text-center align-middle bg-transparent border-b">
+          <div className="flex justify-center space-x-2">
             <button
               onClick={handleEditSave}
               disabled={isLoading}
-              className="px-2 py-1 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="inline-block px-3 py-1.5 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
             >
               Save
             </button>
             <button
               onClick={handleEditCancel}
-              className="px-2 py-1 bg-gray-300 text-gray-700 rounded-md text-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              className="inline-block px-3 py-1.5 text-xs font-bold text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
             >
               Cancel
             </button>
           </div>
-        </TableCell>
-      </TableRow>
+        </td>
+      </tr>
     );
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Player Manager</h2>
-          <Button 
-            onClick={() => setShowPlayerModal(true)}
-            variant="primary"
-            size="sm"
-          >
-            Create Player
-          </Button>
-        </div>
-        
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm">
-            {error}
+    <div className="bg-white rounded-2xl shadow-soft-xl p-6 max-w-5xl">
+      <div className="flex justify-between items-center mb-6">
+        <h5 className="font-bold text-slate-700">Player Manager</h5>
+        <button 
+          onClick={() => setShowPlayerModal(true)}
+          className="inline-block px-4 py-2 mb-0 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85 hover:shadow-soft-xs"
+        >
+          Create Player
+        </button>
+      </div>
+      
+      {error && (
+        <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md shadow-soft-sm">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
           </div>
-        )}
-        
-        <div className="mb-4 flex space-x-2 items-center">
-          <input
-            type="text"
-            placeholder="Search by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 block w-full sm:text-sm"
-          />
-          <div className="flex items-center">
+        </div>
+      )}
+      
+      <div className="mb-6 flex flex-wrap items-center gap-4">
+        <div className="w-full sm:w-64">
+          <div className="relative flex w-full flex-wrap items-stretch">
+            <span className="z-10 h-full leading-snug font-normal text-center text-slate-300 absolute bg-transparent rounded text-base items-center justify-center w-8 pl-3 py-3">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              placeholder="Search players..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 text-sm focus:shadow-soft-primary-outline ease-soft leading-5.6 relative -ml-px block w-full min-w-0 rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding py-2 pr-3 text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
+            />
+          </div>
+        </div>
+        <div className="flex items-center">
+          <div className="min-h-6 mb-0.5 block pl-0">
             <input
               type="checkbox"
               id="showRetired"
               checked={showRetired}
               onChange={(e) => setShowRetired(e.target.checked)}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              className="mt-0.5 rounded-10 duration-250 ease-soft-in-out after:rounded-circle after:shadow-soft-2xl after:duration-250 checked:after:translate-x-5.3 h-5 relative float-left ml-auto w-10 cursor-pointer appearance-none border border-solid border-gray-200 bg-slate-800/10 bg-none bg-contain bg-left bg-no-repeat align-top transition-all after:absolute after:top-px after:h-4 after:w-4 after:translate-x-px after:bg-white after:content-[''] checked:border-slate-800/95 checked:bg-slate-800/95 checked:bg-none checked:bg-right"
             />
-            <label htmlFor="showRetired" className="ml-2 text-sm text-gray-700">
+            <label htmlFor="showRetired" className="ml-2 text-sm text-slate-700 font-normal cursor-pointer">
               Show Retired
             </label>
           </div>
         </div>
-        
-        <div className="overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell onClick={() => handleSort('name')} className="cursor-pointer hover:text-primary-600">
-                    Name {getSortIndicator('name')}
-                  </TableCell>
-                  <TableCell onClick={() => handleSort('status')} className="cursor-pointer hover:text-primary-600">
-                    Status {getSortIndicator('status')}
-                  </TableCell>
-                  <TableCell onClick={() => handleSort('ringer')} className="cursor-pointer hover:text-primary-600">
-                    Ringer {getSortIndicator('ringer')}
-                  </TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {isLoading && !editingId ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4">
-                      <div className="inline-block w-6 h-6 border-2 border-t-primary-500 border-primary-200 rounded-full animate-spin"></div>
-                      <span className="ml-2">Loading players...</span>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredPlayers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4 text-gray-500">
-                      No players found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPlayers.map(player => (
-                    editingId === player.player_id 
-                      ? renderEditableRow(player)
-                      : (
-                        <TableRow key={player.player_id}>
-                          <TableCell>{player.name}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                player.is_retired ? 'bg-neutral-100 text-neutral-800' : 'bg-green-100 text-green-800'
-                              }`}
-                            >
-                              {player.is_retired ? 'Retired' : 'Active'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                player.is_ringer ? 'bg-blue-100 text-blue-800' : 'bg-neutral-100 text-neutral-800'
-                              }`}
-                            >
-                              {player.is_ringer ? 'Yes' : 'No'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleEditStart(player)}
-                                className="text-primary-600 hover:text-primary-900 text-sm"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </Card>
+      </div>
+      
+      <div className="overflow-x-auto">
+        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+          <thead className="align-bottom">
+            <tr>
+              <th onClick={() => handleSort('name')} className="cursor-pointer px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Name {getSortIndicator('name')}
+              </th>
+              <th onClick={() => handleSort('status')} className="cursor-pointer px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Status {getSortIndicator('status')}
+              </th>
+              <th onClick={() => handleSort('ringer')} className="cursor-pointer px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Ringer {getSortIndicator('ringer')}
+              </th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && !editingId ? (
+              <tr>
+                <td colSpan={4} className="p-2 text-center align-middle bg-transparent border-b">
+                  <div className="flex justify-center items-center py-4">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                      <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                    </div>
+                    <span className="ml-2">Loading players...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredPlayers.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="p-2 text-center align-middle bg-transparent border-b">
+                  <div className="py-4 text-slate-500">No players found</div>
+                </td>
+              </tr>
+            ) : (
+              filteredPlayers.map(player => (
+                editingId === player.player_id 
+                  ? renderEditableRow(player)
+                  : (
+                    <tr key={player.player_id}>
+                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                        <div className="flex px-2 py-1">
+                          <div className="flex flex-row items-center justify-start">
+                            <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${
+                          player.is_retired 
+                            ? 'bg-slate-300 text-slate-700' 
+                            : 'bg-gradient-to-tl from-green-600 to-lime-400 text-white'
+                        }`}>
+                          {player.is_retired ? 'RETIRED' : 'ACTIVE'}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${
+                          player.is_ringer 
+                            ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' 
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {player.is_ringer ? 'YES' : 'NO'}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <button
+                          onClick={() => handleEditStart(player)}
+                          className="inline-block px-3 py-1.5 text-xs font-bold text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 disabled:opacity-50"
+                        >
+                          EDIT
+                        </button>
+                      </td>
+                    </tr>
+                  )
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
       
       {/* Player Form Modal - only for adding new players */}
       <PlayerFormModal 
