@@ -11,13 +11,11 @@ export default function NextMatchPage() {
   return (
     <MainLayout>
       <div className="py-6">
-        <div className="bg-white rounded-xl shadow-card p-6">
-          <ErrorBoundary>
-            <AdminLayout>
-              <TeamAlgorithm />
-            </AdminLayout>
-          </ErrorBoundary>
-        </div>
+        <ErrorBoundary>
+          <AdminLayout>
+            <TeamAlgorithm />
+          </AdminLayout>
+        </ErrorBoundary>
       </div>
     </MainLayout>
   );
