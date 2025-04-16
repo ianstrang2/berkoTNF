@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { registerProgress, clearProgress } from '../balance-progress/route';
 
 interface Player {
   player_id: number;
@@ -167,18 +168,16 @@ export async function POST(request: Request) {
       );
     }
     
+    // Initialize progress tracking for this request
+    registerProgress(matchId, 0);
+    
     // Get match details
     const match = await prisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: matchIdInt },
       select: {
         upcoming_match_id: true,
         team_size: true,
-        is_balanced: true,
-        players: {
-          include: {
-            player: true
-          }
-        }
+        is_balanced: true
       }
     });
     
@@ -189,11 +188,22 @@ export async function POST(request: Request) {
       );
     }
     
-    // Check if there are enough players assigned
-    const assignedPlayerCount = match.players.length;
-    if (assignedPlayerCount < 2) {
+    // Get players from the pool instead of all match players
+    console.log('Getting players from the pool...');
+    const poolPlayers = await prisma.match_player_pool.findMany({
+      where: { 
+        upcoming_match_id: matchIdInt,
+        response_status: 'IN'  // Only include confirmed players
+      },
+      include: {
+        player: true  // Include player details
+      }
+    });
+    
+    // Check if there are enough players in the pool
+    if (poolPlayers.length < 2) {
       return NextResponse.json(
-        { success: false, error: 'At least 2 players are required to balance teams' },
+        { success: false, error: 'At least 2 players are required in the player pool to balance teams' },
         { status: 400 }
       );
     }
@@ -201,8 +211,8 @@ export async function POST(request: Request) {
     // Get balance algorithm weights
     const balanceWeights = await prisma.team_balance_weights.findMany();
     
-    // Prepare player data for balancing
-    const players = match.players.map(p => ({
+    // Prepare player data for balancing from the pool only
+    const players = poolPlayers.map(p => ({
       player_id: p.player_id,
       name: p.player.name,
       defender: p.player.defender,
@@ -211,8 +221,10 @@ export async function POST(request: Request) {
       control: p.player.control,
       teamwork: p.player.teamwork,
       resilience: p.player.resilience,
-      slot_number: p.slot_number
+      slot_number: 0 // Use 0 instead of null to avoid type issues
     }));
+    
+    console.log(`Balancing teams with ${players.length} players from the pool`);
     
     // Get team size template for position distribution
     const teamSizeTemplate = await prisma.team_size_templates.findFirst({
@@ -285,9 +297,13 @@ export async function POST(request: Request) {
     const maxAttempts = 8400; // Updated to match specification in planned_match_guide.md
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      // Progress logging
-      if (attempt % 100 === 0) {
-        console.log(`Balance attempt ${attempt}/${maxAttempts} (best score: ${bestScore.toFixed(3)})`);
+      // Report progress roughly every 1% (every ~84 iterations)
+      if (attempt % 84 === 0 || attempt === maxAttempts - 1) {
+        const progressPercent = Math.min(100, Math.floor((attempt / maxAttempts) * 100));
+        registerProgress(matchId, progressPercent);
+        
+        // Progress logging
+        console.log(`Balance attempt ${attempt}/${maxAttempts} (best score: ${bestScore.toFixed(3)}) - Progress: ${progressPercent}%`);
       }
       
       // Initialize an empty slots assignments array for this attempt
@@ -535,39 +551,166 @@ export async function POST(request: Request) {
         bestScore = score;
         bestSlots = [...slotAssignments];
         
-        // If score is very good, we can stop early
-        if (score < 0.05) break;
+        console.log(`New best score ${score.toFixed(4)} found at attempt ${attempt}`);
+        console.log(`Team A: ${teamAPlayers.length} players, Team B: ${teamBPlayers.length} players`);
+        console.log(`Total assignments: ${slotAssignments.length}`);
       }
       
-      // For variety in future attempts, shuffle players periodically
-      if (attempt % 50 === 0) {
+      // Enhanced randomization - shuffle more frequently
+      if (attempt % 25 === 0) {
         shuffleArray(playerScores);
+      }
+      
+      // Simulated annealing-like approach to escape local minima
+      // Occasionally accept a worse solution to escape local minima
+      if (attempt % 100 === 0 && attempt > 0) {
+        console.log('Applying randomization boost to escape local minima...');
+        // Randomly swap a few players between teams in the current best solution
+        if (bestSlots.length >= 4) { // Need at least 2 players per team
+          const teamA = bestSlots.filter(s => s.team === 'A');
+          const teamB = bestSlots.filter(s => s.team === 'B');
+          
+          // Swap a random pair of players
+          if (teamA.length > 0 && teamB.length > 0) {
+            // Pick random players to swap
+            const randomAIndex = Math.floor(Math.random() * teamA.length);
+            const randomBIndex = Math.floor(Math.random() * teamB.length);
+            
+            // Swap their team assignments for next round
+            const playerA = teamA[randomAIndex];
+            const playerB = teamB[randomBIndex];
+            
+            console.log(`Randomly swapping ${playerA.player_id} and ${playerB.player_id} to escape local minima`);
+            
+            // Use these players as preferred in next iteration
+            playerScores.sort((a, b) => {
+              if (a.player.player_id === playerA.player_id || a.player.player_id === playerB.player_id) return -1;
+              if (b.player.player_id === playerA.player_id || b.player.player_id === playerB.player_id) return 1;
+              return 0;
+            });
+          }
+        }
       }
     }
     
     console.log(`Best balance score: ${bestScore.toFixed(4)} with ${bestSlots.length} players assigned`);
     
-    // Update player assignments in database
-    const updatePromises = bestSlots.map(slot => 
-      prisma.upcoming_match_players.updateMany({
-        where: {
-          upcoming_match_id: matchIdInt,
-          player_id: slot.player_id
-        },
-        data: {
-          team: slot.team,
-          slot_number: slot.slot_number
+    if (bestSlots.length === 0) {
+      console.error('No valid team balance found! Check algorithm logic.');
+      return NextResponse.json(
+        { success: false, error: 'Could not find a valid team balance' },
+        { status: 500 }
+      );
+    }
+    
+    // Final optimization: Try swapping all defender pairs and keep if better
+    console.log('Performing final optimization with defender swapping...');
+    let optimizationImprovement = false;
+    
+    // Get all defenders
+    const teamADefenders = bestSlots.filter(s => s.team === 'A' && s.slot_number <= 3);
+    const teamBDefenders = bestSlots.filter(s => s.team === 'B' && s.slot_number >= 10 && s.slot_number <= 12);
+    
+    // Try swapping each pair of defenders
+    for (const defenderA of teamADefenders) {
+      for (const defenderB of teamBDefenders) {
+        // Create a copy of best slots
+        const testSlots = [...bestSlots];
+        
+        // Find and modify the two slots we want to swap
+        const slotAIndex = testSlots.findIndex(s => s.player_id === defenderA.player_id);
+        const slotBIndex = testSlots.findIndex(s => s.player_id === defenderB.player_id);
+        
+        if (slotAIndex !== -1 && slotBIndex !== -1) {
+          // Swap players
+          const tempPlayerId = testSlots[slotAIndex].player_id;
+          testSlots[slotAIndex].player_id = testSlots[slotBIndex].player_id;
+          testSlots[slotBIndex].player_id = tempPlayerId;
+          
+          // Evaluate this swap
+          const testTeamA = testSlots
+            .filter(s => s.team === 'A')
+            .map(s => {
+              const player = players.find(p => p.player_id === s.player_id);
+              return { ...player, slot_number: s.slot_number };
+            });
+            
+          const testTeamB = testSlots
+            .filter(s => s.team === 'B')
+            .map(s => {
+              const player = players.find(p => p.player_id === s.player_id);
+              return { ...player, slot_number: s.slot_number };
+            });
+            
+          const testScore = calculateBalanceScore(testTeamA, testTeamB, balanceWeights);
+          
+          // If this swap improves the score, keep it
+          if (testScore < bestScore) {
+            console.log(`Defender swap improved score from ${bestScore.toFixed(4)} to ${testScore.toFixed(4)}`);
+            bestScore = testScore;
+            bestSlots = testSlots;
+            optimizationImprovement = true;
+          }
         }
-      })
-    );
+      }
+    }
     
-    await Promise.all(updatePromises);
+    if (optimizationImprovement) {
+      console.log('Final optimization improved the balance!');
+    } else {
+      console.log('No improvement from final optimization');
+    }
     
-    // Mark match as balanced
-    await prisma.upcoming_matches.update({
-      where: { upcoming_match_id: matchIdInt },
-      data: { is_balanced: true }
-    });
+    console.log('Team balance details after optimization:');
+    const finalTeamAPlayers = bestSlots.filter(s => s.team === 'A');
+    const finalTeamBPlayers = bestSlots.filter(s => s.team === 'B');
+    console.log(`Team A: ${finalTeamAPlayers.length} players`);
+    console.log(`Team B: ${finalTeamBPlayers.length} players`);
+    
+    try {
+      // Use a transaction to ensure all changes happen atomically
+      await prisma.$transaction(async (tx) => {
+        // Step 1: Delete ALL existing player assignments for this match
+        console.log('Deleting all existing player assignments...');
+        const deleteResult = await tx.upcoming_match_players.deleteMany({
+          where: { upcoming_match_id: matchIdInt }
+        });
+        console.log(`Deleted ${deleteResult.count} existing assignments`);
+        
+        // Step 2: Create new assignments for balanced teams
+        console.log('Creating fresh player assignments...');
+        let createdCount = 0;
+        
+        for (const slot of bestSlots) {
+          await tx.upcoming_match_players.create({
+            data: {
+              upcoming_match_id: matchIdInt,
+              player_id: slot.player_id,
+              team: slot.team,
+              slot_number: slot.slot_number
+            }
+          });
+          createdCount++;
+        }
+        
+        console.log(`Created ${createdCount} new player assignments`);
+        
+        // Mark match as balanced
+        await tx.upcoming_matches.update({
+          where: { upcoming_match_id: matchIdInt },
+          data: { is_balanced: true }
+        });
+        console.log('Match marked as balanced');
+      });
+      
+      console.log('Team balancing completed successfully');
+    } catch (error) {
+      console.error('Error saving balanced teams:', error);
+      throw error;
+    }
+    
+    // Set progress to 100% when done with iterations
+    registerProgress(matchId, 100);
     
     return NextResponse.json({
       success: true,
@@ -580,6 +723,18 @@ export async function POST(request: Request) {
     
   } catch (error: any) {
     console.error('Error balancing planned match:', error);
+    
+    // Clean up progress tracking on error
+    try {
+      const url = new URL(request.url);
+      const matchId = url.searchParams.get('matchId');
+      if (matchId) {
+        clearProgress(matchId);
+      }
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+    
     return NextResponse.json(
       { 
         success: false, 

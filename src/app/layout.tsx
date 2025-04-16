@@ -30,8 +30,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="stylesheet" href="/assets/css/nucleo-svg.css" />
         <link rel="stylesheet" href="/assets/css/perfect-scrollbar.css" />
         <link rel="stylesheet" href="/assets/css/datatable.css" />
-        {/* Font Awesome Icons */}
-        <Script src="https://kit.fontawesome.com/42d5adcbca.js" crossOrigin="anonymous" strategy="beforeInteractive" />
+        {/* Font Awesome is already imported at the top of the file */}
       </head>
       <body className="h-full bg-gray-50">
         <NavigationProvider>

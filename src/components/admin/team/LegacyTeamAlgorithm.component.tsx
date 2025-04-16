@@ -1008,7 +1008,14 @@ const TeamAlgorithm: React.FC = () => {
       // Short delay to ensure UI updates and shows the loading state
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      setBalanceProgress(25);
+      // Clear or hide current assignments during balancing to prevent flickering
+      const hiddenSlots = currentSlots.map(slot => ({
+        ...slot,
+        temp_hidden: true // This won't affect the actual data, just marks for UI
+      }));
+      setCurrentSlots(hiddenSlots);
+      
+      setBalanceProgress(5); // Initial progress
       
       // Get the correct match ID (prioritize upcoming_match_id)
       const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
@@ -1024,17 +1031,48 @@ const TeamAlgorithm: React.FC = () => {
         throw new Error('Please assign at least 2 players before balancing');
       }
       
-      setBalanceProgress(50);
+      setBalanceProgress(10);
       
-      // Use the TeamBalanceService to balance teams
-      await TeamBalanceService.balanceTeams(matchId);
+      // Use the TeamBalanceService to balance teams with progress tracking
+      const eventSource = new EventSource(`/api/admin/balance-progress?matchId=${matchId}`);
       
-      setBalanceProgress(75);
+      // Set up event handlers for SSE progress updates
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.progress) {
+            // Map algorithm progress (0-100%) to our 10%-90% range
+            const progressValue = 10 + Math.round(data.progress * 0.8); 
+            setBalanceProgress(progressValue);
+          }
+        } catch (e) {
+          console.error('Error parsing progress data:', e);
+        }
+      };
+      
+      eventSource.onerror = () => {
+        eventSource.close();
+      };
+      
+      // Wait for balancing to complete
+      const balancePromise = TeamBalanceService.balanceTeams(matchId);
+      
+      // Time out after 30 seconds if no response
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Balancing timed out')), 30000);
+      });
+      
+      await Promise.race([balancePromise, timeoutPromise]);
+      
+      // Close the event source
+      eventSource.close();
+      
+      setBalanceProgress(90);
       
       // Mark as balanced
       setIsBalanced(true);
       
-      // Refresh data to get updated team assignments
+      // Refresh data to get final team assignments
       await refreshMatchData();
       
     } catch (error) {
@@ -1196,33 +1234,38 @@ const TeamAlgorithm: React.FC = () => {
     const teamName = teamType === 'a' ? 'Orange' : 'Green';
     const playerIdPrefix = teamType === 'a' ? 'teamA-player-' : 'teamB-player-';
     
-    // Get team size if we have an active match
-    const teamSize = activeMatch?.team_size || 5;
-    
+    // Get position groups for the specified team
     const positionGroups = teamType === 'a' ? orangePositionGroups : greenPositionGroups;
     
+    // Check if we should hide players during balancing
+    const isBalancing = isLoading && balanceProgress > 0 && balanceProgress < 100;
+    
     return (
-      <div className="mb-4">
+      <div>
         <h3 className={`text-xl font-bold ${teamClass}`}>{teamName}</h3>
         
-        {/* Build position groups for this team */}
         {positionGroups.map((group) => {
           // Filter slots for current group
           const positionSlots = slots.filter(
             slot => slot.slot_number >= group.startSlot && slot.slot_number <= group.endSlot
           );
           
-          const assignedSlots = positionSlots.filter(slot => slot.player_id !== null);
-          const assignedPlayers = assignedSlots.map(slot => 
-            players.find(p => p.id === slot.player_id)
-          ).filter(Boolean) as Player[];
+          // Count assigned slots that aren't hidden
+          const assignedSlots = positionSlots.filter(
+            slot => slot.player_id !== null && !(isBalancing && (slot as any).temp_hidden)
+          );
           
-          const stats = calculateSectionStats(assignedPlayers, group.position);
+          // Calculate section stats for visible slots
+          const sectionPlayers = assignedSlots
+            .map(slot => players.find(p => p.id === slot.player_id))
+            .filter(Boolean) as Player[];
+          
+          const stats = calculateSectionStats(sectionPlayers, group.position);
           
           return (
             <div key={`${teamType}-${group.position}`} className="my-2 p-2 bg-white rounded-md shadow">
               <div className="flex justify-between items-center mb-2">
-                <h4 className="font-semibold text-md">{group.position}</h4>
+                <h4 className="font-semibold text-md">{group.title}</h4>
                 {assignedSlots.length > 0 && (
                   <div className="text-sm text-neutral-500">
                     {assignedSlots.length}/{positionSlots.length}
@@ -1251,6 +1294,18 @@ const TeamAlgorithm: React.FC = () => {
                   const position = getPositionFromSlot(slot.slot_number);
                   const playerStats = getPlayerStats(player, position);
                   const availablePlayers = getAvailablePlayersFn(slot);
+                  const isHidden = isBalancing && (slot as any).temp_hidden;
+                  
+                  // If balancing, either show loading placeholder or the actual slot
+                  if (isHidden) {
+                    return (
+                      <div 
+                        key={`${playerIdPrefix}${slot.slot_number}`}
+                        className="animate-pulse p-2 bg-gray-100 border border-gray-200 rounded-md h-12"
+                      >
+                      </div>
+                    );
+                  }
                   
                   return (
                     <DraggablePlayerSlot
@@ -1329,14 +1384,6 @@ const TeamAlgorithm: React.FC = () => {
       balanceScore <= 0.3 ? 'text-blue-600' :
       balanceScore <= 0.4 ? 'text-amber-600' : 'text-red-600';
     
-    // Get color for the balance bar
-    const getBalanceColor = (score: number) => {
-      if (score <= 0.3) return "bg-emerald-500";
-      if (score <= 0.6) return "bg-blue-500";
-      if (score <= 0.9) return "bg-amber-500";
-      return "bg-red-500";
-    };
-    
     return (
       <div className="bg-white rounded-md shadow p-3 mt-4">
         <h3 className="text-lg font-bold text-neutral-800">Team Balance Analysis</h3>
@@ -1352,7 +1399,7 @@ const TeamAlgorithm: React.FC = () => {
           {/* Balance quality visual indicator */}
           <div className="relative h-2.5 w-full bg-gray-200 rounded-full overflow-hidden">
             <div 
-              className={`absolute top-0 left-0 h-full ${getBalanceColor(balanceScore)}`}
+              className="absolute top-0 left-0 h-full bg-blue-500"
               style={{ 
                 width: `${balancePercentage}%`,
                 transition: 'width 0.5s ease-out'

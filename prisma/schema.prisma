@@ -57,6 +57,7 @@ model players {
   player_matches           player_matches[]
   team_slots               team_slots[]
   upcoming_match_players   upcoming_match_players[]
+  match_player_pool        match_player_pool[]
 }
 
 model team_slots {
@@ -151,6 +152,7 @@ model upcoming_matches {
   is_active         Boolean?                 @default(false)
   is_balanced       Boolean?                 @default(false)
   players           upcoming_match_players[]
+  player_pool       match_player_pool[]
 
   @@index([is_active], map: "idx_upcoming_matches_active")
 }
@@ -167,6 +169,27 @@ model upcoming_match_players {
   slot_number        Int?
   player             players          @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
   match              upcoming_matches @relation(fields: [upcoming_match_id], references: [upcoming_match_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model represents the player pool for upcoming matches
+/// It tracks which players are available or unavailable for a match
+model match_player_pool {
+  id                   Int              @id @default(autoincrement())
+  upcoming_match_id    Int
+  player_id            Int
+  response_status      String           @default("IN") @db.VarChar(20)
+  response_timestamp   DateTime         @default(now()) @db.Timestamptz(6)
+  notification_sent    Boolean          @default(false)
+  notification_timestamp DateTime?      @db.Timestamptz(6)
+  notes                String?
+  created_at           DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime         @default(now()) @db.Timestamptz(6)
+  player               players          @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+  match                upcoming_matches @relation(fields: [upcoming_match_id], references: [upcoming_match_id], onDelete: Cascade)
+
+  @@unique([upcoming_match_id, player_id])
+  @@index([upcoming_match_id])
+  @@index([player_id])
 }
 
 /// This model stores pre-aggregated season stats for faster retrieval
