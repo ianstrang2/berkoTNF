@@ -134,7 +134,8 @@ export const useTeamAlgorithm = () => {
       }));
       setCurrentSlots(hiddenSlots);
       
-      setBalanceProgress(15);
+      // Initial setup progress - minimal since it's nearly instant
+      setBalanceProgress(5);
       
       // Get the correct match ID (prioritize upcoming_match_id)
       const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
@@ -148,17 +149,22 @@ export const useTeamAlgorithm = () => {
         throw new Error('Please select at least 2 players in the player pool before balancing');
       }
       
-      setBalanceProgress(25);
-      
-      // REMOVED: No longer pre-assigning players to slots
-      // This avoids the unnecessary flickering and slow assignment
-      // The server-side algorithm already knows which players to balance from the pool
-      
-      setBalanceProgress(50);
-      
       // Use the appropriate balancing method
       let result;
+      let progressInterval: NodeJS.Timeout | undefined;
+      
       try {
+        // Start a simulated progress that increases gradually during the balancing operation,
+        // which is where most of the time is spent (5% to 95%)
+        let currentProgress = 5;
+        progressInterval = setInterval(() => {
+          if (currentProgress < 95) {
+            // Faster linear increments to better match actual processing time
+            currentProgress = Math.min(95, currentProgress + 3);
+            setBalanceProgress(currentProgress);
+          }
+        }, 200); // Update every 200ms for a more responsive progression
+        
         if (method === 'random') {
           // Get player IDs from the selected pool
           const playerIds = selectedPoolPlayers.map(player => player.id.toString());
@@ -169,15 +175,19 @@ export const useTeamAlgorithm = () => {
           result = await TeamBalanceService.balanceTeams(matchId);
         }
         
-        setBalanceProgress(75);
+        // Clear the interval when API completes
+        clearInterval(progressInterval);
+        setBalanceProgress(95);
         
         // Mark as balanced
         setIsBalanced(true);
         
-        // Refresh data to get updated team assignments
+        // Refresh data to get updated team assignments (final 5%)
         await refreshMatchData();
         
       } catch (balanceError) {
+        // Clear interval if there's an error
+        clearInterval(progressInterval);
         console.error('Balance API error:', balanceError);
         throw new Error(`Failed to balance teams: ${balanceError instanceof Error ? balanceError.message : String(balanceError)}`);
       }
