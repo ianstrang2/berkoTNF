@@ -1003,39 +1003,31 @@ const TeamAlgorithm: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      setBalanceProgress(0); // Reset progress first
       
-      // Short delay to ensure UI updates and shows the loading state
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      setBalanceProgress(25);
-      
-      // Get the correct match ID (prioritize upcoming_match_id)
-      const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
-      
-      if (!matchId) {
-        throw new Error('No active match selected');
+      if (!activeMatch) {
+        setError('No active match found');
+        return;
       }
       
-      // Count players assigned to avoid needless API calls
-      const assignedPlayerCount = currentSlots.filter(slot => slot.player_id !== null).length;
+      const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
       
-      if (assignedPlayerCount < 2) {
-        throw new Error('Please assign at least 2 players before balancing');
-      }
-      
+      // Simple loading indicator (no real progress updates)
       setBalanceProgress(50);
       
-      // Use the TeamBalanceService to balance teams
-      await TeamBalanceService.balanceTeams(matchId);
+      // Call API to balance teams
+      const response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, {
+        method: 'POST'
+      });
       
-      setBalanceProgress(75);
+      const data = await response.json();
       
-      // Mark as balanced
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to balance teams');
+      }
+      
+      // Refresh match data to display the new balanced teams
+      refreshMatchData();
       setIsBalanced(true);
-      
-      // Refresh data to get updated team assignments
-      await refreshMatchData();
       
     } catch (error) {
       console.error('Error balancing teams:', error);
@@ -1283,12 +1275,28 @@ const TeamAlgorithm: React.FC = () => {
     return TeamBalanceService.calculateTeamStats(teamSlots, players);
   };
 
+  // Utility function to flatten team stats by averaging across positions
+  const flattenTeamStats = (stats: any) => {
+    if (!stats) return null;
+    
+    return {
+      goalscoring: (stats.defense.goalscoring + stats.midfield.goalscoring + stats.attack.goalscoring) / 3,
+      defending: (stats.defense.defending + stats.midfield.defending + stats.attack.defending) / 3,
+      stamina_pace: (stats.defense.stamina_pace + stats.midfield.stamina_pace + stats.attack.stamina_pace) / 3,
+      control: (stats.defense.control + stats.midfield.control + stats.attack.control) / 3,
+      teamwork: (stats.defense.teamwork + stats.midfield.teamwork + stats.attack.teamwork) / 3,
+      resilience: (stats.defense.resilience + stats.midfield.resilience + stats.attack.resilience) / 3,
+      playerCount: stats.playerCount
+    };
+  };
+
   const renderTeamStats = (teamType: 'a' | 'b') => {
     const teamSlots = teamType === 'a' 
       ? currentSlots.filter(s => s.slot_number <= 9)
       : currentSlots.filter(s => s.slot_number > 9);
     
-    const stats = calculateTeamStats(teamSlots);
+    const rawStats = calculateTeamStats(teamSlots);
+    const stats = flattenTeamStats(rawStats);
     if (!stats) return null;
     
     const teamColor = teamType === 'a' ? 'orange' : 'green';
@@ -1318,11 +1326,41 @@ const TeamAlgorithm: React.FC = () => {
     return TeamBalanceService.calculateComparativeStats(teamASlots, teamBSlots, players);
   };
   
-  const renderComparativeStats = () => {
-    const stats = calculateComparativeStats();
+  // Utility function to flatten the comparative stats structure to match the Stats interface
+  const flattenComparativeStats = (stats: any): Stats | null => {
     if (!stats) return null;
     
-    const { diffs, balanceScore, balancePercentage } = stats as Stats;
+    // Convert nested diffs structure to flat Record<string, number>
+    const flatDiffs: Record<string, number> = {};
+    
+    // Add defense attributes
+    Object.entries(stats.diffs.defense).forEach(([key, value]) => {
+      flatDiffs[`defense_${key}`] = value as number;
+    });
+    
+    // Add midfield attributes
+    Object.entries(stats.diffs.midfield).forEach(([key, value]) => {
+      flatDiffs[`midfield_${key}`] = value as number;
+    });
+    
+    // Add attack attributes
+    Object.entries(stats.diffs.attack).forEach(([key, value]) => {
+      flatDiffs[`attack_${key}`] = value as number;
+    });
+    
+    return {
+      diffs: flatDiffs,
+      balanceScore: stats.balanceScore,
+      balancePercentage: stats.balancePercentage
+    };
+  };
+  
+  const renderComparativeStats = () => {
+    const rawStats = calculateComparativeStats();
+    const stats = flattenComparativeStats(rawStats);
+    if (!stats) return null;
+    
+    const { diffs, balanceScore, balancePercentage } = stats;
     
     const qualityColorClass = 
       balanceScore <= 0.2 ? 'text-emerald-600' :
@@ -1365,7 +1403,10 @@ const TeamAlgorithm: React.FC = () => {
           <div className="text-sm text-neutral-600 mb-1">Attribute Differences:</div>
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(diffs).map(([key, value]) => {
-              const label = key.charAt(0).toUpperCase() + key.replace('_', '/').slice(1);
+              // Format the label from the key (e.g., "defense_goalscoring" -> "Defense: Goalscoring")
+              const [position, attribute] = key.includes('_') ? key.split('_') : [key, key];
+              const label = `${position.charAt(0).toUpperCase() + position.slice(1)}: ${attribute.charAt(0).toUpperCase() + attribute.slice(1)}`;
+              
               const diffClass = 
                 value <= 0.3 ? 'text-emerald-600' :
                 value <= 0.6 ? 'text-blue-600' :
@@ -1373,7 +1414,7 @@ const TeamAlgorithm: React.FC = () => {
               
               return (
                 <div key={key} className="flex justify-between">
-                  <span className="text-sm">{label}:</span>
+                  <span className="text-sm">{label}</span>
                   <span className={`text-sm font-medium ${diffClass}`}>{value.toFixed(2)}</span>
                 </div>
               );

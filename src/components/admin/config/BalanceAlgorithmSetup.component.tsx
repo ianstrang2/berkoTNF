@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
 import { SoftUIConfirmationModal } from '@/components/ui-kit';
+import Swal from 'sweetalert2';
 
 // Define types
 interface Weight {
@@ -20,7 +21,7 @@ interface AttributeDescriptions {
   [key: string]: string;
 }
 
-type PositionGroup = 'defense' | 'midfield' | 'attack' | 'team';
+type PositionGroup = 'defense' | 'midfield' | 'attack';
 
 const BalanceAlgorithmSetup: React.FC = () => {
   const [weights, setWeights] = useState<Weight[]>([]);
@@ -28,15 +29,15 @@ const BalanceAlgorithmSetup: React.FC = () => {
   const [saving, setSaving] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [showValidationError, setShowValidationError] = useState<boolean>(false);
+  const [teamSize, setTeamSize] = useState<string>('9');
 
-  // Technical attributes that need to sum to 100%
-  const technicalAttributes: string[] = ['stamina_pace', 'control', 'goalscoring'];
+  // All attributes that need to sum to 100% within each position group
+  const allAttributes: string[] = ['stamina_pace', 'control', 'goalscoring', 'teamwork', 'resilience'];
   
   // Position groups that need validation
   const positionGroups: PositionGroup[] = ['defense', 'midfield', 'attack'];
@@ -75,7 +76,9 @@ const BalanceAlgorithmSetup: React.FC = () => {
         // Convert back to array
         const uniqueWeights = Array.from(weightMap.values());
         
-        setWeights(uniqueWeights);
+        // Ensure teamwork and resilience attributes exist for each position group
+        const completeWeights = ensurePositionAttributes(uniqueWeights);
+        setWeights(completeWeights);
       } else {
         throw new Error(data.error || 'Failed to fetch balance weights');
       }
@@ -87,25 +90,108 @@ const BalanceAlgorithmSetup: React.FC = () => {
     }
   };
 
+  // Ensure all position groups have teamwork and resilience attributes
+  const ensurePositionAttributes = (weights: Weight[]): Weight[] => {
+    const result = [...weights];
+    let hasNewAttributes = false;
+    
+    // Check for each position group
+    positionGroups.forEach(position => {
+      // Get weights for this position
+      const positionWeights = weights.filter(w => w.description === position);
+      
+      // Check for teamwork
+      if (!positionWeights.some(w => w.name === 'teamwork')) {
+        // Generate a temporary ID for new attribute (negative to avoid conflicts)
+        const tempId = `-${position}-teamwork-${Date.now()}`;
+        result.push({
+          attribute_id: tempId,
+          name: 'teamwork',
+          description: position,
+          weight: 0.1 // Default 10% weight
+        });
+        hasNewAttributes = true;
+      }
+      
+      // Check for resilience
+      if (!positionWeights.some(w => w.name === 'resilience')) {
+        // Generate a temporary ID for new attribute (negative to avoid conflicts)
+        const tempId = `-${position}-resilience-${Date.now()}`;
+        result.push({
+          attribute_id: tempId,
+          name: 'resilience',
+          description: position,
+          weight: 0.1 // Default 10% weight
+        });
+        hasNewAttributes = true;
+      }
+    });
+    
+    // If we added new attributes, we need to normalize the weights
+    if (hasNewAttributes) {
+      // First, scale down existing weights to make room for new attributes
+      positionGroups.forEach(position => {
+        const positionWeights = result.filter(w => 
+          w.description === position && 
+          !['teamwork', 'resilience'].includes(w.name)
+        );
+        
+        // Scale down existing weights by 20% to make room for teamwork and resilience
+        positionWeights.forEach(weight => {
+          const index = result.findIndex(w => w.attribute_id === weight.attribute_id);
+          if (index >= 0) {
+            result[index] = {
+              ...weight,
+              weight: weight.weight * 0.8
+            };
+          }
+        });
+      });
+      
+      // Now normalize each position group to ensure weights sum to 1.0
+      positionGroups.forEach(position => {
+        const positionWeights = result.filter(w => w.description === position);
+        const total = positionWeights.reduce((sum, w) => sum + w.weight, 0);
+        
+        // If the total is not 1.0, adjust weights proportionally
+        if (Math.abs(total - 1.0) > 0.001) {
+          positionWeights.forEach(weight => {
+            const index = result.findIndex(w => w.attribute_id === weight.attribute_id);
+            if (index >= 0) {
+              result[index] = {
+                ...weight,
+                weight: weight.weight / total
+              };
+            }
+          });
+        }
+      });
+      
+      // Set that we have changes that need to be saved
+      setHasChanges(true);
+    }
+    
+    return result;
+  };
+
   // Get position name for display
   const getPositionName = (positionGroup: string): string => {
     switch(positionGroup) {
       case 'defense': return 'Defenders';
       case 'midfield': return 'Midfielders';
       case 'attack': return 'Attackers';
-      case 'team': return 'Team-wide Factors';
       default: return positionGroup;
     }
   };
 
-  // Calculate totals for each position group's technical attributes
+  // Calculate totals for each position group's attributes
   const calculateTotals = (): { totals: Record<string, number>; errors: ValidationErrors } => {
     const totals: Record<string, number> = {};
     const errors: ValidationErrors = {};
     
     positionGroups.forEach(group => {
       const groupWeights = weights.filter(w => 
-        w.description === group && technicalAttributes.includes(w.name)
+        w.description === group && allAttributes.includes(w.name)
       );
       
       const total = groupWeights.reduce((sum, w) => sum + w.weight, 0);
@@ -113,7 +199,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
       
       // Check if total is not 100%
       if (Math.abs(total - 1) > 0.001) { // Use a small epsilon for floating point comparison
-        errors[group] = `${getPositionName(group)} technical attributes total ${(total * 100).toFixed(0)}% instead of 100%`;
+        errors[group] = `${getPositionName(group)} attributes total ${(total * 100).toFixed(0)}% instead of 100%`;
       }
     });
     
@@ -142,26 +228,37 @@ const BalanceAlgorithmSetup: React.FC = () => {
     
     setSaving(true);
     setError(null);
-    setSuccess(null);
     
     try {
       const response = await fetch('/api/admin/balance-algorithm', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ weights }),
+        body: JSON.stringify({ weights })
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save balance weights');
-      }
       
       const data = await response.json();
       
       if (data.success) {
-        setSuccess('Balance weights saved successfully');
         setHasChanges(false);
+        
+        Swal.fire({
+          toast: true,
+          position: 'top-right',
+          icon: 'success',
+          title: 'Saved Successfully',
+          text: 'Balance weights have been updated.',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+          customClass: {
+            popup: 'shadow-lg rounded-lg',
+            title: 'text-lg font-medium',
+            timerProgressBar: 'bg-green-500'
+          }
+        });
+        setShowConfirmation(false);
       } else {
         throw new Error(data.error || 'Failed to save balance weights');
       }
@@ -170,34 +267,55 @@ const BalanceAlgorithmSetup: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to save balance weights');
     } finally {
       setSaving(false);
-      setShowConfirmation(false);
     }
+  };
+
+  // Handler for closing confirmation and clearing states
+  const handleConfirmationClose = () => {
+    setShowConfirmation(false);
+    setSaving(false); // Ensure the saving state is reset
+  };
+
+  // Modified save handler to ensure UI state is properly updated
+  const handleSave = async () => {
+    await saveWeights();
   };
 
   // Reset weights to defaults
   const resetWeights = async (): Promise<void> => {
     setIsResetting(true);
     setError(null);
-    setSuccess(null);
     
     try {
       const response = await fetch('/api/admin/balance-algorithm/reset', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to reset balance weights');
-      }
       
       const data = await response.json();
       
       if (data.success) {
         setWeights(data.data);
-        setSuccess('Balance weights reset to defaults successfully');
         setHasChanges(false);
+        
+        Swal.fire({
+          toast: true,
+          position: 'top-right',
+          icon: 'success',
+          title: 'Reset Successfully',
+          text: 'Balance weights have been reset to defaults.',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+          customClass: {
+            popup: 'shadow-lg rounded-lg',
+            title: 'text-lg font-medium',
+            timerProgressBar: 'bg-green-500'
+          }
+        });
+        setShowResetConfirmation(false);
       } else {
         throw new Error(data.error || 'Failed to reset balance weights');
       }
@@ -206,7 +324,6 @@ const BalanceAlgorithmSetup: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to reset balance weights');
     } finally {
       setIsResetting(false);
-      setShowResetConfirmation(false);
     }
   };
 
@@ -280,7 +397,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
   const attributeDisplayOrder: string[] = ['stamina_pace', 'control', 'goalscoring', 'resilience', 'teamwork'];
 
   // Get the position group display order
-  const positionOrder: string[] = ['defense', 'midfield', 'attack', 'team'];
+  const positionOrder: string[] = ['defense', 'midfield', 'attack'];
 
   // Sort attributes in each position group by the predefined order
   const sortedGroupedWeights: Record<string, Weight[]> = Object.keys(groupedWeights).reduce((sorted, group) => {
@@ -361,9 +478,9 @@ const BalanceAlgorithmSetup: React.FC = () => {
         </p>
       </div>
       
-      {(error || success) && (
-        <div className={`mb-6 p-4 rounded-lg ${error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-          {error || success}
+      {error && (
+        <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
+          {error}
         </div>
       )}
       
@@ -391,35 +508,36 @@ const BalanceAlgorithmSetup: React.FC = () => {
               
               if (positionWeights.length === 0) return null;
               
-              // Calculate technical total for this position (only applicable for defense, midfield, attack)
-              const isTechnicalGroup = positionGroups.includes(position as PositionGroup);
+              // Calculate total for this position
+              const isPositionGroup = positionGroups.includes(position as PositionGroup);
               const { totals } = calculateTotals();
-              const technicalTotal = isTechnicalGroup ? totals[position] || 0 : null;
+              const positionTotal = isPositionGroup ? totals[position] || 0 : null;
               
               return (
                 <div key={position} className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="font-medium text-slate-700">{getPositionName(position)}</h3>
-                    {isTechnicalGroup && (
+                    {isPositionGroup && (
                       <div className="text-sm text-gray-500">
-                        Total: <span className={Math.abs(technicalTotal! - 1) > 0.001 ? 'text-amber-500 font-medium' : 'text-gray-500'}>
-                          {(technicalTotal! * 100).toFixed(0)}%
+                        Total: <span className={Math.abs(positionTotal! - 1) > 0.001 ? 'text-amber-500 font-medium' : 'text-gray-500'}>
+                          {(positionTotal! * 100).toFixed(0)}%
                         </span>
                       </div>
                     )}
                   </div>
                   
                   <div className="mt-2">
-                    <div className="text-xs text-gray-500 font-medium uppercase">TECHNICAL ATTRIBUTES</div>
+                    <div className="text-xs text-gray-500 font-medium uppercase">ATTRIBUTES</div>
                     
                     {positionWeights
-                      .filter(w => technicalAttributes.includes(w.name))
+                      .filter(w => allAttributes.includes(w.name))
                       .map(weight => (
                         <div key={weight.attribute_id} className="my-4">
                           <div className="flex justify-between items-center mb-1">
                             <div className="text-sm text-slate-700">
                               {formatAttributeName(weight.name)}
                               {weight.name === 'stamina_pace' && <span className="text-gray-400 text-xs"> (i)</span>}
+                              {weight.name === 'resilience' && <span className="text-gray-400 text-xs"> (i)</span>}
                             </div>
                             <div className="font-medium text-slate-700">{formatWeight(weight.weight)}</div>
                           </div>
@@ -436,32 +554,6 @@ const BalanceAlgorithmSetup: React.FC = () => {
                         </div>
                       ))
                     }
-                    
-                    {position === 'team' && (
-                      <div className="mt-2">
-                        {positionWeights.map(weight => (
-                          <div key={weight.attribute_id} className="my-4">
-                            <div className="flex justify-between items-center mb-1">
-                              <div className="text-sm text-slate-700">
-                                {formatAttributeName(weight.name)}
-                                {weight.name === 'resilience' && <span className="text-gray-400 text-xs"> (i)</span>}
-                              </div>
-                              <div className="font-medium text-slate-700">{formatWeight(weight.weight)}</div>
-                            </div>
-                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
-                              onClick={(e) => handleBarClick(e, weight.attribute_id)}
-                            >
-                              <div 
-                                className="h-full rounded-full bg-gradient-to-tl from-purple-700 to-pink-500"
-                                style={{ 
-                                  width: `${weight.weight * 100}%`
-                                }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -473,8 +565,8 @@ const BalanceAlgorithmSetup: React.FC = () => {
       {/* Confirmation Modal */}
       <SoftUIConfirmationModal
         isOpen={showConfirmation}
-        onClose={() => setShowConfirmation(false)}
-        onConfirm={saveWeights}
+        onClose={handleConfirmationClose}
+        onConfirm={handleSave}
         title="Save Balance Algorithm Changes"
         message="Are you sure you want to save your changes to the balance algorithm? This will affect how teams are balanced in future matches."
         confirmText="Save Changes"

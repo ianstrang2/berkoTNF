@@ -7,10 +7,40 @@ const TeamStats: React.FC<TeamStatsProps> = ({ teamType, stats }) => {
   
   const teamColor = teamType === 'a' ? 'orange' : 'green';
   
-  // Calculate position-based metrics using weighted attributes
-  const defenseScore = stats.defending * 0.5 + stats.stamina_pace * 0.3 + stats.control * 0.2;
-  const midfieldScore = stats.control * 0.4 + stats.stamina_pace * 0.3 + stats.goalscoring * 0.3;
-  const attackingScore = stats.goalscoring * 0.5 + stats.stamina_pace * 0.3 + stats.control * 0.2;
+  // Helper to calculate weighted position score
+  const calculatePositionScore = (positionStats: any, weights: Record<string, number>) => {
+    return Object.entries(weights).reduce((score, [attr, weight]) => {
+      return score + (positionStats[attr] || 0) * weight;
+    }, 0);
+  };
+  
+  // Weights for each position group
+  const defenseWeights = {
+    defending: 0.5,
+    stamina_pace: 0.3,
+    control: 0.2
+  };
+  
+  const midfieldWeights = {
+    control: 0.4,
+    stamina_pace: 0.3,
+    goalscoring: 0.3
+  };
+  
+  const attackWeights = {
+    goalscoring: 0.5,
+    stamina_pace: 0.3,
+    control: 0.2
+  };
+  
+  // Calculate position scores using weighted attributes
+  const defenseScore = calculatePositionScore(stats.defense, defenseWeights);
+  const midfieldScore = calculatePositionScore(stats.midfield, midfieldWeights);
+  const attackingScore = calculatePositionScore(stats.attack, attackWeights);
+  
+  // Calculate average teamwork and resilience across all positions
+  const teamworkScore = (stats.defense.teamwork + stats.midfield.teamwork + stats.attack.teamwork) / 3;
+  const resilienceScore = (stats.defense.resilience + stats.midfield.resilience + stats.attack.resilience) / 3;
   
   return (
     <div className="bg-white rounded-md shadow p-3 mb-4">
@@ -18,8 +48,8 @@ const TeamStats: React.FC<TeamStatsProps> = ({ teamType, stats }) => {
         <StatBar label="Defense" value={defenseScore} color={teamColor} />
         <StatBar label="Midfield" value={midfieldScore} color={teamColor} />
         <StatBar label="Attacking" value={attackingScore} color={teamColor} />
-        <StatBar label="Teamwork" value={stats.teamwork} color={teamColor} />
-        <StatBar label="Resilience" value={stats.resilience} color={teamColor} />
+        <StatBar label="Teamwork" value={teamworkScore} color={teamColor} />
+        <StatBar label="Resilience" value={resilienceScore} color={teamColor} />
       </div>
     </div>
   );

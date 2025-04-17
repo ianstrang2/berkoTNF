@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { registerProgress, clearProgress } from '../balance-progress/route';
 
 interface Player {
   player_id: number;
@@ -19,19 +18,23 @@ interface TeamStats {
     stamina_pace: number;
     control: number;
     goalscoring: number;
+    teamwork: number;
+    resilience: number;
   };
   midfield: {
     control: number;
     stamina_pace: number;
     goalscoring: number;
+    teamwork: number;
+    resilience: number;
   };
   attack: {
     goalscoring: number;
     stamina_pace: number;
     control: number;
+    teamwork: number;
+    resilience: number;
   };
-  resilience: number;
-  teamwork: number;
 }
 
 // Shuffle array randomly
@@ -80,20 +83,24 @@ const calculateTeamStats = (team: Player[]): TeamStats => {
     defense: {
       stamina_pace: safeAverage(defenders, 'stamina_pace'),
       control: safeAverage(defenders, 'control'),
-      goalscoring: safeAverage(defenders, 'goalscoring')
+      goalscoring: safeAverage(defenders, 'goalscoring'),
+      teamwork: safeAverage(defenders, 'teamwork'),
+      resilience: safeAverage(defenders, 'resilience')
     },
     midfield: {
       control: safeAverage(midfielders, 'control'),
       stamina_pace: safeAverage(midfielders, 'stamina_pace'),
-      goalscoring: safeAverage(midfielders, 'goalscoring')
+      goalscoring: safeAverage(midfielders, 'goalscoring'),
+      teamwork: safeAverage(midfielders, 'teamwork'),
+      resilience: safeAverage(midfielders, 'resilience')
     },
     attack: {
       goalscoring: safeAverage(attackers, 'goalscoring'),
       stamina_pace: safeAverage(attackers, 'stamina_pace'),
-      control: safeAverage(attackers, 'control')
-    },
-    resilience: safeAverage([...defenders, ...midfielders, ...attackers], 'resilience'),
-    teamwork: safeAverage([...defenders, ...midfielders, ...attackers], 'teamwork')
+      control: safeAverage(attackers, 'control'),
+      teamwork: safeAverage(attackers, 'teamwork'),
+      resilience: safeAverage(attackers, 'resilience')
+    }
   };
 };
 
@@ -136,15 +143,21 @@ const calculateBalanceScore = (teamA: Player[], teamB: Player[], weights: any[] 
   const midfieldDiff = calculateDifference(statsA.midfield, statsB.midfield, 'midfield');
   const attackDiff = calculateDifference(statsA.attack, statsB.attack, 'attack');
   
-  // Team-wide differences
-  const resilienceDiff = Math.abs(statsA.resilience - statsB.resilience) * 
-    ((weightsByGroup.team?.resilience) || defaultWeight);
-  const teamworkDiff = Math.abs(statsA.teamwork - statsB.teamwork) * 
-    ((weightsByGroup.team?.teamwork) || defaultWeight);
-  
   // Total score - add all differences (lower is better)
-  return defenseDiff + midfieldDiff + attackDiff + resilienceDiff + teamworkDiff;
+  return defenseDiff + midfieldDiff + attackDiff;
 };
+
+// Helper to generate all unique combinations of k elements from a set of n
+function combinations<T>(array: T[], k: number): T[][] {
+  if (k === 0) return [[]];
+  if (array.length === 0) return [];
+  
+  const [first, ...rest] = array;
+  const combsWithFirst = combinations(rest, k-1).map(comb => [first, ...comb]);
+  const combsWithoutFirst = combinations(rest, k);
+  
+  return [...combsWithFirst, ...combsWithoutFirst];
+}
 
 // POST handler for balancing a planned match
 export async function POST(request: Request) {
@@ -168,8 +181,9 @@ export async function POST(request: Request) {
       );
     }
     
-    // Initialize progress tracking for this request
-    registerProgress(matchId, 0);
+    // Initialize variables for optimal team balance
+    let bestSlots: { player_id: number, team: string, slot_number: number }[] = [];
+    let bestScore = Infinity;
     
     // Get match details
     const match = await prisma.upcoming_matches.findUnique({
@@ -247,7 +261,7 @@ export async function POST(request: Request) {
     // Sort players by position suitability
     const sortedPlayers = [...players];
     
-    // Score players for each position
+    // Prepare players for each position group
     const playerScores = sortedPlayers.map(player => {
       // Get weights for each position group
       const defenseWeights = balanceWeights.filter(w => w.position_group === 'defense');
@@ -291,303 +305,140 @@ export async function POST(request: Request) {
       };
     });
     
-    // Find optimal team balance
-    let bestSlots: { player_id: number, team: string, slot_number: number }[] = [];
-    let bestScore = Infinity;
-    const maxAttempts = 8400; // Updated to match specification in planned_match_guide.md
+    // Prepare players for each position group - all players are used, no leftovers
+    const defenderPlayers = playerScores
+      .sort((a, b) => (b.player.defender || 3) - (a.player.defender || 3))
+      .slice(0, defendersPerTeam * 2);
+
+    const remainingPlayers = playerScores.filter(p => 
+      !defenderPlayers.some(d => d.player.player_id === p.player.player_id)
+    );
+
+    const attackerPlayers = remainingPlayers
+      .sort((a, b) => (b.player.goalscoring || 3) - (a.player.goalscoring || 3))
+      .slice(0, attackersPerTeam * 2);
+
+    const midfielderPlayers = remainingPlayers
+      .filter(p => !attackerPlayers.some(a => a.player.player_id === p.player.player_id))
+      .sort((a, b) => (b.player.control || 3) - (a.player.control || 3))
+      .slice(0, midfieldersPerTeam * 2);
+
+    // Generate all possible combinations for each position group
+    const defenderCombinations = combinations(defenderPlayers, defendersPerTeam);
+    const attackerCombinations = combinations(attackerPlayers, attackersPerTeam);
+    const midfielderCombinations = combinations(midfielderPlayers, midfieldersPerTeam);
+
+    console.log(`Evaluating ${defenderCombinations.length} × ${attackerCombinations.length} × ${midfielderCombinations.length} = ${
+      defenderCombinations.length * attackerCombinations.length * midfielderCombinations.length
+    } total team combinations`);
+
+    // Track progress for the brute force search
+    let totalCombinations = defenderCombinations.length * attackerCombinations.length * midfielderCombinations.length;
+    let processedCombinations = 0;
     
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      // Report progress roughly every 1% (every ~84 iterations)
-      if (attempt % 84 === 0 || attempt === maxAttempts - 1) {
-        const progressPercent = Math.min(100, Math.floor((attempt / maxAttempts) * 100));
-        registerProgress(matchId, progressPercent);
+    // Find optimal team balance using brute force
+    for (const teamADefenders of defenderCombinations) {
+      const teamBDefenders = defenderPlayers.filter(p => 
+        !teamADefenders.some(d => d.player.player_id === p.player.player_id)
+      );
+      
+      for (const teamAAttackers of attackerCombinations) {
+        const teamBAttackers = attackerPlayers.filter(p => 
+          !teamAAttackers.some(a => a.player.player_id === p.player.player_id)
+        );
         
-        // Progress logging
-        console.log(`Balance attempt ${attempt}/${maxAttempts} (best score: ${bestScore.toFixed(3)}) - Progress: ${progressPercent}%`);
-      }
-      
-      // Initialize an empty slots assignments array for this attempt
-      const slotAssignments: { player_id: number, team: string, slot_number: number }[] = [];
-      
-      // Available players for this attempt (clone to avoid modifying the original)
-      let availablePlayers = [...playerScores];
-      
-      // Track assigned player IDs
-      const assignedPlayerIds = new Set<number>();
-      
-      // STEP 1: DEFENDERS FIRST
-      console.log(`Selecting ${defendersPerTeam * 2} defenders from ${availablePlayers.length} players`);
-      
-      // Sort ALL players by raw defender attribute values (highest to lowest)
-      // This follows the specification in planned_match_guide.md
-      availablePlayers.sort((a, b) => {
-        // Primary sort by raw defender attribute
-        const defenderDiff = (b.player.defender || 3) - (a.player.defender || 3);
-        
-        // If defender ratings are very close (essentially tied), use secondary factors
-        if (Math.abs(defenderDiff) < 0.1) {
-          // Secondary sort by raw control attribute
-          const controlDiff = (b.player.control || 3) - (a.player.control || 3);
+        for (const teamAMidfielders of midfielderCombinations) {
+          const teamBMidfielders = midfielderPlayers.filter(p => 
+            !teamAMidfielders.some(m => m.player.player_id === p.player.player_id)
+          );
           
-          if (Math.abs(controlDiff) > 0.1) return controlDiff;
+          // Update progress periodically
+          processedCombinations++;
           
-          // Tertiary sort by raw stamina_pace attribute
-          const staminaDiff = (b.player.stamina_pace || 3) - (a.player.stamina_pace || 3);
+          // Create team assignments for this combination
+          const slotAssignments: { player_id: number, team: string, slot_number: number }[] = [];
           
-          if (Math.abs(staminaDiff) > 0.1) return staminaDiff;
-        }
-        
-        // Default to primary sort if no ties or no secondary factors helped
-        return defenderDiff;
-      });
-      
-      // Select the top N defenders needed for both teams
-      const defenderCount = defendersPerTeam * 2;
-      const selectedDefenders = availablePlayers.slice(0, defenderCount);
-      
-      console.log(`Selected top ${selectedDefenders.length} defenders`);
-      
-      // Distribute defenders alternately between teams
-      selectedDefenders.forEach((player, index) => {
-        const isTeamA = index % 2 === 0;
-        const team = isTeamA ? 'A' : 'B';
-        
-        // Calculate slot number based on team and position index
-        const positionIndex = Math.floor(index / 2); // 0, 0, 1, 1, 2, 2, etc.
-        const slotNumber = isTeamA 
-          ? positionIndex + 1 // Team A: slots 1, 2, 3, etc.
-          : match.team_size + positionIndex + 1; // Team B: slots (team_size+1), (team_size+2), etc.
-        
-        slotAssignments.push({
-          player_id: player.player.player_id,
-          team,
-          slot_number: slotNumber
-        });
-        
-        // Mark player as assigned
-        assignedPlayerIds.add(player.player.player_id);
-      });
-      
-      // STEP 2: ATTACKERS SECOND
-      // Filter out already assigned defenders
-      availablePlayers = availablePlayers.filter(p => !assignedPlayerIds.has(p.player.player_id));
-      
-      console.log(`Selecting ${attackersPerTeam * 2} attackers from ${availablePlayers.length} remaining players`);
-      
-      // Sort REMAINING players by raw goalscoring attribute (highest to lowest)
-      // This follows the specification in planned_match_guide.md
-      availablePlayers.sort((a, b) => {
-        // Primary sort by raw goalscoring attribute
-        const goalscoringDiff = (b.player.goalscoring || 3) - (a.player.goalscoring || 3);
-        
-        // If goalscoring ratings are very close (essentially tied), use secondary factors
-        if (Math.abs(goalscoringDiff) < 0.1) {
-          // Secondary sort by raw stamina_pace attribute
-          const staminaDiff = (b.player.stamina_pace || 3) - (a.player.stamina_pace || 3);
-          
-          if (Math.abs(staminaDiff) > 0.1) return staminaDiff;
-          
-          // Tertiary sort by raw control attribute
-          const controlDiff = (b.player.control || 3) - (a.player.control || 3);
-          
-          if (Math.abs(controlDiff) > 0.1) return controlDiff;
-        }
-        
-        // Default to primary sort if no ties or no secondary factors helped
-        return goalscoringDiff;
-      });
-      
-      // Select the top N attackers needed for both teams
-      const attackerCount = attackersPerTeam * 2;
-      const selectedAttackers = availablePlayers.slice(0, attackerCount);
-      
-      console.log(`Selected top ${selectedAttackers.length} attackers`);
-      
-      // Calculate attacker slot base positions
-      const teamAAttackerBaseSlot = defendersPerTeam + midfieldersPerTeam + 1;
-      const teamBAttackerBaseSlot = match.team_size + defendersPerTeam + midfieldersPerTeam + 1;
-      
-      // Distribute attackers alternately between teams
-      selectedAttackers.forEach((player, index) => {
-        const isTeamA = index % 2 === 0;
-        const team = isTeamA ? 'A' : 'B';
-        
-        // Calculate slot number based on team and position index
-        const positionIndex = Math.floor(index / 2); // 0, 0, 1, 1, etc.
-        const slotNumber = isTeamA 
-          ? teamAAttackerBaseSlot + positionIndex // Team A attacker slots
-          : teamBAttackerBaseSlot + positionIndex; // Team B attacker slots
-        
-        slotAssignments.push({
-          player_id: player.player.player_id,
-          team,
-          slot_number: slotNumber
-        });
-        
-        // Mark player as assigned
-        assignedPlayerIds.add(player.player.player_id);
-      });
-      
-      // STEP 3: MIDFIELDERS LAST
-      // Filter out already assigned players
-      availablePlayers = availablePlayers.filter(p => !assignedPlayerIds.has(p.player.player_id));
-      
-      console.log(`Selecting ${midfieldersPerTeam * 2} midfielders from ${availablePlayers.length} remaining players`);
-      
-      // Sort REMAINING players by raw control attribute (highest to lowest)
-      // This follows the specification in planned_match_guide.md
-      availablePlayers.sort((a, b) => {
-        // Primary sort by raw control attribute
-        const controlDiff = (b.player.control || 3) - (a.player.control || 3);
-        
-        // If control ratings are very close (essentially tied), use secondary factors
-        if (Math.abs(controlDiff) < 0.1) {
-          // Secondary sort by raw stamina_pace attribute
-          const staminaDiff = (b.player.stamina_pace || 3) - (a.player.stamina_pace || 3);
-          
-          if (Math.abs(staminaDiff) > 0.1) return staminaDiff;
-          
-          // Tertiary sort by raw teamwork attribute
-          const teamworkDiff = (b.player.teamwork || 3) - (a.player.teamwork || 3);
-          
-          if (Math.abs(teamworkDiff) > 0.1) return teamworkDiff;
-        }
-        
-        // Default to primary sort if no ties or no secondary factors helped
-        return controlDiff;
-      });
-      
-      // Select the top N midfielders needed for both teams
-      const midfielderCount = midfieldersPerTeam * 2;
-      const selectedMidfielders = availablePlayers.slice(0, midfielderCount);
-      
-      console.log(`Selected top ${selectedMidfielders.length} midfielders`);
-      
-      // Calculate midfielder slot base positions
-      const teamAMidfielderBaseSlot = defendersPerTeam + 1;
-      const teamBMidfielderBaseSlot = match.team_size + defendersPerTeam + 1;
-      
-      // Distribute midfielders alternately between teams
-      selectedMidfielders.forEach((player, index) => {
-        const isTeamA = index % 2 === 0;
-        const team = isTeamA ? 'A' : 'B';
-        
-        // Calculate slot number based on team and position index
-        const positionIndex = Math.floor(index / 2); // 0, 0, 1, 1, etc.
-        const slotNumber = isTeamA 
-          ? teamAMidfielderBaseSlot + positionIndex // Team A midfielder slots
-          : teamBMidfielderBaseSlot + positionIndex; // Team B midfielder slots
-        
-        slotAssignments.push({
-          player_id: player.player.player_id,
-          team,
-          slot_number: slotNumber
-        });
-        
-        // Mark player as assigned
-        assignedPlayerIds.add(player.player.player_id);
-      });
-      
-      // STEP 4: HANDLE ANY UNASSIGNED PLAYERS (if any)
-      // Check if there are any unassigned players
-      const unassignedPlayers = players.filter(p => !assignedPlayerIds.has(p.player_id));
-      
-      if (unassignedPlayers.length > 0) {
-        console.log(`Distributing ${unassignedPlayers.length} remaining unassigned players`);
-        
-        // Find open slots for each team
-        const teamAOpenSlots: number[] = [];
-        const teamBOpenSlots: number[] = [];
-        
-        for (let i = 1; i <= match.team_size; i++) {
-          if (!slotAssignments.some(a => a.slot_number === i)) {
-            teamAOpenSlots.push(i);
-          }
-        }
-        
-        for (let i = match.team_size + 1; i <= 2 * match.team_size; i++) {
-          if (!slotAssignments.some(a => a.slot_number === i)) {
-            teamBOpenSlots.push(i);
-          }
-        }
-        
-        // Distribute unassigned players evenly between teams
-        shuffleArray(unassignedPlayers).forEach((player: Player, index) => {
-          const isTeamA = index % 2 === 0;
-          const team = isTeamA ? 'A' : 'B';
-          const openSlots = isTeamA ? teamAOpenSlots : teamBOpenSlots;
-          
-          if (openSlots.length > 0) {
-            const slotNumber = openSlots.shift() as number;
-            
+          // Assign defenders
+          teamADefenders.forEach((player, index) => {
             slotAssignments.push({
-              player_id: player.player_id,
-              team,
-              slot_number: slotNumber
+              player_id: player.player.player_id,
+              team: 'A',
+              slot_number: index + 1 // Team A: slots 1, 2, 3, etc.
             });
-          }
-        });
-      }
-      
-      // STEP 5: Evaluate this assignment
-      const teamAPlayers = slotAssignments
-        .filter(a => a.team === 'A')
-        .map(a => {
-          const player = players.find(p => p.player_id === a.player_id);
-          return { ...player, slot_number: a.slot_number } as Player;
-        });
-      
-      const teamBPlayers = slotAssignments
-        .filter(a => a.team === 'B')
-        .map(a => {
-          const player = players.find(p => p.player_id === a.player_id);
-          return { ...player, slot_number: a.slot_number } as Player;
-        });
-      
-      const score = calculateBalanceScore(teamAPlayers, teamBPlayers, balanceWeights);
-      
-      // Update best score and slots if this is better
-      if (score < bestScore) {
-        bestScore = score;
-        bestSlots = [...slotAssignments];
-        
-        console.log(`New best score ${score.toFixed(4)} found at attempt ${attempt}`);
-        console.log(`Team A: ${teamAPlayers.length} players, Team B: ${teamBPlayers.length} players`);
-        console.log(`Total assignments: ${slotAssignments.length}`);
-      }
-      
-      // Enhanced randomization - shuffle more frequently
-      if (attempt % 25 === 0) {
-        shuffleArray(playerScores);
-      }
-      
-      // Simulated annealing-like approach to escape local minima
-      // Occasionally accept a worse solution to escape local minima
-      if (attempt % 100 === 0 && attempt > 0) {
-        console.log('Applying randomization boost to escape local minima...');
-        // Randomly swap a few players between teams in the current best solution
-        if (bestSlots.length >= 4) { // Need at least 2 players per team
-          const teamA = bestSlots.filter(s => s.team === 'A');
-          const teamB = bestSlots.filter(s => s.team === 'B');
+          });
           
-          // Swap a random pair of players
-          if (teamA.length > 0 && teamB.length > 0) {
-            // Pick random players to swap
-            const randomAIndex = Math.floor(Math.random() * teamA.length);
-            const randomBIndex = Math.floor(Math.random() * teamB.length);
-            
-            // Swap their team assignments for next round
-            const playerA = teamA[randomAIndex];
-            const playerB = teamB[randomBIndex];
-            
-            console.log(`Randomly swapping ${playerA.player_id} and ${playerB.player_id} to escape local minima`);
-            
-            // Use these players as preferred in next iteration
-            playerScores.sort((a, b) => {
-              if (a.player.player_id === playerA.player_id || a.player.player_id === playerB.player_id) return -1;
-              if (b.player.player_id === playerA.player_id || b.player.player_id === playerB.player_id) return 1;
-              return 0;
+          teamBDefenders.forEach((player, index) => {
+            slotAssignments.push({
+              player_id: player.player.player_id,
+              team: 'B',
+              slot_number: match.team_size + index + 1 // Team B: slots (team_size+1), etc.
             });
+          });
+          
+          // Assign attackers
+          const teamAAttackerBaseSlot = defendersPerTeam + midfieldersPerTeam + 1;
+          const teamBAttackerBaseSlot = match.team_size + defendersPerTeam + midfieldersPerTeam + 1;
+          
+          teamAAttackers.forEach((player, index) => {
+            slotAssignments.push({
+              player_id: player.player.player_id,
+              team: 'A',
+              slot_number: teamAAttackerBaseSlot + index
+            });
+          });
+          
+          teamBAttackers.forEach((player, index) => {
+            slotAssignments.push({
+              player_id: player.player.player_id,
+              team: 'B',
+              slot_number: teamBAttackerBaseSlot + index
+            });
+          });
+          
+          // Assign midfielders
+          const teamAMidfielderBaseSlot = defendersPerTeam + 1;
+          const teamBMidfielderBaseSlot = match.team_size + defendersPerTeam + 1;
+          
+          teamAMidfielders.forEach((player, index) => {
+            slotAssignments.push({
+              player_id: player.player.player_id,
+              team: 'A',
+              slot_number: teamAMidfielderBaseSlot + index
+            });
+          });
+          
+          teamBMidfielders.forEach((player, index) => {
+            slotAssignments.push({
+              player_id: player.player.player_id,
+              team: 'B',
+              slot_number: teamBMidfielderBaseSlot + index
+            });
+          });
+          
+          // Evaluate this assignment
+          const teamAPlayers = slotAssignments
+            .filter(a => a.team === 'A')
+            .map(a => {
+              const player = players.find(p => p.player_id === a.player_id);
+              return { ...player, slot_number: a.slot_number } as Player;
+            });
+          
+          const teamBPlayers = slotAssignments
+            .filter(a => a.team === 'B')
+            .map(a => {
+              const player = players.find(p => p.player_id === a.player_id);
+              return { ...player, slot_number: a.slot_number } as Player;
+            });
+          
+          const score = calculateBalanceScore(teamAPlayers, teamBPlayers, balanceWeights);
+          
+          // Update best score and slots if this is better
+          if (score < bestScore) {
+            bestScore = score;
+            bestSlots = [...slotAssignments];
+            
+            console.log(`New best score ${score.toFixed(4)} found`);
+            console.log(`Team A: ${teamAPlayers.length} players, Team B: ${teamBPlayers.length} players`);
           }
         }
       }
@@ -692,9 +543,9 @@ export async function POST(request: Request) {
           });
           createdCount++;
         }
-        
+    
         console.log(`Created ${createdCount} new player assignments`);
-        
+    
         // Mark match as balanced
         await tx.upcoming_matches.update({
           where: { upcoming_match_id: matchIdInt },
@@ -709,37 +560,17 @@ export async function POST(request: Request) {
       throw error;
     }
     
-    // Set progress to 100% when done with iterations
-    registerProgress(matchId, 100);
-    
     return NextResponse.json({
       success: true,
-      data: {
-        is_balanced: true,
-        balance_score: bestScore,
-        player_count: bestSlots.length
-      }
+      slots: bestSlots,
+      score: bestScore
     });
     
   } catch (error: any) {
     console.error('Error balancing planned match:', error);
     
-    // Clean up progress tracking on error
-    try {
-      const url = new URL(request.url);
-      const matchId = url.searchParams.get('matchId');
-      if (matchId) {
-        clearProgress(matchId);
-      }
-    } catch (e) {
-      // Ignore cleanup errors
-    }
-    
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message || 'Internal server error' 
-      },
+      { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }

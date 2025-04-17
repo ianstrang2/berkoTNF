@@ -1,12 +1,12 @@
-# Team Algorithm Component Refactoring
+# Team Algorithm Component
 
 ## Overview
 
-This directory contains the refactored TeamAlgorithm component. The refactoring was done incrementally to ensure 100% preservation of existing functionality while improving code organization, maintainability, and performance.
+This directory contains the team balancing algorithm component. The implementation provides a modern, hook-based architecture for managing team creation and balancing.
 
 ## Architecture
 
-The refactored component uses a modern, hook-based architecture:
+The component uses a clean, hook-based architecture:
 
 - **Types**: All TypeScript interfaces and types are centralized in `@/types/team-algorithm.types.ts`
 - **Constants**: Configuration values are extracted to `@/constants/team-algorithm.constants.ts`
@@ -17,10 +17,8 @@ The refactored component uses a modern, hook-based architecture:
 
 ## Component Files
 
-- `TeamAlgorithm.component.tsx` - Main entry point that uses the feature-flag wrapper
-- `TeamAlgorithmWrapper.component.tsx` - Toggles between old and new implementations
-- `LegacyTeamAlgorithm.component.tsx` - Original implementation (for fallback)
-- `NewTeamAlgorithm.component.tsx` - Refactored implementation
+- `TeamAlgorithmWrapper.component.tsx` - Main entry point wrapper
+- `NewTeamAlgorithm.component.tsx` - Main implementation
 
 ## Features
 
@@ -35,7 +33,7 @@ The TeamAlgorithm component allows administrators to:
 
 ## Team Structure
 
-The component maintains the original team structure:
+The component maintains a standard team structure:
 
 - **Orange Team**: Slots 1-9
 - **Green Team**: Slots 10-18
@@ -43,7 +41,7 @@ The component maintains the original team structure:
 
 ## API Endpoints
 
-All original API endpoints are preserved:
+The component uses the following API endpoints:
 
 - `/api/admin/players` - Get all players
 - `/api/admin/upcoming-matches?active=true` - Get active match
@@ -56,29 +54,9 @@ All original API endpoints are preserved:
 - `/api/admin/settings` - Get system settings
 - `/api/admin/balance-planned-match` - Balance teams algorithmically
 
-## Deployment Strategy
-
-The refactored component is deployed using a feature flag approach:
-
-1. Both old and new implementations exist side-by-side
-2. A feature flag in `config/feature-flags.ts` controls which implementation is used
-3. This allows for easy rollback if any issues are found
-4. Once the new implementation is proven stable, the old implementation can be removed
-
-## Development
-
-To switch between implementations during development:
-
-```typescript
-// In src/config/feature-flags.ts
-export const FEATURE_FLAGS = {
-  USE_NEW_TEAM_ALGORITHM: true // Set to true to use new implementation
-};
-```
-
 ## Testing
 
-A comprehensive testing checklist is included in the refactoring plan. Key areas to verify:
+Key areas to verify when making changes:
 
 1. Player assignment and team balancing functionality
 2. Drag and drop interactions

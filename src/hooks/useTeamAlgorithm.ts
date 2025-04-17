@@ -134,8 +134,8 @@ export const useTeamAlgorithm = () => {
       }));
       setCurrentSlots(hiddenSlots);
       
-      // Initial setup progress - minimal since it's nearly instant
-      setBalanceProgress(5);
+      // Simple progress indicator
+      setBalanceProgress(50);
       
       // Get the correct match ID (prioritize upcoming_match_id)
       const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
@@ -151,46 +151,22 @@ export const useTeamAlgorithm = () => {
       
       // Use the appropriate balancing method
       let result;
-      let progressInterval: NodeJS.Timeout | undefined;
       
-      try {
-        // Start a simulated progress that increases gradually during the balancing operation,
-        // which is where most of the time is spent (5% to 95%)
-        let currentProgress = 5;
-        progressInterval = setInterval(() => {
-          if (currentProgress < 95) {
-            // Faster linear increments to better match actual processing time
-            currentProgress = Math.min(95, currentProgress + 3);
-            setBalanceProgress(currentProgress);
-          }
-        }, 200); // Update every 200ms for a more responsive progression
-        
-        if (method === 'random') {
-          // Get player IDs from the selected pool
-          const playerIds = selectedPoolPlayers.map(player => player.id.toString());
-          result = await TeamAPIService.balanceTeamsRandomly(matchId, playerIds);
-        } else {
-          // Default to ability-based balancing
-          // The server already knows to use players from the pool
-          result = await TeamBalanceService.balanceTeams(matchId);
-        }
-        
-        // Clear the interval when API completes
-        clearInterval(progressInterval);
-        setBalanceProgress(95);
-        
-        // Mark as balanced
-        setIsBalanced(true);
-        
-        // Refresh data to get updated team assignments (final 5%)
-        await refreshMatchData();
-        
-      } catch (balanceError) {
-        // Clear interval if there's an error
-        clearInterval(progressInterval);
-        console.error('Balance API error:', balanceError);
-        throw new Error(`Failed to balance teams: ${balanceError instanceof Error ? balanceError.message : String(balanceError)}`);
+      if (method === 'random') {
+        // Get player IDs from the selected pool
+        const playerIds = selectedPoolPlayers.map(player => player.id.toString());
+        result = await TeamAPIService.balanceTeamsRandomly(matchId, playerIds);
+      } else {
+        // Default to ability-based balancing
+        // The server already knows to use players from the pool
+        result = await TeamBalanceService.balanceTeams(matchId);
       }
+        
+      // Mark as balanced
+      setIsBalanced(true);
+      
+      // Refresh data to get updated team assignments
+      await refreshMatchData();
       
     } catch (error) {
       console.error('Error balancing teams:', error);

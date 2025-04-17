@@ -158,8 +158,8 @@ const NewTeamAlgorithm: React.FC = () => {
         <div className="mb-6">
           <div className="w-full bg-gray-200 rounded-full h-2.5">
             <div
-              className={`bg-blue-600 h-2.5 rounded-full transition-all duration-300 ${balanceProgress === 0 ? 'animate-pulse' : ''}`}
-              style={{ width: balanceProgress > 0 ? `${balanceProgress}%` : '30%' }}
+              className="bg-blue-600 h-2.5 rounded-full animate-pulse"
+              style={{ width: '50%' }}
             ></div>
           </div>
         </div>

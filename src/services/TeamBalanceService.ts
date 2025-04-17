@@ -75,23 +75,63 @@ export class TeamBalanceService {
     
     // Get player objects for all assigned slots
     const teamPlayers = slotsWithPlayers
-      .map(slot => players.find(p => p.id === slot.player_id))
-      .filter(Boolean) as Player[];
+      .map(slot => {
+        const player = players.find(p => p.id === slot.player_id);
+        if (player) {
+          // Add slot info to player for position grouping
+          return { ...player, slot_number: slot.slot_number };
+        }
+        return null;
+      })
+      .filter(Boolean) as (Player & { slot_number: number })[];
     
     if (teamPlayers.length === 0) return null;
     
-    const calculateAvg = (field: keyof Player) => {
-      const sum = teamPlayers.reduce((total, player) => total + (Number(player[field]) || 0), 0);
-      return teamPlayers.length > 0 ? sum / teamPlayers.length : 0;
+    // Group players by position
+    const defenders = teamPlayers.filter(p => 
+      p.slot_number <= 3 || (p.slot_number >= 10 && p.slot_number <= 12)
+    );
+    
+    const midfielders = teamPlayers.filter(p => 
+      (p.slot_number >= 4 && p.slot_number <= 7) || 
+      (p.slot_number >= 13 && p.slot_number <= 16)
+    );
+    
+    const attackers = teamPlayers.filter(p => 
+      p.slot_number === 8 || p.slot_number === 9 || 
+      p.slot_number === 17 || p.slot_number === 18
+    );
+    
+    const calculateAvg = (players: Player[], field: keyof Player) => {
+      const sum = players.reduce((total, player) => total + (Number(player[field]) || 0), 0);
+      return players.length > 0 ? sum / players.length : 0;
     };
     
     return {
-      goalscoring: calculateAvg('goalscoring'),
-      defending: calculateAvg('defending'),
-      stamina_pace: calculateAvg('stamina_pace'),
-      control: calculateAvg('control'),
-      teamwork: calculateAvg('teamwork'),
-      resilience: calculateAvg('resilience'),
+      defense: {
+        goalscoring: calculateAvg(defenders, 'goalscoring'),
+        defending: calculateAvg(defenders, 'defending'),
+        stamina_pace: calculateAvg(defenders, 'stamina_pace'),
+        control: calculateAvg(defenders, 'control'),
+        teamwork: calculateAvg(defenders, 'teamwork'),
+        resilience: calculateAvg(defenders, 'resilience')
+      },
+      midfield: {
+        goalscoring: calculateAvg(midfielders, 'goalscoring'),
+        defending: calculateAvg(midfielders, 'defending'),
+        stamina_pace: calculateAvg(midfielders, 'stamina_pace'),
+        control: calculateAvg(midfielders, 'control'),
+        teamwork: calculateAvg(midfielders, 'teamwork'),
+        resilience: calculateAvg(midfielders, 'resilience')
+      },
+      attack: {
+        goalscoring: calculateAvg(attackers, 'goalscoring'),
+        defending: calculateAvg(attackers, 'defending'),
+        stamina_pace: calculateAvg(attackers, 'stamina_pace'),
+        control: calculateAvg(attackers, 'control'),
+        teamwork: calculateAvg(attackers, 'teamwork'),
+        resilience: calculateAvg(attackers, 'resilience')
+      },
       playerCount: teamPlayers.length
     };
   }
@@ -109,19 +149,39 @@ export class TeamBalanceService {
     
     if (!statsA || !statsB) return null;
     
-    // Calculate differences between teams
+    // Helper to calculate differences for each position group
+    const calculatePositionDiffs = (posA: any, posB: any) => {
+      return {
+        goalscoring: Math.abs(posA.goalscoring - posB.goalscoring),
+        defending: Math.abs(posA.defending - posB.defending),
+        stamina_pace: Math.abs(posA.stamina_pace - posB.stamina_pace),
+        control: Math.abs(posA.control - posB.control),
+        teamwork: Math.abs(posA.teamwork - posB.teamwork),
+        resilience: Math.abs(posA.resilience - posB.resilience)
+      };
+    };
+    
+    // Calculate differences for each position group
     const diffs = {
-      goalscoring: Math.abs(statsA.goalscoring - statsB.goalscoring),
-      defending: Math.abs(statsA.defending - statsB.defending),
-      stamina_pace: Math.abs(statsA.stamina_pace - statsB.stamina_pace),
-      control: Math.abs(statsA.control - statsB.control),
-      teamwork: Math.abs(statsA.teamwork - statsB.teamwork),
-      resilience: Math.abs(statsA.resilience - statsB.resilience)
+      defense: calculatePositionDiffs(statsA.defense, statsB.defense),
+      midfield: calculatePositionDiffs(statsA.midfield, statsB.midfield),
+      attack: calculatePositionDiffs(statsA.attack, statsB.attack)
     };
     
     // Calculate overall balance score (lower is better)
-    const totalDiff = Object.values(diffs).reduce((sum, diff) => sum + diff, 0);
-    const balanceScore = totalDiff / 6; // Average difference across all attributes
+    // Sum up all differences and divide by total number of comparisons
+    let totalDiff = 0;
+    let totalComparisons = 0;
+    
+    for (const position in diffs) {
+      const posDiffs = diffs[position as keyof typeof diffs];
+      for (const attr in posDiffs) {
+        totalDiff += posDiffs[attr as keyof typeof posDiffs];
+        totalComparisons++;
+      }
+    }
+    
+    const balanceScore = totalComparisons > 0 ? totalDiff / totalComparisons : 0;
     
     // Calculate percentage for display purposes (higher is better)
     const balancePercentage = Math.min(100, Math.max(0, Math.round(100 - (balanceScore * 100))));

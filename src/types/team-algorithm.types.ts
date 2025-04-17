@@ -69,7 +69,32 @@ export interface TeamCharacteristics {
 }
 
 export interface Stats {
-  diffs: Record<string, number>;
+  diffs: {
+    defense: {
+      goalscoring: number;
+      defending: number;
+      stamina_pace: number;
+      control: number;
+      teamwork: number;
+      resilience: number;
+    };
+    midfield: {
+      goalscoring: number;
+      defending: number;
+      stamina_pace: number;
+      control: number;
+      teamwork: number;
+      resilience: number;
+    };
+    attack: {
+      goalscoring: number;
+      defending: number;
+      stamina_pace: number;
+      control: number;
+      teamwork: number;
+      resilience: number;
+    };
+  };
   balanceScore: number;
   balancePercentage: number;
   rawBalanceScore?: string;
@@ -164,15 +189,7 @@ export interface TeamSectionProps {
 
 export interface TeamStatsProps {
   teamType: 'a' | 'b';
-  stats: {
-    playerCount: number;
-    goalscoring: number;
-    defending: number;
-    stamina_pace: number;
-    control: number;
-    teamwork: number;
-    resilience: number;
-  } | null;
+  stats: TeamStats | null;
 }
 
 export interface ComparativeStatsProps {
@@ -201,12 +218,30 @@ export interface DraggablePlayerSlotProps extends PlayerSlotProps {
 
 // Statistics interfaces
 export interface TeamStats {
-  goalscoring: number;
-  defending: number;
-  stamina_pace: number;
-  control: number;
-  teamwork: number;
-  resilience: number;
+  defense: {
+    goalscoring: number;
+    defending: number;
+    stamina_pace: number;
+    control: number;
+    teamwork: number;
+    resilience: number;
+  };
+  midfield: {
+    goalscoring: number;
+    defending: number;
+    stamina_pace: number;
+    control: number;
+    teamwork: number;
+    resilience: number;
+  };
+  attack: {
+    goalscoring: number;
+    defending: number;
+    stamina_pace: number;
+    control: number;
+    teamwork: number;
+    resilience: number;
+  };
   playerCount: number;
 }
 

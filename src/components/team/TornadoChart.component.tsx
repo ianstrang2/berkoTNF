@@ -9,7 +9,6 @@ interface TornadoChartProps {
     defense?: Record<string, number>;
     midfield?: Record<string, number>;
     attack?: Record<string, number>;
-    team?: Record<string, number>;
   };
 }
 
@@ -18,58 +17,72 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   
   // Default weights (as fallback)
   const defaultWeights = {
-    defense: { defending: 0.5, stamina_pace: 0.3, control: 0.2 },
-    midfield: { control: 0.4, stamina_pace: 0.3, goalscoring: 0.3 },
-    attack: { goalscoring: 0.5, stamina_pace: 0.3, control: 0.2 },
-    team: { resilience: 1.0, teamwork: 1.0 }
+    defense: { 
+      defending: 0.5, 
+      stamina_pace: 0.2, 
+      control: 0.1, 
+      teamwork: 0.1, 
+      resilience: 0.1 
+    },
+    midfield: { 
+      control: 0.3, 
+      stamina_pace: 0.2, 
+      goalscoring: 0.3, 
+      teamwork: 0.1, 
+      resilience: 0.1 
+    },
+    attack: { 
+      goalscoring: 0.5, 
+      stamina_pace: 0.2, 
+      control: 0.1, 
+      teamwork: 0.1, 
+      resilience: 0.1 
+    }
   };
   
   // Merge provided weights with defaults
   const mergedWeights = {
     defense: { ...defaultWeights.defense, ...(weights?.defense || {}) },
     midfield: { ...defaultWeights.midfield, ...(weights?.midfield || {}) },
-    attack: { ...defaultWeights.attack, ...(weights?.attack || {}) },
-    team: { ...defaultWeights.team, ...(weights?.team || {}) }
+    attack: { ...defaultWeights.attack, ...(weights?.attack || {}) }
   };
   
   // Calculate position-based metrics for Team A using weights
-  const teamADefense = 
-    teamAStats.defending * mergedWeights.defense.defending + 
-    teamAStats.stamina_pace * mergedWeights.defense.stamina_pace + 
-    teamAStats.control * mergedWeights.defense.control;
+  const calculatePositionScore = (stats: TeamStats, position: 'defense' | 'midfield' | 'attack') => {
+    const posStats = stats[position];
+    const posWeights = mergedWeights[position];
     
-  const teamAMidfield = 
-    teamAStats.control * mergedWeights.midfield.control + 
-    teamAStats.stamina_pace * mergedWeights.midfield.stamina_pace + 
-    teamAStats.goalscoring * mergedWeights.midfield.goalscoring;
-    
-  const teamAAttacking = 
-    teamAStats.goalscoring * mergedWeights.attack.goalscoring + 
-    teamAStats.stamina_pace * mergedWeights.attack.stamina_pace + 
-    teamAStats.control * mergedWeights.attack.control;
+    return Object.entries(posWeights).reduce((score, [attr, weight]) => {
+      return score + (posStats[attr as keyof typeof posStats] || 0) * weight;
+    }, 0);
+  };
   
-  // Calculate position-based metrics for Team B using weights
-  const teamBDefense = 
-    teamBStats.defending * mergedWeights.defense.defending + 
-    teamBStats.stamina_pace * mergedWeights.defense.stamina_pace + 
-    teamBStats.control * mergedWeights.defense.control;
-    
-  const teamBMidfield = 
-    teamBStats.control * mergedWeights.midfield.control + 
-    teamBStats.stamina_pace * mergedWeights.midfield.stamina_pace + 
-    teamBStats.goalscoring * mergedWeights.midfield.goalscoring;
-    
-  const teamBAttacking = 
-    teamBStats.goalscoring * mergedWeights.attack.goalscoring + 
-    teamBStats.stamina_pace * mergedWeights.attack.stamina_pace + 
-    teamBStats.control * mergedWeights.attack.control;
+  // Calculate scores for each position group
+  const teamADefense = calculatePositionScore(teamAStats, 'defense');
+  const teamAMidfield = calculatePositionScore(teamAStats, 'midfield');
+  const teamAAttacking = calculatePositionScore(teamAStats, 'attack');
+  
+  const teamBDefense = calculatePositionScore(teamBStats, 'defense');
+  const teamBMidfield = calculatePositionScore(teamBStats, 'midfield');
+  const teamBAttacking = calculatePositionScore(teamBStats, 'attack');
   
   // Calculate differences (Team B - Team A)
   const defenseDiff = teamBDefense - teamADefense;
   const midfieldDiff = teamBMidfield - teamAMidfield;
   const attackingDiff = teamBAttacking - teamAAttacking;
-  const teamworkDiff = teamBStats.teamwork - teamAStats.teamwork;
-  const resilienceDiff = teamBStats.resilience - teamAStats.resilience;
+  
+  // Calculate teamwork and resilience differences by averaging across positions
+  const getAttributeAvg = (stats: TeamStats, attr: 'teamwork' | 'resilience') => {
+    return (stats.defense[attr] + stats.midfield[attr] + stats.attack[attr]) / 3;
+  };
+  
+  const teamATeamworkAvg = getAttributeAvg(teamAStats, 'teamwork');
+  const teamBTeamworkAvg = getAttributeAvg(teamBStats, 'teamwork');
+  const teamworkDiff = teamBTeamworkAvg - teamATeamworkAvg;
+  
+  const teamAResilienceAvg = getAttributeAvg(teamAStats, 'resilience');
+  const teamBResilienceAvg = getAttributeAvg(teamBStats, 'resilience');
+  const resilienceDiff = teamBResilienceAvg - teamAResilienceAvg;
   
   // Helper function to calculate bar width percentage (scale differences for visualization)
   const getBarWidth = (diff: number) => {

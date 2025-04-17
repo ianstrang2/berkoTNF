@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import Swal from 'sweetalert2';
+import Swal, { SweetAlertOptions } from 'sweetalert2';
 
 interface SoftUIConfirmationModalProps {
   // Modal state
@@ -49,7 +49,8 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
         }
       });
 
-      swalWithSoftUI.fire({
+      // Create the base modal configuration
+      const modalConfig: SweetAlertOptions = {
         title: title,
         html: typeof message === 'string' ? message : <div>{message}</div>,
         icon: 'warning',
@@ -59,21 +60,34 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
         reverseButtons: false,
         allowOutsideClick: !isConfirming,
         allowEscapeKey: !isConfirming,
-        allowEnterKey: !isConfirming,
-        showLoaderOnConfirm: isConfirming,
-        didOpen: () => {
-          // Disable confirm button if processing
-          if (isConfirming) {
+        allowEnterKey: !isConfirming
+      };
+
+      // If we're in confirming state, use a different approach with preConfirm
+      if (isConfirming) {
+        // When confirming, we need to handle the loading state properly
+        swalWithSoftUI.fire({
+          ...modalConfig,
+          showLoaderOnConfirm: true,
+          preConfirm: () => {
+            // Return a promise that doesn't resolve automatically
+            // This keeps the loading state visible until we close it programmatically
+            return new Promise(() => {});
+          },
+          didOpen: () => {
             Swal.disableButtons();
           }
-        }
-      }).then((result) => {
-        if (result.isConfirmed) {
-          onConfirm();
-        } else {
-          onClose();
-        }
-      });
+        });
+      } else {
+        // Normal operation (not in confirming state)
+        swalWithSoftUI.fire(modalConfig).then((result) => {
+          if (result.isConfirmed) {
+            onConfirm();
+          } else {
+            onClose();
+          }
+        });
+      }
     }
   }, [isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isConfirming]);
 

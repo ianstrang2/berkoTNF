@@ -41,6 +41,126 @@ This document outlines the plan for refactoring the team balancing algorithm to:
 - Add teamwork and resilience attributes to each position group
 - Ensure weights total 1.0 within each position group
 
+<!-- 
+IMPORTANT: When executing in Supabase SQL Editor, copy and paste ONLY the SQL code below, 
+not including the markdown section headers or this comment.
+-->
+
+```sql
+-- First, find the current maximum weight_id to avoid duplicate key errors
+DO $$
+DECLARE
+  max_weight_id integer;
+  counter integer := 0;
+  position_groups text[] := ARRAY['defense', 'midfield', 'attack'];
+  attributes text[] := ARRAY['teamwork', 'resilience'];
+  pg text;
+  attr text;
+BEGIN
+  -- Get the current maximum weight_id
+  SELECT COALESCE(MAX(weight_id), 0) INTO max_weight_id FROM team_balance_weights;
+  
+  -- Loop through position groups and attributes
+  FOREACH pg IN ARRAY position_groups LOOP
+    FOREACH attr IN ARRAY attributes LOOP
+      -- Check if this combination already exists
+      IF NOT EXISTS (
+        SELECT 1 FROM team_balance_weights 
+        WHERE position_group = pg AND attribute = attr
+      ) THEN
+        counter := counter + 1;
+        -- Insert with a new ID
+        INSERT INTO team_balance_weights (weight_id, position_group, attribute, weight)
+        VALUES (max_weight_id + counter, pg, attr, 0.10);
+      END IF;
+    END LOOP;
+  END LOOP;
+END $$;
+
+-- Step 2: Scale down existing weights in each position group to make room for the new attributes
+-- This ensures the remaining attributes take up 80% of the total weight
+UPDATE team_balance_weights
+SET weight = weight * 0.8
+WHERE attribute NOT IN ('teamwork', 'resilience')
+  AND position_group IN ('defense', 'midfield', 'attack');
+
+-- Step 3: Normalize weights within each position group to ensure they sum to 1.0
+DO $$
+DECLARE
+  position_groups text[] := ARRAY['defense', 'midfield', 'attack'];
+  pg text;
+  total_weight numeric;
+  scaling_factor numeric;
+BEGIN
+  FOREACH pg IN ARRAY position_groups LOOP
+    -- Calculate total weight for this position group
+    SELECT SUM(weight) INTO total_weight FROM team_balance_weights WHERE position_group = pg;
+    
+    -- Calculate scaling factor to make weights sum to 1.0
+    scaling_factor := 1.0 / total_weight;
+    
+    -- Scale all weights for this position group
+    UPDATE team_balance_weights
+    SET weight = weight * scaling_factor
+    WHERE position_group = pg;
+  END LOOP;
+END $$;
+
+-- Step 4: Remove the team position group
+DELETE FROM team_balance_weights WHERE position_group = 'team';
+
+-- Step 5: Repeat the same process for defaults table
+-- For team_balance_weights_defaults, the primary key is (position_group, attribute)
+-- No need to generate IDs, just insert directly
+
+-- Add teamwork and resilience to each position group in defaults table
+INSERT INTO team_balance_weights_defaults (position_group, attribute, weight)
+SELECT 
+  pg, 
+  attr, 
+  0.10
+FROM 
+  (SELECT unnest(ARRAY['defense', 'midfield', 'attack']) AS pg) position_groups
+CROSS JOIN
+  (SELECT unnest(ARRAY['teamwork', 'resilience']) AS attr) attributes
+WHERE 
+  NOT EXISTS (
+    SELECT 1 FROM team_balance_weights_defaults
+    WHERE position_group = pg AND attribute = attr
+  );
+
+-- Scale down existing default weights
+UPDATE team_balance_weights_defaults
+SET weight = weight * 0.8
+WHERE attribute NOT IN ('teamwork', 'resilience')
+  AND position_group IN ('defense', 'midfield', 'attack');
+
+-- Normalize default weights
+DO $$
+DECLARE
+  position_groups text[] := ARRAY['defense', 'midfield', 'attack'];
+  pg text;
+  total_weight numeric;
+  scaling_factor numeric;
+BEGIN
+  FOREACH pg IN ARRAY position_groups LOOP
+    -- Calculate total weight for this position group
+    SELECT SUM(weight) INTO total_weight FROM team_balance_weights_defaults WHERE position_group = pg;
+    
+    -- Calculate scaling factor to make weights sum to 1.0
+    scaling_factor := 1.0 / total_weight;
+    
+    -- Scale all weights for this position group
+    UPDATE team_balance_weights_defaults
+    SET weight = weight * scaling_factor
+    WHERE position_group = pg;
+  END LOOP;
+END $$;
+
+-- Remove the team position group from defaults
+DELETE FROM team_balance_weights_defaults WHERE position_group = 'team';
+```
+
 ### 2. Backend Code Changes
 
 #### Update Team Stats Calculation
