@@ -44,20 +44,20 @@ const Card: React.FC<CardProps> = ({
   return (
     <div className={finalClasses} {...props}>
       {(title || icon) && (
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-100">
           {icon && (
             <div className="p-2 bg-primary-50 rounded-lg text-primary-600">
               {icon}
             </div>
           )}
           {title && (
-            <h2 className={`text-lg font-semibold text-neutral-900 ${titleClass}`}>
+            <div className={`w-full ${titleClass}`}>
               {title}
-            </h2>
+            </div>
           )}
         </div>
       )}
-      <div className="p-6">
+      <div className="p-4">
         {children}
       </div>
       {footer && (

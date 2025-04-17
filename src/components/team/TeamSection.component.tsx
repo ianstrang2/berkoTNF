@@ -19,27 +19,28 @@ const TeamSection: React.FC<TeamSectionProps> = ({
   getAvailablePlayers,
   isReadOnly = false
 }) => {
-  const teamClass = teamType === 'a' ? 'text-orange-600' : 'text-emerald-600';
-  const teamName = teamType === 'a' ? 'Orange' : 'Green';
+  const teamName = teamType === 'a' ? 'Team A' : 'Team B';
   const playerIdPrefix = teamType === 'a' ? 'teamA-player-' : 'teamB-player-';
   
   return (
-    <div className="mb-4">
-      <h3 className={`text-xl font-bold ${teamClass}`}>{teamName}</h3>
+    <div className="mb-4 w-full">
+      <h3 className="text-base font-bold text-slate-700 mb-3">
+        {teamName}
+      </h3>
       
-      {positionGroups.map((group) => {
+      {positionGroups.map(group => {
         const positionSlots = slots.filter(
           slot => slot.slot_number >= group.startSlot && slot.slot_number <= group.endSlot
         );
         
-        const assignedSlots = positionSlots.filter(slot => slot.player_id !== null);
-        
         return (
-          <div key={`${teamType}-${group.position}`} className="my-2 p-2 bg-white rounded-md shadow">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-semibold text-md">{group.title}</h4>
-            </div>
+          <div key={`${teamType}-${group.position}`} className="mb-4">
+            {/* Soft divider line instead of text header */}
+            {group.position !== positionGroups[0].position && (
+              <div className="h-0.5 bg-gradient-to-r from-purple-50 via-purple-200 to-purple-50 my-4"></div>
+            )}
             
+            {/* Single column layout for players */}
             <div className="grid grid-cols-1 gap-2">
               {positionSlots.map(slot => {
                 const player = players.find(p => p.id === slot.player_id);
@@ -62,7 +63,7 @@ const TeamSection: React.FC<TeamSectionProps> = ({
                     stats={playerStats}
                     position={position}
                     highlighted={highlightedSlot === slot.slot_number || selectedSlot === slot.slot_number}
-                    teamColor={teamType === 'a' ? 'orange' : 'green'}
+                    teamColor={teamType === 'a' ? 'a' : 'b'}
                     isReadOnly={isReadOnly}
                   />
                 );

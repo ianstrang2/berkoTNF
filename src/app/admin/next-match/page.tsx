@@ -10,13 +10,11 @@ const TeamAlgorithm = dynamic(() => import('@/components/admin/team/TeamAlgorith
 export default function NextMatchPage() {
   return (
     <MainLayout>
-      <div className="py-6">
-        <ErrorBoundary>
-          <AdminLayout>
-            <TeamAlgorithm />
-          </AdminLayout>
-        </ErrorBoundary>
-      </div>
+      <ErrorBoundary>
+        <AdminLayout>
+          <TeamAlgorithm />
+        </AdminLayout>
+      </ErrorBoundary>
     </MainLayout>
   );
 } 

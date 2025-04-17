@@ -1,5 +1,6 @@
 import React from 'react';
 import { RingerForm } from '@/types/team-algorithm.types';
+import Button from '@/components/ui-kit/Button.component';
 
 interface RingerModalProps {
   isOpen: boolean;
@@ -26,18 +27,18 @@ const RingerModal: React.FC<RingerModalProps> = ({
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-xl font-bold mb-4">Add Ringer Player</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity">
+      <div className="bg-white rounded-xl shadow-soft-xl p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold text-slate-700 font-sans mb-4">Add Ringer Player</h2>
         
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => onChange('name', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 text-sm text-slate-600"
               required
             />
           </div>
@@ -52,7 +53,7 @@ const RingerModal: React.FC<RingerModalProps> = ({
             { key: 'resilience', label: 'Resilience' }
           ].map(({ key, label }) => (
             <div key={key} className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
               <input
                 type="range"
                 min="1"
@@ -60,9 +61,9 @@ const RingerModal: React.FC<RingerModalProps> = ({
                 step="0.5"
                 value={form[key as keyof RingerForm]}
                 onChange={(e) => onChange(key, parseFloat(e.target.value))}
-                className="w-full"
+                className="w-full accent-purple-500"
               />
-              <div className="flex justify-between text-xs text-gray-500">
+              <div className="flex justify-between text-xs text-slate-500">
                 <span>1</span>
                 <span>2</span>
                 <span>3</span>
@@ -72,22 +73,24 @@ const RingerModal: React.FC<RingerModalProps> = ({
             </div>
           ))}
           
-          <div className="flex justify-end gap-2 mt-6">
-            <button
-              type="button"
+          <div className="flex justify-end gap-3 mt-6">
+            <Button
+              variant="secondary"
+              className="rounded-lg shadow-soft-sm"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
+              type="button"
             >
               Cancel
-            </button>
+            </Button>
             
-            <button
+            <Button
+              variant="primary"
+              className="bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md rounded-lg"
               type="submit"
               disabled={isLoading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
             >
               {isLoading ? 'Adding...' : 'Add Ringer'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

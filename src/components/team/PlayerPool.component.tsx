@@ -34,36 +34,43 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
   
   // Check if we've reached max players allowed
   const hasReachedMaxPlayers = selectedPlayers.length >= maxAllowedPlayers;
+
+  // Calculate percentage for progress indicator
+  const playerCountPercentage = (selectedPlayers.length / maxAllowedPlayers) * 100;
   
   return (
-    <div className="bg-white rounded-md shadow-sm overflow-hidden">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold mb-2">Player Pool</h2>
-        
-        {/* Player count indicator */}
-        <div className="flex justify-between items-center mb-2">
-          <span className={`text-sm ${hasCorrectPlayerCount ? 'text-green-600' : 'text-amber-600'}`}>
-            {selectedPlayers.length} / {maxAllowedPlayers} players
-          </span>
+    <div>
+      <div className="mb-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-700">Player Pool</h2>
+          <div className="inline-flex items-center gap-2">
+            <div className="text-xs font-semibold text-slate-700">{selectedPlayers.length}/{maxAllowedPlayers}</div>
+            <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className={`h-full ${hasCorrectPlayerCount ? 'bg-gradient-to-tl from-purple-700 to-pink-500' : 'bg-gradient-to-tl from-purple-400 to-pink-300'}`}
+                style={{ width: `${playerCountPercentage}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
       </div>
       
       {/* Panel 1: Selected Players */}
-      <div className="p-4 border-b">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Selected Players</h3>
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-slate-700 mb-2">Selected Players</h3>
         
         {selectedPlayers.length === 0 ? (
-          <div className="text-gray-500 text-sm italic">No players selected yet.</div>
+          <div className="text-slate-500 text-sm italic">No players selected yet.</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
             {selectedPlayers.map(player => (
               <div 
                 key={player.id} 
-                className={`flex items-center bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-1 ${pendingPlayers.has(player.id) ? 'opacity-50' : ''}`}
+                className={`flex items-center bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 font-sans w-full ${pendingPlayers.has(player.id) ? 'opacity-50' : ''}`}
               >
                 <span className="truncate flex-1 text-sm">{player.name}</span>
                 <button 
-                  className="ml-1.5 text-blue-500 hover:text-blue-700 flex-shrink-0"
+                  className="ml-1.5 text-slate-400 hover:text-slate-700 flex-shrink-0 transition-colors"
                   onClick={() => !pendingPlayers.has(player.id) && onTogglePlayer(player)}
                   aria-label={`Remove ${player.name}`}
                   disabled={pendingPlayers.has(player.id)}
@@ -79,9 +86,9 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
       </div>
       
       {/* Panel 2: Search and Available Players */}
-      <div className={`p-4 ${hasReachedMaxPlayers ? 'opacity-50' : ''}`}>
+      <div className={`${hasReachedMaxPlayers ? 'opacity-50' : ''}`}>
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-sm font-medium text-gray-700">Add Players</h3>
+          <h3 className="text-sm font-medium text-slate-700">Add Players</h3>
         </div>
         
         {/* Search input */}
@@ -92,7 +99,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
               placeholder={hasReachedMaxPlayers ? "Maximum players reached" : "Search players..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border rounded-md pr-10"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 text-sm text-slate-600"
               disabled={hasReachedMaxPlayers}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -104,7 +111,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
         </div>
         
         {/* List of available players */}
-        <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+        <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 divide-y shadow-soft-xs">
           {availablePlayers.length > 0 && !hasReachedMaxPlayers ? (
             availablePlayers.map(player => (
               <div 
@@ -113,10 +120,10 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
                 onClick={() => !hasReachedMaxPlayers && !pendingPlayers.has(player.id) && onTogglePlayer(player)}
               >
                 <div className="flex items-center">
-                  <span>{player.name}</span>
+                  <span className="bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 font-sans text-sm w-full">{player.name}</span>
                 </div>
                 <button 
-                  className="text-green-500 hover:text-green-700 focus:outline-none"
+                  className="text-purple-500 hover:text-purple-700 focus:outline-none transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (!hasReachedMaxPlayers && !pendingPlayers.has(player.id)) onTogglePlayer(player);
@@ -131,13 +138,15 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
               </div>
             ))
           ) : searchTerm ? (
-            <div className="p-3 text-center text-gray-500">
+            <div className="p-3 text-center text-slate-500 text-sm">
               No matching players found
             </div>
           ) : hasReachedMaxPlayers ? (
-            <div></div>
+            <div className="p-3 text-center text-slate-500 text-sm">
+              Maximum players reached
+            </div>
           ) : (
-            <div className="p-3 text-center text-gray-500">
+            <div className="p-3 text-center text-slate-500 text-sm">
               All players have been added
             </div>
           )}

@@ -95,7 +95,9 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   
   // Helper for determining the color based on difference
   const getBarColor = (diff: number) => {
-    return diff > 0 ? 'bg-emerald-500' : 'bg-orange-500';
+    return diff > 0 
+      ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500' 
+      : 'bg-gradient-to-r from-fuchsia-500 to-purple-600';
   };
   
   // Helper for positioning the bar (left or right of center)
@@ -113,33 +115,34 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   ];
   
   return (
-    <div className="bg-white rounded-md shadow p-4">
-      {categories.map((category, index) => (
-        <div key={index} className="mb-3">
-          {/* Category row with label and bar */}
-          <div className="flex items-center">
-            {/* Bar container with center line */}
-            <div className="flex-1 relative h-7 bg-gray-100">
-              {/* Center line */}
-              <div className="absolute top-0 bottom-0 left-1/2 w-px bg-gray-300"></div>
-              
-              {/* Bar for the difference */}
-              <div 
-                className={`absolute top-0 bottom-0 ${getBarPosition(category.diff)} ${getBarColor(category.diff)}`}
-                style={{ 
-                  width: getBarWidth(category.diff),
-                  ...(category.diff < 0 ? { right: '50%' } : { left: '50%' })
-                }}
-              ></div>
-              
+    <div className="rounded-xl overflow-hidden">
+      <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 text-white">
+        <div className="space-y-5 pt-2">
+          {categories.map((category, index) => (
+            <div key={index} className="mb-3">
               {/* Category label */}
-              <div className="absolute inset-0 flex items-center justify-center text-sm font-medium">
-                {category.label}
+              <div className="flex items-center mb-1">
+                <span className="text-xs font-medium text-slate-400">{category.label}</span>
+              </div>
+              
+              {/* Bar container with center line */}
+              <div className="flex-1 relative h-2 bg-slate-700 rounded-full overflow-hidden">
+                {/* Center line */}
+                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-slate-600"></div>
+                
+                {/* Bar for the difference */}
+                <div 
+                  className={`absolute top-0 bottom-0 ${getBarPosition(category.diff)} ${getBarColor(category.diff)} rounded-full shadow-soft-md`}
+                  style={{ 
+                    width: getBarWidth(category.diff),
+                    ...(category.diff < 0 ? { right: '50%' } : { left: '50%' })
+                  }}
+                ></div>
               </div>
             </div>
-          </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 };
