@@ -244,7 +244,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
             <div className="flex justify-end pt-2 border-t border-slate-200 mt-4">
               <button
                 type="button"
-                className="mr-3 inline-block px-4 py-2 text-xs font-bold text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+                className="mr-3 inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
                 onClick={onClose}
                 disabled={isProcessing}
               >
@@ -252,7 +252,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="inline-block px-4 py-2 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+                className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
                 disabled={isProcessing}
               >
                 {isProcessing ? 'Processing...' : submitButtonText}

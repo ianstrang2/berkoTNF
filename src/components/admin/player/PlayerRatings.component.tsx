@@ -299,15 +299,16 @@ const PlayerRatings: React.FC = () => {
         <td className="p-2 text-right align-middle bg-transparent border-b">
           <div className="flex justify-end space-x-2">
             <button
+              type="button"
               onClick={handleSaveEdit}
-              disabled={isLoading}
-              className="inline-block px-4 py-2 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+              className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
             >
               Save
             </button>
             <button
+              type="button"
               onClick={handleCancelEdit}
-              className="inline-block px-4 py-2 text-xs font-bold text-center text-slate-500 uppercase align-middle transition-all bg-transparent border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+              className="inline-block px-4 py-2 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
             >
               Cancel
             </button>
@@ -339,9 +340,9 @@ const PlayerRatings: React.FC = () => {
           <h5 className="font-bold text-slate-700">Player Ratings</h5>
           <button 
             onClick={() => setShowGuide(true)}
-            className="inline-block px-4 py-2 mb-0 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85 hover:shadow-soft-xs"
+            className="inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
           >
-            Grading Guide
+            View Attribute Guide
           </button>
         </div>
         
@@ -446,10 +447,9 @@ const PlayerRatings: React.FC = () => {
                     <td className="p-2 text-center align-middle bg-transparent border-b">
                       <button
                         onClick={() => handleEditClick(player)}
-                        disabled={editingId !== null}
-                        className="inline-block px-3 py-1.5 text-xs font-bold text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 disabled:opacity-50"
+                        className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
                       >
-                        EDIT
+                        Edit
                       </button>
                     </td>
                   </tr>

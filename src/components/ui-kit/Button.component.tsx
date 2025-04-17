@@ -30,7 +30,7 @@ const Button: React.FC<ButtonProps> = ({
   onClick,
   ...props 
 }) => {
-  const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 uppercase text-xs';
   
   const variantClasses = {
     primary: 'text-white bg-primary-500 hover:bg-primary-600 focus:ring-primary-500 border border-transparent',
@@ -40,9 +40,9 @@ const Button: React.FC<ButtonProps> = ({
   };
   
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-xs rounded',
-    md: 'px-4 py-2 text-sm rounded-md',
-    lg: 'px-5 py-2.5 text-base rounded-lg',
+    sm: 'px-3 py-1.5 rounded',
+    md: 'px-4 py-2 rounded-md',
+    lg: 'px-5 py-2.5 rounded-lg',
   };
   
   const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';

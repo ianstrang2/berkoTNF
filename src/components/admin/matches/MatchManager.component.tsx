@@ -486,7 +486,7 @@ const MatchManager: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="inline-block px-6 py-3 mr-3 font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
+                  className="inline-block px-4 py-2 mr-3 font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
                 >
                   {isLoading
                     ? 'Saving...'
@@ -508,7 +508,7 @@ const MatchManager: React.FC = () => {
                         team_b_score: 0,
                       });
                     }}
-                    className="inline-block px-6 py-3 font-bold text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-300 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft hover:bg-slate-100 hover:scale-102 active:opacity-85"
+                    className="inline-block px-4 py-2 font-medium text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-300 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft hover:bg-slate-100 hover:scale-102 active:opacity-85"
                   >
                     Cancel Edit
                   </button>
@@ -559,13 +559,13 @@ const MatchManager: React.FC = () => {
                           <div className="flex justify-center gap-2">
                             <button
                               onClick={() => handleEdit(match)}
-                              className="inline-block px-2 py-1 text-xs font-bold text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
+                              className="inline-block px-2 py-1 text-xs font-medium text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
                             >
                               EDIT
                             </button>
                             <button
                               onClick={() => handleDeleteClick(match.match_id)}
-                              className="inline-block px-2 py-1 text-xs font-bold text-center text-white uppercase align-middle transition-all bg-transparent border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-gradient-to-tl from-red-500 to-orange-400 shadow-soft-md bg-150 bg-x-25"
+                              className="inline-block px-2 py-1 text-xs font-medium text-center text-white uppercase align-middle transition-all bg-transparent border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-gradient-to-tl from-red-500 to-orange-400 shadow-soft-md bg-150 bg-x-25"
                             >
                               DELETE
                             </button>
@@ -604,14 +604,14 @@ const MatchManager: React.FC = () => {
                 <div className="flex justify-center gap-4">
                   <button
                     onClick={handleDeleteCancel}
-                    className="inline-block px-6 py-3 font-bold text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-300 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft hover:bg-slate-100 hover:scale-102 active:opacity-85"
+                    className="inline-block px-4 py-2 font-medium text-center text-slate-700 uppercase align-middle transition-all bg-transparent border border-slate-300 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft hover:bg-slate-100 hover:scale-102 active:opacity-85"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDeleteConfirm}
                     disabled={isLoading}
-                    className="inline-block px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft bg-gradient-to-tl from-red-500 to-orange-400 shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
+                    className="inline-block px-4 py-2 font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer text-xs ease-soft-in leading-pro tracking-tight-soft bg-gradient-to-tl from-red-500 to-orange-400 shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
                   >
                     {isLoading ? 'Deleting...' : 'Delete'}
                   </button>

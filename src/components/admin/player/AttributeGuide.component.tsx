@@ -184,7 +184,7 @@ export const AttributeGuideModal: React.FC<AttributeGuideModalProps> = ({ isOpen
           <div className="flex justify-end pt-1 border-t border-slate-200">
             <button
               onClick={onClose}
-              className="mt-3 inline-block px-4 py-2 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md"
+              className="mt-3 inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
             >
               Close
             </button>
