@@ -129,110 +129,110 @@ const AllTimeStats: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-wrap justify-start -mx-3">
-      <div className="w-full px-3 mb-6">
+    <div className="flex justify-start">
+      <div className="inline-block mb-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
             <h5 className="mb-0">All-Time Leaderboard</h5>
           </div>
-          <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
-            <div className="table-responsive" style={{position: 'relative'}}>
-              <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-                <thead className="align-bottom">
+          <div className="relative">
+            <div className="overflow-auto max-h-[calc(100vh-200px)] md:touch-auto" style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}>
+              <table className="table-auto mb-0 align-top border-gray-200 text-slate-500 w-auto">
+                <thead className="align-bottom sticky top-0 bg-white z-10 shadow-sm">
                   <tr>
                     <th 
                       onClick={() => sortData('name')}
-                      className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 text-left min-w-[120px]"
                     >
                       Player {getSortIndicator('name')}
                     </th>
                     <th 
                       onClick={() => sortData('fantasy_points')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                     >
                       Pts {getSortIndicator('fantasy_points')}
                     </th>
                     <th 
                       onClick={() => sortData('games_played')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                     >
                       P {getSortIndicator('games_played')}
                     </th>
                     <th 
                       onClick={() => sortData('wins')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                     >
                       W {getSortIndicator('wins')}
                     </th>
                     <th 
                       onClick={() => sortData('draws')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                     >
                       D {getSortIndicator('draws')}
                     </th>
                     <th 
                       onClick={() => sortData('losses')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                     >
                       L {getSortIndicator('losses')}
                     </th>
                     <th 
                       onClick={() => sortData('goals')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                     >
                       G {getSortIndicator('goals')}
                     </th>
                     <th 
                       onClick={() => sortData('win_percentage')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                     >
                       Win% {getSortIndicator('win_percentage')}
                     </th>
                     <th 
                       onClick={() => sortData('minutes_per_goal')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                     >
                       MPG {getSortIndicator('minutes_per_goal')}
                     </th>
                     <th 
                       onClick={() => sortData('heavy_wins')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                     >
                       HW {getSortIndicator('heavy_wins')}
                     </th>
                     <th 
                       onClick={() => sortData('heavy_win_percentage')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                     >
                       HW% {getSortIndicator('heavy_win_percentage')}
                     </th>
                     <th 
                       onClick={() => sortData('heavy_losses')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                     >
                       HL {getSortIndicator('heavy_losses')}
                     </th>
                     <th 
                       onClick={() => sortData('heavy_loss_percentage')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                     >
                       HL% {getSortIndicator('heavy_loss_percentage')}
                     </th>
                     <th 
                       onClick={() => sortData('clean_sheets')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                     >
                       CS {getSortIndicator('clean_sheets')}
                     </th>
                     <th 
                       onClick={() => sortData('clean_sheet_percentage')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                     >
                       CS% {getSortIndicator('clean_sheet_percentage')}
                     </th>
                     <th 
                       onClick={() => sortData('points_per_game')}
-                      className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700"
+                      className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                     >
                       PPG {getSortIndicator('points_per_game')}
                     </th>

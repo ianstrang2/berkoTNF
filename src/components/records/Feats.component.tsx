@@ -99,21 +99,21 @@ const Feats: React.FC = () => {
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
           <h5 className="mb-0">Record Breakers</h5>
         </div>
-        <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
-          <div className="table-responsive" style={{position: 'relative'}}>
-            <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-              <thead className="align-bottom">
+        <div className="relative">
+          <div className="overflow-auto max-h-[calc(100vh-200px)] md:touch-auto" style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}>
+            <table className="table-auto mb-0 align-top border-gray-200 text-slate-500 w-auto">
+              <thead className="align-bottom sticky top-0 bg-white z-10 shadow-sm">
                 <tr>
-                  <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[120px] w-[120px]">
                     Record
                   </th>
-                  <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
+                  <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px] max-w-[220px] w-[220px]">
                     Player(s)
                   </th>
-                  <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  <th className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[80px] w-[80px]">
                     Details
                   </th>
-                  <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px] w-[150px]">
                     Date
                   </th>
                 </tr>
@@ -126,10 +126,10 @@ const Feats: React.FC = () => {
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                           <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
                         </td>
-                        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                          <div className="flex px-2 py-1">
+                        <td className="p-2 align-middle bg-transparent border-b break-words">
+                          <div className="px-2 py-1">
                             <div className="flex flex-col justify-center">
-                              <h6 className="mb-0 leading-normal text-sm font-semibold">
+                              <h6 className="mb-0 leading-normal text-sm font-semibold break-words">
                                 {formatNames(data.records.most_goals_in_game)}
                               </h6>
                             </div>
@@ -155,16 +155,16 @@ const Feats: React.FC = () => {
                         <tr key={streakType}>
                           <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                             <span className="font-normal leading-normal text-sm">
-                              {streakType === 'Win Streak' ? 'Longest Win Streak' :
-                              streakType === 'Loss Streak' ? 'Longest Losing Streak' :
-                              streakType === 'No Win Streak' ? 'Longest Streak Without a Win' :
-                              'Longest Undefeated Streak'}
+                              {streakType === 'Win Streak' ? 'Win Streak' :
+                              streakType === 'Loss Streak' ? 'Losing Streak' :
+                              streakType === 'No Win Streak' ? 'Winless Streak' :
+                              'Undefeated Streak'}
                             </span>
                           </td>
-                          <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                            <div className="flex px-2 py-1">
+                          <td className="p-2 align-middle bg-transparent border-b break-words">
+                            <div className="px-2 py-1">
                               <div className="flex flex-col justify-center">
-                                <h6 className="mb-0 leading-normal text-sm font-semibold">
+                                <h6 className="mb-0 leading-normal text-sm font-semibold break-words">
                                   {formatNames(streakData.holders)}
                                 </h6>
                               </div>
@@ -190,12 +190,12 @@ const Feats: React.FC = () => {
                     {data.records.consecutive_goals && (
                       <tr>
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                          <span className="font-normal leading-normal text-sm">Most Consecutive Games Scoring</span>
+                          <span className="font-normal leading-normal text-sm">Consecutive Games Scoring</span>
                         </td>
-                        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                          <div className="flex px-2 py-1">
+                        <td className="p-2 align-middle bg-transparent border-b break-words">
+                          <div className="px-2 py-1">
                             <div className="flex flex-col justify-center">
-                              <h6 className="mb-0 leading-normal text-sm font-semibold">
+                              <h6 className="mb-0 leading-normal text-sm font-semibold break-words">
                                 {formatNames(data.records.consecutive_goals.holders)}
                               </h6>
                             </div>
@@ -222,23 +222,23 @@ const Feats: React.FC = () => {
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                           <span className="font-normal leading-normal text-sm">Biggest Victory</span>
                         </td>
-                        <td className="p-2 align-middle bg-transparent border-b">
-                          <div className="flex-col px-2 py-1">
+                        <td className="p-2 align-middle bg-transparent border-b break-words">
+                          <div className="px-2 py-1">
                             {data.records.biggest_victory[0].winning_team === 'A' ? (
                               <>
-                                <div className="mb-1 text-sm font-semibold">
+                                <div className="mb-1 text-sm font-semibold break-words">
                                   Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
                                 </div>
-                                <div className="mb-0 text-sm">
+                                <div className="mb-0 text-sm break-words">
                                   Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
                                 </div>
                               </>
                             ) : (
                               <>
-                                <div className="mb-1 text-sm font-semibold">
+                                <div className="mb-1 text-sm font-semibold break-words">
                                   Team B ({data.records.biggest_victory[0].team_b_score}): {data.records.biggest_victory[0].team_b_players}
                                 </div>
-                                <div className="mb-0 text-sm">
+                                <div className="mb-0 text-sm break-words">
                                   Team A ({data.records.biggest_victory[0].team_a_score}): {data.records.biggest_victory[0].team_a_players}
                                 </div>
                               </>
@@ -285,8 +285,8 @@ const Feats: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-wrap justify-start -mx-3">
-      <div className="w-full px-3 mb-6">
+    <div className="flex justify-start">
+      <div className="inline-block mb-6">
         {renderRecords()}
       </div>
     </div>
