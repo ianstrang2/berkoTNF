@@ -266,7 +266,7 @@ const Milestones: React.FC = () => {
           type: 'goal_streak',
           player: streak.name,
           content: `Scored in ${streak.matches_with_goals} consecutive matches`,
-          subtext: `${streak.goals_in_streak} goals total`,
+          subtext: `${streak.goals_in_streak} goals in those games`,
           icon: 'soccer',
           date: matchDate,
           color: 'green'

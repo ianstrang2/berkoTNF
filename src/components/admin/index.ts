@@ -1,5 +1,3 @@
-export { default as AdminPanel } from './layout/AdminPanel.component';
-export { default as AdminNavbar } from './layout/AdminNavbar.component';
 export { FantasyPointsSetup, MatchReportSetup, MatchSettingsSetup } from './AppSetup';
 export { default as PlayerSlot } from './player/PlayerSlot.component';
 export { default as AttributeGuide } from './player/AttributeGuide.component';
