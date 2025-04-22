@@ -148,6 +148,8 @@ export async function POST(request: NextRequest) {
     }).sort((a, b) => b.total_goals - a.total_goals || a.minutes_per_goal - b.minutes_per_goal);
     console.log('Formatted goal stats count:', goalStats.length);
 
+    // Don't include form data for full season view as it's not displayed
+    /* 
     // Format form data using recent performance
     const formData = recentPerformance.map(perf => ({
       name: perf.player.name,
@@ -158,11 +160,12 @@ export async function POST(request: NextRequest) {
       }).reverse().join(', ') : ''
     })).sort((a, b) => a.name.localeCompare(b.name));
     console.log('Formatted form data count:', formData.length);
+    */
 
     const responseData = {
       seasonStats: serializeData(seasonStats),
       goalStats: serializeData(goalStats),
-      formData: serializeData(formData)
+      formData: [] // Empty array since we don't need it for full season
     };
 
     // Store in cache for future requests

@@ -22,16 +22,52 @@ export async function GET() {
       LIMIT 1`;
 
     // Transform the data to match the expected format
+    const seasonWinners = seasonHonours.map(row => {
+      const winners = row.season_winners.winners || [];
+      const runnersUp = row.season_winners.runners_up || [];
+      const thirdPlace = row.season_winners.third_place || [];
+      
+      // Combine runners_up and third_place into a single array
+      const allRunnersUp = [...runnersUp, ...thirdPlace];
+      
+      return {
+        year: row.year,
+        winners: {
+          winner: winners.length > 0 ? winners[0].name : "",
+          winner_points: winners.length > 0 ? winners[0].points : 0,
+          runners_up: allRunnersUp.map(runner => ({
+            name: runner.name,
+            points: runner.points
+          }))
+        }
+      };
+    });
+
+    const topScorers = seasonHonours.map(row => {
+      const winners = row.top_scorers.winners || [];
+      const runnersUp = row.top_scorers.runners_up || [];
+      const thirdPlace = row.top_scorers.third_place || [];
+      
+      // Combine runners_up and third_place into a single array
+      const allRunnersUp = [...runnersUp, ...thirdPlace];
+      
+      return {
+        year: row.year,
+        scorers: {
+          winner: winners.length > 0 ? winners[0].name : "",
+          winner_goals: winners.length > 0 ? winners[0].goals : 0,
+          runners_up: allRunnersUp.map(runner => ({
+            name: runner.name,
+            goals: runner.goals
+          }))
+        }
+      };
+    });
+
     const response = { 
       data: {
-        seasonWinners: serializeData(seasonHonours.map(row => ({
-          year: row.year,
-          winners: row.season_winners
-        }))),
-        topScorers: serializeData(seasonHonours.map(row => ({
-          year: row.year,
-          scorers: row.top_scorers
-        }))),
+        seasonWinners: serializeData(seasonWinners),
+        topScorers: serializeData(topScorers),
         records: serializeData(records)
       }
     };

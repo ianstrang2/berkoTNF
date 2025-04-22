@@ -139,12 +139,10 @@ const OverallSeasonPerformance: React.FC = () => {
                 <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HL</th>
                 <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">CS</th>
                 <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Win %</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Last 5</th>
               </tr>
             </thead>
             <tbody>
               {stats.seasonStats.map((player, index) => {
-                const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
                 const losses = player.games_played - player.wins - player.draws;
                 return (
                   <tr key={index}>
@@ -184,24 +182,6 @@ const OverallSeasonPerformance: React.FC = () => {
                     </td>
                     <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                       <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <div className="flex justify-center gap-2">
-                        {form.map((result, i) => (
-                          <span 
-                            key={i} 
-                            className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white rounded-full ${
-                              result.includes('W') 
-                                ? 'bg-green-500' 
-                                : result === 'D' 
-                                  ? 'bg-amber-500' 
-                                  : 'bg-red-500'
-                            }`}
-                          >
-                            {result.replace('H', '')}
-                          </span>
-                        ))}
-                      </div>
                     </td>
                   </tr>
                 );
