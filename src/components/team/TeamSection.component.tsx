@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TeamSectionProps } from '@/types/team-algorithm.types';
 import DraggablePlayerSlot from './DraggablePlayerSlot.component';
 import { getPositionFromSlot, getPlayerStats } from '@/utils/team-algorithm.utils';
@@ -19,8 +19,39 @@ const TeamSection: React.FC<TeamSectionProps> = ({
   getAvailablePlayers,
   isReadOnly = false
 }) => {
-  const teamName = teamType === 'a' ? 'Team A' : 'Team B';
+  const [teamAName, setTeamAName] = useState<string>('Team A');
+  const [teamBName, setTeamBName] = useState<string>('Team B');
   const playerIdPrefix = teamType === 'a' ? 'teamA-player-' : 'teamB-player-';
+  
+  useEffect(() => {
+    const fetchTeamNames = async () => {
+      try {
+        const response = await fetch('/api/admin/app-config?group=match_settings');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            const teamAConfig = data.data.find((config: any) => config.config_key === 'team_a_name');
+            const teamBConfig = data.data.find((config: any) => config.config_key === 'team_b_name');
+            
+            if (teamAConfig && teamAConfig.config_value) {
+              setTeamAName(teamAConfig.config_value);
+            }
+            
+            if (teamBConfig && teamBConfig.config_value) {
+              setTeamBName(teamBConfig.config_value);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching team names:', error);
+        // Fall back to default names if fetch fails
+      }
+    };
+    
+    fetchTeamNames();
+  }, []);
+  
+  const teamName = teamType === 'a' ? teamAName : teamBName;
   
   return (
     <div className="mb-4 w-full">

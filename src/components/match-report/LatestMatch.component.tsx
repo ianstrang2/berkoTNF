@@ -19,6 +19,8 @@ const LatestMatch: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [matchData, setMatchData] = useState<LatestMatchData | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [teamAName, setTeamAName] = useState<string>('Team A');
+  const [teamBName, setTeamBName] = useState<string>('Team B');
 
   // Format date safely
   const formatDateSafely = (dateString: string | undefined | null): string => {
@@ -41,6 +43,30 @@ const LatestMatch: React.FC = () => {
     } catch (error) {
       console.error('Error formatting date:', error);
       return '';
+    }
+  };
+
+  const fetchTeamNames = async () => {
+    try {
+      const response = await fetch('/api/admin/app-config?group=match_settings');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          const teamAConfig = data.data.find((config: any) => config.config_key === 'team_a_name');
+          const teamBConfig = data.data.find((config: any) => config.config_key === 'team_b_name');
+          
+          if (teamAConfig && teamAConfig.config_value) {
+            setTeamAName(teamAConfig.config_value);
+          }
+          
+          if (teamBConfig && teamBConfig.config_value) {
+            setTeamBName(teamBConfig.config_value);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching team names:', error);
+      // Fall back to default names if fetch fails
     }
   };
 
@@ -75,6 +101,7 @@ const LatestMatch: React.FC = () => {
 
   useEffect(() => {
     fetchMatchData();
+    fetchTeamNames();
   }, []);
 
   if (loading) {
@@ -137,7 +164,7 @@ const LatestMatch: React.FC = () => {
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
             <span className="text-xl font-bold">A</span>
           </div>
-          <h6 className="mt-2 text-sm font-semibold text-slate-700">Team A</h6>
+          <h6 className="mt-2 text-sm font-semibold text-slate-700">{teamAName}</h6>
         </div>
 
         {/* Score */}
@@ -145,7 +172,7 @@ const LatestMatch: React.FC = () => {
           <h1 className="text-5xl font-extrabold text-slate-800">
             {matchInfo.team_a_score} - {matchInfo.team_b_score}
           </h1>
-          <p className="mt-0.5 text-sm uppercase text-slate-400 font-semibold">Final Score</p>
+          <p className="mt-0.5 text-sm uppercase text-slate-400 font-semibold">FINAL SCORE</p>
         </div>
 
         {/* Team B */}
@@ -153,7 +180,7 @@ const LatestMatch: React.FC = () => {
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
             <span className="text-xl font-bold">B</span>
           </div>
-          <h6 className="mt-2 text-sm font-semibold text-slate-700">Team B</h6>
+          <h6 className="mt-2 text-sm font-semibold text-slate-700">{teamBName}</h6>
         </div>
       </div>
       
@@ -161,7 +188,7 @@ const LatestMatch: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Team A */}
         <div className="rounded-xl border border-slate-100 p-4">
-          <h6 className="text-sm font-bold mb-4 text-slate-700">Team A</h6>
+          <h6 className="text-sm font-bold mb-4 text-slate-700">{teamAName}</h6>
           
           <div className="space-y-2">
             {matchInfo.team_a_players.map((player, index) => (
@@ -186,7 +213,7 @@ const LatestMatch: React.FC = () => {
         
         {/* Team B */}
         <div className="rounded-xl border border-slate-100 p-4">
-          <h6 className="text-sm font-bold mb-4 text-slate-700">Team B</h6>
+          <h6 className="text-sm font-bold mb-4 text-slate-700">{teamBName}</h6>
           
           <div className="space-y-2">
             {matchInfo.team_b_players.map((player, index) => (

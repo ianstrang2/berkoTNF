@@ -127,6 +127,8 @@ const MatchReport: React.FC = () => {
   const [showCopyToast, setShowCopyToast] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [teamAName, setTeamAName] = useState<string>('Team A');
+  const [teamBName, setTeamBName] = useState<string>('Team B');
 
   // Helper function to get the correct ordinal suffix for numbers
   const getOrdinalSuffix = (num: number): string => {
@@ -165,6 +167,30 @@ const MatchReport: React.FC = () => {
     } catch (error) {
       console.error('Error formatting date:', error);
       return '';
+    }
+  };
+
+  const fetchTeamNames = async () => {
+    try {
+      const response = await fetch('/api/admin/app-config?group=match_settings');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          const teamAConfig = data.data.find((config: any) => config.config_key === 'team_a_name');
+          const teamBConfig = data.data.find((config: any) => config.config_key === 'team_b_name');
+          
+          if (teamAConfig && teamAConfig.config_value) {
+            setTeamAName(teamAConfig.config_value);
+          }
+          
+          if (teamBConfig && teamBConfig.config_value) {
+            setTeamBName(teamBConfig.config_value);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching team names:', error);
+      // Fall back to default names if fetch fails
     }
   };
 
@@ -208,6 +234,7 @@ const MatchReport: React.FC = () => {
 
   useEffect(() => {
     fetchReport();
+    fetchTeamNames();
   }, []);
 
   const renderMatchInfo = () => {
@@ -218,7 +245,7 @@ const MatchReport: React.FC = () => {
       <Card className="mt-section">
         <div className="flex flex-col items-center">
           <div className="text-2xl sm:text-3xl font-bold text-center mb-2 tracking-tight">
-            Team A ({matchInfo.team_a_score}) - ({matchInfo.team_b_score}) Team B
+            {teamAName} ({matchInfo.team_a_score}) - ({matchInfo.team_b_score}) {teamBName}
           </div>
           <div className="text-center text-lg text-neutral-600 mb-section" suppressHydrationWarning>
             {formatDateSafely(matchInfo.match_date)}
@@ -227,7 +254,7 @@ const MatchReport: React.FC = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-grid">
           <div className="bg-neutral-50 rounded-lg p-4">
-            <div className="font-semibold text-lg text-primary-600 mb-element">Team A ({matchInfo.team_a_score})</div>
+            <div className="font-semibold text-lg text-primary-600 mb-element">{teamAName} ({matchInfo.team_a_score})</div>
             <div className="text-sm text-neutral-700 leading-relaxed">
               {matchInfo.team_a_players.join(', ')}
             </div>
@@ -239,7 +266,7 @@ const MatchReport: React.FC = () => {
           </div>
 
           <div className="bg-neutral-50 rounded-lg p-4">
-            <div className="font-semibold text-lg text-primary-600 mb-element">Team B ({matchInfo.team_b_score})</div>
+            <div className="font-semibold text-lg text-primary-600 mb-element">{teamBName} ({matchInfo.team_b_score})</div>
             <div className="text-sm text-neutral-700 leading-relaxed">
               {matchInfo.team_b_players.join(', ')}
             </div>
@@ -489,47 +516,43 @@ const MatchReport: React.FC = () => {
     
     const { matchInfo, gamesMilestones, goalsMilestones, streaks, goalStreaks } = report;
     
-    // Create sections array with type annotation
-    const sections: string[] = [];
+    let text = `Match Report: ${formatDateSafely(matchInfo.match_date)}\n\n`;
+    text += `${teamAName} ${matchInfo.team_a_score} - ${matchInfo.team_b_score} ${teamBName}\n\n`;
     
-    // Basic match info
-    sections.push(
-      `Match Result - ${formatDateSafely(matchInfo.match_date)}\n` +
-      `Team A ${matchInfo.team_a_score} - ${matchInfo.team_b_score} Team B\n\n` +
-      `Team A: ${matchInfo.team_a_players.join(', ')}\n` +
-      (matchInfo.team_a_scorers ? `Scorers: ${matchInfo.team_a_scorers}\n` : '') +
-      `\nTeam B: ${matchInfo.team_b_players.join(', ')}\n` +
-      (matchInfo.team_b_scorers ? `Scorers: ${matchInfo.team_b_scorers}\n` : '')
-    );
+    text += `${teamAName}: ${matchInfo.team_a_players.join(', ')}\n`;
+    if (matchInfo.team_a_scorers) {
+      text += `Goals: ${matchInfo.team_a_scorers}\n`;
+    }
+    text += '\n';
+    
+    text += `${teamBName}: ${matchInfo.team_b_players.join(', ')}\n`;
+    if (matchInfo.team_b_scorers) {
+      text += `Goals: ${matchInfo.team_b_scorers}\n`;
+    }
+    text += '\n';
     
     // Milestones
     if ((gamesMilestones && gamesMilestones.length > 0) || (goalsMilestones && goalsMilestones.length > 0)) {
-      sections.push(
-        `\nMilestones:\n` +
-        (gamesMilestones?.map(m => `${m.name} played their ${getOrdinalSuffix(m.total_games || 0)} game`).join('\n') || '') +
-        (gamesMilestones && gamesMilestones.length > 0 && goalsMilestones && goalsMilestones.length > 0 ? '\n' : '') +
-        (goalsMilestones?.map(m => `${m.name} scored their ${getOrdinalSuffix(m.total_goals || 0)} goal`).join('\n') || '')
-      );
+      text += `\nMilestones:\n`;
+      text += (gamesMilestones?.map(m => `${m.name} played their ${getOrdinalSuffix(m.total_games || 0)} game`).join('\n') || '');
+      text += (gamesMilestones && gamesMilestones.length > 0 && goalsMilestones && goalsMilestones.length > 0 ? '\n' : '');
+      text += (goalsMilestones?.map(m => `${m.name} scored their ${getOrdinalSuffix(m.total_goals || 0)} goal`).join('\n') || '');
     }
     
     // Form Streaks
     if (streaks && streaks.length > 0) {
-      sections.push(
-        `\nForm Streaks:\n` +
-        streaks.map(s => `${s.name} is on a ${s.streak_count} game ${
-          s.streak_type === 'win' ? 'winning' : 
-          s.streak_type === 'loss' ? 'losing' : 
-          s.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'
-        } streak`).join('\n')
-      );
+      text += `\nForm Streaks:\n`;
+      text += streaks.map(s => `${s.name} is on a ${s.streak_count} game ${
+        s.streak_type === 'win' ? 'winning' : 
+        s.streak_type === 'loss' ? 'losing' : 
+        s.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'
+      } streak`).join('\n');
     }
     
     // Goal Streaks
     if (goalStreaks && goalStreaks.length > 0) {
-      sections.push(
-        `\nScoring Streaks:\n` +
-        goalStreaks.map(s => `${s.name} has scored in ${s.matches_with_goals} consecutive matches (${s.goals_in_streak} goals total)`).join('\n')
-      );
+      text += `\nScoring Streaks:\n`;
+      text += goalStreaks.map(s => `${s.name} has scored in ${s.matches_with_goals} consecutive matches (${s.goals_in_streak} goals total)`).join('\n');
     }
     
     // Leaders
@@ -572,10 +595,10 @@ const MatchReport: React.FC = () => {
         }
       }
       
-      sections.push(`\n${leadersSection.join('\n')}`);
+      text += `\n${leadersSection.join('\n')}`;
     }
     
-    return sections.join('\n');
+    return text;
   };
   
   // Helper function for formatting leader text in copy format
