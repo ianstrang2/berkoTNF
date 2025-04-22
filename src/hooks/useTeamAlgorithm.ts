@@ -404,7 +404,10 @@ export const useTeamAlgorithm = () => {
       if (!matchId) return;
       
       // Only proceed if there are players in the pool
-      if (selectedPoolPlayers.length === 0) return;
+      if (selectedPoolPlayers.length === 0) {
+        setError('Failed to clear player pool. Player not found in pool');
+        return;
+      }
       
       setIsLoading(true);
       
@@ -428,14 +431,14 @@ export const useTeamAlgorithm = () => {
   const confirmClearTeams = async () => {
     try {
       setIsLoading(true);
+      // Close confirmation dialog immediately
+      setIsClearConfirmOpen(false);
+      
       // First clear slots
       await clearSlots();
       
       // Then clear the player pool
       await clearPlayerPool();
-      
-      // Close confirmation dialog
-      setIsClearConfirmOpen(false);
     } catch (error) {
       console.error('Error in confirmClearTeams:', error);
       setError(`Failed to clear data: ${error instanceof Error ? error.message : String(error)}`);
