@@ -16,6 +16,7 @@ interface SoftUIConfirmationModalProps {
   
   // Modal appearance
   isConfirming?: boolean;
+  icon?: 'warning' | 'error' | 'success' | 'info' | 'question';
 }
 
 const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
@@ -27,6 +28,7 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   isConfirming = false,
+  icon = 'warning',
 }) => {
   // Only display the modal if isOpen is true
   React.useEffect(() => {
@@ -53,14 +55,13 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
       const modalConfig: SweetAlertOptions = {
         title: title,
         html: typeof message === 'string' ? message : <div>{message}</div>,
-        icon: 'warning',
+        icon: icon,
         showCancelButton: true,
         confirmButtonText: isConfirming ? 'Processing...' : confirmText,
         cancelButtonText: cancelText,
         reverseButtons: false,
         allowOutsideClick: !isConfirming,
         allowEscapeKey: !isConfirming,
-        allowEnterKey: !isConfirming
       };
 
       // If we're in confirming state, use a different approach with preConfirm
@@ -89,7 +90,7 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
         });
       }
     }
-  }, [isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isConfirming]);
+  }, [isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isConfirming, icon]);
 
   // This component doesn't directly render anything
   return null;

@@ -11,6 +11,7 @@ interface Milestone {
   games_played?: number;
   total_games?: number;
   total_goals?: number;
+  value?: number;
 }
 
 interface Streak {
@@ -33,6 +34,8 @@ interface LeaderData {
   new_leader_points?: number;
   previous_leader_goals?: number;
   previous_leader_points?: number;
+  name?: string;
+  value?: number;
 }
 
 interface MatchInfo {
@@ -244,9 +247,20 @@ const validateMilestones = (milestones: any): Milestone[] => {
       }
     }
     
-    // If it's already an array, use it
+    // If it's already an array, ensure each item has a value field if total_games/total_goals exists
     if (Array.isArray(milestones)) {
-      return milestones;
+      return milestones.map(milestone => {
+        if (milestone.name) {
+          // Ensure value exists for frontend compatibility - we need total_games/total_goals/value for UI
+          if (milestone.total_games && !milestone.value) {
+            milestone.value = milestone.total_games;
+          } else if (milestone.total_goals && !milestone.value) {
+            milestone.value = milestone.total_goals;  
+          }
+          return milestone;
+        }
+        return null;
+      }).filter(Boolean) as Milestone[];
     }
     
     console.warn('Unexpected milestone format:', typeof milestones);
@@ -644,8 +658,28 @@ export async function GET() {
               goalsMilestones: validateMilestones(matchReportCache.goal_milestones) || [],
               streaks: formattedStreaks || [],
               goalStreaks: formattedGoalStreaks || [],
-              halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders || [],
-              halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders || [],
+              halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders?.map(leader => {
+                // Ensure new_leader_goals exists for legacy frontend compatibility
+                if (leader && leader.name && leader.value !== undefined && !leader.new_leader_goals) {
+                  return {
+                    ...leader,
+                    new_leader: leader.name || leader.new_leader,
+                    new_leader_goals: leader.value
+                  };
+                }
+                return leader;
+              }) || [],
+              halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders?.map(leader => {
+                // Ensure new_leader_points exists for legacy frontend compatibility
+                if (leader && leader.name && leader.value !== undefined && !leader.new_leader_points) {
+                  return {
+                    ...leader,
+                    new_leader: leader.name || leader.new_leader,
+                    new_leader_points: leader.value
+                  };
+                }
+                return leader;
+              }) || [],
               seasonGoalLeaders: extractedSeasonGoalLeaders || [],
               seasonFantasyLeaders: extractedSeasonFantasyLeaders || []
             }

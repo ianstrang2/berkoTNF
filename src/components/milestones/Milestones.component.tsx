@@ -7,6 +7,7 @@ interface Milestone {
   games_played?: number;
   total_games?: number;
   total_goals?: number;
+  value?: number;
 }
 
 interface Streak {
@@ -29,6 +30,7 @@ interface LeaderData {
   new_leader_points?: number;
   previous_leader_goals?: number;
   previous_leader_points?: number;
+  value?: number;
 }
 
 interface TimelineItem {
@@ -89,6 +91,12 @@ const Milestones: React.FC = () => {
 
   // Helper function to get the correct ordinal suffix for numbers
   const getOrdinalSuffix = (num: number): string => {
+    // Handle case where num is 0, which isn't a valid ordinal
+    if (num === 0) {
+      console.error('Invalid ordinal number: 0');
+      return "0th"; // Return something reasonable but log error
+    }
+    
     const j = num % 10;
     const k = num % 100;
     if (j === 1 && k !== 11) {
@@ -127,23 +135,40 @@ const Milestones: React.FC = () => {
     }
   };
 
-  // Helper function to format leader data text
+  // Helper function to format leader data text with improved handling
   const formatLeaderText = (leaderData: LeaderData, metric: 'goals' | 'points', period: string): string => {
-    const { change_type, new_leader, previous_leader, new_leader_goals, new_leader_points, previous_leader_goals, previous_leader_points } = leaderData;
-    const value = metric === 'goals' ? new_leader_goals : new_leader_points;
-    const prevValue = metric === 'goals' ? previous_leader_goals : previous_leader_points;
+    if (!leaderData || !leaderData.new_leader) {
+      console.error('Invalid leader data:', leaderData);
+      return `Unknown leader in ${metric}`;
+    }
+    
+    const { change_type, new_leader, previous_leader } = leaderData;
+    
+    // Handle fields that might be in different properties
+    const value = metric === 'goals' 
+      ? (leaderData.new_leader_goals || leaderData.value || 0) 
+      : (leaderData.new_leader_points || leaderData.value || 0);
+      
+    const prevValue = metric === 'goals' 
+      ? (leaderData.previous_leader_goals || 0) 
+      : (leaderData.previous_leader_points || 0);
+    
+    // If we don't have a change_type but do have a name and value, use concise format
+    if (!change_type && new_leader) {
+      return `${new_leader} leads with ${value} ${metric}`;
+    }
     
     switch (change_type) {
       case 'new_leader':
-        return `${new_leader} now leads the ${period} charts with ${value} ${metric}`;
+        return `${new_leader} now leads with ${value} ${metric}`;
       case 'tied':
         return `${new_leader} tied with ${previous_leader} at ${value} ${metric}`;
       case 'remains':
-        return `${new_leader} remains top with ${value} ${metric}`;
+        return `${new_leader} leads with ${value} ${metric}`; // More concise format
       case 'overtake':
-        return `${new_leader} overtook ${previous_leader} (${prevValue} ${metric}) with ${value} ${metric}`;
+        return `${new_leader} overtook ${previous_leader} with ${value} ${metric}`;
       default:
-        return '';
+        return `${new_leader} leads with ${value} ${metric}`;
     }
   };
 
@@ -182,10 +207,12 @@ const Milestones: React.FC = () => {
     // Add game milestones to timeline
     if (data.gamesMilestones && data.gamesMilestones.length > 0) {
       data.gamesMilestones.forEach(milestone => {
+        // Ensure we have a valid milestone value
+        const gameCount = milestone.total_games || milestone.value || 0;
         items.push({
           type: 'game_milestone',
           player: milestone.name,
-          content: `Played ${getOrdinalSuffix(milestone.total_games || 0)} game`,
+          content: `Played ${getOrdinalSuffix(gameCount)} game`,
           icon: 'trophy',
           date: matchDate,
           color: 'blue'
@@ -196,10 +223,12 @@ const Milestones: React.FC = () => {
     // Add goal milestones to timeline
     if (data.goalsMilestones && data.goalsMilestones.length > 0) {
       data.goalsMilestones.forEach(milestone => {
+        // Ensure we have a valid milestone value
+        const goalCount = milestone.total_goals || milestone.value || 0;
         items.push({
           type: 'goal_milestone',
           player: milestone.name,
-          content: `Scored ${getOrdinalSuffix(milestone.total_goals || 0)} goal`,
+          content: `Scored ${getOrdinalSuffix(goalCount)} goal`,
           icon: 'goal',
           date: matchDate,
           color: 'blue'
@@ -245,9 +274,10 @@ const Milestones: React.FC = () => {
       });
     }
     
-    // Add current leader changes
+    // Add current leader changes with improved handling
     if (data.halfSeasonGoalLeaders?.[0]) {
       const leaderData = data.halfSeasonGoalLeaders[0];
+      console.log('Half-season goal leader data:', leaderData);
       items.push({
         type: 'leader_change',
         player: 'Half-Season Goals Leader',
@@ -260,6 +290,7 @@ const Milestones: React.FC = () => {
     
     if (data.halfSeasonFantasyLeaders?.[0]) {
       const leaderData = data.halfSeasonFantasyLeaders[0];
+      console.log('Half-season fantasy leader data:', leaderData);
       items.push({
         type: 'leader_change',
         player: 'Half-Season Points Leader',

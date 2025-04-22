@@ -34,6 +34,7 @@ model player_matches {
   fantasy_points  Int?
   matches         matches? @relation(fields: [match_id], references: [match_id], onDelete: NoAction, onUpdate: NoAction)
   players         players? @relation(fields: [player_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
+  updated_at      DateTime @updatedAt @default(now())
 }
 
 model players {
@@ -292,18 +293,22 @@ model aggregated_recent_performance {
 
 /// This model stores cached match report data for faster retrieval
 model aggregated_match_report {
-  match_id          Int       @id
-  match_date        DateTime  @db.Timestamptz
-  team_a_score      Int
-  team_b_score      Int
-  team_a_players    Json?     @db.JsonB  // Array of player names
-  team_b_players    Json?     @db.JsonB  // Array of player names
-  team_a_scorers    String?   // Text field with comma-separated player names and goals
-  team_b_scorers    String?   // Text field with comma-separated player names and goals
-  game_milestones   Json?     @db.JsonB  // Array of {name: string, total_games: number}
-  goal_milestones   Json?     @db.JsonB  // Array of {name: string, total_goals: number}
-  config_values     Json?     @db.JsonB  // Object containing threshold values as strings
-  last_updated      DateTime  @default(now()) @db.Timestamptz
+  match_id                     Int       @id
+  match_date                   DateTime  @db.Timestamptz
+  team_a_score                 Int
+  team_b_score                 Int
+  team_a_players               Json?     @db.JsonB  // Array of player names
+  team_b_players               Json?     @db.JsonB  // Array of player names
+  team_a_scorers               String?   // Text field with comma-separated player names and goals
+  team_b_scorers               String?   // Text field with comma-separated player names and goals
+  game_milestones              Json?     @db.JsonB  // Array of {name: string, total_games: number}
+  goal_milestones              Json?     @db.JsonB  // Array of {name: string, total_goals: number}
+  config_values                Json?     @db.JsonB  // Object containing threshold values as strings
+  half_season_goal_leaders     Json?     @db.JsonB
+  half_season_fantasy_leaders  Json?     @db.JsonB
+  season_goal_leaders          Json?     @db.JsonB
+  season_fantasy_leaders       Json?     @db.JsonB
+  last_updated                 DateTime  @default(now()) @db.Timestamptz
 
   @@index([match_date])
 }
