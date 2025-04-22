@@ -35,6 +35,7 @@ export const useTeamAlgorithm = () => {
     defaultMatchDate, 
     createMatchError, 
     createMatch, 
+    updateMatch,
     clearActiveMatch, 
     fetchActiveMatch
   } = useMatchData();
@@ -279,13 +280,26 @@ export const useTeamAlgorithm = () => {
     }
   }, [currentSlots, players]);
   
-  // Handle a new match creation
+  // Handle a new match creation or update
   const handleCreateMatch = useCallback(async (matchData: NewMatchData) => {
-    const result = await createMatch(matchData);
+    let result;
+    
+    // Check if we're editing an existing match or creating a new one
+    if (activeMatch) {
+      // We're editing - use updateMatch
+      result = await updateMatch({
+        ...matchData,
+        match_id: activeMatch.upcoming_match_id || activeMatch.match_id || ''
+      });
+    } else {
+      // We're creating a new match
+      result = await createMatch(matchData);
+    }
+    
     if (result) {
       setIsMatchModalOpen(false);
     }
-  }, [createMatch]);
+  }, [activeMatch, createMatch, updateMatch]);
   
   // Handle adding a ringer player
   const handleAddRinger = useCallback(async () => {

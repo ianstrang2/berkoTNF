@@ -155,7 +155,7 @@ const NewTeamAlgorithm: React.FC = () => {
                 variant="primary"
                 className="rounded-lg font-semibold bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md hover:shadow-soft-lg"
                 onClick={() => setIsBalanceModalOpen(true)}
-                disabled={isLoading}
+                disabled={isLoading || selectedPoolPlayers.length < ((activeMatch?.team_size || 9) * 2)}
               >
                 Build Teams
               </Button>
@@ -393,7 +393,7 @@ const NewTeamAlgorithm: React.FC = () => {
               variant="primary"
               className="bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md"
               onClick={proceedWithBalancing}
-              disabled={isLoading}
+              disabled={isLoading || selectedPoolPlayers.length < ((activeMatch?.team_size || 9) * 2)}
             >
               {isLoading ? 'Processing...' : 'Build Teams'}
             </Button>

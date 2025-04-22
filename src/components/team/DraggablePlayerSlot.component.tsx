@@ -57,7 +57,7 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
         </div>
       ) : (
         <div className="h-10 flex items-center justify-center text-slate-500 text-sm border border-gray-200 bg-white rounded-lg shadow-soft-sm w-full font-sans">
-          {isReadOnly ? 'Empty slot' : (players.length > 0 ? 'Tap to add player' : 'No players available')}
+          {isReadOnly ? 'Empty slot' : (players.length > 0 ? 'Waiting for Build Teams' : 'No players available')}
         </div>
       )}
     </div>
