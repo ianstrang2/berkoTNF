@@ -112,20 +112,20 @@ const HonourRoll: React.FC = () => {
         <h5 className="mb-0">Season Winners</h5>
       </div>
       <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
-        <div className="table-responsive" style={{position: 'relative'}}>
+        <div className="table-responsive">
           <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
             <thead className="align-bottom">
               <tr>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-20">
                   Year
                 </th>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                <th className="px-4 py-3 pl-6 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
                   Champion
                 </th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-24">
                   Points
                 </th>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
+                <th className="px-4 py-3 pl-6 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
                   Runners Up
                 </th>
               </tr>
@@ -136,8 +136,8 @@ const HonourRoll: React.FC = () => {
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{season.year}</span>
                   </td>
-                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                    <div className="flex px-2 py-1">
+                  <td className="p-2 pl-6 align-middle bg-transparent border-b whitespace-nowrap">
+                    <div className="flex py-1">
                       <div className="flex flex-col justify-center">
                         <h6 className="mb-0 leading-normal text-sm font-semibold">{season.winners.winner}</h6>
                       </div>
@@ -146,7 +146,7 @@ const HonourRoll: React.FC = () => {
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{season.winners.winner_points}</span>
                   </td>
-                  <td className="p-2 align-middle bg-transparent border-b whitespace-normal">
+                  <td className="p-2 pl-6 align-middle bg-transparent border-b">
                     <span className="font-normal leading-normal text-sm">
                       {season.winners.runners_up?.map(runner => 
                         `${runner.name} (${runner.points})`).join(', ')}
@@ -167,20 +167,20 @@ const HonourRoll: React.FC = () => {
         <h5 className="mb-0">Top Scorers</h5>
       </div>
       <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
-        <div className="table-responsive" style={{position: 'relative'}}>
+        <div className="table-responsive">
           <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
             <thead className="align-bottom">
               <tr>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-20">
                   Year
                 </th>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                <th className="px-4 py-3 pl-6 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
                   Player
                 </th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-24">
                   Goals
                 </th>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-48">
+                <th className="px-4 py-3 pl-6 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
                   Runners Up
                 </th>
               </tr>
@@ -191,8 +191,8 @@ const HonourRoll: React.FC = () => {
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{season.year}</span>
                   </td>
-                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                    <div className="flex px-2 py-1">
+                  <td className="p-2 pl-6 align-middle bg-transparent border-b whitespace-nowrap">
+                    <div className="flex py-1">
                       <div className="flex flex-col justify-center">
                         <h6 className="mb-0 leading-normal text-sm font-semibold">{season.scorers.winner}</h6>
                       </div>
@@ -201,7 +201,7 @@ const HonourRoll: React.FC = () => {
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{season.scorers.winner_goals}</span>
                   </td>
-                  <td className="p-2 align-middle bg-transparent border-b whitespace-normal">
+                  <td className="p-2 pl-6 align-middle bg-transparent border-b">
                     <span className="font-normal leading-normal text-sm">
                       {season.scorers.runners_up?.map(runner => 
                         `${runner.name} (${runner.goals})`).join(', ')}
@@ -234,7 +234,7 @@ const HonourRoll: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-wrap justify-start -mx-3">
+    <div className="flex flex-wrap -mx-3 max-w-screen-2xl mx-auto">
       {/* Mobile Nav Pills - Only visible on mobile */}
       <div className="w-full px-3 mb-4 lg:hidden">
         <NavPills<'winners' | 'scorers'>
@@ -247,23 +247,12 @@ const HonourRoll: React.FC = () => {
         />
       </div>
 
-      {/* Desktop Layout - Hidden on mobile */}
-      <div className="hidden lg:block">
-        {/* Season Winners Card */}
-        <div className="inline-block align-top px-3 mb-6">
-          {renderSeasonWinners()}
-        </div>
-        
-        {/* Top Scorers Card */}
-        <div className="inline-block align-top px-3 mb-6">
-          {renderTopScorers()}
-        </div>
+      {/* Desktop Layout - Side by side tables */}
+      <div className="w-full lg:w-1/2 px-3 mb-4">
+        {renderSeasonWinners()}
       </div>
-
-      {/* Mobile Layout - Hidden on desktop */}
-      <div className="block lg:hidden w-full px-3">
-        {activeTab === 'winners' && renderSeasonWinners()}
-        {activeTab === 'scorers' && renderTopScorers()}
+      <div className="w-full lg:w-1/2 px-3 mb-4">
+        {renderTopScorers()}
       </div>
     </div>
   );

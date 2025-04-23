@@ -65,7 +65,6 @@ export async function updateSeasonHonours(
                 JOIN player_matches pm ON p.player_id = pm.player_id
                 JOIN matches m ON pm.match_id = m.match_id
                 WHERE p.is_ringer = false
-                AND p.is_retired = false
                 AND EXTRACT(YEAR FROM m.match_date) < EXTRACT(YEAR FROM CURRENT_DATE) -- Exclude current year
                 GROUP BY p.name, EXTRACT(YEAR FROM m.match_date)
                 HAVING COUNT(*) >= ${minGamesForHonours}
@@ -118,7 +117,7 @@ export async function updateSeasonHonours(
                 FROM players p
                 JOIN player_matches pm ON p.player_id = pm.player_id
                 JOIN matches m ON pm.match_id = m.match_id
-                WHERE pm.goals > 0 AND p.is_ringer = false AND p.is_retired = false
+                WHERE pm.goals > 0 AND p.is_ringer = false
             ),
             biggest_victories AS (
                 SELECT
@@ -146,7 +145,7 @@ export async function updateSeasonHonours(
                     FROM players p
                     JOIN player_matches pm ON p.player_id = pm.player_id
                     JOIN matches m ON pm.match_id = m.match_id
-                    WHERE p.is_ringer = false AND p.is_retired = false
+                    WHERE p.is_ringer = false
                 ),
                 streak_groups AS (
                     SELECT
@@ -180,7 +179,7 @@ export async function updateSeasonHonours(
                     FROM players p
                     JOIN player_matches pm ON p.player_id = pm.player_id
                     JOIN matches m ON pm.match_id = m.match_id
-                    WHERE p.is_ringer = false AND p.is_retired = false
+                    WHERE p.is_ringer = false
                 ),
                 gaps AS (
                     SELECT
