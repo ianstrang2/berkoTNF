@@ -86,18 +86,14 @@ async function triggerStep(stepId: string, config: any) {
   // Update progress status
   progressStatus.currentStep = step.name;
   
-  // Make actual API call to the step's endpoint
-  // Get the base URL from environment variables or from request headers
-  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  // Get the host from the environment or request headers
+  // For server-side fetch in Next.js, we need a complete URL
+  const headersList = headers();
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  const host = process.env.NEXT_PUBLIC_BASE_URL || headersList.get('host') || 'localhost:3000';
   
-  // If running server-side and no base URL set, use relative URL path
-  // This works in both development and production
-  if (!baseUrl) {
-    // Use relative URL instead of localhost
-    // This works in both environments without hardcoding
-    baseUrl = '';
-    console.log(`No NEXT_PUBLIC_BASE_URL set, using relative URLs for internal API calls`);
-  }
+  // Ensure we have a valid base URL
+  const baseUrl = host.startsWith('http') ? host : `${protocol}://${host}`;
   
   console.log(`Triggering step ${step.name} with endpoint: ${baseUrl}${step.endpoint}`);
   
@@ -106,7 +102,7 @@ async function triggerStep(stepId: string, config: any) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ config }) // Ensure config is passed as expected
+    body: JSON.stringify({ config })
   });
   
   if (!response.ok) {
