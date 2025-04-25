@@ -21,6 +21,7 @@ export async function POST(request: Request) {
     console.log('[update-recent-performance API] ✓ Recent Performance updated successfully');
     
     // Return success response WITHOUT inProgress flag to signal completion
+    console.log('[update-recent-performance API] Responding with completion signal, completed=true');
     return NextResponse.json({ 
       success: true, 
       message: 'Recent Performance updated successfully',

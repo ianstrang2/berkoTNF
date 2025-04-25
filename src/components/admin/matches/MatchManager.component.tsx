@@ -42,6 +42,7 @@ interface UpdateProgress {
   percentComplete: number;
   isPolling: boolean;
   steps?: string[];
+  completedSteps?: string[];
   error?: string | null;
 }
 
@@ -55,13 +56,48 @@ const MatchManager: React.FC = () => {
   const [matchToDelete, setMatchToDelete] = useState<number | null>(null);
   const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
   const [isUpdatingStats, setIsUpdatingStats] = useState<boolean>(false);
+  
+  // Define our steps in sequence - same as on the server
+  const PROCESS_STEPS = [
+    { 
+      id: 'recent-performance',
+      name: 'Updating Recent Performance',
+      endpoint: '/api/admin/stats/update-recent-performance',
+      weight: 20
+    },
+    { 
+      id: 'all-time-stats',
+      name: 'Updating All-Time Stats',
+      endpoint: '/api/admin/stats/update-all-time-stats',
+      weight: 20
+    },
+    { 
+      id: 'season-honours',
+      name: 'Updating Season Honours',
+      endpoint: '/api/admin/stats/update-season-honours',
+      weight: 20
+    },
+    { 
+      id: 'season-stats',
+      name: 'Updating Half & Full Season Stats',
+      endpoint: '/api/admin/stats/update-half-full-season',
+      weight: 20
+    },
+    { 
+      id: 'match-report',
+      name: 'Updating Match Report Cache',
+      endpoint: '/api/admin/stats/update-match-report',
+      weight: 20
+    }
+  ];
+  
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress>({
     currentStep: '',
     percentComplete: 0,
-    isPolling: false
+    isPolling: false,
+    completedSteps: []
   });
   const [statsUpdated, setStatsUpdated] = useState<boolean>(false);
-  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   
   // Reference to polling interval to clean up on unmount
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -177,16 +213,9 @@ const MatchManager: React.FC = () => {
       currentStep: 'Initializing',
       percentComplete: 0,
       isPolling: true, // Force this to true immediately
-      // Default steps that will be replaced when server provides actual steps
-      steps: [
-        'Initializing',
-        'Updating Recent Performance',
-        'Updating All-Time Stats',
-        'Updating Season Honours',
-        'Updating Half & Full Season Stats',
-        'Updating Match Report Cache',
-        'Completing Updates'
-      ]
+      completedSteps: [],
+      // Use the process steps defined above
+      steps: PROCESS_STEPS.map(step => step.id)
     });
     
     // Close the confirmation modal immediately
@@ -377,7 +406,9 @@ const MatchManager: React.FC = () => {
               step: progressData.currentStep,
               percent: progressData.percentComplete,
               isRunning: progressData.isRunning,
-              completedSteps: progressData.completedSteps?.length || 0
+              completedSteps: progressData.completedSteps || [],
+              rawCurrentStep: progressData.currentStep,
+              displayName: REVERSE_STEP_MAPPING[progressData.currentStep]
             });
             
             // Calculate progress percentage from completed steps
@@ -390,13 +421,19 @@ const MatchManager: React.FC = () => {
             let displayStep = progressData.currentStep;
             if (progressData.currentStep && REVERSE_STEP_MAPPING[progressData.currentStep]) {
               displayStep = REVERSE_STEP_MAPPING[progressData.currentStep];
+              console.log(`Mapped step ID '${progressData.currentStep}' to display name '${displayStep}'`);
+            } else {
+              console.log(`No mapping found for step ID '${progressData.currentStep}'`);
             }
             
             // Update UI with current state
             setUpdateProgress(prev => ({
               ...prev,
               percentComplete: Math.max(prev.percentComplete, percent),
-              currentStep: displayStep || prev.currentStep
+              currentStep: progressData.currentStep || prev.currentStep,
+              completedSteps: progressData.completedSteps || [],
+              // Add the steps from the server directly (no mapping)
+              steps: PROCESS_STEPS.map(step => step.id)
             }));
             
             // If process is complete or errored, stop polling
@@ -1086,7 +1123,14 @@ const MatchManager: React.FC = () => {
             <h3 className="text-lg font-semibold text-slate-700 mb-4">Updating Player Statistics</h3>
             <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-slate-700">{updateProgress.currentStep}</span>
+                <span className="font-medium text-slate-700">
+                  {/* Get display name for current step */}
+                  {(() => {
+                    const currentStepId = updateProgress.currentStep;
+                    const stepInfo = PROCESS_STEPS.find(s => s.id === currentStepId);
+                    return stepInfo ? stepInfo.name : currentStepId;
+                  })()}
+                </span>
                 <span className="font-medium text-slate-700">{Math.round(updateProgress.percentComplete)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
@@ -1102,10 +1146,16 @@ const MatchManager: React.FC = () => {
               <div className="mb-4 border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
                 <h4 className="text-xs uppercase font-semibold text-slate-500 mb-2">PROCESS STEPS</h4>
                 <ul className="text-sm space-y-2">
-                  {updateProgress.steps.map((step, index) => {
-                    // Determine step status based on current step and our tracked completed steps
-                    const isCurrent = step === updateProgress.currentStep;
-                    const isCompleted = completedSteps.includes(step);
+                  {updateProgress.steps?.map((stepId, index) => {
+                    // Determine step status based on current step ID
+                    const isCurrent = stepId === updateProgress.currentStep;
+                    
+                    // Find step by ID to get the display name
+                    const stepInfo = PROCESS_STEPS.find(s => s.id === stepId);
+                    const stepName = stepInfo ? stepInfo.name : stepId; // Fallback to ID if not found
+                    
+                    // Check if this step ID is in completedSteps
+                    const isCompleted = updateProgress.completedSteps?.includes(stepId);
                     
                     return (
                     <li key={index} className={`flex items-center ${
@@ -1131,7 +1181,7 @@ const MatchManager: React.FC = () => {
                       <span className="mr-2 text-xs bg-slate-100 text-slate-600 rounded-full w-5 h-5 inline-flex items-center justify-center">
                         {index + 1}
                       </span>
-                      {step}
+                      {stepName}
                     </li>
                     );
                   })}

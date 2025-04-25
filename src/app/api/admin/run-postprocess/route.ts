@@ -290,11 +290,41 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
   // Get the host from the environment or request headers
   // For server-side fetch in Next.js, we need a complete URL
   const headersList = headers();
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-  const host = process.env.NEXT_PUBLIC_BASE_URL || headersList.get('host') || 'localhost:3000';
+
+  // In Vercel, we should use the deployment URL or fall back to the request's origin
+  let baseUrl = '';
   
-  // Ensure we have a valid base URL
-  const baseUrl = host.startsWith('http') ? host : `${protocol}://${host}`;
+  // First try Vercel-specific environment variables
+  if (process.env.VERCEL_URL) {
+    baseUrl = `https://${process.env.VERCEL_URL}`;
+    addExecutionLog(`Using Vercel URL: ${baseUrl}`);
+  } 
+  // Then try custom environment variable
+  else if (process.env.NEXT_PUBLIC_BASE_URL) {
+    baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    addExecutionLog(`Using NEXT_PUBLIC_BASE_URL: ${baseUrl}`);
+  } 
+  // Then try request headers
+  else {
+    const origin = headersList.get('origin');
+    const host = headersList.get('host');
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    
+    if (origin) {
+      baseUrl = origin;
+      addExecutionLog(`Using origin header: ${baseUrl}`);
+    } else if (host) {
+      baseUrl = `${protocol}://${host}`;
+      addExecutionLog(`Using host header: ${baseUrl}`);
+    } else {
+      // Last resort fallback
+      baseUrl = 'https://berkotnf.com';
+      addExecutionLog(`Using hardcoded fallback: ${baseUrl}`);
+    }
+  }
+  
+  // Ensure baseUrl doesn't end with a slash
+  baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   
   addExecutionLog(`Triggering step ${step.name} with endpoint: ${baseUrl}${step.endpoint}`);
   
@@ -342,22 +372,31 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
       return jsonResponse;
     }
     
-    // Mark step as completed in the database
-    const completedSteps = [...dbState.completedSteps];
-    if (!completedSteps.includes(stepId)) {
-      completedSteps.push(stepId);
+    // Look for explicit completion signal or assume complete if no inProgress flag
+    const isCompleted = jsonResponse.completed === true || !jsonResponse.inProgress;
+    
+    if (isCompleted) {
+      addExecutionLog(`Step ${step.name} reported completion`);
+      
+      // Mark step as completed in the database
+      const completedSteps = [...dbState.completedSteps];
+      if (!completedSteps.includes(stepId)) {
+        completedSteps.push(stepId);
+      }
+      
+      await updateProcessState({
+        ...dbState,
+        completedSteps: completedSteps,
+        lastUpdateTime: currentTime
+      });
+      
+      // Update in-memory state too
+      progressStatus.completedSteps = completedSteps;
+      
+      addExecutionLog(`Step ${step.name} completed successfully. Overall progress: ${calculateProgress(completedSteps)}%`);
+    } else {
+      addExecutionLog(`Step ${step.name} responded without completion signal, will check again later`);
     }
-    
-    await updateProcessState({
-      ...dbState,
-      completedSteps: completedSteps,
-      lastUpdateTime: currentTime
-    });
-    
-    // Update in-memory state too
-    progressStatus.completedSteps = completedSteps;
-    
-    addExecutionLog(`Step ${step.name} completed successfully. Overall progress: ${calculateProgress(completedSteps)}%`);
     
     return jsonResponse;
   } catch (error) {
@@ -432,9 +471,13 @@ async function processNextStep(config: any, dbState: any) {
     // Get latest state from database before proceeding
     const latestState = await getProcessState();
     
-    // Skip to the next step if this one is complete
+    // Check if a step completion was detected (important for Vercel environments)
+    const wasStepCompleted = latestState.completedSteps.includes(nextStep.id);
+    
+    // Skip to the next step if this one is complete or if completion signal was received
     // But don't if the step returned inProgress flag
-    if (!stepResult.inProgress) {
+    if (wasStepCompleted || (!stepResult.inProgress && stepResult.completed)) {
+      addExecutionLog(`Step ${nextStep.name} is complete, moving to next step`);
       // Process the next step in the chain with latest state
       return await processNextStep(config, latestState);
     } else {
