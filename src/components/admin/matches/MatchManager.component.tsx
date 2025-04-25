@@ -180,7 +180,6 @@ const MatchManager: React.FC = () => {
       // Default steps that will be replaced when server provides actual steps
       steps: [
         'Initializing',
-        'Fetching Configuration',
         'Updating Recent Performance',
         'Updating All-Time Stats',
         'Updating Season Honours',
@@ -229,51 +228,37 @@ const MatchManager: React.FC = () => {
           'warning'
         );
       }
-    }, 120000); // 2 minutes
+    }, 120000);
     
-    // SUPER SIMPLE APPROACH:
-    // Throw away all the complex step simulation and just use a basic incremental progress counter
-    // that keeps ticking up steadily regardless of what the server is doing
-    
-    // Start an interval that updates progress every 300ms
-    let progressInterval = setInterval(() => {
-      setUpdateProgress(prev => {
-        // If we're already at 100% or at 95%+ (waiting for final completion), don't increment
-        if (prev.percentComplete >= 95) return prev;
+    // Helper function to clean up timers and reset state
+    const cleanupProcess = (isSuccess: boolean = true) => {
+      // Clean up all timers
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      
+      clearTimeout(maxDurationTimer);
+      
+      // Set final state
+      setUpdateProgress(prev => ({
+        ...prev,
+        isPolling: false,
+        percentComplete: 100,
+        currentStep: 'Complete'
+      }));
+      
+      setIsUpdatingStats(false);
+      
+      if (isSuccess) {
+        // Set a flag to indicate successful stats update (will be used to style the button)
+        setStatsUpdated(true);
         
-        // Calculate the next increment (smaller as we get closer to 95%)
-        const currentPercent = prev.percentComplete;
-        let increment = 1;
-        
-        // Use dynamic increments - slower as we approach 95%
-        if (currentPercent < 30) increment = 2;
-        else if (currentPercent < 60) increment = 1.5;
-        else if (currentPercent < 80) increment = 1;
-        else increment = 0.5;
-        
-        // Limit to max 95% until we get confirmation from server
-        const newPercent = Math.min(95, currentPercent + increment);
-        
-        // Update the step label based on percentage
-        let newStep = prev.currentStep;
-        if (currentPercent < 10 && newPercent >= 10) newStep = 'Fetching Configuration';
-        else if (currentPercent < 25 && newPercent >= 25) newStep = 'Updating Recent Performance';
-        else if (currentPercent < 45 && newPercent >= 45) newStep = 'Updating All-Time Stats';
-        else if (currentPercent < 65 && newPercent >= 65) newStep = 'Updating Season Honours';
-        else if (currentPercent < 80 && newPercent >= 80) newStep = 'Updating Half & Full Season Stats';
-        else if (currentPercent < 90 && newPercent >= 90) newStep = 'Updating Match Report Cache';
-        
-        return {
-          ...prev,
-          percentComplete: newPercent,
-          currentStep: newStep
-        };
-      });
-    }, 300);
-    
-    // Function to clean up the progress interval
-    const cleanupAnimation = () => {
-      clearInterval(progressInterval);
+        // Reset the flag after 3 seconds
+        setTimeout(() => {
+          setStatsUpdated(false);
+        }, 3000);
+      }
     };
     
     try {
@@ -327,20 +312,44 @@ const MatchManager: React.FC = () => {
       // Log initial data to help debug
       console.log('Initial process data:', initialData);
       
-      // If it's already running, incorporate any server progress info
-      if (initialData.progress) {
-        // Don't go backwards in progress
-        if (initialData.progress.percentComplete > 0) {
-          setUpdateProgress(prev => ({
-            ...prev,
-            percentComplete: Math.max(prev.percentComplete, initialData.progress.percentComplete),
-            currentStep: initialData.progress.currentStep || prev.currentStep,
-            steps: initialData.progress.steps || prev.steps
-          }));
-        }
-      }
-      
       // Start polling for progress
+      const STEP_MAPPING = {
+        'Updating Recent Performance': 'recent-performance',
+        'Updating All-Time Stats': 'all-time-stats',
+        'Updating Season Honours': 'season-honours',
+        'Updating Half & Full Season Stats': 'season-stats',
+        'Updating Match Report Cache': 'match-report'
+      };
+      
+      const REVERSE_STEP_MAPPING = {
+        'recent-performance': 'Updating Recent Performance',
+        'all-time-stats': 'Updating All-Time Stats',
+        'season-honours': 'Updating Season Honours',
+        'season-stats': 'Updating Half & Full Season Stats',
+        'match-report': 'Updating Match Report Cache'
+      };
+      
+      // Determine progress percentage from completed steps array
+      const calculateProgressFromSteps = (completedSteps: string[], currentStep: string | null) => {
+        const allSteps = Object.keys(REVERSE_STEP_MAPPING); 
+        const totalSteps = allSteps.length;
+        
+        if (completedSteps.length === totalSteps) {
+          return 100;
+        }
+        
+        // Calculate base percentage from completed steps
+        const basePercentage = Math.floor((completedSteps.length / totalSteps) * 100);
+        
+        // If there's a current step in progress, add partial completion
+        if (currentStep && !completedSteps.includes(currentStep)) {
+          // Add a portion for the current step
+          return Math.min(95, basePercentage + (1 / totalSteps) * 50);
+        }
+        
+        return basePercentage;
+      };
+      
       pollIntervalRef.current = setInterval(async () => {
         try {
           // Use fetch with timeout to avoid hanging
@@ -363,101 +372,44 @@ const MatchManager: React.FC = () => {
           if (pollResponse.ok) {
             const progressData = await pollResponse.json();
             
-            // For debugging
+            // For debugging - using database-backed state structure
             console.log('Server progress update:', {
               step: progressData.currentStep,
               percent: progressData.percentComplete,
               isRunning: progressData.isRunning,
-              steps: progressData.steps?.length || 0
+              completedSteps: progressData.completedSteps?.length || 0
             });
             
-            // If the server reports meaningful progress, incorporate it (but don't go backwards)
-            if (progressData.currentStep || progressData.percentComplete > 0) {
-              // Keep track of completed steps historically
-              setCompletedSteps(prev => {
-                // Find current step index in steps array
-                const currentStepIndex = progressData.steps?.indexOf(progressData.currentStep) ?? -1;
-                
-                // Mark all steps up to current as completed
-                const newCompletedSteps = [...prev];
-                if (currentStepIndex > -1 && progressData.steps) {
-                  for (let i = 0; i < currentStepIndex; i++) {
-                    if (!newCompletedSteps.includes(progressData.steps[i])) {
-                      newCompletedSteps.push(progressData.steps[i]);
-                    }
-                  }
-                }
-                
-                return newCompletedSteps;
-              });
-              
-              setUpdateProgress(prev => ({
-                ...prev,
-                percentComplete: Math.max(prev.percentComplete, progressData.percentComplete),
-                currentStep: progressData.currentStep || prev.currentStep,
-                steps: progressData.steps || prev.steps
-              }));
+            // Calculate progress percentage from completed steps
+            const percent = calculateProgressFromSteps(
+              progressData.completedSteps || [], 
+              progressData.currentStep ? STEP_MAPPING[progressData.currentStep] : null
+            );
+            
+            // Map DB step ID to display name if needed
+            let displayStep = progressData.currentStep;
+            if (progressData.currentStep && REVERSE_STEP_MAPPING[progressData.currentStep]) {
+              displayStep = REVERSE_STEP_MAPPING[progressData.currentStep];
             }
             
+            // Update UI with current state
+            setUpdateProgress(prev => ({
+              ...prev,
+              percentComplete: Math.max(prev.percentComplete, percent),
+              currentStep: displayStep || prev.currentStep
+            }));
+            
             // If process is complete or errored, stop polling
-            if (!progressData.isRunning) {
-              // Clean up all timers
-              if (pollIntervalRef.current) {
-                clearInterval(pollIntervalRef.current);
-                pollIntervalRef.current = null;
-              }
-              
-              cleanupAnimation();
-              
-              // Clear the max duration failsafe
-              clearTimeout(maxDurationTimer);
-              
-              // Complete progress to 100%
-              setUpdateProgress(prev => ({
-                ...prev,
-                percentComplete: 100,
-                currentStep: 'Complete'
-              }));
-              
-              // Give a slight delay before removing the progress modal
+            if (!progressData.isRunning || progressData.completedSteps?.length === 5) {
+              // Process is complete
               setTimeout(() => {
-                // Only now set polling to false to remove progress modal
-                setUpdateProgress(prev => ({ ...prev, isPolling: false }));
-                setIsUpdatingStats(false);
+                cleanupProcess(!progressData.error);
                 
                 if (progressData.error) {
-                  // Extract more detailed error information if available
-                  let errorDetails = progressData.error;
-                  let userMessage = `Update failed: ${progressData.error}`;
-                  
-                  // Check for transaction timeout errors
-                  if (errorDetails.includes('Transaction API error') && 
-                      (errorDetails.includes('transaction was 5000 ms') || 
-                       errorDetails.includes('expired transaction'))) {
-                    userMessage = 'The database operation timed out. Please try again when the server is less busy.';
-                    console.error(`Transaction timeout error. Server-side fix required: Increase Prisma transaction timeout beyond 5000ms.`);
-                  } else 
-                  if (errorDetails.includes('SQL error') || errorDetails.includes('Prisma')) {
-                    // Show a more user-friendly message for database errors
-                    userMessage = `Database operation error. Please contact an administrator.`;
-                    console.error(`SQL Error details: ${progressData.error}`);
-                  }
-                  
-                  // Set the error message
-                  setError(userMessage);
-                  
-                  // Only show error notifications
-                  showNotification('Update Failed', userMessage, 'error');
-                } else {
-                  // Set a flag to indicate successful stats update (will be used to style the button)
-                  setStatsUpdated(true);
-                  
-                  // Reset the flag after 3 seconds
-                  setTimeout(() => {
-                    setStatsUpdated(false);
-                  }, 3000);
+                  setError(`Update failed: ${progressData.error}`);
+                  showNotification('Update Failed', `Update failed: ${progressData.error}`, 'error');
                 }
-              }, 1000); // Slightly longer delay to show 100% completion
+              }, 1000);
             }
           }
         } catch (pollError) {
@@ -466,14 +418,7 @@ const MatchManager: React.FC = () => {
           // If polling fails, we still need to make sure the UI doesn't get stuck
           setTimeout(() => {
             if (updateProgress.percentComplete >= 95) {
-              // Only now set polling to false to remove progress modal
-              setUpdateProgress(prev => ({ 
-                ...prev, 
-                isPolling: false,
-                percentComplete: 100,
-                currentStep: 'Complete'
-              }));
-              setIsUpdatingStats(false);
+              cleanupProcess();
             }
           }, 10000); // 10 second failsafe to prevent stuck UI
         }
@@ -482,10 +427,12 @@ const MatchManager: React.FC = () => {
     } catch (error) {
       console.error('Error updating stats:', error);
       
-      // Clean up animation
-      cleanupAnimation();
+      // Clean up all timers
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
       
-      // Clear the max duration failsafe
       clearTimeout(maxDurationTimer);
       
       let errorMessage = 'Failed to update stats';
