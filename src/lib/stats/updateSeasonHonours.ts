@@ -318,6 +318,8 @@ export async function updateSeasonHonours(
                 await tx.aggregated_records.deleteMany({});
                 
                 await tx.$executeRaw(Prisma.raw(recordsSQL));
+            }, {
+                timeout: 60000 // 60 second timeout for this transaction
             });
         }
 

@@ -135,8 +135,8 @@ export const useTeamAlgorithm = () => {
       }));
       setCurrentSlots(hiddenSlots);
       
-      // Simple progress indicator
-      setBalanceProgress(50);
+      // Progress indicator - using percentage values (0-100)
+      setBalanceProgress(25); // Starting
       
       // Get the correct match ID (prioritize upcoming_match_id)
       const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
@@ -150,6 +150,8 @@ export const useTeamAlgorithm = () => {
         throw new Error('Please select at least 2 players in the player pool before balancing');
       }
       
+      setBalanceProgress(50); // Processing
+      
       // Use the appropriate balancing method
       let result;
       
@@ -162,6 +164,8 @@ export const useTeamAlgorithm = () => {
         // The server already knows to use players from the pool
         result = await TeamBalanceService.balanceTeams(matchId);
       }
+      
+      setBalanceProgress(75); // Almost done
         
       // Mark as balanced
       setIsBalanced(true);
@@ -169,12 +173,13 @@ export const useTeamAlgorithm = () => {
       // Refresh data to get updated team assignments
       await refreshMatchData();
       
+      setBalanceProgress(100); // Complete
+      
     } catch (error) {
       console.error('Error balancing teams:', error);
       setError(`${error instanceof Error ? error.message : String(error)}`);
       setBalanceProgress(0); // Reset progress on error
     } finally {
-      setBalanceProgress(100);
       // Delay clearing the progress bar to give a sense of completion
       setTimeout(() => {
         setBalanceProgress(0);

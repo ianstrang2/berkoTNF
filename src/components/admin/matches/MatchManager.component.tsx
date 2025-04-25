@@ -60,6 +60,7 @@ const MatchManager: React.FC = () => {
     percentComplete: 0,
     isPolling: false
   });
+  const [statsUpdated, setStatsUpdated] = useState<boolean>(false);
   
   // Reference to polling interval to clean up on unmount
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -386,8 +387,16 @@ const MatchManager: React.FC = () => {
                   // Set the error message
                   setError(userMessage);
                   
-                  // Only show error notifications, success is shown by progress bar completing
+                  // Only show error notifications
                   showNotification('Update Failed', userMessage, 'error');
+                } else {
+                  // Set a flag to indicate successful stats update (will be used to style the button)
+                  setStatsUpdated(true);
+                  
+                  // Reset the flag after 3 seconds
+                  setTimeout(() => {
+                    setStatsUpdated(false);
+                  }, 3000);
                 }
               }, 1000); // Slightly longer delay to show 100% completion
             }
@@ -874,9 +883,24 @@ const MatchManager: React.FC = () => {
                   type="button"
                   onClick={() => setShowStatsModal(true)}
                   disabled={isUpdatingStats}
-                  className="text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 rounded-lg shadow-soft-sm px-4 py-2 font-medium text-center uppercase align-middle transition-all cursor-pointer text-xs"
+                  className={`flex items-center px-4 py-2 font-medium text-center uppercase align-middle transition-all rounded-lg shadow-soft-sm cursor-pointer text-xs ${
+                    statsUpdated 
+                      ? 'bg-gradient-to-tl from-green-600 to-lime-400 text-white' 
+                      : 'text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50'
+                  }`}
                 >
-                  {isUpdatingStats ? 'Updating...' : 'Update Stats'}
+                  {isUpdatingStats ? (
+                    'Updating...'
+                  ) : statsUpdated ? (
+                    <>
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
+                      </svg>
+                      Updated!
+                    </>
+                  ) : (
+                    'Update Stats'
+                  )}
                 </button>
               </div>
             </form>

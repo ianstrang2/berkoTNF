@@ -405,19 +405,28 @@ export async function updateHalfAndFullSeasonStats(
         });
       }
     } else {
-      // Create a transaction for the operations
-      await prisma.$transaction([
-        prisma.aggregated_half_season_stats.deleteMany({}),
-        ...(halfSeasonData.length > 0 ? [prisma.aggregated_half_season_stats.createMany({
-          data: halfSeasonData,
-          skipDuplicates: true,
-        })] : []),
-        prisma.aggregated_season_stats.deleteMany({}),
-        ...(fullSeasonData.length > 0 ? [prisma.aggregated_season_stats.createMany({
-          data: fullSeasonData,
-          skipDuplicates: true,
-        })] : []),
-      ]);
+      // Create a transaction for the operations using interactive transaction approach
+      await prisma.$transaction(async (tx) => {
+        await tx.aggregated_half_season_stats.deleteMany({});
+        
+        if (halfSeasonData.length > 0) {
+          await tx.aggregated_half_season_stats.createMany({
+            data: halfSeasonData,
+            skipDuplicates: true,
+          });
+        }
+        
+        await tx.aggregated_season_stats.deleteMany({});
+        
+        if (fullSeasonData.length > 0) {
+          await tx.aggregated_season_stats.createMany({
+            data: fullSeasonData,
+            skipDuplicates: true,
+          });
+        }
+      }, {
+        timeout: 60000 // 60 second timeout for this transaction
+      });
     }
 
     const endTime = Date.now();

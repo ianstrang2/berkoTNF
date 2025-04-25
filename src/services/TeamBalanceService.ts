@@ -186,8 +186,11 @@ export class TeamBalanceService {
     // Calculate percentage for display purposes (higher is better)
     const balancePercentage = Math.min(100, Math.max(0, Math.round(100 - (balanceScore * 100))));
     
-    // For debugging - display balance score to console
-    console.log(`Team Balance Score: ${balanceScore.toFixed(3)}, Balance Percentage: ${balancePercentage}%`);
+    // Only log in development environment to avoid noise
+    if (process.env.NODE_ENV === 'development') {
+      // Note: This may be called multiple times due to React's rendering cycle
+      console.log(`Team Balance Score: ${balanceScore.toFixed(3)}, Balance Percentage: ${balancePercentage}%`);
+    }
     
     return {
       diffs,

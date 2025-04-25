@@ -118,7 +118,7 @@ export async function POST(request: Request) {
         await updateMatchReportCache(tx);
       },
       {
-        timeout: 30000 // Increase timeout to 30 seconds
+        timeout: 120000 // Increase timeout to 120 seconds (2 minutes)
       }
     );
 

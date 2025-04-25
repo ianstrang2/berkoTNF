@@ -282,12 +282,12 @@ const NewTeamAlgorithm: React.FC = () => {
         <div className="mb-6 w-full max-w-md">
           <div className="flex justify-between items-center mb-1">
             <span className="text-xs font-medium text-slate-500">Balancing teams...</span>
-            <span className="text-xs font-medium text-slate-700">{Math.round(balanceProgress * 100)}%</span>
+            <span className="text-xs font-medium text-slate-700">{Math.round(balanceProgress)}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-gradient-to-tl from-purple-700 to-pink-500 h-2 rounded-full"
-              style={{ width: `${balanceProgress * 100}%` }}
+              style={{ width: `${balanceProgress}%` }}
             ></div>
           </div>
         </div>

@@ -220,13 +220,27 @@ export async function updateAllTimeStats(
                 await tx.aggregated_hall_of_fame.createMany({ data: hallOfFameData });
             }
         } else {
-            // Use transaction to ensure atomicity
-            await prisma.$transaction([
-                prisma.aggregated_all_time_stats.deleteMany({}),
-                ...(allTimeStatsData.length > 0 ? [prisma.aggregated_all_time_stats.createMany({ data: allTimeStatsData })] : []),
-                prisma.aggregated_hall_of_fame.deleteMany({}),
-                ...(hallOfFameData.length > 0 ? [prisma.aggregated_hall_of_fame.createMany({ data: hallOfFameData })] : []),
-            ]);
+            // Use interactive transaction to ensure atomicity and allow timeout
+            await prisma.$transaction(async (tx) => {
+                // Clear existing data
+                await tx.aggregated_all_time_stats.deleteMany({});
+                await tx.aggregated_hall_of_fame.deleteMany({});
+                
+                // Insert new data if available
+                if (allTimeStatsData.length > 0) {
+                    await tx.aggregated_all_time_stats.createMany({ 
+                        data: allTimeStatsData 
+                    });
+                }
+                
+                if (hallOfFameData.length > 0) {
+                    await tx.aggregated_hall_of_fame.createMany({ 
+                        data: hallOfFameData 
+                    });
+                }
+            }, {
+                timeout: 60000 // 60 second timeout for this transaction
+            });
         }
 
         const endTime = Date.now();
