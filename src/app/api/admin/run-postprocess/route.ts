@@ -37,8 +37,8 @@ const PROCESS_STEPS = [
   }
 ];
 
-// In-memory progress tracking (will reset on server restart)
-// Let's add a request ID and timestamps to better track execution flow
+// This is still used for logs and immediate response,
+// but now we'll also store state in the database
 let progressStatus = {
   currentStep: '',
   percentComplete: 0,
@@ -50,8 +50,8 @@ let progressStatus = {
   error: null as string | null,
   completedSteps: [] as string[],
   executionLog: [] as {timestamp: string, message: string}[],
-  stepAttempts: {} as Record<string, number>, // Track attempts per step
-  activeStepStartTime: null as number | null // Track when the current step started
+  stepAttempts: {} as Record<string, number>,
+  activeStepStartTime: null as number | null
 };
 
 // Helper to add a log entry with timestamp
@@ -68,8 +68,8 @@ function addExecutionLog(message: string) {
 }
 
 // Helper function to calculate total progress percentage
-function calculateProgress() {
-  if (progressStatus.completedSteps.length === 0) {
+function calculateProgress(completedSteps: string[]) {
+  if (completedSteps.length === 0) {
     return 0;
   }
   
@@ -78,7 +78,7 @@ function calculateProgress() {
   
   PROCESS_STEPS.forEach(step => {
     totalWeight += step.weight;
-    if (progressStatus.completedSteps.includes(step.id)) {
+    if (completedSteps.includes(step.id)) {
       completedWeight += step.weight;
     }
   });
@@ -86,39 +86,134 @@ function calculateProgress() {
   return Math.round((completedWeight / totalWeight) * 100);
 }
 
+// Get process state from database
+async function getProcessState() {
+  try {
+    // Get the latest state - table already exists in Supabase
+    const state = await prisma.$queryRaw`
+      SELECT * FROM process_state WHERE id = 'stats_update' LIMIT 1
+    `;
+    
+    if (state && state[0]) {
+      // Convert database record to our state format
+      return {
+        isRunning: state[0].is_running,
+        requestId: state[0].request_id,
+        currentStep: state[0].current_step || '',
+        completedSteps: state[0].completed_steps || [],
+        error: state[0].error,
+        startTime: state[0].start_time,
+        lastUpdateTime: state[0].last_update_time,
+        stepAttempts: state[0].step_attempts || {}
+      };
+    }
+    
+    // If no state exists, return default
+    return {
+      isRunning: false,
+      requestId: null,
+      currentStep: '',
+      completedSteps: [],
+      error: null,
+      startTime: null,
+      lastUpdateTime: null,
+      stepAttempts: {}
+    };
+  } catch (error) {
+    console.error('Error getting process state:', error);
+    // Fall back to default state if DB read fails
+    return {
+      isRunning: false,
+      requestId: null,
+      currentStep: '',
+      completedSteps: [],
+      error: null,
+      startTime: null,
+      lastUpdateTime: null,
+      stepAttempts: {}
+    };
+  }
+}
+
+// Update process state in database
+async function updateProcessState(state: {
+  isRunning: boolean;
+  requestId: string | null;
+  currentStep: string;
+  completedSteps: string[];
+  error: string | null;
+  startTime: string | Date | null;
+  lastUpdateTime: string | Date | null;
+  stepAttempts: Record<string, any>;
+}) {
+  try {
+    // Use upsert to create or update the state
+    await prisma.$executeRaw`
+      INSERT INTO process_state (
+        id, is_running, request_id, current_step, completed_steps, 
+        error, start_time, last_update_time, step_attempts
+      ) VALUES (
+        'stats_update', ${state.isRunning}, ${state.requestId}, ${state.currentStep}, 
+        ${state.completedSteps}::TEXT[], ${state.error}, 
+        ${state.startTime ? new Date(state.startTime) : null}, 
+        ${state.lastUpdateTime ? new Date(state.lastUpdateTime) : null},
+        ${JSON.stringify(state.stepAttempts)}::JSONB
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        is_running = ${state.isRunning},
+        request_id = ${state.requestId},
+        current_step = ${state.currentStep},
+        completed_steps = ${state.completedSteps}::TEXT[],
+        error = ${state.error},
+        start_time = ${state.startTime ? new Date(state.startTime) : null},
+        last_update_time = ${state.lastUpdateTime ? new Date(state.lastUpdateTime) : null},
+        step_attempts = ${JSON.stringify(state.stepAttempts)}::JSONB
+    `;
+    return true;
+  } catch (error) {
+    console.error('Error updating process state:', error);
+    return false;
+  }
+}
+
 // Add GET endpoint to check progress
 export async function GET(request: Request) {
-  const progress = calculateProgress();
+  // Get the latest state from the database
+  const dbState = await getProcessState();
   
-  // Check for potential stalled process
-  if (progressStatus.isRunning && progressStatus.lastUpdateTime) {
-    const lastUpdateTime = new Date(progressStatus.lastUpdateTime).getTime();
+  // Update our in-memory status based on DB state
+  progressStatus.isRunning = dbState.isRunning;
+  progressStatus.currentStep = dbState.currentStep;
+  progressStatus.completedSteps = dbState.completedSteps;
+  progressStatus.requestId = dbState.requestId;
+  progressStatus.error = dbState.error;
+  progressStatus.startTime = dbState.startTime;
+  progressStatus.lastUpdateTime = dbState.lastUpdateTime;
+  progressStatus.stepAttempts = dbState.stepAttempts;
+  
+  // Calculate progress percentage based on completed steps
+  const progress = calculateProgress(dbState.completedSteps);
+  
+  // Check for potential stalled process using the DB state
+  if (dbState.isRunning && dbState.lastUpdateTime) {
+    const lastUpdateTime = new Date(dbState.lastUpdateTime).getTime();
     const currentTime = Date.now();
     const elapsedSinceLastUpdate = (currentTime - lastUpdateTime) / 1000; // in seconds
     
-    // If no updates for over 30 seconds, consider it stalled
-    if (elapsedSinceLastUpdate > 30) {
+    // If no updates for over 60 seconds, consider it stalled
+    if (elapsedSinceLastUpdate > 60) {
       addExecutionLog(`Process appears stalled - no updates for ${elapsedSinceLastUpdate.toFixed(1)} seconds`);
-      progressStatus.error = `Process stalled: No updates for ${elapsedSinceLastUpdate.toFixed(1)} seconds`;
+      // Update the state in the database
+      await updateProcessState({
+        ...dbState,
+        isRunning: false,
+        error: `Process stalled: No updates for ${elapsedSinceLastUpdate.toFixed(1)} seconds`,
+        lastUpdateTime: new Date().toISOString()
+      });
+      
+      // Update our in-memory state too
       progressStatus.isRunning = false;
-    }
-    
-    // Check if current step is taking too long (2 minutes max per step)
-    if (progressStatus.activeStepStartTime) {
-      const stepElapsedTime = (Date.now() - progressStatus.activeStepStartTime) / 1000; // in seconds
-      if (stepElapsedTime > 120) { // 2 minutes
-        const currentStepId = PROCESS_STEPS.find(s => s.name === progressStatus.currentStep)?.id;
-        if (currentStepId) {
-          addExecutionLog(`Step ${progressStatus.currentStep} is taking too long (${stepElapsedTime.toFixed(0)} sec), considering it stalled`);
-          
-          // Force mark as completed and move on
-          if (!progressStatus.completedSteps.includes(currentStepId)) {
-            progressStatus.completedSteps.push(currentStepId);
-            progressStatus.activeStepStartTime = null;
-            // This will allow the next step to be processed
-          }
-        }
-      }
+      progressStatus.error = `Process stalled: No updates for ${elapsedSinceLastUpdate.toFixed(1)} seconds`;
     }
   }
 
@@ -143,24 +238,52 @@ function generateRequestId() {
 }
 
 // Trigger a step by its ID with proper completion tracking
-async function triggerStep(stepId: string, config: any) {
+async function triggerStep(stepId: string, config: any, dbState: any) {
   const step = PROCESS_STEPS.find(s => s.id === stepId);
   if (!step) {
     throw new Error(`Step ${stepId} not found`);
   }
   
-  // Update progress status
+  // Update progress status in memory and database
   progressStatus.currentStep = step.name;
-  progressStatus.activeStepStartTime = Date.now();
+  const currentTime = new Date().toISOString();
+  
+  // Update the database state
+  await updateProcessState({
+    ...dbState,
+    currentStep: step.name,
+    lastUpdateTime: currentTime
+  });
   
   // Track attempts for this step
-  progressStatus.stepAttempts[stepId] = (progressStatus.stepAttempts[stepId] || 0) + 1;
+  const stepAttempts = dbState.stepAttempts || {};
+  stepAttempts[stepId] = (stepAttempts[stepId] || 0) + 1;
+  
+  // Update step attempts in database
+  await updateProcessState({
+    ...dbState,
+    stepAttempts: stepAttempts
+  });
   
   // If we've tried this step too many times, skip it
-  if (progressStatus.stepAttempts[stepId] > 3) {
-    addExecutionLog(`Too many attempts (${progressStatus.stepAttempts[stepId]}) for step ${step.name}, skipping`);
-    progressStatus.completedSteps.push(stepId);
-    progressStatus.activeStepStartTime = null;
+  if (stepAttempts[stepId] > 3) {
+    addExecutionLog(`Too many attempts (${stepAttempts[stepId]}) for step ${step.name}, skipping`);
+    
+    // Mark as completed in the database
+    const completedSteps = [...dbState.completedSteps];
+    if (!completedSteps.includes(stepId)) {
+      completedSteps.push(stepId);
+    }
+    
+    await updateProcessState({
+      ...dbState,
+      completedSteps: completedSteps,
+      lastUpdateTime: currentTime
+    });
+    
+    // Update in-memory state too
+    progressStatus.completedSteps = completedSteps;
+    
     return { success: false, message: `Step ${step.name} skipped after multiple attempts` };
   }
   
@@ -186,11 +309,11 @@ async function triggerStep(stepId: string, config: any) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Request-ID': progressStatus.requestId || 'unknown'
+        'X-Request-ID': dbState.requestId || 'unknown'
       },
       body: JSON.stringify({ 
         config,
-        requestId: progressStatus.requestId
+        requestId: dbState.requestId
       }),
       signal: controller.signal
     });
@@ -219,17 +342,22 @@ async function triggerStep(stepId: string, config: any) {
       return jsonResponse;
     }
     
-    // Mark step as completed
-    if (!progressStatus.completedSteps.includes(stepId)) {
-      progressStatus.completedSteps.push(stepId);
+    // Mark step as completed in the database
+    const completedSteps = [...dbState.completedSteps];
+    if (!completedSteps.includes(stepId)) {
+      completedSteps.push(stepId);
     }
     
-    // Reset the active step time
-    progressStatus.activeStepStartTime = null;
+    await updateProcessState({
+      ...dbState,
+      completedSteps: completedSteps,
+      lastUpdateTime: currentTime
+    });
     
-    // Update overall progress
-    progressStatus.percentComplete = calculateProgress();
-    addExecutionLog(`Step ${step.name} completed successfully. Overall progress: ${progressStatus.percentComplete}%`);
+    // Update in-memory state too
+    progressStatus.completedSteps = completedSteps;
+    
+    addExecutionLog(`Step ${step.name} completed successfully. Overall progress: ${calculateProgress(completedSteps)}%`);
     
     return jsonResponse;
   } catch (error) {
@@ -249,18 +377,29 @@ async function triggerStep(stepId: string, config: any) {
 }
 
 // Process the next step in the chain with safety mechanisms
-async function processNextStep(config: any) {
-  addExecutionLog(`Processing next step. Completed steps: ${progressStatus.completedSteps.join(', ')}`);
+async function processNextStep(config: any, dbState: any) {
+  addExecutionLog(`Processing next step. Completed steps: ${dbState.completedSteps.join(', ')}`);
   
-  const completedIds = progressStatus.completedSteps;
+  const completedIds = dbState.completedSteps;
   const nextStep = PROCESS_STEPS.find(step => !completedIds.includes(step.id));
   
   if (!nextStep) {
     // All steps are complete!
-    progressStatus.percentComplete = 100;
-    progressStatus.currentStep = 'Complete';
+    const finalState = {
+      ...dbState,
+      isRunning: false,
+      currentStep: 'Complete',
+      lastUpdateTime: new Date().toISOString()
+    };
+    
+    // Update the database
+    await updateProcessState(finalState);
+    
+    // Update in-memory state too
     progressStatus.isRunning = false;
-    progressStatus.activeStepStartTime = null;
+    progressStatus.currentStep = 'Complete';
+    progressStatus.percentComplete = 100;
+    
     addExecutionLog('All steps completed successfully!');
     return { success: true, message: 'All steps completed successfully' };
   }
@@ -270,40 +409,43 @@ async function processNextStep(config: any) {
   // Skip steps that don't have an endpoint (they're handled manually in the main function)
   if (!nextStep.endpoint) {
     addExecutionLog(`Step ${nextStep.id} has no endpoint but wasn't marked as completed`);
-    progressStatus.completedSteps.push(nextStep.id);
-    return processNextStep(config);
+    
+    // Mark as completed in the database
+    const completedSteps = [...dbState.completedSteps];
+    completedSteps.push(nextStep.id);
+    
+    await updateProcessState({
+      ...dbState,
+      completedSteps: completedSteps,
+      lastUpdateTime: new Date().toISOString()
+    });
+    
+    // Get updated state from database before continuing
+    const updatedState = await getProcessState();
+    return processNextStep(config, updatedState);
   }
   
   try {
-    // Trigger the next step
-    const stepResult = await triggerStep(nextStep.id, config);
+    // Trigger the next step with the current DB state
+    const stepResult = await triggerStep(nextStep.id, config, dbState);
+    
+    // Get latest state from database before proceeding
+    const latestState = await getProcessState();
     
     // Skip to the next step if this one is complete
     // But don't if the step returned inProgress flag
     if (!stepResult.inProgress) {
-      // Process the next step in the chain
-      return await processNextStep(config);
+      // Process the next step in the chain with latest state
+      return await processNextStep(config, latestState);
     } else {
       // We'll check again later
-      addExecutionLog(`Step ${nextStep.name} is still processing, will check again later`);
+      addExecutionLog(`Step ${nextStep.name} is still processing, will reschedule check`);
       
-      // Schedule a check in 5 seconds
-      setTimeout(() => {
-        // Only restart processing if we're still running
-        if (progressStatus.isRunning) {
-          addExecutionLog(`Restarting process chain after waiting for in-progress step ${nextStep.name}`);
-          processNextStep(config).catch(error => {
-            const errorMessage = error instanceof Error 
-              ? `${error.name}: ${error.message}` 
-              : 'Unknown error';
-            addExecutionLog(`Error during retry of process chain: ${errorMessage}`);
-          });
-        }
-      }, 5000);
-      
+      // We need to use a webhook or external function to schedule the check
+      // For now, we'll just return and rely on client polling to trigger the recheck
       return { 
         success: true, 
-        message: `Step ${nextStep.name} is in progress, will check again later`
+        message: `Step ${nextStep.name} is in progress, client will need to recheck`
       };
     }
   } catch (error) {
@@ -313,92 +455,153 @@ async function processNextStep(config: any) {
       
     addExecutionLog(`Error in step ${nextStep.name}: ${errorMessage}`);
     
+    // Get fresh state from database
+    const latestState = await getProcessState();
+    
     // Increment retry count for this step
-    progressStatus.stepAttempts[nextStep.id] = (progressStatus.stepAttempts[nextStep.id] || 0) + 1;
+    const stepAttempts = latestState.stepAttempts || {};
+    stepAttempts[nextStep.id] = (stepAttempts[nextStep.id] || 0) + 1;
+    
+    // Update attempts in the database
+    await updateProcessState({
+      ...latestState,
+      stepAttempts: stepAttempts,
+      lastUpdateTime: new Date().toISOString()
+    });
     
     // If we've tried too many times, mark as error and move on
-    if (progressStatus.stepAttempts[nextStep.id] > 3) {
-      addExecutionLog(`Too many errors (${progressStatus.stepAttempts[nextStep.id]}) for step ${nextStep.name}, marking as completed and moving on`);
-      progressStatus.completedSteps.push(nextStep.id);
+    if (stepAttempts[nextStep.id] > 3) {
+      addExecutionLog(`Too many errors (${stepAttempts[nextStep.id]}) for step ${nextStep.name}, marking as completed and moving on`);
       
-      // Continue with next step instead of failing the whole process
-      return processNextStep(config);
+      // Mark as completed in the database
+      const completedSteps = [...latestState.completedSteps];
+      if (!completedSteps.includes(nextStep.id)) {
+        completedSteps.push(nextStep.id);
+      }
+      
+      await updateProcessState({
+        ...latestState,
+        completedSteps: completedSteps,
+        lastUpdateTime: new Date().toISOString()
+      });
+      
+      // Get fresh state and continue to next step
+      const updatedState = await getProcessState();
+      return processNextStep(config, updatedState);
     }
     
-    // If we haven't exceeded max retries yet, leave it unmarked so we'll try again
-    addExecutionLog(`Will retry step ${nextStep.name} later (attempt ${progressStatus.stepAttempts[nextStep.id]})`);
-    
-    // Schedule a retry
-    setTimeout(() => {
-      // Only restart processing if we're still running
-      if (progressStatus.isRunning) {
-        addExecutionLog(`Restarting process chain to retry step ${nextStep.name}`);
-        processNextStep(config).catch(error => {
-          const errorMessage = error instanceof Error 
-            ? `${error.name}: ${error.message}` 
-            : 'Unknown error';
-          addExecutionLog(`Error during retry of process chain: ${errorMessage}`);
-        });
-      }
-    }, 5000);
+    // If we haven't exceeded max retries yet, schedule a retry
+    // We're in a serverless environment, so we can't use setTimeout
+    // We'll rely on the client polling to trigger the retry
+    addExecutionLog(`Will retry step ${nextStep.name} when client polls again (attempt ${stepAttempts[nextStep.id]})`);
     
     return { 
       success: false, 
-      message: `Step ${nextStep.name} failed but will be retried` 
+      message: `Step ${nextStep.name} failed but will be retried on next poll` 
     };
   }
 }
 
+// Process endpoint that runs a single step of the processing chain
+// This is vital for serverless environments where functions have time limits
 export async function POST(request: Request) {
-  addExecutionLog('POST request received to start processing');
+  addExecutionLog('POST request received to start or continue processing');
   
   try {
     const body = await request.json();
     const config = body.config || {};
-    addExecutionLog(`Request body: ${JSON.stringify(body)}`);
-
-    // Check if process was already initiated recently
-    const hasRecentProcessing = progressStatus.startTime && 
-      (Date.now() - new Date(progressStatus.startTime as string).getTime() < 60000);
+    const stepId = body.stepId; // Optional specific step to process
+    
+    addExecutionLog(`Request body: ${JSON.stringify({...body, config: '...'})}`);
+    
+    // Get the latest process state from the database
+    const dbState = await getProcessState();
+    
+    // If continuing an existing process...
+    if (dbState.isRunning && dbState.requestId) {
+      addExecutionLog(`Continuing existing process with ID ${dbState.requestId}`);
       
-    // Don't allow starting the process if it's already running or was just started
-    if (progressStatus.isRunning || hasRecentProcessing) {
-      addExecutionLog(`Process is already running or was recently initiated. isRunning: ${progressStatus.isRunning}, startTime: ${progressStatus.startTime}`);
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Process is already running or was recently initiated',
-        status: progressStatus
-      }, { status: 409 });
+      // If a specific step was requested
+      if (stepId) {
+        const step = PROCESS_STEPS.find(s => s.id === stepId);
+        if (!step) {
+          return NextResponse.json({ 
+            success: false, 
+            message: `Step ${stepId} not found` 
+          }, { status: 400 });
+        }
+        
+        addExecutionLog(`Executing specific step: ${step.name}`);
+        const result = await triggerStep(stepId, config, dbState);
+        
+        // After step completes, trigger the next step if there is one
+        const updatedState = await getProcessState();
+        if (updatedState.isRunning) {
+          // Don't wait for this promise to resolve - let it run in the background
+          processNextStep(config, updatedState).catch(processError => {
+            console.error('Error continuing process chain:', processError);
+          });
+        }
+        
+        return NextResponse.json({
+          success: true,
+          message: `Step ${step.name} executed`,
+          status: {
+            ...updatedState,
+            percentComplete: calculateProgress(updatedState.completedSteps)
+          }
+        });
+      }
+      
+      // Continue the process chain from the current state
+      // Don't wait for this to complete - return quickly
+      processNextStep(config, dbState).catch(processError => {
+        console.error('Error continuing process chain:', processError);
+      });
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Processing continues in background',
+        status: {
+          ...dbState,
+          percentComplete: calculateProgress(dbState.completedSteps)
+        }
+      });
     }
-
-    // Reset progress status
+    
+    // Starting a new process...
+    // Reset process state
     const requestId = generateRequestId();
+    const newState = {
+      isRunning: true,
+      requestId: requestId,
+      currentStep: 'Starting...',
+      completedSteps: [],
+      error: null,
+      startTime: new Date().toISOString(),
+      lastUpdateTime: new Date().toISOString(),
+      stepAttempts: {}
+    };
+    
+    // Update the database
+    await updateProcessState(newState);
+    
+    // Update in-memory state too
     progressStatus.isRunning = true;
-    progressStatus.startTime = new Date().toISOString();
-    progressStatus.lastUpdateTime = new Date().toISOString();
-    progressStatus.percentComplete = 0;
+    progressStatus.requestId = requestId;
+    progressStatus.currentStep = 'Starting...';
     progressStatus.completedSteps = [];
     progressStatus.error = null;
-    progressStatus.currentStep = 'Starting...';
-    progressStatus.requestId = requestId;
-    progressStatus.executionLog = [];
+    progressStatus.startTime = newState.startTime;
+    progressStatus.lastUpdateTime = newState.lastUpdateTime;
     progressStatus.stepAttempts = {};
-    progressStatus.activeStepStartTime = null;
     
     addExecutionLog(`Starting processing chain with request ID: ${requestId}`);
     
     // Start the processing chain asynchronously
-    Promise.resolve().then(() => {
-      return processNextStep(config).catch(error => {
-        const errorMessage = error instanceof Error 
-          ? `${error.name}: ${error.message}` 
-          : 'Unknown error';
-          
-        addExecutionLog(`Process failed: ${errorMessage}`);
-        progressStatus.isRunning = false;
-        progressStatus.activeStepStartTime = null;
-        progressStatus.error = error instanceof Error ? error.message : 'Unknown error';
-      });
+    // Don't wait for this promise to resolve
+    processNextStep(config, newState).catch(processError => {
+      console.error('Error starting process chain:', processError);
     });
 
     addExecutionLog('Returning initial success response to client');
@@ -406,14 +609,17 @@ export async function POST(request: Request) {
       success: true,
       message: 'Process started successfully',
       requestId: requestId,
-      status: progressStatus
+      status: {
+        ...newState,
+        percentComplete: 0
+      }
     });
   } catch (error) {
     const errorMessage = error instanceof Error 
       ? `${error.name}: ${error.message}` 
       : 'Unknown error';
       
-    addExecutionLog(`Error starting process: ${errorMessage}`);
+    addExecutionLog(`Error starting/continuing process: ${errorMessage}`);
     return NextResponse.json({
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error'
