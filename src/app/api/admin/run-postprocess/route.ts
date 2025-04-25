@@ -215,6 +215,36 @@ export async function GET(request: Request) {
       progressStatus.isRunning = false;
       progressStatus.error = `Process stalled: No updates for ${elapsedSinceLastUpdate.toFixed(1)} seconds`;
     }
+    
+    // SERVERLESS FIX: If the process is stuck in "Starting..." step for too long, nudge it along to the first step
+    // This helps with Vercel serverless functions that might terminate before proceeding to the first step
+    if (dbState.isRunning && dbState.currentStep === 'Starting...' && dbState.completedSteps.length === 0 && elapsedSinceLastUpdate > 5) {
+      addExecutionLog(`Process appears stuck at Starting... for ${elapsedSinceLastUpdate.toFixed(1)} seconds. Nudging to first step.`);
+      
+      // Find the first step
+      const firstStep = PROCESS_STEPS[0];
+      if (firstStep) {
+        try {
+          // Manually trigger the first step
+          addExecutionLog(`Triggering first step: ${firstStep.name}`);
+          await triggerStep(firstStep.id, {}, dbState);
+          
+          // Update the state to reflect that we're attempting to move forward
+          await updateProcessState({
+            ...dbState,
+            lastUpdateTime: new Date().toISOString()
+          });
+          
+          // Do not await the process chain - let polling handle it
+          processNextStep({}, dbState).catch(error => {
+            console.error(`Error continuing process after nudge: ${error}`);
+          });
+        } catch (error) {
+          console.error(`Error nudging process to first step: ${error}`);
+          // Don't fail the polling request if the nudge fails
+        }
+      }
+    }
   }
 
   console.log('[run-postprocess GET] Returning current progress status:', {
@@ -262,7 +292,8 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
   // Update step attempts in database
   await updateProcessState({
     ...dbState,
-    stepAttempts: stepAttempts
+    stepAttempts: stepAttempts,
+    lastUpdateTime: currentTime
   });
   
   // If we've tried this step too many times, skip it
@@ -365,6 +396,37 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
     
     const jsonResponse = await response.json();
     
+    // Special case for update-recent-performance endpoint
+    if (step.endpoint.includes('update-recent-performance')) {
+      addExecutionLog(`Processing special case for update-recent-performance endpoint`);
+      
+      // If we receive a success message, mark it as completed
+      if (jsonResponse.success) {
+        addExecutionLog(`update-recent-performance returned success: ${JSON.stringify(jsonResponse)}`);
+        
+        // Mark step as completed in the database
+        const completedSteps = [...dbState.completedSteps];
+        if (!completedSteps.includes(stepId)) {
+          completedSteps.push(stepId);
+        }
+        
+        await updateProcessState({
+          ...dbState,
+          completedSteps: completedSteps,
+          lastUpdateTime: new Date().toISOString()
+        });
+        
+        // Update in-memory state too
+        progressStatus.completedSteps = completedSteps;
+        
+        return { 
+          ...jsonResponse,
+          completed: true,
+          inProgress: false 
+        };
+      }
+    }
+    
     // Check response for an "inProgress" flag which would indicate the step is still running
     if (jsonResponse.inProgress) {
       addExecutionLog(`Step ${step.name} is still in progress, will check again later`);
@@ -465,6 +527,16 @@ async function processNextStep(config: any, dbState: any) {
   }
   
   try {
+    // SERVERLESS FIX: First update the database to show we're about to trigger this step
+    // This ensures even if the function execution is terminated, we know which step we were trying to start
+    await updateProcessState({
+      ...dbState,
+      currentStep: nextStep.name,
+      lastUpdateTime: new Date().toISOString()
+    });
+    
+    addExecutionLog(`Database updated to show we're starting step: ${nextStep.name}`);
+    
     // Trigger the next step with the current DB state
     const stepResult = await triggerStep(nextStep.id, config, dbState);
     
@@ -483,6 +555,14 @@ async function processNextStep(config: any, dbState: any) {
     } else {
       // We'll check again later
       addExecutionLog(`Step ${nextStep.name} is still processing, will reschedule check`);
+      
+      // SERVERLESS FIX: Make sure the database shows we're in this step
+      // This is crucial in case the GET polling needs to continue the chain
+      await updateProcessState({
+        ...latestState,
+        currentStep: nextStep.name,
+        lastUpdateTime: new Date().toISOString()
+      });
       
       // We need to use a webhook or external function to schedule the check
       // For now, we'll just return and rely on client polling to trigger the recheck

@@ -91,6 +91,10 @@ const MatchManager: React.FC = () => {
     }
   ];
   
+  // Create lookup maps for step IDs to names and vice versa
+  const STEP_ID_TO_NAME = Object.fromEntries(PROCESS_STEPS.map(step => [step.id, step.name]));
+  const STEP_NAME_TO_ID = Object.fromEntries(PROCESS_STEPS.map(step => [step.name, step.id]));
+  
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress>({
     currentStep: '',
     percentComplete: 0,
@@ -290,6 +294,23 @@ const MatchManager: React.FC = () => {
       }
     };
     
+    // Helper function to calculate progress based on completed steps
+    const calculateProgressFromSteps = (completedSteps: string[]) => {
+      if (!completedSteps || completedSteps.length === 0) return 0;
+      
+      const totalWeight = PROCESS_STEPS.reduce((sum, step) => sum + step.weight, 0);
+      let completedWeight = 0;
+      
+      // Add up weights of completed steps
+      PROCESS_STEPS.forEach(step => {
+        if (completedSteps.includes(step.id)) {
+          completedWeight += step.weight;
+        }
+      });
+      
+      return Math.round((completedWeight / totalWeight) * 100);
+    };
+    
     try {
       // Start the update process with retry mechanism
       const maxRetries = 2;
@@ -342,43 +363,6 @@ const MatchManager: React.FC = () => {
       console.log('Initial process data:', initialData);
       
       // Start polling for progress
-      const STEP_MAPPING = {
-        'Updating Recent Performance': 'recent-performance',
-        'Updating All-Time Stats': 'all-time-stats',
-        'Updating Season Honours': 'season-honours',
-        'Updating Half & Full Season Stats': 'season-stats',
-        'Updating Match Report Cache': 'match-report'
-      };
-      
-      const REVERSE_STEP_MAPPING = {
-        'recent-performance': 'Updating Recent Performance',
-        'all-time-stats': 'Updating All-Time Stats',
-        'season-honours': 'Updating Season Honours',
-        'season-stats': 'Updating Half & Full Season Stats',
-        'match-report': 'Updating Match Report Cache'
-      };
-      
-      // Determine progress percentage from completed steps array
-      const calculateProgressFromSteps = (completedSteps: string[], currentStep: string | null) => {
-        const allSteps = Object.keys(REVERSE_STEP_MAPPING); 
-        const totalSteps = allSteps.length;
-        
-        if (completedSteps.length === totalSteps) {
-          return 100;
-        }
-        
-        // Calculate base percentage from completed steps
-        const basePercentage = Math.floor((completedSteps.length / totalSteps) * 100);
-        
-        // If there's a current step in progress, add partial completion
-        if (currentStep && !completedSteps.includes(currentStep)) {
-          // Add a portion for the current step
-          return Math.min(95, basePercentage + (1 / totalSteps) * 50);
-        }
-        
-        return basePercentage;
-      };
-      
       pollIntervalRef.current = setInterval(async () => {
         try {
           // Use fetch with timeout to avoid hanging
@@ -401,44 +385,55 @@ const MatchManager: React.FC = () => {
           if (pollResponse.ok) {
             const progressData = await pollResponse.json();
             
-            // For debugging - using database-backed state structure
-            console.log('Server progress update:', {
-              step: progressData.currentStep,
-              percent: progressData.percentComplete,
-              isRunning: progressData.isRunning,
-              completedSteps: progressData.completedSteps || [],
-              rawCurrentStep: progressData.currentStep,
-              displayName: REVERSE_STEP_MAPPING[progressData.currentStep]
-            });
+            // For debugging - log actual data structure from server
+            console.log('Raw server progress update:', progressData);
             
-            // Calculate progress percentage from completed steps
-            const percent = calculateProgressFromSteps(
-              progressData.completedSteps || [], 
-              progressData.currentStep ? STEP_MAPPING[progressData.currentStep] : null
-            );
+            // Get current visible step name (from step ID if needed)
+            let currentStepName = progressData.currentStep;
             
-            // Map DB step ID to display name if needed
-            let displayStep = progressData.currentStep;
-            if (progressData.currentStep && REVERSE_STEP_MAPPING[progressData.currentStep]) {
-              displayStep = REVERSE_STEP_MAPPING[progressData.currentStep];
-              console.log(`Mapped step ID '${progressData.currentStep}' to display name '${displayStep}'`);
-            } else {
-              console.log(`No mapping found for step ID '${progressData.currentStep}'`);
+            // If currentStep is a step ID, convert it to a name
+            if (progressData.currentStep && STEP_ID_TO_NAME[progressData.currentStep]) {
+              currentStepName = STEP_ID_TO_NAME[progressData.currentStep];
             }
+            
+            // Calculate progress based on completed steps (this matches server-side calculation)
+            const percent = calculateProgressFromSteps(progressData.completedSteps || []);
+            
+            // Debug the progress calculation
+            console.log('Progress calculation:', {
+              completedSteps: progressData.completedSteps || [],
+              calculatedPercent: percent,
+              serverPercent: progressData.percentComplete,
+              currentStep: currentStepName,
+              isRunning: progressData.isRunning
+            });
             
             // Update UI with current state
             setUpdateProgress(prev => ({
               ...prev,
-              percentComplete: Math.max(prev.percentComplete, percent),
-              currentStep: progressData.currentStep || prev.currentStep,
+              percentComplete: progressData.percentComplete || percent, // Prefer server's calculation
+              currentStep: progressData.currentStep || 'Processing...', // Keep the original currentStep (ID)
+              isPolling: true,
               completedSteps: progressData.completedSteps || [],
-              // Add the steps from the server directly (no mapping)
-              steps: PROCESS_STEPS.map(step => step.id)
+              error: progressData.error || null
             }));
             
-            // If process is complete or errored, stop polling
-            if (!progressData.isRunning || progressData.completedSteps?.length === 5) {
-              // Process is complete
+            // Check for process completion (two ways to detect):
+            // 1. isRunning flag is false
+            // 2. All steps are completed
+            const isComplete = 
+              !progressData.isRunning || 
+              (progressData.completedSteps && 
+               progressData.completedSteps.length === PROCESS_STEPS.length);
+            
+            if (isComplete) {
+              console.log('Process complete detected:', {
+                isRunning: progressData.isRunning,
+                completedStepsCount: progressData.completedSteps?.length,
+                totalSteps: PROCESS_STEPS.length
+              });
+              
+              // Slight delay to show 100% before closing
               setTimeout(() => {
                 cleanupProcess(!progressData.error);
                 
@@ -453,10 +448,17 @@ const MatchManager: React.FC = () => {
           console.error('Error polling for progress:', pollError);
           
           // If polling fails, we still need to make sure the UI doesn't get stuck
+          // This is a failsafe, not the primary mechanism
           setTimeout(() => {
-            if (updateProgress.percentComplete >= 95) {
-              cleanupProcess();
-            }
+            setUpdateProgress(prev => {
+              // Only trigger failsafe if we're still polling after 10s
+              if (prev.isPolling) {
+                cleanupProcess(false);
+                setError('Failed to get progress updates from server');
+                return { ...prev, isPolling: false };
+              }
+              return prev;
+            });
           }, 10000); // 10 second failsafe to prevent stuck UI
         }
       }, 1000); // Poll every second
