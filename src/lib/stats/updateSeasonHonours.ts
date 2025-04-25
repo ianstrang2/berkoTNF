@@ -1,7 +1,6 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { AppConfig } from '../config';
-
-const prisma = new PrismaClient();
+import { prisma } from '../prisma';
 
 // Default values (should be overridden by config)
 const DEFAULT_MIN_GAMES_HONOURS = 10;

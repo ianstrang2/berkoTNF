@@ -1,7 +1,6 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { AppConfig } from '../config';
-
-const prisma = new PrismaClient();
+import { prisma } from '../prisma';
 
 /**
  * Interface for player match history used in streak calculations.

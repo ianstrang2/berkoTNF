@@ -1,6 +1,5 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Prisma, PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 
 // Define the structure for the last_5_games JSON blob
 interface LastGameInfo {

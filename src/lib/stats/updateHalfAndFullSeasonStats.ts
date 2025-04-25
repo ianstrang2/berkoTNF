@@ -1,7 +1,6 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { AppConfig } from '@/lib/config';
-
-const prisma = new PrismaClient();
+import { prisma } from '../prisma';
 
 // Helper function to calculate fantasy points based on config
 function calculateFantasyPoints(

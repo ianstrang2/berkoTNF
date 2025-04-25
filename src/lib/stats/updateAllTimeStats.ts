@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { AppConfig } from '../config';
 // Import shared helpers and types
 import {
@@ -7,8 +7,7 @@ import {
     AllTimePlayerStats, // Still needed for internal aggregation structure
     RankedEntry
 } from './helpers';
-
-const prisma = new PrismaClient();
+import { prisma } from '../prisma';
 
 // Removed calculateFantasyPointsForMatch (moved to helpers)
 

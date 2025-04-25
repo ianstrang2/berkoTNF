@@ -1,10 +1,3 @@
-import { PrismaClient } from '@prisma/client';
-
-// Create a singleton PrismaClient instance
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-export const prisma = globalForPrisma.prisma || new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-});
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma; 
+// Instead of creating a new Prisma client, we'll re-export the main one
+// This ensures a single connection throughout the application
+export { prisma } from '../src/lib/prisma'; 

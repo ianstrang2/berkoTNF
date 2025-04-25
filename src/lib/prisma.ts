@@ -25,11 +25,6 @@ const prismaClientSingleton = () => {
   // Log available models to check if our defaults tables are recognized
   console.log('Prisma client models:', Object.keys(client));
   
-  // Try to access one of the defaults tables directly
-  client.$queryRaw`SELECT * FROM app_config_defaults LIMIT 1`
-    .then((result) => console.log('Direct SQL query result:', result))
-    .catch((error) => console.error('Direct SQL query error:', error));
-  
   return client as CustomPrismaClient;
 };
 

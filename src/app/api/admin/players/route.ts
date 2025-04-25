@@ -33,10 +33,10 @@ export async function GET(request: Request) {
     } else {
       // Just fetch players without match counts
       players = await prisma.players.findMany({
-        orderBy: {
-          name: 'asc',
-        },
-      });
+      orderBy: {
+        name: 'asc',
+      },
+    });
     }
     
     return new NextResponse(JSON.stringify({ 
