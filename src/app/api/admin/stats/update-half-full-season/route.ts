@@ -4,9 +4,9 @@ import { updateHalfAndFullSeasonStats } from '@/lib/stats/updateHalfAndFullSeaso
 
 export async function POST(request: Request) {
   try {
-    const { config } = await request.json();
+    const { config, requestId } = await request.json();
     
-    console.log('Starting Half & Full Season Stats update step...');
+    console.log('[update-half-full-season API] Starting update with request ID:', requestId || 'none');
     
     // Execute in a transaction with a timeout
     await prisma.$transaction(
@@ -16,14 +16,15 @@ export async function POST(request: Request) {
       { timeout: 60000 } // 60 second timeout
     );
     
-    console.log('✓ Half & Full Season Stats updated successfully');
+    console.log('[update-half-full-season API] ✓ Half & Full Season Stats updated successfully');
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Half & Full Season Stats updated successfully' 
+      message: 'Half & Full Season Stats updated successfully',
+      completed: true
     });
   } catch (error) {
-    console.error('Error in Half & Full Season Stats update:', error);
+    console.error('[update-half-full-season API] Error:', error);
     
     return NextResponse.json({ 
       success: false, 

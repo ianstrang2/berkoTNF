@@ -2,91 +2,31 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { updateRecentPerformance } from '@/lib/stats/updateRecentPerformance';
 
-// Track current state with a simple global variable
-// This isn't ideal for production, but works for quick fixes
-let processingState = {
-  isProcessing: false,
-  lastStartTime: null as number | null,
-  currentRequestId: null as string | null
-};
-
 export async function POST(request: Request) {
   console.log('[update-recent-performance API] POST request received');
   
   try {
     const { config, requestId } = await request.json();
-    console.log(`[update-recent-performance API] Parsed request body: config=${!!config}, requestId=${requestId || 'none'}`);
+    console.log(`[update-recent-performance API] Request ID: ${requestId || 'none'}`);
     
-    // If we're already processing, don't start another process
-    if (processingState.isProcessing) {
-      console.log(`[update-recent-performance API] Already processing a request. Current: ${processingState.currentRequestId}, Requested: ${requestId}`);
-      
-      // If this is the same request that's already processing, just return the current status
-      if (requestId && requestId === processingState.currentRequestId) {
-        return NextResponse.json({ 
-          success: true, 
-          message: 'Already processing this request',
-          inProgress: true,
-          requestId
-        });
-      }
-      
-      // If it's been more than 60 seconds, consider the last process stalled
-      if (processingState.lastStartTime && Date.now() - processingState.lastStartTime > 60000) {
-        console.log(`[update-recent-performance API] Previous process appears stalled, resetting state`);
-        processingState.isProcessing = false;
-      } else {
-        // Otherwise, reject the new request
-        return NextResponse.json({ 
-          success: false, 
-          message: 'Another process is already running. Please try again later.',
-          requestId
-        }, { status: 409 });
-      }
-    }
+    // Execute in a transaction with a timeout
+    console.log('[update-recent-performance API] Starting updateRecentPerformance function...');
+    await prisma.$transaction(
+      async (tx) => {
+        await updateRecentPerformance(tx);
+      },
+      { timeout: 60000 } // 60 second timeout
+    );
     
-    // Mark as processing
-    processingState.isProcessing = true;
-    processingState.lastStartTime = Date.now();
-    processingState.currentRequestId = requestId || `auto-${Date.now()}`;
+    console.log('[update-recent-performance API] ✓ Recent Performance updated successfully');
     
-    console.log(`[update-recent-performance API] Starting Recent Performance update with request ID: ${processingState.currentRequestId}`);
-    
-    try {
-      // Execute in a transaction with a timeout
-      await prisma.$transaction(
-        async (tx) => {
-          console.log('[update-recent-performance API] Transaction started, calling updateRecentPerformance...');
-          await updateRecentPerformance(tx);
-          console.log('[update-recent-performance API] updateRecentPerformance function completed successfully');
-        },
-        { timeout: 60000 } // 60 second timeout
-      );
-      
-      console.log('[update-recent-performance API] ✓ Recent Performance updated successfully - transaction committed');
-      
-      // Reset processing state
-      processingState.isProcessing = false;
-      processingState.lastStartTime = null;
-      
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Recent Performance updated successfully',
-        requestId: processingState.currentRequestId
-      });
-    } catch (txError) {
-      // Reset processing state on error
-      processingState.isProcessing = false;
-      processingState.lastStartTime = null;
-      
-      // Rethrow to be caught by the outer handler
-      throw txError;
-    }
+    // Return success response WITHOUT inProgress flag to signal completion
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Recent Performance updated successfully',
+      completed: true
+    });
   } catch (error) {
-    // Reset processing state
-    processingState.isProcessing = false;
-    processingState.lastStartTime = null;
-    
     console.error('[update-recent-performance API] Error in Recent Performance update:', error);
     
     // Log more detailed error information
@@ -110,8 +50,6 @@ export async function POST(request: Request) {
           error: 'Database operation timed out. Try reducing the data batch size.'
         }, { status: 408 });
       }
-    } else {
-      console.error('[update-recent-performance API] Non-Error object thrown:', error);
     }
     
     return NextResponse.json({ 

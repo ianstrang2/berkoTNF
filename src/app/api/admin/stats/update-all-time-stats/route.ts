@@ -4,9 +4,9 @@ import { updateAllTimeStats } from '@/lib/stats/updateAllTimeStats';
 
 export async function POST(request: Request) {
   try {
-    const { config } = await request.json();
+    const { config, requestId } = await request.json();
     
-    console.log('Starting All-Time Stats update step...');
+    console.log('[update-all-time-stats API] Starting update with request ID:', requestId || 'none');
     
     // Execute in a transaction with a timeout
     await prisma.$transaction(
@@ -16,14 +16,15 @@ export async function POST(request: Request) {
       { timeout: 60000 } // 60 second timeout
     );
     
-    console.log('✓ All-Time Stats updated successfully');
+    console.log('[update-all-time-stats API] ✓ All-Time Stats updated successfully');
     
     return NextResponse.json({ 
       success: true, 
-      message: 'All-Time Stats updated successfully' 
+      message: 'All-Time Stats updated successfully',
+      completed: true
     });
   } catch (error) {
-    console.error('Error in All-Time Stats update:', error);
+    console.error('[update-all-time-stats API] Error:', error);
     
     return NextResponse.json({ 
       success: false, 

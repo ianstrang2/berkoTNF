@@ -4,9 +4,9 @@ import { updateMatchReportCache } from '@/lib/stats/updateMatchReportCache';
 
 export async function POST(request: Request) {
   try {
-    const { config } = await request.json();
+    const { config, requestId } = await request.json();
     
-    console.log('Starting Match Report Cache update step...');
+    console.log('[update-match-report API] Starting update with request ID:', requestId || 'none');
     
     // Execute in a transaction with a timeout
     await prisma.$transaction(
@@ -16,14 +16,15 @@ export async function POST(request: Request) {
       { timeout: 60000 } // 60 second timeout
     );
     
-    console.log('✓ Match Report Cache updated successfully');
+    console.log('[update-match-report API] ✓ Match Report Cache updated successfully');
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Match Report Cache updated successfully' 
+      message: 'Match Report Cache updated successfully',
+      completed: true
     });
   } catch (error) {
-    console.error('Error in Match Report Cache update:', error);
+    console.error('[update-match-report API] Error:', error);
     
     return NextResponse.json({ 
       success: false, 

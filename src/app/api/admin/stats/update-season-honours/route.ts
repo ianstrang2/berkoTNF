@@ -4,9 +4,9 @@ import { updateSeasonHonours } from '@/lib/stats/updateSeasonHonours';
 
 export async function POST(request: Request) {
   try {
-    const { config } = await request.json();
+    const { config, requestId } = await request.json();
     
-    console.log('Starting Season Honours update step...');
+    console.log('[update-season-honours API] Starting update with request ID:', requestId || 'none');
     
     // Execute in a transaction with a timeout
     await prisma.$transaction(
@@ -16,14 +16,15 @@ export async function POST(request: Request) {
       { timeout: 60000 } // 60 second timeout
     );
     
-    console.log('✓ Season Honours updated successfully');
+    console.log('[update-season-honours API] ✓ Season Honours updated successfully');
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Season Honours updated successfully' 
+      message: 'Season Honours updated successfully',
+      completed: true
     });
   } catch (error) {
-    console.error('Error in Season Honours update:', error);
+    console.error('[update-season-honours API] Error:', error);
     
     return NextResponse.json({ 
       success: false, 
