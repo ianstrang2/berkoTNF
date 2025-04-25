@@ -61,6 +61,7 @@ const MatchManager: React.FC = () => {
     isPolling: false
   });
   const [statsUpdated, setStatsUpdated] = useState<boolean>(false);
+  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   
   // Reference to polling interval to clean up on unmount
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -372,6 +373,24 @@ const MatchManager: React.FC = () => {
             
             // If the server reports meaningful progress, incorporate it (but don't go backwards)
             if (progressData.currentStep || progressData.percentComplete > 0) {
+              // Keep track of completed steps historically
+              setCompletedSteps(prev => {
+                // Find current step index in steps array
+                const currentStepIndex = progressData.steps?.indexOf(progressData.currentStep) ?? -1;
+                
+                // Mark all steps up to current as completed
+                const newCompletedSteps = [...prev];
+                if (currentStepIndex > -1 && progressData.steps) {
+                  for (let i = 0; i < currentStepIndex; i++) {
+                    if (!newCompletedSteps.includes(progressData.steps[i])) {
+                      newCompletedSteps.push(progressData.steps[i]);
+                    }
+                  }
+                }
+                
+                return newCompletedSteps;
+              });
+              
               setUpdateProgress(prev => ({
                 ...prev,
                 percentComplete: Math.max(prev.percentComplete, progressData.percentComplete),
@@ -1137,11 +1156,9 @@ const MatchManager: React.FC = () => {
                 <h4 className="text-xs uppercase font-semibold text-slate-500 mb-2">PROCESS STEPS</h4>
                 <ul className="text-sm space-y-2">
                   {updateProgress.steps.map((step, index) => {
-                    // Determine step status - current, completed or pending
+                    // Determine step status based on current step and our tracked completed steps
                     const isCurrent = step === updateProgress.currentStep;
-                    const isCompleted = updateProgress.steps && updateProgress.currentStep 
-                      ? updateProgress.steps.indexOf(updateProgress.currentStep) > index 
-                      : false;
+                    const isCompleted = completedSteps.includes(step);
                     
                     return (
                     <li key={index} className={`flex items-center ${
