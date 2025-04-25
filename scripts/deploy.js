@@ -41,9 +41,13 @@ try {
   console.log('Running initial data aggregation...');
   
   try {
+    // Get the base URL from environment variable or default to localhost for local deployment
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    console.log(`Using base URL: ${baseUrl} for API calls`);
+    
     // Hit the API endpoint to refresh aggregations
     // Using curl as it's typically available in deployment environments
-    execSync('curl -s http://localhost:3000/api/maintenance/refresh-aggregations', {
+    execSync(`curl -s ${baseUrl}/api/maintenance/refresh-aggregations`, {
       stdio: 'inherit'
     });
     

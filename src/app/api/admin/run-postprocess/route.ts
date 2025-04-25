@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAppConfig } from '@/lib/config';
+import { headers } from 'next/headers';
 
 // Define our steps in sequence
 const PROCESS_STEPS = [
@@ -86,16 +87,19 @@ async function triggerStep(stepId: string, config: any) {
   progressStatus.currentStep = step.name;
   
   // Make actual API call to the step's endpoint
+  // Get the base URL from environment variables or from request headers
   let baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   
-  // If running server-side and no base URL set, try to construct one
+  // If running server-side and no base URL set, use relative URL path
+  // This works in both development and production
   if (!baseUrl) {
-    // For server-to-server calls, we can use localhost
-    baseUrl = 'http://localhost:3000';
-    console.log(`No NEXT_PUBLIC_BASE_URL set, using ${baseUrl} for internal API calls`);
+    // Use relative URL instead of localhost
+    // This works in both environments without hardcoding
+    baseUrl = '';
+    console.log(`No NEXT_PUBLIC_BASE_URL set, using relative URLs for internal API calls`);
   }
   
-  console.log(`Triggering step ${step.name} with config:`, config);
+  console.log(`Triggering step ${step.name} with endpoint: ${baseUrl}${step.endpoint}`);
   
   const response = await fetch(`${baseUrl}${step.endpoint}`, {
     method: 'POST',
