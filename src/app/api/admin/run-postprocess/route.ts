@@ -38,15 +38,32 @@ const PROCESS_STEPS = [
 ];
 
 // In-memory progress tracking (will reset on server restart)
+// Let's add a request ID and timestamps to better track execution flow
 let progressStatus = {
   currentStep: '',
   percentComplete: 0,
   steps: PROCESS_STEPS.map(step => step.name),
   isRunning: false,
   startTime: null as number | string | null,
+  lastUpdateTime: null as number | string | null,
+  requestId: null as string | null,
   error: null as string | null,
-  completedSteps: [] as string[]
+  completedSteps: [] as string[],
+  executionLog: [] as {timestamp: string, message: string}[]
 };
+
+// Helper to add a log entry with timestamp
+function addExecutionLog(message: string) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${message}`);
+  progressStatus.executionLog.push({ timestamp, message });
+  progressStatus.lastUpdateTime = timestamp;
+  
+  // Limit log size to prevent memory issues
+  if (progressStatus.executionLog.length > 100) {
+    progressStatus.executionLog.shift();
+  }
+}
 
 // Helper function to calculate total progress percentage
 function calculateProgress() {
@@ -68,12 +85,41 @@ function calculateProgress() {
 }
 
 // Add GET endpoint to check progress
-export async function GET() {
+export async function GET(request: Request) {
+  const progress = calculateProgress();
+  
+  // Check for potential stalled process
+  if (progressStatus.isRunning && progressStatus.lastUpdateTime) {
+    const lastUpdateTime = new Date(progressStatus.lastUpdateTime).getTime();
+    const currentTime = Date.now();
+    const elapsedSinceLastUpdate = (currentTime - lastUpdateTime) / 1000; // in seconds
+    
+    // If no updates for over 30 seconds, consider it stalled
+    if (elapsedSinceLastUpdate > 30) {
+      addExecutionLog(`Process appears stalled - no updates for ${elapsedSinceLastUpdate.toFixed(1)} seconds`);
+      progressStatus.error = `Process stalled: No updates for ${elapsedSinceLastUpdate.toFixed(1)} seconds`;
+      progressStatus.isRunning = false;
+    }
+  }
+
+  console.log('[run-postprocess GET] Returning current progress status:', {
+    isRunning: progressStatus.isRunning,
+    currentStep: progressStatus.currentStep,
+    percentComplete: progress,
+    completedSteps: progressStatus.completedSteps,
+    requestId: progressStatus.requestId,
+    error: progressStatus.error
+  });
+
   return NextResponse.json({
     ...progressStatus,
-    // Always include computed percentComplete to ensure consistency
-    percentComplete: calculateProgress()
+    percentComplete: progress
   });
+}
+
+// Generate a unique request ID 
+function generateRequestId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
 
 // Trigger a step by its ID
@@ -95,33 +141,72 @@ async function triggerStep(stepId: string, config: any) {
   // Ensure we have a valid base URL
   const baseUrl = host.startsWith('http') ? host : `${protocol}://${host}`;
   
-  console.log(`Triggering step ${step.name} with endpoint: ${baseUrl}${step.endpoint}`);
+  addExecutionLog(`Triggering step ${step.name} with endpoint: ${baseUrl}${step.endpoint}`);
   
-  const response = await fetch(`${baseUrl}${step.endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ config })
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.text();
-    console.error(`Step ${step.name} failed with status ${response.status}:`, errorData);
-    throw new Error(`Step ${step.name} failed: ${errorData}`);
+  try {
+    addExecutionLog(`Making fetch request to ${baseUrl}${step.endpoint}`);
+    
+    // Add a reasonable timeout for the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    const response = await fetch(`${baseUrl}${step.endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-ID': progressStatus.requestId || 'unknown'
+      },
+      body: JSON.stringify({ 
+        config,
+        requestId: progressStatus.requestId
+      }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    addExecutionLog(`Received response from ${step.endpoint}, status: ${response.status}`);
+    
+    // Handle specific error cases
+    if (response.status === 504) {
+      throw new Error(`Gateway timeout (504) for step ${step.name} - operation took too long`);
+    }
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      addExecutionLog(`Step ${step.name} failed with status ${response.status}: ${errorData}`);
+      throw new Error(`Step ${step.name} failed: ${errorData}`);
+    }
+    
+    // Mark step as completed
+    progressStatus.completedSteps.push(step.id);
+    
+    // Update overall progress
+    progressStatus.percentComplete = calculateProgress();
+    addExecutionLog(`Step ${step.name} completed successfully. Overall progress: ${progressStatus.percentComplete}%`);
+    
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    const errorMessage = error instanceof Error 
+      ? `${error.name}: ${error.message}` 
+      : 'Unknown error';
+      
+    addExecutionLog(`Error in fetch for step ${step.name}: ${errorMessage}`);
+    
+    // Handle abort errors specifically
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Timeout while executing step ${step.name} - operation took longer than 30 seconds`);
+    }
+    
+    throw error;
   }
-  
-  // Mark step as completed
-  progressStatus.completedSteps.push(step.id);
-  
-  // Update overall progress
-  progressStatus.percentComplete = calculateProgress();
-  
-  return response.json();
 }
 
-// Process the next step in the chain
+// Process the next step in the chain with safety mechanisms
 async function processNextStep(config: any) {
+  addExecutionLog(`Processing next step. Completed steps: ${progressStatus.completedSteps.join(', ')}`);
+  
   const completedIds = progressStatus.completedSteps;
   const nextStep = PROCESS_STEPS.find(step => !completedIds.includes(step.id));
   
@@ -130,13 +215,15 @@ async function processNextStep(config: any) {
     progressStatus.percentComplete = 100;
     progressStatus.currentStep = 'Complete';
     progressStatus.isRunning = false;
+    addExecutionLog('All steps completed successfully!');
     return { success: true, message: 'All steps completed successfully' };
   }
   
+  addExecutionLog(`Next step to process: ${nextStep.id} (${nextStep.name})`);
+  
   // Skip steps that don't have an endpoint (they're handled manually in the main function)
   if (!nextStep.endpoint) {
-    // These steps should already be completed by the main function
-    console.warn(`Step ${nextStep.id} has no endpoint but wasn't marked as completed`);
+    addExecutionLog(`Step ${nextStep.id} has no endpoint but wasn't marked as completed`);
     progressStatus.completedSteps.push(nextStep.id);
     return processNextStep(config);
   }
@@ -148,7 +235,11 @@ async function processNextStep(config: any) {
     // Process the next step in the chain
     return await processNextStep(config);
   } catch (error) {
-    console.error(`Error in step ${nextStep.name}:`, error);
+    const errorMessage = error instanceof Error 
+      ? `${error.name}: ${error.message}` 
+      : 'Unknown error';
+      
+    addExecutionLog(`Error in step ${nextStep.name}: ${errorMessage}`);
     progressStatus.error = error instanceof Error ? error.message : 'Unknown error';
     progressStatus.isRunning = false;
     throw error;
@@ -156,37 +247,67 @@ async function processNextStep(config: any) {
 }
 
 export async function POST(request: Request) {
+  addExecutionLog('POST request received to start processing');
+  
   try {
     const body = await request.json();
     const config = body.config || {};
+    addExecutionLog(`Request body: ${JSON.stringify(body)}`);
 
-    // Don't allow starting the process if it's already running
-    if (progressStatus.isRunning) {
-      return NextResponse.json({ success: false, message: 'Process is already running' }, { status: 409 });
+    // Check if process was already initiated recently
+    const hasRecentProcessing = progressStatus.startTime && 
+      (Date.now() - new Date(progressStatus.startTime as string).getTime() < 60000);
+      
+    // Don't allow starting the process if it's already running or was just started
+    if (progressStatus.isRunning || hasRecentProcessing) {
+      addExecutionLog(`Process is already running or was recently initiated. isRunning: ${progressStatus.isRunning}, startTime: ${progressStatus.startTime}`);
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Process is already running or was recently initiated',
+        status: progressStatus
+      }, { status: 409 });
     }
 
     // Reset progress status
+    const requestId = generateRequestId();
     progressStatus.isRunning = true;
     progressStatus.startTime = new Date().toISOString();
+    progressStatus.lastUpdateTime = new Date().toISOString();
     progressStatus.percentComplete = 0;
     progressStatus.completedSteps = [];
     progressStatus.error = null;
     progressStatus.currentStep = 'Starting...';
+    progressStatus.requestId = requestId;
+    progressStatus.executionLog = [];
     
-    // Start the processing chain
-    processNextStep(config).catch(error => {
-      console.error('Process failed:', error);
-      progressStatus.isRunning = false;
-      progressStatus.error = error instanceof Error ? error.message : 'Unknown error';
+    addExecutionLog(`Starting processing chain with request ID: ${requestId}`);
+    
+    // Start the processing chain asynchronously
+    Promise.resolve().then(() => {
+      return processNextStep(config).catch(error => {
+        const errorMessage = error instanceof Error 
+          ? `${error.name}: ${error.message}` 
+          : 'Unknown error';
+          
+        addExecutionLog(`Process failed: ${errorMessage}`);
+        progressStatus.isRunning = false;
+        progressStatus.error = error instanceof Error ? error.message : 'Unknown error';
+      });
     });
 
+    addExecutionLog('Returning initial success response to client');
     return NextResponse.json({
       success: true,
       message: 'Process started successfully',
+      requestId: requestId,
       status: progressStatus
     });
   } catch (error) {
-    console.error('Error starting process:', error);
+    const errorMessage = error instanceof Error 
+      ? `${error.name}: ${error.message}` 
+      : 'Unknown error';
+      
+    addExecutionLog(`Error starting process: ${errorMessage}`);
     return NextResponse.json({
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error'

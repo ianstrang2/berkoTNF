@@ -25,6 +25,7 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
   const client = tx || prisma;
 
   try {
+    console.log('Fetching non-ringer players...');
     // Get all non-ringer player IDs
     const players = await client.players.findMany({
       where: {
@@ -36,107 +37,164 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
       },
     });
 
+    console.log(`Found ${players.length} active non-ringer players to process`);
+
     // Use CreateManyInput type for createMany
     const recentPerformanceData: Prisma.aggregated_recent_performanceCreateManyInput[] = [];
 
-    for (const player of players) {
-      const playerId = player.player_id;
-
-      // Fetch the last 5 matches for the player
-      const last5PlayerMatches = await client.player_matches.findMany({
-        where: { player_id: playerId },
-        include: {
-          matches: true, // Include match details for date and scores
-        },
-        orderBy: {
-          matches: {
-            match_date: 'desc',
-          },
-        },
-        take: 5,
-      });
-
-      let last5Goals = 0;
-      // const last5Results: string[] = []; // Removed as per original SQL and likely schema
-      const last5Games: LastGameInfo[] = [];
-
-      // Process the last 5 matches (or fewer if player has played less than 5)
-      for (const pm of last5PlayerMatches) {
-        const match = pm.matches;
-        if (!match) continue; // Should not happen with the include, but safety check
-
-        // Handle potential nulls from DB schema using nullish coalescing
-        const goals = pm.goals ?? 0;
-        const result = pm.result ?? ''; // Use empty string or 'unknown' if null
-        const teamAScore = match.team_a_score ?? 0;
-        const teamBScore = match.team_b_score ?? 0;
-        const heavyWin = pm.heavy_win ?? false;
-        const heavyLoss = pm.heavy_loss ?? false;
-
-        if (!result) {
-             console.warn(`Player match ID ${pm.player_match_id} has null result.`);
-             // Decide how to handle this - skip? use default?
-        }
-
-
-        const isTeamA = pm.team === 'A';
-        const score = isTeamA
-          ? `${teamAScore}-${teamBScore}`
-          : `${teamBScore}-${teamAScore}`;
-        const cleanSheet = isTeamA ? teamBScore === 0 : teamAScore === 0;
-
-        last5Games.push({
-          date: match.match_date,
-          goals: goals,
-          result: result,
-          score: score,
-          heavy_win: heavyWin,
-          heavy_loss: heavyLoss,
-          clean_sheet: cleanSheet,
-        });
-
-        last5Goals += goals;
-        // last5Results.push(result.charAt(0).toUpperCase()); // Removed as per original SQL and likely schema
-      }
-
-      // Ensure last_5_games is stored as a JSON blob
-      // Prisma handles JSON serialization automatically if the field type is Json
-
-      // Use direct player_id for CreateManyInput
-      recentPerformanceData.push({
-        player_id: playerId,
-        last_5_games: last5Games as any, // Cast to 'any' or Prisma.JsonValue if Prisma complains
-        last_5_goals: last5Goals,
-        // last_5_results: last5Results.join(''), // Removed
-        last_updated: new Date(),
-      });
+    // Process players in batches to avoid timeouts in serverless environments
+    const BATCH_SIZE = 10;
+    const playerBatches: Array<typeof players[number][]> = [];
+    
+    // Split players into batches
+    for (let i = 0; i < players.length; i += BATCH_SIZE) {
+      playerBatches.push(players.slice(i, i + BATCH_SIZE));
     }
+    
+    console.log(`Processing ${playerBatches.length} batches of players`);
+    
+    // Process each batch
+    for (let batchIndex = 0; batchIndex < playerBatches.length; batchIndex++) {
+      const playerBatch = playerBatches[batchIndex];
+      console.log(`Processing batch ${batchIndex + 1}/${playerBatches.length} (${playerBatch.length} players)`);
+      
+      // Process players in this batch concurrently
+      const batchPromises = playerBatch.map(async (player) => {
+        const playerId = player.player_id;
+
+        try {
+          // Fetch the last 5 matches for the player
+          console.log(`Fetching last 5 matches for player ${playerId}...`);
+          const last5PlayerMatches = await client.player_matches.findMany({
+            where: { player_id: playerId },
+            include: {
+              matches: {
+                select: { match_date: true, team_a_score: true, team_b_score: true }
+              }
+            },
+            orderBy: {
+              matches: {
+                match_date: 'desc',
+              },
+            },
+            take: 5,
+          });
+
+          console.log(`Found ${last5PlayerMatches.length} recent matches for player ${playerId}`);
+
+          let last5Goals = 0;
+          const last5Games: LastGameInfo[] = [];
+
+          // Process the last 5 matches (or fewer if player has played less than 5)
+          for (const pm of last5PlayerMatches) {
+            const match = pm.matches;
+            if (!match) continue; // Should not happen with the include, but safety check
+
+            // Handle potential nulls from DB schema using nullish coalescing
+            const goals = pm.goals ?? 0;
+            const result = pm.result ?? ''; // Use empty string or 'unknown' if null
+            const teamAScore = match.team_a_score ?? 0;
+            const teamBScore = match.team_b_score ?? 0;
+            const heavyWin = pm.heavy_win ?? false;
+            const heavyLoss = pm.heavy_loss ?? false;
+
+            const isTeamA = pm.team === 'A';
+            const score = isTeamA
+              ? `${teamAScore}-${teamBScore}`
+              : `${teamBScore}-${teamAScore}`;
+            const cleanSheet = isTeamA ? teamBScore === 0 : teamAScore === 0;
+
+            last5Games.push({
+              date: match.match_date,
+              goals: goals,
+              result: result,
+              score: score,
+              heavy_win: heavyWin,
+              heavy_loss: heavyLoss,
+              clean_sheet: cleanSheet,
+            });
+
+            last5Goals += goals;
+          }
+
+          console.log(`Player ${playerId} has ${last5Goals} goals in their last ${last5Games.length} games`);
+
+          return {
+            player_id: playerId,
+            last_5_games: last5Games as any,
+            last_5_goals: last5Goals,
+            last_updated: new Date(),
+          };
+        } catch (playerError) {
+          console.error(`Error processing player ${playerId}:`, playerError);
+          // Return null to indicate this player failed
+          return null;
+        }
+      });
+      
+      // Wait for all players in this batch to be processed
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Add successful results to our data array
+      let successfulResults = 0;
+      for (const result of batchResults) {
+        if (result !== null) {
+          recentPerformanceData.push(result);
+          successfulResults++;
+        }
+      }
+      
+      console.log(`Batch ${batchIndex + 1} complete, processed ${successfulResults}/${batchResults.length} players successfully`);
+    }
+
+    console.log(`Preparing to update database with data for ${recentPerformanceData.length} players`);
 
     // Clear the existing table and insert new data in a transaction
     if (tx) {
       // If we're already in a transaction, use it directly
+      console.log('Using provided transaction to update data');
       await tx.aggregated_recent_performance.deleteMany({});
-      await tx.aggregated_recent_performance.createMany({
-        data: recentPerformanceData,
-        skipDuplicates: true, // Optional: useful if run multiple times without clearing
-      });
-    } else {
-      // Otherwise use a local transaction
-      await prisma.$transaction([
-        prisma.aggregated_recent_performance.deleteMany({}),
-        prisma.aggregated_recent_performance.createMany({
+      
+      if (recentPerformanceData.length > 0) {
+        console.log(`Creating ${recentPerformanceData.length} recent performance records...`);
+        await tx.aggregated_recent_performance.createMany({
           data: recentPerformanceData,
-          skipDuplicates: true, // Optional: useful if run multiple times without clearing
-        }),
-      ]);
+          skipDuplicates: true,
+        });
+        console.log('Recent performance records created successfully');
+      }
+    } else {
+      // Otherwise use a local transaction with a timeout
+      console.log('Creating new transaction to update data');
+      await prisma.$transaction(async (txClient) => {
+        console.log('Deleting existing recent performance records...');
+        await txClient.aggregated_recent_performance.deleteMany({});
+        console.log('Existing records deleted');
+        
+        if (recentPerformanceData.length > 0) {
+          console.log(`Creating ${recentPerformanceData.length} recent performance records...`);
+          await txClient.aggregated_recent_performance.createMany({
+            data: recentPerformanceData,
+            skipDuplicates: true,
+          });
+          console.log('Recent performance records created successfully');
+        }
+      }, {
+        timeout: 60000, // 1 minute timeout
+        maxWait: 10000, // 10 second max wait for connection
+      });
     }
 
     const endTime = Date.now();
-    console.log(`updateRecentPerformance completed in ${endTime - startTime}ms. Updated stats for ${players.length} players.`);
+    console.log(`updateRecentPerformance completed in ${endTime - startTime}ms. Updated stats for ${recentPerformanceData.length} players.`);
 
   } catch (error) {
     console.error('Error updating recent performance:', error);
-    // Consider more robust error handling/logging
-    throw error; // Re-throw error to be caught by the calling orchestrator
+    console.error('Error type:', typeof error);
+    console.error('Error name:', error instanceof Error ? error.name : 'Not an Error object');
+    console.error('Error message:', error instanceof Error ? error.message : 'No message available');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available');
+    
+    throw new Error(`Failed to update recent performance: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 } 
