@@ -8,13 +8,37 @@ const serializeData = (data) => {
 };
 
 // Get all players
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const players = await prisma.players.findMany({
-      orderBy: {
-        name: 'asc',
-      },
-    });
+    const url = new URL(request.url);
+    const includeMatchCounts = url.searchParams.get('include_match_counts') === 'true';
+    
+    let players;
+    
+    if (includeMatchCounts) {
+      // Fetch players with match counts
+      players = await prisma.$queryRaw`
+        SELECT 
+          p.*,
+          COUNT(pm.player_match_id)::integer as matches_played
+        FROM 
+          players p
+        LEFT JOIN 
+          player_matches pm ON p.player_id = pm.player_id
+        GROUP BY 
+          p.player_id
+        ORDER BY 
+          p.name ASC
+      `;
+    } else {
+      // Just fetch players without match counts
+      players = await prisma.players.findMany({
+        orderBy: {
+          name: 'asc',
+        },
+      });
+    }
+    
     return new NextResponse(JSON.stringify({ 
       success: true,
       data: serializeData(players) 

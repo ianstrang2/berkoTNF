@@ -276,14 +276,41 @@ const MatchManager: React.FC = () => {
     };
     
     try {
-      // Start the update process
-      const response = await fetch('/api/admin/run-postprocess', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({}) // Send empty body as JSON
-      });
+      // Start the update process with retry mechanism
+      const maxRetries = 2;
+      let retryCount = 0;
+      let response;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          response = await fetch('/api/admin/run-postprocess', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({}) // Send empty body as JSON
+          });
+          
+          // If we get a response (even an error), break the retry loop
+          break;
+        } catch (fetchError) {
+          console.warn(`Fetch attempt ${retryCount + 1} failed:`, fetchError);
+          retryCount++;
+          
+          // If we've exceeded retries, throw the error
+          if (retryCount > maxRetries) {
+            throw fetchError;
+          }
+          
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
+      
+      // Check for gateway timeout specifically
+      if (response.status === 504) {
+        throw new Error("Server timeout occurred. The operation might still be running on the server. Please check stats again in a few minutes.");
+      }
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -315,9 +342,22 @@ const MatchManager: React.FC = () => {
       // Start polling for progress
       pollIntervalRef.current = setInterval(async () => {
         try {
+          // Use fetch with timeout to avoid hanging
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for poll requests
+          
           const pollResponse = await fetch('/api/admin/run-postprocess', {
-            method: 'GET'
+            method: 'GET',
+            signal: controller.signal
           });
+          
+          clearTimeout(timeoutId);
+          
+          // Handle specific status codes
+          if (pollResponse.status === 504) {
+            console.warn('Polling request timed out (504), will try again next interval');
+            return; // Skip this poll cycle and try again
+          }
           
           if (pollResponse.ok) {
             const progressData = await pollResponse.json();
@@ -430,8 +470,25 @@ const MatchManager: React.FC = () => {
       clearTimeout(maxDurationTimer);
       
       let errorMessage = 'Failed to update stats';
+      
+      // Enhanced error handling
       if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
+        
+        // Special case for network errors
+        if (error instanceof TypeError && error.message.includes('NetworkError')) {
+          errorMessage = 'Network connection error. Check your internet connection and try again.';
+        }
+        
+        // Special case for AbortError (request timeouts)
+        if (error.name === 'AbortError') {
+          errorMessage = 'The request took too long to respond. The server might be busy.';
+        }
+        
+        // Special case for server timeout
+        if (error.message.includes('timeout') || error.message.includes('504')) {
+          errorMessage = 'The server took too long to respond, but your request might still be processing. Check back in a few minutes.';
+        }
       }
       
       setError(errorMessage);

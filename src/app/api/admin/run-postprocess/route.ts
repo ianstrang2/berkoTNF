@@ -75,52 +75,94 @@ export async function POST(request: Request) {
     progressStatus.percentComplete = 5;
     const config = await getAppConfig();
 
-    /* 
-     * TODO: Future Enhancement - Transaction Support
-     * Currently, each function manages its own database operations.
-     * In the future, these functions should be refactored to accept a transaction client
-     * so they can all be executed within a single database transaction for atomicity.
-     * 
-     * Example:
-     * await prisma.$transaction(async (tx) => {
-     *   await updateRecentPerformance(tx);
-     *   await updateAllTimeStats(tx, config);
-     *   // etc.
-     * });
-     */
-
-    // Execute all stats updates within a single transaction for atomicity
-    await prisma.$transaction(
-      async (tx) => {
-        // Update Recent Performance
-        progressStatus.currentStep = 'Updating Recent Performance';
-        progressStatus.percentComplete = 20;
-        await updateRecentPerformance(tx);
-        
-        // Update All-Time Stats
-        progressStatus.currentStep = 'Updating All-Time Stats';
-        progressStatus.percentComplete = 40;
-        await updateAllTimeStats(tx, config);
-        
-        // Update Season Honours
-        progressStatus.currentStep = 'Updating Season Honours';
-        progressStatus.percentComplete = 60;
-        await updateSeasonHonours(tx, config);
-        
-        // Update Half & Full Season Stats
-        progressStatus.currentStep = 'Updating Half & Full Season Stats';
-        progressStatus.percentComplete = 80;
-        await updateHalfAndFullSeasonStats(tx, config);
-        
-        // Update Match Report Cache
-        progressStatus.currentStep = 'Updating Match Report Cache';
-        progressStatus.percentComplete = 95;
-        await updateMatchReportCache(tx);
-      },
-      {
-        timeout: 120000 // Increase timeout to 120 seconds (2 minutes)
-      }
-    );
+    // Instead of one big transaction, we'll run each step in its own transaction
+    // This way, if one step completes successfully but a later step times out,
+    // we don't lose all our work
+    
+    try {
+      // Step 1: Update Recent Performance
+      progressStatus.currentStep = 'Updating Recent Performance';
+      progressStatus.percentComplete = 20;
+      await prisma.$transaction(
+        async (tx) => {
+          await updateRecentPerformance(tx);
+        },
+        { timeout: 60000 } // 60 second timeout
+      );
+      console.log('✓ Recent Performance updated successfully');
+    } catch (error) {
+      console.error('Error updating Recent Performance:', error);
+      progressStatus.error = `Error in Recent Performance: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      throw error;
+    }
+    
+    try {
+      // Step 2: Update All-Time Stats
+      progressStatus.currentStep = 'Updating All-Time Stats';
+      progressStatus.percentComplete = 40;
+      await prisma.$transaction(
+        async (tx) => {
+          await updateAllTimeStats(tx, config);
+        },
+        { timeout: 60000 } // 60 second timeout
+      );
+      console.log('✓ All-Time Stats updated successfully');
+    } catch (error) {
+      console.error('Error updating All-Time Stats:', error);
+      progressStatus.error = `Error in All-Time Stats: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      throw error;
+    }
+    
+    try {
+      // Step 3: Update Season Honours
+      progressStatus.currentStep = 'Updating Season Honours';
+      progressStatus.percentComplete = 60;
+      await prisma.$transaction(
+        async (tx) => {
+          await updateSeasonHonours(tx, config);
+        },
+        { timeout: 60000 } // 60 second timeout
+      );
+      console.log('✓ Season Honours updated successfully');
+    } catch (error) {
+      console.error('Error updating Season Honours:', error);
+      progressStatus.error = `Error in Season Honours: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      throw error;
+    }
+    
+    try {
+      // Step 4: Update Half & Full Season Stats
+      progressStatus.currentStep = 'Updating Half & Full Season Stats';
+      progressStatus.percentComplete = 80;
+      await prisma.$transaction(
+        async (tx) => {
+          await updateHalfAndFullSeasonStats(tx, config);
+        },
+        { timeout: 60000 } // 60 second timeout
+      );
+      console.log('✓ Half & Full Season Stats updated successfully');
+    } catch (error) {
+      console.error('Error updating Half & Full Season Stats:', error);
+      progressStatus.error = `Error in Half & Full Season Stats: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      throw error;
+    }
+    
+    try {
+      // Step 5: Update Match Report Cache
+      progressStatus.currentStep = 'Updating Match Report Cache';
+      progressStatus.percentComplete = 95;
+      await prisma.$transaction(
+        async (tx) => {
+          await updateMatchReportCache(tx);
+        },
+        { timeout: 60000 } // 60 second timeout
+      );
+      console.log('✓ Match Report Cache updated successfully');
+    } catch (error) {
+      console.error('Error updating Match Report Cache:', error);
+      progressStatus.error = `Error in Match Report Cache: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      throw error;
+    }
 
     console.timeEnd('Total Postprocessing Time');
     console.log('Match postprocessing completed successfully.');
@@ -135,11 +177,13 @@ export async function POST(request: Request) {
     console.error('[Postprocess Error]', error);
     
     // Record error in progress
-    progressStatus.error = error.message;
+    if (!progressStatus.error) { // Only set if not already set by a specific step
+      progressStatus.error = error.message;
+    }
     progressStatus.isRunning = false;
     
     return NextResponse.json(
-      { success: false, error: 'Postprocessing failed', details: error.message },
+      { success: false, error: 'Postprocessing failed', details: progressStatus.error },
       { status: 500 }
     );
   }

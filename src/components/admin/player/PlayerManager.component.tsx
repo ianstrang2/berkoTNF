@@ -18,6 +18,7 @@ interface Player {
   control: number;
   teamwork: number;
   resilience: number;
+  matches_played: number;
 }
 
 interface FormData {
@@ -66,7 +67,7 @@ const PlayerManager: React.FC = () => {
   const fetchPlayers = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/players');
+      const response = await fetch('/api/admin/players?include_match_counts=true');
       const data = await response.json();
       if (data.data) {
         setPlayers(data.data);
@@ -149,6 +150,16 @@ const PlayerManager: React.FC = () => {
         return sortConfig.direction === 'asc'
           ? (a.is_ringer === true ? 1 : -1)
           : (a.is_ringer === true ? -1 : 1);
+      }
+      
+      if (sortConfig.key === 'played') {
+        // Sort by number of matches played
+        if (a.matches_played === b.matches_played) {
+          return a.name.localeCompare(b.name);
+        }
+        return sortConfig.direction === 'asc'
+          ? a.matches_played - b.matches_played
+          : b.matches_played - a.matches_played;
       }
       
       return 0;
@@ -272,6 +283,11 @@ const PlayerManager: React.FC = () => {
           </button>
         </td>
         <td className="p-2 text-center align-middle bg-transparent border-b">
+          <span className="font-medium text-sm">
+            {player.matches_played || 0}
+          </span>
+        </td>
+        <td className="p-2 text-center align-middle bg-transparent border-b">
           <div className="flex justify-center space-x-2">
             <button
               onClick={handleEditSave}
@@ -365,6 +381,9 @@ const PlayerManager: React.FC = () => {
               <th onClick={() => handleSort('ringer')} className="cursor-pointer px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Ringer {getSortIndicator('ringer')}
               </th>
+              <th onClick={() => handleSort('played')} className="cursor-pointer px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Played {getSortIndicator('played')}
+              </th>
               <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Actions
               </th>
@@ -373,7 +392,7 @@ const PlayerManager: React.FC = () => {
           <tbody>
             {isLoading && !editingId ? (
               <tr>
-                <td colSpan={4} className="p-2 text-center align-middle bg-transparent border-b">
+                <td colSpan={5} className="p-2 text-center align-middle bg-transparent border-b">
                   <div className="flex justify-center items-center py-4">
                     <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
                       <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
@@ -384,7 +403,7 @@ const PlayerManager: React.FC = () => {
               </tr>
             ) : filteredPlayers.length === 0 ? (
               <tr>
-                <td colSpan={4} className="p-2 text-center align-middle bg-transparent border-b">
+                <td colSpan={5} className="p-2 text-center align-middle bg-transparent border-b">
                   <div className="py-4 text-slate-500">No players found</div>
                 </td>
               </tr>
@@ -417,6 +436,11 @@ const PlayerManager: React.FC = () => {
                             : 'bg-slate-100 text-slate-700'
                         }`}>
                           {player.is_ringer ? 'YES' : 'NO'}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className="font-medium text-sm">
+                          {player.matches_played || 0}
                         </span>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
