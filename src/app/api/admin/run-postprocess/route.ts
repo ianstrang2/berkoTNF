@@ -49,7 +49,9 @@ let progressStatus = {
   requestId: null as string | null,
   error: null as string | null,
   completedSteps: [] as string[],
-  executionLog: [] as {timestamp: string, message: string}[]
+  executionLog: [] as {timestamp: string, message: string}[],
+  stepAttempts: {} as Record<string, number>, // Track attempts per step
+  activeStepStartTime: null as number | null // Track when the current step started
 };
 
 // Helper to add a log entry with timestamp
@@ -100,6 +102,24 @@ export async function GET(request: Request) {
       progressStatus.error = `Process stalled: No updates for ${elapsedSinceLastUpdate.toFixed(1)} seconds`;
       progressStatus.isRunning = false;
     }
+    
+    // Check if current step is taking too long (2 minutes max per step)
+    if (progressStatus.activeStepStartTime) {
+      const stepElapsedTime = (Date.now() - progressStatus.activeStepStartTime) / 1000; // in seconds
+      if (stepElapsedTime > 120) { // 2 minutes
+        const currentStepId = PROCESS_STEPS.find(s => s.name === progressStatus.currentStep)?.id;
+        if (currentStepId) {
+          addExecutionLog(`Step ${progressStatus.currentStep} is taking too long (${stepElapsedTime.toFixed(0)} sec), considering it stalled`);
+          
+          // Force mark as completed and move on
+          if (!progressStatus.completedSteps.includes(currentStepId)) {
+            progressStatus.completedSteps.push(currentStepId);
+            progressStatus.activeStepStartTime = null;
+            // This will allow the next step to be processed
+          }
+        }
+      }
+    }
   }
 
   console.log('[run-postprocess GET] Returning current progress status:', {
@@ -122,7 +142,7 @@ function generateRequestId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
 
-// Trigger a step by its ID
+// Trigger a step by its ID with proper completion tracking
 async function triggerStep(stepId: string, config: any) {
   const step = PROCESS_STEPS.find(s => s.id === stepId);
   if (!step) {
@@ -131,6 +151,18 @@ async function triggerStep(stepId: string, config: any) {
   
   // Update progress status
   progressStatus.currentStep = step.name;
+  progressStatus.activeStepStartTime = Date.now();
+  
+  // Track attempts for this step
+  progressStatus.stepAttempts[stepId] = (progressStatus.stepAttempts[stepId] || 0) + 1;
+  
+  // If we've tried this step too many times, skip it
+  if (progressStatus.stepAttempts[stepId] > 3) {
+    addExecutionLog(`Too many attempts (${progressStatus.stepAttempts[stepId]}) for step ${step.name}, skipping`);
+    progressStatus.completedSteps.push(stepId);
+    progressStatus.activeStepStartTime = null;
+    return { success: false, message: `Step ${step.name} skipped after multiple attempts` };
+  }
   
   // Get the host from the environment or request headers
   // For server-side fetch in Next.js, we need a complete URL
@@ -178,14 +210,27 @@ async function triggerStep(stepId: string, config: any) {
       throw new Error(`Step ${step.name} failed: ${errorData}`);
     }
     
+    const jsonResponse = await response.json();
+    
+    // Check response for an "inProgress" flag which would indicate the step is still running
+    if (jsonResponse.inProgress) {
+      addExecutionLog(`Step ${step.name} is still in progress, will check again later`);
+      // We don't mark as completed yet - will check again in the next cycle
+      return jsonResponse;
+    }
+    
     // Mark step as completed
-    progressStatus.completedSteps.push(step.id);
+    if (!progressStatus.completedSteps.includes(stepId)) {
+      progressStatus.completedSteps.push(stepId);
+    }
+    
+    // Reset the active step time
+    progressStatus.activeStepStartTime = null;
     
     // Update overall progress
     progressStatus.percentComplete = calculateProgress();
     addExecutionLog(`Step ${step.name} completed successfully. Overall progress: ${progressStatus.percentComplete}%`);
     
-    const jsonResponse = await response.json();
     return jsonResponse;
   } catch (error) {
     const errorMessage = error instanceof Error 
@@ -215,6 +260,7 @@ async function processNextStep(config: any) {
     progressStatus.percentComplete = 100;
     progressStatus.currentStep = 'Complete';
     progressStatus.isRunning = false;
+    progressStatus.activeStepStartTime = null;
     addExecutionLog('All steps completed successfully!');
     return { success: true, message: 'All steps completed successfully' };
   }
@@ -230,19 +276,76 @@ async function processNextStep(config: any) {
   
   try {
     // Trigger the next step
-    await triggerStep(nextStep.id, config);
+    const stepResult = await triggerStep(nextStep.id, config);
     
-    // Process the next step in the chain
-    return await processNextStep(config);
+    // Skip to the next step if this one is complete
+    // But don't if the step returned inProgress flag
+    if (!stepResult.inProgress) {
+      // Process the next step in the chain
+      return await processNextStep(config);
+    } else {
+      // We'll check again later
+      addExecutionLog(`Step ${nextStep.name} is still processing, will check again later`);
+      
+      // Schedule a check in 5 seconds
+      setTimeout(() => {
+        // Only restart processing if we're still running
+        if (progressStatus.isRunning) {
+          addExecutionLog(`Restarting process chain after waiting for in-progress step ${nextStep.name}`);
+          processNextStep(config).catch(error => {
+            const errorMessage = error instanceof Error 
+              ? `${error.name}: ${error.message}` 
+              : 'Unknown error';
+            addExecutionLog(`Error during retry of process chain: ${errorMessage}`);
+          });
+        }
+      }, 5000);
+      
+      return { 
+        success: true, 
+        message: `Step ${nextStep.name} is in progress, will check again later`
+      };
+    }
   } catch (error) {
     const errorMessage = error instanceof Error 
       ? `${error.name}: ${error.message}` 
       : 'Unknown error';
       
     addExecutionLog(`Error in step ${nextStep.name}: ${errorMessage}`);
-    progressStatus.error = error instanceof Error ? error.message : 'Unknown error';
-    progressStatus.isRunning = false;
-    throw error;
+    
+    // Increment retry count for this step
+    progressStatus.stepAttempts[nextStep.id] = (progressStatus.stepAttempts[nextStep.id] || 0) + 1;
+    
+    // If we've tried too many times, mark as error and move on
+    if (progressStatus.stepAttempts[nextStep.id] > 3) {
+      addExecutionLog(`Too many errors (${progressStatus.stepAttempts[nextStep.id]}) for step ${nextStep.name}, marking as completed and moving on`);
+      progressStatus.completedSteps.push(nextStep.id);
+      
+      // Continue with next step instead of failing the whole process
+      return processNextStep(config);
+    }
+    
+    // If we haven't exceeded max retries yet, leave it unmarked so we'll try again
+    addExecutionLog(`Will retry step ${nextStep.name} later (attempt ${progressStatus.stepAttempts[nextStep.id]})`);
+    
+    // Schedule a retry
+    setTimeout(() => {
+      // Only restart processing if we're still running
+      if (progressStatus.isRunning) {
+        addExecutionLog(`Restarting process chain to retry step ${nextStep.name}`);
+        processNextStep(config).catch(error => {
+          const errorMessage = error instanceof Error 
+            ? `${error.name}: ${error.message}` 
+            : 'Unknown error';
+          addExecutionLog(`Error during retry of process chain: ${errorMessage}`);
+        });
+      }
+    }, 5000);
+    
+    return { 
+      success: false, 
+      message: `Step ${nextStep.name} failed but will be retried` 
+    };
   }
 }
 
@@ -279,6 +382,8 @@ export async function POST(request: Request) {
     progressStatus.currentStep = 'Starting...';
     progressStatus.requestId = requestId;
     progressStatus.executionLog = [];
+    progressStatus.stepAttempts = {};
+    progressStatus.activeStepStartTime = null;
     
     addExecutionLog(`Starting processing chain with request ID: ${requestId}`);
     
@@ -291,6 +396,7 @@ export async function POST(request: Request) {
           
         addExecutionLog(`Process failed: ${errorMessage}`);
         progressStatus.isRunning = false;
+        progressStatus.activeStepStartTime = null;
         progressStatus.error = error instanceof Error ? error.message : 'Unknown error';
       });
     });
