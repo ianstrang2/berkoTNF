@@ -207,39 +207,27 @@ function generateRequestId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
 
-// Trigger a step by its ID with proper completion tracking
-// Updated to call functions directly
+// Trigger a step by its ID
 async function triggerStep(stepId: string, config: any, dbState: any) {
   console.log(`[triggerStep] Invoked for stepId: ${stepId}`);
   const step = PROCESS_STEPS.find(s => s.id === stepId);
-  if (!step || !step.func) { // Check if function exists
+  if (!step || !step.func) { 
     throw new Error(`Step ${stepId} or its function not found`);
   }
   
-  // Update progress status in memory and database
-  progressStatus.currentStep = stepId; // Use stepId for consistency
-  const currentTime = new Date().toISOString();
-  
-  // Update the database state to show we are starting this step
-  await updateProcessState({
-    ...dbState,
-    currentStep: stepId, // Use stepId
-    lastUpdateTime: currentTime
-  });
-  
-  // Track attempts for this step
+  // Update step attempts (keep this)
+  console.log(`[triggerStep] Updating attempts for step ${stepId}`);
   const stepAttempts = dbState.stepAttempts || {};
   stepAttempts[stepId] = (stepAttempts[stepId] || 0) + 1;
-  
-  // Update step attempts in database
   await updateProcessState({
     ...dbState,
-    currentStep: stepId, // Keep currentStep updated
+    currentStep: stepId,
     stepAttempts: stepAttempts,
-    lastUpdateTime: currentTime // Update time again
+    lastUpdateTime: new Date().toISOString()
   });
-  
-  // If we've tried this step too many times, skip it
+  console.log(`[triggerStep] Attempts updated for step ${stepId}. Attempt: ${stepAttempts[stepId]}`);
+
+  // Skip if too many attempts (keep this)
   if (stepAttempts[stepId] > 3) {
     addExecutionLog(`Too many attempts (${stepAttempts[stepId]}) for step ${step.name}, skipping`);
     
@@ -259,16 +247,46 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
     // Update in-memory state too
     progressStatus.completedSteps = completedSteps;
     
-    return { success: true, completed: true, message: `Step ${step.name} skipped after multiple attempts` }; // Indicate completed=true so processNextStep moves on
+    return { success: true, completed: true, message: `Step ${step.name} skipped after multiple attempts` };
   }
   
   addExecutionLog(`Executing step function: ${step.name}`);
   console.log(`[triggerStep] Preparing to execute function for step: ${step.name}`);
 
+  // --- DIAGNOSTIC: Call function OUTSIDE transaction --- 
+  try {
+    console.log(`[triggerStep] DIAGNOSTIC: Calling ${step.name} directly with global prisma client (NO TRANSACTION)`);
+    // Call the function directly using the global prisma instance
+    await step.func(prisma, config); 
+    console.log(`[triggerStep] DIAGNOSTIC: Direct call to ${step.name} completed.`);
+    
+    // If the direct call succeeded, manually mark step as completed here for the diagnostic
+    console.log(`[triggerStep] DIAGNOSTIC: Manually marking step ${stepId} as completed after successful direct call.`);
+    const completedSteps = [...(await getProcessState()).completedSteps]; // Get fresh completed steps
+    if (!completedSteps.includes(stepId)) {
+      completedSteps.push(stepId);
+    }
+    await updateProcessState({
+      ...(await getProcessState()), // Get latest state again
+      currentStep: stepId, 
+      completedSteps: completedSteps,
+      lastUpdateTime: new Date().toISOString() 
+    });
+    console.log(`[triggerStep] DIAGNOSTIC: Step ${stepId} marked completed in DB.`);
+
+    return { success: true, completed: true };
+
+  } catch (error) {
+     console.error(`[triggerStep] CRITICAL ERROR during DIRECT CALL execution for step ${step.name}:`, error);
+     // Since we aren't using a transaction, we just re-throw
+     throw error; 
+  }
+  // --- END DIAGNOSTIC --- 
+
+  /* --- ORIGINAL TRANSACTION LOGIC (Commented out for diagnostic) ---
   try {
     console.log(`[triggerStep] Starting prisma.$transaction for step: ${step.name}`);
     await prisma.$transaction(
-      // Let Prisma infer the type of tx
       async (tx) => { 
         console.log(`[triggerStep] Inside transaction callback for step: ${step.name}`);
         addExecutionLog(`Starting transaction for step: ${step.name}`);
@@ -276,43 +294,31 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
         addExecutionLog(`Transaction completed for step: ${step.name}`);
         console.log(`[triggerStep] Transaction function completed for step: ${step.name}`);
       },
-      { timeout: 120000 } // 120 second timeout
+      { timeout: 120000 } 
     );
     console.log(`[triggerStep] prisma.$transaction finished successfully for step: ${step.name}`);
-
-    addExecutionLog(`Step ${step.name} function executed successfully.`);
-
+    
     // Mark step as completed in the database
+    console.log(`[triggerStep] Marking step ${stepId} as completed in DB after transaction.`);
     const completedSteps = [...dbState.completedSteps];
     if (!completedSteps.includes(stepId)) {
       completedSteps.push(stepId);
     }
-
     await updateProcessState({
       ...dbState,
-      currentStep: stepId, // Keep currentStep updated
+      currentStep: stepId,
       completedSteps: completedSteps,
-      lastUpdateTime: new Date().toISOString() // Update time again
+      lastUpdateTime: new Date().toISOString() 
     });
-
-    // Update in-memory state too
-    progressStatus.completedSteps = completedSteps;
+    console.log(`[triggerStep] Step ${stepId} marked completed in DB.`);
     
-    addExecutionLog(`Step ${step.name} completed successfully. Overall progress: ${calculateProgress(completedSteps)}%`);
-    
-    // Return a success object indicating completion
     return { success: true, completed: true };
 
   } catch (error) {
-    const errorMessage = error instanceof Error 
-      ? `${error.name}: ${error.message}` 
-      : 'Unknown error during step execution';
-      
-    addExecutionLog(`Error executing function for step ${step.name}: ${errorMessage}`);
-
-    // Throw the error so processNextStep can catch it
-    throw error; 
+     console.error(`[triggerStep] CRITICAL ERROR during $transaction or function execution for step ${step.name}:`, error);
+     throw error; 
   }
+  --- END ORIGINAL TRANSACTION LOGIC --- */
 }
 
 // Process the next step in the chain
