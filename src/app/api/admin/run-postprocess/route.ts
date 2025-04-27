@@ -230,69 +230,53 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
   // Skip if too many attempts
   if (stepAttempts[stepId] > 3) {
     addExecutionLog(`Too many attempts (${stepAttempts[stepId]}) for step ${step.name}, skipping`);
-    
-    // Mark as completed in the database
     const completedSteps = [...dbState.completedSteps];
     if (!completedSteps.includes(stepId)) {
       completedSteps.push(stepId);
     }
-    
     await updateProcessState({
       ...dbState,
-      currentStep: stepId, // Ensure currentStep reflects the skipped step
+      currentStep: stepId,
       completedSteps: completedSteps,
-      lastUpdateTime: new Date().toISOString() // Update time again
+      lastUpdateTime: new Date().toISOString()
     });
-    
-    // Update in-memory state too
     progressStatus.completedSteps = completedSteps;
-    
     return { success: true, completed: true, message: `Step ${step.name} skipped after multiple attempts` };
   }
   
   addExecutionLog(`Executing step function: ${step.name}`);
-  console.log(`[triggerStep] Preparing to execute function for step: ${step.name}`);
+  console.log(`[triggerStep] Preparing to execute function for step: ${step.name} (NO TRANSACTION)`);
 
-  // --- Restore Original Transaction Logic --- 
+  // --- Execute WITHOUT Transaction --- 
   try {
-    console.log(`[triggerStep] Starting prisma.$transaction for step: ${step.name}`);
-    await prisma.$transaction(
-      async (tx) => { 
-        console.log(`[triggerStep] Inside transaction callback for step: ${step.name}`);
-        addExecutionLog(`Starting transaction for step: ${step.name}`);
-        // Pass the transaction client (tx) 
-        await step.func(tx, config);
-        addExecutionLog(`Transaction completed for step: ${step.name}`);
-        console.log(`[triggerStep] Transaction function completed for step: ${step.name}`);
-      },
-      { timeout: 120000 } // Maintain 120s timeout
-    );
-    console.log(`[triggerStep] prisma.$transaction finished successfully for step: ${step.name}`);
+    console.log(`[triggerStep] Calling ${step.name} directly with global prisma client`);
+    // Call the function directly using the global prisma instance, NO 'tx'
+    await step.func(prisma, config); 
+    console.log(`[triggerStep] Direct call to ${step.name} completed.`);
     
-    // Mark step as completed in the database
-    console.log(`[triggerStep] Marking step ${stepId} as completed in DB after transaction.`);
-    // Get latest state before updating completion
+    // Mark step as completed 
+    console.log(`[triggerStep] Marking step ${stepId} as completed after successful direct call.`);
     const latestState = await getProcessState(); 
     const completedSteps = [...latestState.completedSteps];
     if (!completedSteps.includes(stepId)) {
       completedSteps.push(stepId);
     }
     await updateProcessState({
-      ...latestState, // Use latest state
-      currentStep: stepId, // Reflect the step that just finished
+      ...latestState,
+      currentStep: stepId, 
       completedSteps: completedSteps,
       lastUpdateTime: new Date().toISOString() 
     });
     console.log(`[triggerStep] Step ${stepId} marked completed in DB.`);
-    
+
     return { success: true, completed: true };
 
   } catch (error) {
-     console.error(`[triggerStep] CRITICAL ERROR during $transaction or function execution for step ${step.name}:`, error);
+     console.error(`[triggerStep] CRITICAL ERROR during step function execution for step ${step.name}:`, error);
      // Re-throw the error to be handled by processNextStep
      throw error; 
   }
-  // --- END Original Transaction Logic --- 
+  // --- END Execute WITHOUT Transaction --- 
 }
 
 // Process the next step in the chain
