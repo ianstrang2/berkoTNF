@@ -445,7 +445,7 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
       // Last resort fallback
       baseUrl = 'https://berkotnf.com';
       addExecutionLog(`Using hardcoded fallback: ${baseUrl}`);
-    }
+  }
   }
   
   // Ensure baseUrl doesn't end with a slash
@@ -460,19 +460,19 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
   
-    const response = await fetch(`${baseUrl}${step.endpoint}`, {
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json',
-          'X-Request-ID': dbState.requestId || 'unknown'
-      },
-        body: JSON.stringify({ 
-          config,
-          requestId: dbState.requestId
-        }),
-        signal: controller.signal
-      });
-      
+  const response = await fetch(`${baseUrl}${step.endpoint}`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-Request-ID': dbState.requestId || 'unknown'
+    },
+      body: JSON.stringify({ 
+        config,
+        requestId: dbState.requestId
+      }),
+      signal: controller.signal
+    });
+    
     clearTimeout(timeoutId);
     
     addExecutionLog(`Received response from ${step.endpoint}, status: ${response.status}`);
@@ -482,11 +482,11 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
       throw new Error(`Gateway timeout (504) for step ${step.name} - operation took too long`);
     }
   
-    if (!response.ok) {
-      const errorData = await response.text();
+  if (!response.ok) {
+    const errorData = await response.text();
       addExecutionLog(`Step ${step.name} failed with status ${response.status}: ${errorData}`);
-      throw new Error(`Step ${step.name} failed: ${errorData}`);
-    }
+    throw new Error(`Step ${step.name} failed: ${errorData}`);
+  }
   
     const jsonResponse = await response.json();
     
@@ -494,34 +494,93 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
     if (step.endpoint.includes('update-recent-performance')) {
       addExecutionLog(`Processing special case for update-recent-performance endpoint`);
       
-      // SIMPLIFIED: Always consider recent-performance successful
-      // This avoids the complexity that might be failing in production
-      addExecutionLog(`Auto-completing recent-performance step to avoid stalling`);
-      
-      // Mark step as completed in the database using step ID
-      const completedSteps = [...dbState.completedSteps];
-      if (!completedSteps.includes(stepId)) {
-        addExecutionLog(`Adding step ID '${stepId}' to completedSteps array`);
-        completedSteps.push(stepId);
+      // If we receive a success message, mark it as completed
+      if (jsonResponse.success) {
+        addExecutionLog(`update-recent-performance returned success: ${JSON.stringify(jsonResponse)}`);
+        
+        // CRITICAL FIX: Always force mark the step as completed
+        // Mark step as completed in the database using step ID
+        const completedSteps = [...dbState.completedSteps];
+        if (!completedSteps.includes(stepId)) {
+          addExecutionLog(`Adding step ID '${stepId}' to completedSteps array`);
+          completedSteps.push(stepId);
+        } else {
+          addExecutionLog(`Step ID '${stepId}' was already in completedSteps array`);
+        }
+        
+        addExecutionLog(`completedSteps before database update: ${JSON.stringify(completedSteps)}`);
+        
+        try {
+          await updateProcessState({
+            ...dbState,
+            completedSteps: completedSteps,
+            lastUpdateTime: new Date().toISOString()
+          });
+          
+          // Verify the update worked correctly
+          const updatedState = await getProcessState();
+          addExecutionLog(`Verified database state after update: completedSteps=${JSON.stringify(updatedState.completedSteps)}`);
+          
+          // CRITICAL FIX: Validate the update worked
+          if (!updatedState.completedSteps.includes(stepId)) {
+            addExecutionLog(`ERROR: Step ID ${stepId} wasn't added to completedSteps in database even after update!`);
+            addExecutionLog(`Attempting direct database query to force update...`);
+            
+            // Try a direct query to ensure the update happens
+            try {
+              await prisma.$executeRaw`
+                UPDATE process_state 
+                SET completed_steps = array_append(completed_steps, ${stepId})
+                WHERE id = 'stats_update' AND NOT (${stepId} = ANY(completed_steps))
+              `;
+              addExecutionLog(`Direct database update completed successfully`);
+            } catch (dbError) {
+              addExecutionLog(`Error with direct database update: ${dbError}`);
+            }
+          }
+          
+          // Update in-memory state too - just to be sure
+          progressStatus.completedSteps = completedSteps;
+        } catch (dbError) {
+          addExecutionLog(`ERROR updating process state in database: ${dbError}`);
+        }
+        
+        // Log more details about the response we're sending back
+        addExecutionLog(`Returning response for step ${stepId}: completed=true, inProgress=false`);
+        return { 
+          ...jsonResponse,
+          completed: true,
+          inProgress: false 
+        };
+      } else {
+        // Even without success, we might need to force progress
+        addExecutionLog(`WARNING: update-recent-performance didn't return explicit success. Response: ${JSON.stringify(jsonResponse)}`);
+        addExecutionLog(`Checking if we should force step completion anyway...`);
+        
+        // If no explicit error and seems to have been running a while, force progress
+        if (!jsonResponse.error && dbState.stepAttempts && dbState.stepAttempts[stepId] > 1) {
+          addExecutionLog(`Forcing completion of step ${stepId} to prevent loop`);
+          const completedSteps = [...dbState.completedSteps];
+          if (!completedSteps.includes(stepId)) {
+            completedSteps.push(stepId);
+          }
+          
+          await updateProcessState({
+            ...dbState,
+            completedSteps: completedSteps,
+            lastUpdateTime: new Date().toISOString()
+          });
+          
+          progressStatus.completedSteps = completedSteps;
+          
+          return {
+            ...jsonResponse,
+            completed: true,
+            inProgress: false,
+            forceCompleted: true
+          };
+        }
       }
-      
-      // Update database state
-      await updateProcessState({
-        ...dbState,
-        completedSteps: completedSteps,
-        lastUpdateTime: new Date().toISOString()
-      });
-      
-      // Update in-memory state too
-      progressStatus.completedSteps = completedSteps;
-      
-      // Skip actual API call and return completion directly
-      return { 
-        success: true,
-        message: 'Recent Performance step auto-completed to avoid production issues',
-        completed: true,
-        inProgress: false 
-      };
     }
     
     // Check response for an "inProgress" flag which would indicate the step is still running
@@ -541,7 +600,7 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
       const completedSteps = [...dbState.completedSteps];
       if (!completedSteps.includes(stepId)) {
         completedSteps.push(stepId);
-      }
+}
 
       await updateProcessState({
         ...dbState,
