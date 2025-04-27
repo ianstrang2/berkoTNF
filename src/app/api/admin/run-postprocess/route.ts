@@ -445,7 +445,7 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
       // Last resort fallback
       baseUrl = 'https://berkotnf.com';
       addExecutionLog(`Using hardcoded fallback: ${baseUrl}`);
-    }
+  }
   }
   
   // Ensure baseUrl doesn't end with a slash
@@ -459,13 +459,13 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
     // Add a reasonable timeout for the fetch request
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-    
-    const response = await fetch(`${baseUrl}${step.endpoint}`, {
-      method: 'POST',
-      headers: {
+  
+  const response = await fetch(`${baseUrl}${step.endpoint}`, {
+    method: 'POST',
+    headers: {
         'Content-Type': 'application/json',
         'X-Request-ID': dbState.requestId || 'unknown'
-      },
+    },
       body: JSON.stringify({ 
         config,
         requestId: dbState.requestId
@@ -481,13 +481,13 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
     if (response.status === 504) {
       throw new Error(`Gateway timeout (504) for step ${step.name} - operation took too long`);
     }
-    
-    if (!response.ok) {
-      const errorData = await response.text();
+  
+  if (!response.ok) {
+    const errorData = await response.text();
       addExecutionLog(`Step ${step.name} failed with status ${response.status}: ${errorData}`);
-      throw new Error(`Step ${step.name} failed: ${errorData}`);
-    }
-    
+    throw new Error(`Step ${step.name} failed: ${errorData}`);
+  }
+  
     const jsonResponse = await response.json();
     
     // Special case for update-recent-performance endpoint
@@ -600,8 +600,8 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
       const completedSteps = [...dbState.completedSteps];
       if (!completedSteps.includes(stepId)) {
         completedSteps.push(stepId);
-      }
-      
+}
+
       await updateProcessState({
         ...dbState,
         completedSteps: completedSteps,
@@ -882,7 +882,7 @@ export async function POST(request: Request) {
         }
       });
     }
-    
+
     // Starting a new process...
     // Reset process state
     const requestId = generateRequestId();
