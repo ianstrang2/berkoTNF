@@ -169,7 +169,7 @@ async function updateProcessState(state: {
 }) {
   console.log(`[updateProcessState] Updating DB state: isRunning=${state.isRunning}, currentStep=${state.currentStep}, error=${state.error}`);
   try {
-    // Use upsert to create or update the state
+    const queryStartTime = Date.now();
     await prisma.$executeRaw`
       INSERT INTO process_state (
         id, is_running, request_id, current_step, completed_steps, 
@@ -191,10 +191,13 @@ async function updateProcessState(state: {
         last_update_time = ${state.lastUpdateTime ? new Date(state.lastUpdateTime) : null},
         step_attempts = ${JSON.stringify(state.stepAttempts)}::JSONB
     `;
-    console.log('[updateProcessState] DB update successful.');
+    const queryEndTime = Date.now();
+    // Log immediately after the await completes
+    console.log(`[updateProcessState] DB update successful. Query took ${queryEndTime - queryStartTime}ms.`); 
     return true;
   } catch (error) {
-    console.error('[updateProcessState] CRITICAL ERROR updating process state:', error);
+    // Log the actual error object
+    console.error('[updateProcessState] CRITICAL ERROR updating process state:', error); 
     return false;
   }
 }
@@ -585,7 +588,8 @@ export async function POST(request: Request) {
     
     // --- Handling existing running process ---
     if (dbState.isRunning && dbState.requestId) {
-       addExecutionLog(`Continuing existing process with ID ${dbState.requestId}. Current step from DB: ${dbState.currentStep}`);
+      console.log('[run-postprocess POST] Handling existing process flow...');
+      addExecutionLog(`Continuing existing process with ID ${dbState.requestId}. Current step from DB: ${dbState.currentStep}`);
        
        // If a specific step was requested to be re-run or triggered
        if (requestedStepId) {
@@ -637,16 +641,16 @@ export async function POST(request: Request) {
        } else {
          // If no specific step requested, just try to continue the main process chain
          addExecutionLog('No specific step requested, ensuring process chain continues...');
-         // Don't wait for this to complete - return quickly
-         processNextStep(config, dbState).catch(processError => {
-            console.error('Error explicitly continuing process chain from POST:', processError);
-            // Attempt to update the error state in the database
-            updateProcessState({
-              ...dbState, // Use the state known at the time of the POST call
-              error: `Error continuing process: ${processError.message.substring(0, 150)}`,
-              lastUpdateTime: new Date().toISOString()
-            }).catch(updateError => console.error("Failed to update error state:", updateError));
-         });
+         // Run fully async
+         processNextStep(config, dbState).catch(processError => { 
+           console.error('[run-postprocess POST] ASYNC ERROR continuing process chain:', processError);
+           // Attempt to update the error state in the database
+           updateProcessState({
+             ...dbState, // Use the state known at the time of the POST call
+             error: `Error continuing process: ${processError.message.substring(0, 150)}`,
+             lastUpdateTime: new Date().toISOString()
+           }).catch(updateError => console.error("Failed to update error state:", updateError));
+        });
        
          // Return current status immediately
          return NextResponse.json({
@@ -660,7 +664,6 @@ export async function POST(request: Request) {
        }
     } else {
       // --- Starting a new process ---
-      addExecutionLog('No process running or previous one completed/failed. Starting a new process...');
       console.log('[run-postprocess POST] Starting new process flow');
        // Reset process state
       const requestId = generateRequestId();
@@ -698,26 +701,21 @@ export async function POST(request: Request) {
       
       addExecutionLog(`Starting processing chain with request ID: ${requestId}`);
       
-      // --- DIAGNOSTIC: Await the first step --- 
-      console.log('[run-postprocess POST] DIAGNOSTIC: Awaiting first processNextStep call...');
-      try {
-        await processNextStep(config, newState); 
-        console.log('[run-postprocess POST] DIAGNOSTIC: Initial processNextStep call completed without throwing error.');
-      } catch(initialError) {
-        // This catch block might be redundant if processNextStep already catches/logs,
-        // but added for explicit diagnosis of awaited call failure.
-        console.error('[run-postprocess POST] DIAGNOSTIC: Error awaiting initial processNextStep:', initialError);
+      // --- Revert Diagnostic await: Run fully async --- 
+      console.log('[run-postprocess POST] Starting initial processNextStep call ASYNCHRONOUSLY...');
+      processNextStep(config, newState).catch(async processError => {
+        // Logged within the catch block now
+        console.error('[run-postprocess POST] ASYNC ERROR starting initial process chain:', processError);
         // Attempt to update state with error
         const latestState = await getProcessState();
         await updateProcessState({
            ...latestState,
-           isRunning: false,
-           error: `Failed initial awaited step: ${initialError.message.substring(0, 150)}`,
+           isRunning: false, 
+           error: `Failed initial async step: ${processError.message.substring(0, 150)}`,
            lastUpdateTime: new Date().toISOString()
-         }).catch(updateError => console.error("Failed to update error state after initial awaited failure:", updateError));
-         // Do not re-throw, let the original response be sent below
-      }
-      // --- END DIAGNOSTIC --- 
+         }).catch(updateError => console.error("Failed to update error state after initial async failure:", updateError));
+      });
+      // --- END Revert Diagnostic --- 
 
       addExecutionLog('Returning initial success response to client');
       console.log('[run-postprocess POST] Returning success response for new process');
