@@ -107,39 +107,41 @@ function calculateProgress(completedSteps: string[]) {
 
 // Get process state from database
 async function getProcessState() {
+  console.log('[getProcessState] Fetching state from DB...');
   try {
-    // Get the latest state - table already exists in Supabase
     const state = await prisma.$queryRaw`
       SELECT * FROM process_state WHERE id = 'stats_update' LIMIT 1
     `;
-    
+    console.log('[getProcessState] DB query successful.');
     if (state && state[0]) {
-      // Convert database record to our state format
-      return {
-        isRunning: state[0].is_running,
-        requestId: state[0].request_id,
-        currentStep: state[0].current_step || '',
-        completedSteps: state[0].completed_steps || [],
-        error: state[0].error,
-        startTime: state[0].start_time,
-        lastUpdateTime: state[0].last_update_time,
-        stepAttempts: state[0].step_attempts || {}
-      };
+        console.log(`[getProcessState] Found existing state: isRunning=${state[0].is_running}, currentStep=${state[0].current_step}`);
+        // Convert database record to our state format
+        return {
+          isRunning: state[0].is_running,
+          requestId: state[0].request_id,
+          currentStep: state[0].current_step || '',
+          completedSteps: state[0].completed_steps || [],
+          error: state[0].error,
+          startTime: state[0].start_time,
+          lastUpdateTime: state[0].last_update_time,
+          stepAttempts: state[0].step_attempts || {}
+        };
+    } else {
+        console.log('[getProcessState] No existing state found, returning default.');
+        // If no state exists, return default
+        return {
+          isRunning: false,
+          requestId: null,
+          currentStep: '',
+          completedSteps: [],
+          error: null,
+          startTime: null,
+          lastUpdateTime: null,
+          stepAttempts: {}
+        };
     }
-    
-    // If no state exists, return default
-    return {
-      isRunning: false,
-      requestId: null,
-      currentStep: '',
-      completedSteps: [],
-      error: null,
-      startTime: null,
-      lastUpdateTime: null,
-      stepAttempts: {}
-    };
   } catch (error) {
-    console.error('Error getting process state:', error);
+    console.error('[getProcessState] CRITICAL ERROR fetching process state:', error);
     // Fall back to default state if DB read fails
     return {
       isRunning: false,
@@ -165,6 +167,7 @@ async function updateProcessState(state: {
   lastUpdateTime: string | Date | null;
   stepAttempts: Record<string, any>;
 }) {
+  console.log(`[updateProcessState] Updating DB state: isRunning=${state.isRunning}, currentStep=${state.currentStep}, error=${state.error}`);
   try {
     // Use upsert to create or update the state
     await prisma.$executeRaw`
@@ -188,9 +191,10 @@ async function updateProcessState(state: {
         last_update_time = ${state.lastUpdateTime ? new Date(state.lastUpdateTime) : null},
         step_attempts = ${JSON.stringify(state.stepAttempts)}::JSONB
     `;
+    console.log('[updateProcessState] DB update successful.');
     return true;
   } catch (error) {
-    console.error('Error updating process state:', error);
+    console.error('[updateProcessState] CRITICAL ERROR updating process state:', error);
     return false;
   }
 }
@@ -203,6 +207,7 @@ function generateRequestId() {
 // Trigger a step by its ID with proper completion tracking
 // Updated to call functions directly
 async function triggerStep(stepId: string, config: any, dbState: any) {
+  console.log(`[triggerStep] Invoked for stepId: ${stepId}`);
   const step = PROCESS_STEPS.find(s => s.id === stepId);
   if (!step || !step.func) { // Check if function exists
     throw new Error(`Step ${stepId} or its function not found`);
@@ -254,22 +259,23 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
     return { success: true, completed: true, message: `Step ${step.name} skipped after multiple attempts` }; // Indicate completed=true so processNextStep moves on
   }
   
-  // REMOVED fetch logic
-  
   addExecutionLog(`Executing step function: ${step.name}`);
+  console.log(`[triggerStep] Preparing to execute function for step: ${step.name}`);
 
   try {
-    // Execute the step function directly within a transaction
+    console.log(`[triggerStep] Starting prisma.$transaction for step: ${step.name}`);
     await prisma.$transaction(
       // Let Prisma infer the type of tx
       async (tx) => { 
+        console.log(`[triggerStep] Inside transaction callback for step: ${step.name}`);
         addExecutionLog(`Starting transaction for step: ${step.name}`);
-        // Pass the transaction client (tx) and config to the step function
         await step.func(tx, config);
         addExecutionLog(`Transaction completed for step: ${step.name}`);
+        console.log(`[triggerStep] Transaction function completed for step: ${step.name}`);
       },
       { timeout: 120000 } // 120 second timeout
     );
+    console.log(`[triggerStep] prisma.$transaction finished successfully for step: ${step.name}`);
 
     addExecutionLog(`Step ${step.name} function executed successfully.`);
 
@@ -308,7 +314,7 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
 
 // Process the next step in the chain with safety mechanisms
 async function processNextStep(config: any, dbState: any) {
-  addExecutionLog(`Processing next step. Current state: step=${dbState.currentStep}, completed=${dbState.completedSteps.join(', ')}`);
+  console.log(`[processNextStep] Invoked. Current step from input state: ${dbState.currentStep}, Completed: ${dbState.completedSteps?.join(',')}`);
   
   const completedIds = dbState.completedSteps;
   addExecutionLog(`Looking for a step that is not in completedIds: ${JSON.stringify(completedIds)}`);
@@ -346,24 +352,21 @@ async function processNextStep(config: any, dbState: any) {
     return { success: true, message: 'All steps completed successfully' };
   }
   
-  addExecutionLog(`Next step to process: ${nextStep.id} (${nextStep.name})`);
+  console.log(`[processNextStep] Next step to process: ${nextStep.name} (ID: ${nextStep.id})`);
   
-  // REMOVED: Check for endpoint as we now use functions
-  // if (!nextStep.endpoint) { ... }
-
   try {
-    // SERVERLESS FIX: First update the database to show we're about to trigger this step
+    console.log(`[processNextStep] Updating state before triggering step ${nextStep.id}`);
     await updateProcessState({
       ...dbState,
-      currentStep: nextStep.id, // Update currentStep to the one we are starting
+      currentStep: nextStep.id,
       lastUpdateTime: new Date().toISOString()
     });
+    console.log(`[processNextStep] State updated. Calling triggerStep for ${nextStep.id}`);
     
-    addExecutionLog(`Database updated to show we're starting step: ${nextStep.name} (ID: ${nextStep.id})`);
-    
-    // Trigger the next step with the *updated* DB state
     const currentDbState = await getProcessState(); // Get fresh state before triggering
+    console.log(`[processNextStep] Triggering step ${nextStep.id} with config: ${JSON.stringify(config || {})}`);
     const stepResult = await triggerStep(nextStep.id, config, currentDbState);
+    console.log(`[processNextStep] triggerStep for ${nextStep.id} completed. Result success: ${stepResult?.success}, completed: ${stepResult?.completed}`);
     
     // Get latest state from database *after* the step attempt
     const latestState = await getProcessState();
@@ -400,11 +403,7 @@ async function processNextStep(config: any, dbState: any) {
     }
 
   } catch (error) {
-    const errorMessage = error instanceof Error 
-      ? `${error.name}: ${error.message}` 
-      : 'Unknown error';
-      
-    addExecutionLog(`Error processing step ${nextStep.name}: ${errorMessage}`);
+    console.error(`[processNextStep] CRITICAL ERROR processing step ${nextStep?.id || 'unknown'}:`, error);
     
     // Get fresh state from database
     const latestState = await getProcessState();
@@ -418,13 +417,13 @@ async function processNextStep(config: any, dbState: any) {
     await updateProcessState({
       ...latestState,
       currentStep: nextStep.id, // Ensure currentStep reflects the failed step
-      error: `Error on step ${nextStep.name}: ${errorMessage.substring(0, 200)}`, // Store truncated error
+      error: `Error on step ${nextStep.name}: ${error.message.substring(0, 200)}`, // Store truncated error
       stepAttempts: stepAttempts,
       lastUpdateTime: new Date().toISOString()
     });
     
     // Update in-memory error state
-    progressStatus.error = `Error on step ${nextStep.name}: ${errorMessage.substring(0, 200)}`;
+    progressStatus.error = `Error on step ${nextStep.name}: ${error.message.substring(0, 200)}`;
 
     // If we've tried too many times, mark as completed (to skip) and move on
     if (stepAttempts[nextStep.id] > 3) {
@@ -440,7 +439,7 @@ async function processNextStep(config: any, dbState: any) {
         ...latestState, // Start from latestState again
         currentStep: nextStep.id, // Keep currentStep showing the step that failed/was skipped
         completedSteps: completedSteps,
-        error: `Step ${nextStep.name} skipped after ${stepAttempts[nextStep.id]} failed attempts. Last error: ${errorMessage.substring(0, 150)}`, // Update error message
+        error: `Step ${nextStep.name} skipped after ${stepAttempts[nextStep.id]} failed attempts. Last error: ${error.message.substring(0, 150)}`, // Update error message
         lastUpdateTime: new Date().toISOString()
       });
       
@@ -565,7 +564,6 @@ export async function GET(request: Request) {
 // POST function remains the same structure - initiates the process
 
 export async function POST(request: Request) {
-  // VERY EARLY LOG
   console.log('[run-postprocess POST] Handler invoked');
   
   try {
@@ -677,11 +675,13 @@ export async function POST(request: Request) {
         stepAttempts: {}
       };
       
-      // Update the database
+      console.log('[run-postprocess POST] Attempting initial updateProcessState for new process');
       const updateSuccess = await updateProcessState(newState);
       if (!updateSuccess) {
+          console.error('[run-postprocess POST] FAILED initial updateProcessState');
           throw new Error("Failed to initialize process state in database.");
       }
+      console.log('[run-postprocess POST] Initial updateProcessState successful');
       
       // Update in-memory state too
       progressStatus = {
@@ -698,20 +698,27 @@ export async function POST(request: Request) {
       
       addExecutionLog(`Starting processing chain with request ID: ${requestId}`);
       
-      // Start the processing chain asynchronously
-      // Don't wait for this promise to resolve
-      processNextStep(config, newState).catch(async processError => {
-        console.error('Error starting process chain:', processError);
+      // --- DIAGNOSTIC: Await the first step --- 
+      console.log('[run-postprocess POST] DIAGNOSTIC: Awaiting first processNextStep call...');
+      try {
+        await processNextStep(config, newState); 
+        console.log('[run-postprocess POST] DIAGNOSTIC: Initial processNextStep call completed without throwing error.');
+      } catch(initialError) {
+        // This catch block might be redundant if processNextStep already catches/logs,
+        // but added for explicit diagnosis of awaited call failure.
+        console.error('[run-postprocess POST] DIAGNOSTIC: Error awaiting initial processNextStep:', initialError);
         // Attempt to update state with error
-        const latestState = await getProcessState(); // Get potentially updated state
-         await updateProcessState({
+        const latestState = await getProcessState();
+        await updateProcessState({
            ...latestState,
-           isRunning: false, // Mark as not running if the very start fails
-           error: `Failed to start process: ${processError.message.substring(0, 150)}`,
+           isRunning: false,
+           error: `Failed initial awaited step: ${initialError.message.substring(0, 150)}`,
            lastUpdateTime: new Date().toISOString()
-         }).catch(updateError => console.error("Failed to update error state after initial failure:", updateError));
-      });
-  
+         }).catch(updateError => console.error("Failed to update error state after initial awaited failure:", updateError));
+         // Do not re-throw, let the original response be sent below
+      }
+      // --- END DIAGNOSTIC --- 
+
       addExecutionLog('Returning initial success response to client');
       console.log('[run-postprocess POST] Returning success response for new process');
       // Return the newly initialized state
