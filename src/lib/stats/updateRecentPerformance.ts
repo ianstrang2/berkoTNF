@@ -149,44 +149,59 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
 
     console.log(`Preparing to update database with data for ${recentPerformanceData.length} players`);
 
-    // Clear the existing table and insert new data in a transaction
-    if (tx) {
-      // If we're already in a transaction, use it directly
-      console.log('Using provided transaction to update data');
-      await tx.aggregated_recent_performance.deleteMany({});
-      
-      if (recentPerformanceData.length > 0) {
-        console.log(`Creating ${recentPerformanceData.length} recent performance records...`);
-        await tx.aggregated_recent_performance.createMany({
-          data: recentPerformanceData,
-          skipDuplicates: true,
-        });
-        console.log('Recent performance records created successfully');
-      }
-    } else {
-      // Otherwise use a local transaction with a timeout
-      console.log('Creating new transaction to update data');
-      await prisma.$transaction(async (txClient) => {
-        console.log('Deleting existing recent performance records...');
-        await txClient.aggregated_recent_performance.deleteMany({});
-        console.log('Existing records deleted');
+    // DIAGNOSIS CHECKPOINT 1
+    console.log('CHECKPOINT 1: About to delete existing records and create new ones');
+    
+    try {
+      // Clear the existing table and insert new data in a transaction
+      if (tx) {
+        // If we're already in a transaction, use it directly
+        console.log('Using provided transaction to update data');
+        await tx.aggregated_recent_performance.deleteMany({});
         
         if (recentPerformanceData.length > 0) {
           console.log(`Creating ${recentPerformanceData.length} recent performance records...`);
-          await txClient.aggregated_recent_performance.createMany({
+          await tx.aggregated_recent_performance.createMany({
             data: recentPerformanceData,
             skipDuplicates: true,
           });
           console.log('Recent performance records created successfully');
         }
-      }, {
-        timeout: 60000, // 1 minute timeout
-        maxWait: 10000, // 10 second max wait for connection
-      });
+      } else {
+        // Otherwise use a local transaction with a timeout
+        console.log('Creating new transaction to update data');
+        await prisma.$transaction(async (txClient) => {
+          console.log('Deleting existing recent performance records...');
+          await txClient.aggregated_recent_performance.deleteMany({});
+          console.log('Existing records deleted');
+          
+          if (recentPerformanceData.length > 0) {
+            console.log(`Creating ${recentPerformanceData.length} recent performance records...`);
+            await txClient.aggregated_recent_performance.createMany({
+              data: recentPerformanceData,
+              skipDuplicates: true,
+            });
+            console.log('Recent performance records created successfully');
+          }
+        }, {
+          timeout: 60000, // 1 minute timeout
+          maxWait: 10000, // 10 second max wait for connection
+        });
+      }
+      
+      // DIAGNOSIS CHECKPOINT 2
+      console.log('CHECKPOINT 2: Database operations completed successfully');
+    } catch (dbError) {
+      console.error('CRITICAL ERROR during database operations:', dbError);
+      console.error('Error type:', typeof dbError);
+      console.error('Error name:', dbError instanceof Error ? dbError.name : 'Not an Error object');
+      console.error('Error message:', dbError instanceof Error ? dbError.message : 'No message available');
+      console.error('Error stack:', dbError instanceof Error ? dbError.stack : 'No stack available');
+      throw dbError; // Rethrow to be caught by outer catch
     }
 
     const endTime = Date.now();
-    console.log(`updateRecentPerformance completed in ${endTime - startTime}ms. Updated stats for ${recentPerformanceData.length} players.`);
+    console.log(`FUNCTION COMPLETED SUCCESSFULLY: updateRecentPerformance completed in ${endTime - startTime}ms. Updated stats for ${recentPerformanceData.length} players.`);
 
   } catch (error) {
     console.error('Error updating recent performance:', error);
@@ -194,6 +209,8 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
     console.error('Error name:', error instanceof Error ? error.name : 'Not an Error object');
     console.error('Error message:', error instanceof Error ? error.message : 'No message available');
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available');
+    
+    console.error('FUNCTION FAILED: updateRecentPerformance did not complete successfully');
     
     throw new Error(`Failed to update recent performance: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
