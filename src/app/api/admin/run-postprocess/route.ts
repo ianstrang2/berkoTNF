@@ -215,7 +215,7 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
     throw new Error(`Step ${stepId} or its function not found`);
   }
   
-  // Update step attempts (keep this)
+  // Update step attempts 
   console.log(`[triggerStep] Updating attempts for step ${stepId}`);
   const stepAttempts = dbState.stepAttempts || {};
   stepAttempts[stepId] = (stepAttempts[stepId] || 0) + 1;
@@ -227,7 +227,7 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
   });
   console.log(`[triggerStep] Attempts updated for step ${stepId}. Attempt: ${stepAttempts[stepId]}`);
 
-  // Skip if too many attempts (keep this)
+  // Skip if too many attempts
   if (stepAttempts[stepId] > 3) {
     addExecutionLog(`Too many attempts (${stepAttempts[stepId]}) for step ${step.name}, skipping`);
     
@@ -253,60 +253,33 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
   addExecutionLog(`Executing step function: ${step.name}`);
   console.log(`[triggerStep] Preparing to execute function for step: ${step.name}`);
 
-  // --- DIAGNOSTIC: Call function OUTSIDE transaction --- 
-  try {
-    console.log(`[triggerStep] DIAGNOSTIC: Calling ${step.name} directly with global prisma client (NO TRANSACTION)`);
-    // Call the function directly using the global prisma instance
-    await step.func(prisma, config); 
-    console.log(`[triggerStep] DIAGNOSTIC: Direct call to ${step.name} completed.`);
-    
-    // If the direct call succeeded, manually mark step as completed here for the diagnostic
-    console.log(`[triggerStep] DIAGNOSTIC: Manually marking step ${stepId} as completed after successful direct call.`);
-    const completedSteps = [...(await getProcessState()).completedSteps]; // Get fresh completed steps
-    if (!completedSteps.includes(stepId)) {
-      completedSteps.push(stepId);
-    }
-    await updateProcessState({
-      ...(await getProcessState()), // Get latest state again
-      currentStep: stepId, 
-      completedSteps: completedSteps,
-      lastUpdateTime: new Date().toISOString() 
-    });
-    console.log(`[triggerStep] DIAGNOSTIC: Step ${stepId} marked completed in DB.`);
-
-    return { success: true, completed: true };
-
-  } catch (error) {
-     console.error(`[triggerStep] CRITICAL ERROR during DIRECT CALL execution for step ${step.name}:`, error);
-     // Since we aren't using a transaction, we just re-throw
-     throw error; 
-  }
-  // --- END DIAGNOSTIC --- 
-
-  /* --- ORIGINAL TRANSACTION LOGIC (Commented out for diagnostic) ---
+  // --- Restore Original Transaction Logic --- 
   try {
     console.log(`[triggerStep] Starting prisma.$transaction for step: ${step.name}`);
     await prisma.$transaction(
       async (tx) => { 
         console.log(`[triggerStep] Inside transaction callback for step: ${step.name}`);
         addExecutionLog(`Starting transaction for step: ${step.name}`);
+        // Pass the transaction client (tx) 
         await step.func(tx, config);
         addExecutionLog(`Transaction completed for step: ${step.name}`);
         console.log(`[triggerStep] Transaction function completed for step: ${step.name}`);
       },
-      { timeout: 120000 } 
+      { timeout: 120000 } // Maintain 120s timeout
     );
     console.log(`[triggerStep] prisma.$transaction finished successfully for step: ${step.name}`);
     
     // Mark step as completed in the database
     console.log(`[triggerStep] Marking step ${stepId} as completed in DB after transaction.`);
-    const completedSteps = [...dbState.completedSteps];
+    // Get latest state before updating completion
+    const latestState = await getProcessState(); 
+    const completedSteps = [...latestState.completedSteps];
     if (!completedSteps.includes(stepId)) {
       completedSteps.push(stepId);
     }
     await updateProcessState({
-      ...dbState,
-      currentStep: stepId,
+      ...latestState, // Use latest state
+      currentStep: stepId, // Reflect the step that just finished
       completedSteps: completedSteps,
       lastUpdateTime: new Date().toISOString() 
     });
@@ -316,9 +289,10 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
 
   } catch (error) {
      console.error(`[triggerStep] CRITICAL ERROR during $transaction or function execution for step ${step.name}:`, error);
+     // Re-throw the error to be handled by processNextStep
      throw error; 
   }
-  --- END ORIGINAL TRANSACTION LOGIC --- */
+  // --- END Original Transaction Logic --- 
 }
 
 // Process the next step in the chain

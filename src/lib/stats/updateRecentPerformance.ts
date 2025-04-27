@@ -18,39 +18,54 @@ interface LastGameInfo {
  * @param tx Optional Prisma transaction client
  */
 export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">): Promise<void> {
-  // VERY EARLY LOG
   console.log('[updateRecentPerformance] Function invoked.');
   const startTime = Date.now();
-
-  // Use provided transaction client or fall back to global prisma client
   const client = tx || prisma;
-  console.log(`[updateRecentPerformance] Using ${tx ? 'provided transaction' : 'global prisma client'}.`);
+  // Correct logging for client type detection
+  console.log(`[updateRecentPerformance] Using ${tx === prisma ? 'global prisma client' : tx ? 'provided transaction' : 'global prisma client (fallback)'}.`);
 
   try {
-    console.log('[updateRecentPerformance] Fetching non-ringer players...');
-    const players = await client.players.findMany({
+    // --- Optimize Player Fetching --- 
+    // Get total player count first for batch calculation
+    console.log('[updateRecentPerformance] Fetching non-ringer player count...');
+    const totalPlayers = await client.players.count({
       where: { is_ringer: false, is_retired: false },
-      select: { player_id: true },
     });
-    console.log(`[updateRecentPerformance] Found ${players.length} active non-ringer players to process`);
+    console.log(`[updateRecentPerformance] Found ${totalPlayers} active non-ringer players to process.`);
+
+    if (totalPlayers === 0) {
+      console.log('[updateRecentPerformance] No players to process. Clearing table and exiting.');
+      // Ensure table is cleared even if no players
+      await client.aggregated_recent_performance.deleteMany({});
+      return; 
+    }
 
     const recentPerformanceData: Prisma.aggregated_recent_performanceCreateManyInput[] = [];
-
-    // ---- RESTORE BATCHING ----
-    const BATCH_SIZE = 10; // Process 10 players at a time
-    const playerBatches: Array<typeof players[number][]> = [];
+    const BATCH_SIZE = 10; // Keep batch size relatively small
+    const totalBatches = Math.ceil(totalPlayers / BATCH_SIZE);
     
-    // Split players into batches
-    for (let i = 0; i < players.length; i += BATCH_SIZE) {
-      playerBatches.push(players.slice(i, i + BATCH_SIZE));
-    }
-    
-    console.log(`[updateRecentPerformance] Processing ${playerBatches.length} batches of ${BATCH_SIZE} players`);
+    console.log(`[updateRecentPerformance] Processing in ${totalBatches} batches of up to ${BATCH_SIZE} players`);
     
     // Process each batch sequentially
-    for (let batchIndex = 0; batchIndex < playerBatches.length; batchIndex++) {
-      const playerBatch = playerBatches[batchIndex];
-      console.log(`[updateRecentPerformance] Processing batch ${batchIndex + 1}/${playerBatches.length} (${playerBatch.length} players)`);
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const skip = batchIndex * BATCH_SIZE;
+      console.log(`[updateRecentPerformance] Processing batch ${batchIndex + 1}/${totalBatches} (skip: ${skip}, take: ${BATCH_SIZE})`);
+      
+      // Fetch player IDs FOR THIS BATCH ONLY
+      console.log(`[updateRecentPerformance] Fetching player IDs for batch ${batchIndex + 1}...`);
+      const playerBatch = await client.players.findMany({
+          where: { is_ringer: false, is_retired: false },
+          select: { player_id: true },
+          orderBy: { player_id: 'asc' }, // Consistent ordering is important for skip/take
+          skip: skip,
+          take: BATCH_SIZE,
+      });
+      console.log(`[updateRecentPerformance] Fetched ${playerBatch.length} player IDs for batch ${batchIndex + 1}.`);
+
+      if (playerBatch.length === 0) {
+          console.log(`[updateRecentPerformance] Batch ${batchIndex + 1} was empty, skipping.`);
+          continue; // Should not happen with count logic, but safety first
+      }
       
       // Process players in this batch concurrently
       const batchPromises = playerBatch.map(async (player) => {
@@ -117,12 +132,11 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
         }
       }); // End playerBatch.map
       
-      // Wait for all players in the CURRENT batch to be processed
       console.log(`[updateRecentPerformance] Waiting for batch ${batchIndex + 1} promises...`);
       const batchResults = await Promise.all(batchPromises);
       console.log(`[updateRecentPerformance] Batch ${batchIndex + 1} promises resolved.`);
       
-      // Add successful results from this batch to the main data array
+      // Add successful results from this batch
       let successfulBatchResults = 0;
       for (const result of batchResults) {
         if (result !== null) {
@@ -133,61 +147,31 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
       console.log(`[updateRecentPerformance] Batch ${batchIndex + 1} complete. Processed ${successfulBatchResults}/${playerBatch.length} players successfully.`);
       
     } // End for loop over batches
-    // ---- END RESTORE BATCHING ----
+    // --- END Optimize Player Fetching ---
 
-    console.log(`[updateRecentPerformance] All batches processed. Total successful players: ${recentPerformanceData.length}/${players.length}.`);
+    console.log(`[updateRecentPerformance] All batches processed. Total successful players: ${recentPerformanceData.length}/${totalPlayers}.`);
     console.log(`[updateRecentPerformance] Preparing to update database...`);
 
     // DIAGNOSIS CHECKPOINT 1
     console.log('[updateRecentPerformance] CHECKPOINT 1: About to delete existing records and create new ones');
     
-    try {
-      // Clear the existing table and insert new data in a transaction
-      if (tx) {
-        // If we're already in a transaction, use it directly
-        console.log('Using provided transaction to update data');
-        await tx.aggregated_recent_performance.deleteMany({});
-        
-        if (recentPerformanceData.length > 0) {
-          console.log(`Creating ${recentPerformanceData.length} recent performance records...`);
-          await tx.aggregated_recent_performance.createMany({
-            data: recentPerformanceData,
-            skipDuplicates: true,
-          });
-          console.log('Recent performance records created successfully');
-        }
-      } else {
-        // Otherwise use a local transaction with a timeout
-        console.log('Creating new transaction to update data');
-        await prisma.$transaction(async (txClient) => {
-          console.log('Deleting existing recent performance records...');
-          await txClient.aggregated_recent_performance.deleteMany({});
-          console.log('Existing records deleted');
-          
-          if (recentPerformanceData.length > 0) {
-            console.log(`Creating ${recentPerformanceData.length} recent performance records...`);
-            await txClient.aggregated_recent_performance.createMany({
-              data: recentPerformanceData,
-              skipDuplicates: true,
-            });
-            console.log('Recent performance records created successfully');
-          }
-        }, {
-          timeout: 60000, // 1 minute timeout
-          maxWait: 10000, // 10 second max wait for connection
-        });
-      }
-      
-      // DIAGNOSIS CHECKPOINT 2
-      console.log('CHECKPOINT 2: Database operations completed successfully');
-    } catch (dbError) {
-      console.error('CRITICAL ERROR during database operations:', dbError);
-      console.error('Error type:', typeof dbError);
-      console.error('Error name:', dbError instanceof Error ? dbError.name : 'Not an Error object');
-      console.error('Error message:', dbError instanceof Error ? dbError.message : 'No message available');
-      console.error('Error stack:', dbError instanceof Error ? dbError.stack : 'No stack available');
-      throw dbError; // Rethrow to be caught by outer catch
+    // Use the provided transaction client (tx) passed from triggerStep
+    console.log('[updateRecentPerformance] Using provided transaction to update data');
+    await client.aggregated_recent_performance.deleteMany({}); // Use client (which is tx here)
+    
+    if (recentPerformanceData.length > 0) {
+      console.log(`[updateRecentPerformance] Creating ${recentPerformanceData.length} recent performance records...`);
+      await client.aggregated_recent_performance.createMany({ // Use client (which is tx here)
+        data: recentPerformanceData,
+        skipDuplicates: true,
+      });
+      console.log('[updateRecentPerformance] Recent performance records created successfully');
+    } else {
+        console.log('[updateRecentPerformance] No successful player data to insert, only cleared table.');
     }
+      
+    // DIAGNOSIS CHECKPOINT 2
+    console.log('[updateRecentPerformance] CHECKPOINT 2: Database operations completed successfully');
 
     const endTime = Date.now();
     console.log(`FUNCTION COMPLETED SUCCESSFULLY: updateRecentPerformance completed in ${endTime - startTime}ms. Updated stats for ${recentPerformanceData.length} players.`);
