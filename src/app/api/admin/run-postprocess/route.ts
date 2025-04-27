@@ -315,7 +315,7 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
   }
 }
 
-// Process the next step in the chain with safety mechanisms
+// Process the next step in the chain
 async function processNextStep(config: any, dbState: any) {
   console.log(`[processNextStep] Invoked. Current step from input state: ${dbState.currentStep}, Completed: ${dbState.completedSteps?.join(',')}`);
   
@@ -358,51 +358,47 @@ async function processNextStep(config: any, dbState: any) {
   console.log(`[processNextStep] Next step to process: ${nextStep.name} (ID: ${nextStep.id})`);
   
   try {
-    console.log(`[processNextStep] Updating state before triggering step ${nextStep.id}`);
-    await updateProcessState({
-      ...dbState,
-      currentStep: nextStep.id,
-      lastUpdateTime: new Date().toISOString()
-    });
-    console.log(`[processNextStep] State updated. Calling triggerStep for ${nextStep.id}`);
-    
-    const currentDbState = await getProcessState(); // Get fresh state before triggering
+    // --- CHANGE: Trigger the step FIRST --- 
+    console.log(`[processNextStep] Attempting triggerStep for ${nextStep.id} BEFORE updating state.`);
+    // Get fresh state right before triggering, contains the correct attempt count
+    const currentDbState = await getProcessState(); 
     console.log(`[processNextStep] Triggering step ${nextStep.id} with config: ${JSON.stringify(config || {})}`);
-    const stepResult = await triggerStep(nextStep.id, config, currentDbState);
+    const stepResult = await triggerStep(nextStep.id, config, currentDbState); // Use fresh state
     console.log(`[processNextStep] triggerStep for ${nextStep.id} completed. Result success: ${stepResult?.success}, completed: ${stepResult?.completed}`);
     
-    // Get latest state from database *after* the step attempt
-    const latestState = await getProcessState();
+    // --- CHANGE: Update state AFTER successful triggerStep --- 
+    // (Note: triggerStep already marks completion internally if successful)
+    // We mainly update here to refresh lastUpdateTime and ensure currentStep reflects the completed/skipped step
+    const latestStateAfterTrigger = await getProcessState(); // Get state potentially updated by triggerStep
+    console.log(`[processNextStep] Updating state AFTER step ${nextStep.id} was triggered.`);
+    await updateProcessState({
+      ...latestStateAfterTrigger, // Use the state potentially updated by triggerStep
+      currentStep: nextStep.id, // Reflect the step that just ran
+      lastUpdateTime: new Date().toISOString() // Explicitly update time
+    });
+    console.log(`[processNextStep] State updated AFTER step ${nextStep.id} trigger.`);
+
+    // Get latest state from database *after* the step attempt and state update
+    const finalStateCheck = await getProcessState();
     
     // Check if the step was actually marked completed in the database by triggerStep
-    const wasStepCompleted = latestState.completedSteps.includes(nextStep.id);
+    const wasStepCompleted = finalStateCheck.completedSteps.includes(nextStep.id);
+    console.log(`[processNextStep] Final check: Step ${nextStep.id} completed status in DB = ${wasStepCompleted}`);
     
     if (wasStepCompleted) {
         addExecutionLog(`Step ${nextStep.name} is complete based on database state, moving to next step`);
+        console.log(`[processNextStep] Step ${nextStep.id} was completed, calling processNextStep recursively.`);
         // Process the next step in the chain recursively
-        return await processNextStep(config, latestState); 
+      return await processNextStep(config, finalStateCheck); // Use the latest state
     } else {
-        // This case should ideally not happen if triggerStep completes successfully
-        // But if it does, or if triggerStep indicates !completed (e.g., skipped), we might need to re-evaluate
-        addExecutionLog(`Step ${nextStep.name} was triggered but not marked as completed in DB. State: ${JSON.stringify(latestState)}`);
-        // Check if triggerStep explicitly returned completed=true (e.g., for skipped steps)
-        if (stepResult?.completed) {
-             addExecutionLog(`Step ${nextStep.name} indicated completion (e.g., skipped), moving to next step`);
-             return await processNextStep(config, latestState);
-        } else {
-            // If it wasn't completed and didn't indicate completion, rely on polling/retry
-            addExecutionLog(`Step ${nextStep.name} is still processing or failed without immediate completion signal.`);
-             // Update DB state just to refresh timestamp and confirm current step
-             await updateProcessState({
-                ...latestState,
-                currentStep: nextStep.id, // Keep currentStep correct
-                lastUpdateTime: new Date().toISOString()
-            });
-             return { 
-                success: true, // Indicate the processNextStep call itself succeeded
-                message: `Step ${nextStep.name} is processing or awaiting retry.`
-            };
-        }
+        // If triggerStep finished but didn't mark complete (e.g., due to error within step func before completion mark)
+        addExecutionLog(`Step ${nextStep.name} was triggered but not marked as completed in DB.`);
+        console.log(`[processNextStep] Step ${nextStep.id} finished trigger but wasn't marked completed. Relying on retry/polling.`);
+        // Rely on retry logic / polling. The error should have been thrown by triggerStep if fatal.
+        return { 
+            success: true, // Indicate the processNextStep call itself succeeded for this round
+            message: `Step ${nextStep.name} finished trigger but not completed. Awaiting retry/poll.`
+        };
     }
 
   } catch (error) {
@@ -411,11 +407,11 @@ async function processNextStep(config: any, dbState: any) {
     // Get fresh state from database
     const latestState = await getProcessState();
     
-    // Increment retry count for this step (using the state *before* the failed attempt)
-    // We read stepAttempts from dbState passed into this function call
-    const stepAttempts = latestState.stepAttempts || {}; // Use latestState to be safe
+    // Increment retry count for this step
+    const stepAttempts = latestState.stepAttempts || {};
     stepAttempts[nextStep.id] = (stepAttempts[nextStep.id] || 0) + 1;
     
+    console.log(`[processNextStep] Updating error state for step ${nextStep.id}. Attempt: ${stepAttempts[nextStep.id]}`);
     // Update attempts and error state in the database
     await updateProcessState({
       ...latestState,
@@ -424,6 +420,7 @@ async function processNextStep(config: any, dbState: any) {
       stepAttempts: stepAttempts,
       lastUpdateTime: new Date().toISOString()
     });
+    console.log(`[processNextStep] Error state updated for step ${nextStep.id}.`);
     
     // Update in-memory error state
     progressStatus.error = `Error on step ${nextStep.name}: ${error.message.substring(0, 200)}`;
@@ -453,7 +450,7 @@ async function processNextStep(config: any, dbState: any) {
     
     // If we haven't exceeded max retries yet, just stop and wait for polling
     addExecutionLog(`Will retry step ${nextStep.name} when client polls again (attempt ${stepAttempts[nextStep.id]} failed)`);
-    
+    console.log(`[processNextStep] Step ${nextStep.id} failed, will retry on next poll.`);
     return { 
       success: false, // Indicate the step failed this time
       message: `Step ${nextStep.name} failed (attempt ${stepAttempts[nextStep.id]}) but will be retried on next poll` 
