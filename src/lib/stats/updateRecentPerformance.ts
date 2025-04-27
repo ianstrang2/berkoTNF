@@ -18,14 +18,16 @@ interface LastGameInfo {
  * @param tx Optional Prisma transaction client
  */
 export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">): Promise<void> {
-  console.log('Starting updateRecentPerformance...');
+  // VERY EARLY LOG
+  console.log('[updateRecentPerformance] Function invoked.');
   const startTime = Date.now();
 
   // Use provided transaction client or fall back to global prisma client
   const client = tx || prisma;
+  console.log(`[updateRecentPerformance] Using ${tx ? 'provided transaction' : 'global prisma client'}.`);
 
   try {
-    console.log('Fetching non-ringer players...');
+    console.log('[updateRecentPerformance] Fetching non-ringer players...');
     // Get all non-ringer player IDs
     const players = await client.players.findMany({
       where: {
@@ -37,120 +39,98 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
       },
     });
 
-    console.log(`Found ${players.length} active non-ringer players to process`);
+    console.log(`[updateRecentPerformance] Found ${players.length} active non-ringer players to process`);
 
     // Use CreateManyInput type for createMany
     const recentPerformanceData: Prisma.aggregated_recent_performanceCreateManyInput[] = [];
 
-    // Process players in batches to avoid timeouts in serverless environments
-    const BATCH_SIZE = 10;
-    const playerBatches: Array<typeof players[number][]> = [];
-    
-    // Split players into batches
-    for (let i = 0; i < players.length; i += BATCH_SIZE) {
-      playerBatches.push(players.slice(i, i + BATCH_SIZE));
-    }
-    
-    console.log(`Processing ${playerBatches.length} batches of players`);
-    
-    // Process each batch
-    for (let batchIndex = 0; batchIndex < playerBatches.length; batchIndex++) {
-      const playerBatch = playerBatches[batchIndex];
-      console.log(`Processing batch ${batchIndex + 1}/${playerBatches.length} (${playerBatch.length} players)`);
-      
-      // Process players in this batch concurrently
-      const batchPromises = playerBatch.map(async (player) => {
-        const playerId = player.player_id;
+    // Process ALL players concurrently (potential timeout risk!)
+    console.log('[updateRecentPerformance] Processing ALL players concurrently (batching removed)');
+    const allPlayerPromises = players.map(async (player) => {
+      const playerId = player.player_id;
 
-        try {
-          // Fetch the last 5 matches for the player
-          console.log(`Fetching last 5 matches for player ${playerId}...`);
-          const last5PlayerMatches = await client.player_matches.findMany({
-            where: { player_id: playerId },
-            include: {
-              matches: {
-                select: { match_date: true, team_a_score: true, team_b_score: true }
-              }
+      try {
+        // Fetch the last 5 matches for the player
+        // console.log(`Fetching last 5 matches for player ${playerId}...`); // Reduce log noise
+        const last5PlayerMatches = await client.player_matches.findMany({
+          where: { player_id: playerId },
+          include: {
+            matches: {
+              select: { match_date: true, team_a_score: true, team_b_score: true }
+            }
+          },
+          orderBy: {
+            matches: {
+              match_date: 'desc',
             },
-            orderBy: {
-              matches: {
-                match_date: 'desc',
-              },
-            },
-            take: 5,
+          },
+          take: 5,
+        });
+
+        // console.log(`Found ${last5PlayerMatches.length} recent matches for player ${playerId}`);
+
+        let last5Goals = 0;
+        const last5Games: LastGameInfo[] = [];
+
+        // Process the last 5 matches (or fewer if player has played less than 5)
+        for (const pm of last5PlayerMatches) {
+          const match = pm.matches;
+          if (!match) continue;
+          const goals = pm.goals ?? 0;
+          const result = pm.result ?? '';
+          const teamAScore = match.team_a_score ?? 0;
+          const teamBScore = match.team_b_score ?? 0;
+          const heavyWin = pm.heavy_win ?? false;
+          const heavyLoss = pm.heavy_loss ?? false;
+          const isTeamA = pm.team === 'A';
+          const score = isTeamA ? `${teamAScore}-${teamBScore}` : `${teamBScore}-${teamAScore}`;
+          const cleanSheet = isTeamA ? teamBScore === 0 : teamAScore === 0;
+          last5Games.push({
+            date: match.match_date,
+            goals: goals,
+            result: result,
+            score: score,
+            heavy_win: heavyWin,
+            heavy_loss: heavyLoss,
+            clean_sheet: cleanSheet,
           });
-
-          console.log(`Found ${last5PlayerMatches.length} recent matches for player ${playerId}`);
-
-          let last5Goals = 0;
-          const last5Games: LastGameInfo[] = [];
-
-          // Process the last 5 matches (or fewer if player has played less than 5)
-          for (const pm of last5PlayerMatches) {
-            const match = pm.matches;
-            if (!match) continue; // Should not happen with the include, but safety check
-
-            // Handle potential nulls from DB schema using nullish coalescing
-            const goals = pm.goals ?? 0;
-            const result = pm.result ?? ''; // Use empty string or 'unknown' if null
-            const teamAScore = match.team_a_score ?? 0;
-            const teamBScore = match.team_b_score ?? 0;
-            const heavyWin = pm.heavy_win ?? false;
-            const heavyLoss = pm.heavy_loss ?? false;
-
-            const isTeamA = pm.team === 'A';
-            const score = isTeamA
-              ? `${teamAScore}-${teamBScore}`
-              : `${teamBScore}-${teamAScore}`;
-            const cleanSheet = isTeamA ? teamBScore === 0 : teamAScore === 0;
-
-            last5Games.push({
-              date: match.match_date,
-              goals: goals,
-              result: result,
-              score: score,
-              heavy_win: heavyWin,
-              heavy_loss: heavyLoss,
-              clean_sheet: cleanSheet,
-            });
-
-            last5Goals += goals;
-          }
-
-          console.log(`Player ${playerId} has ${last5Goals} goals in their last ${last5Games.length} games`);
-
-          return {
-            player_id: playerId,
-            last_5_games: last5Games as any,
-            last_5_goals: last5Goals,
-            last_updated: new Date(),
-          };
-        } catch (playerError) {
-          console.error(`Error processing player ${playerId}:`, playerError);
-          // Return null to indicate this player failed
-          return null;
+          last5Goals += goals;
         }
-      });
-      
-      // Wait for all players in this batch to be processed
-      const batchResults = await Promise.all(batchPromises);
-      
-      // Add successful results to our data array
-      let successfulResults = 0;
-      for (const result of batchResults) {
-        if (result !== null) {
-          recentPerformanceData.push(result);
-          successfulResults++;
-        }
+
+        // console.log(`Player ${playerId} has ${last5Goals} goals in their last ${last5Games.length} games`);
+
+        return {
+          player_id: playerId,
+          last_5_games: last5Games as any, // Keep 'as any' for now, revisit if it causes issues
+          last_5_goals: last5Goals,
+          last_updated: new Date(),
+        };
+      } catch (playerError) {
+        console.error(`[updateRecentPerformance] Error processing player ${playerId}:`, playerError);
+        // Return null to indicate this player failed
+        return null;
       }
-      
-      console.log(`Batch ${batchIndex + 1} complete, processed ${successfulResults}/${batchResults.length} players successfully`);
+    });
+    
+    // Wait for all players to be processed
+    console.log('[updateRecentPerformance] Waiting for all player promises to resolve...');
+    const allResults = await Promise.all(allPlayerPromises);
+    console.log('[updateRecentPerformance] All player promises resolved.');
+    
+    // Add successful results to our data array
+    let successfulResults = 0;
+    for (const result of allResults) {
+      if (result !== null) {
+        recentPerformanceData.push(result);
+        successfulResults++;
+      }
     }
+    console.log(`[updateRecentPerformance] Processed ${successfulResults}/${players.length} players successfully`);
 
-    console.log(`Preparing to update database with data for ${recentPerformanceData.length} players`);
+    console.log(`[updateRecentPerformance] Preparing to update database with data for ${recentPerformanceData.length} players`);
 
     // DIAGNOSIS CHECKPOINT 1
-    console.log('CHECKPOINT 1: About to delete existing records and create new ones');
+    console.log('[updateRecentPerformance] CHECKPOINT 1: About to delete existing records and create new ones');
     
     try {
       // Clear the existing table and insert new data in a transaction
@@ -204,7 +184,8 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
     console.log(`FUNCTION COMPLETED SUCCESSFULLY: updateRecentPerformance completed in ${endTime - startTime}ms. Updated stats for ${recentPerformanceData.length} players.`);
 
   } catch (error) {
-    console.error('Error updating recent performance:', error);
+    // Log top-level errors within this function
+    console.error('[updateRecentPerformance] CRITICAL FUNCTION-LEVEL ERROR:', error);
     console.error('Error type:', typeof error);
     console.error('Error name:', error instanceof Error ? error.name : 'Not an Error object');
     console.error('Error message:', error instanceof Error ? error.message : 'No message available');
