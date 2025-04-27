@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 // Import wrapped in try/catch
 let updateRecentPerformance;
 try {
-  const module = require('@/lib/stats/updateRecentPerformance');
-  updateRecentPerformance = module.updateRecentPerformance;
+  const importedModule = require('@/lib/stats/updateRecentPerformance');
+  updateRecentPerformance = importedModule.updateRecentPerformance;
 } catch (e) {
   console.error('Error importing updateRecentPerformance:', e);
 }
