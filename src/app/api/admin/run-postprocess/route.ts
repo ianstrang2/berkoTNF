@@ -566,17 +566,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   // VERY EARLY LOG
-  console.log('[run-postprocess POST] Minimal Handler invoked');
+  console.log('[run-postprocess POST] Handler invoked');
   
   try {
-    // --- COMPLETELY COMMENT OUT ORIGINAL LOGIC FOR DIAGNOSIS ---
-    /*
+    // --- Restore Original Logic --- 
+    
     addExecutionLog('POST request received to start or continue processing');
     console.log('[run-postprocess POST] Inside try block');
 
     const body = await request.json();
     const config = body.config || {};
-    const requestedStepId = body.stepId;
+    const requestedStepId = body.stepId; // Optional specific step to process (use ID now)
     
     console.log(`[run-postprocess POST] Parsed body, requestedStepId: ${requestedStepId}`);
     addExecutionLog(`Request body: ${JSON.stringify({...body, config: '...'})}`);
@@ -588,24 +588,144 @@ export async function POST(request: Request) {
     // --- Handling existing running process ---
     if (dbState.isRunning && dbState.requestId) {
        addExecutionLog(`Continuing existing process with ID ${dbState.requestId}. Current step from DB: ${dbState.currentStep}`);
-       // ... (original logic for handling existing/specific steps) ...
-       // Return placeholder for now
-       console.log('[run-postprocess POST] DIAGNOSIS: Would handle existing process');
+       
+       // If a specific step was requested to be re-run or triggered
+       if (requestedStepId) {
+         const step = PROCESS_STEPS.find(s => s.id === requestedStepId);
+         if (!step || !step.func) {
+           return NextResponse.json({ 
+             success: false, 
+             message: `Step ${requestedStepId} or its function not found` 
+           }, { status: 400 });
+         }
+         
+         addExecutionLog(`Executing specific step directly: ${step.name}`);
+         try {
+           // Trigger the specific step (don't await fully, let it run)
+           triggerStep(requestedStepId, config, dbState).then(async () => {
+              addExecutionLog(`Specific step ${step.name} triggered.`);
+              // Optionally, trigger the next step if the main process isn't stuck
+              const updatedState = await getProcessState();
+              if (updatedState.isRunning && !updatedState.error) {
+                 processNextStep(config, updatedState).catch(processError => {
+                     console.error('Error continuing process chain after specific step trigger:', processError);
+                 });
+              }
+           }).catch(async error => {
+              console.error(`Error directly triggering step ${step.name}:`, error);
+              // Update state with error if direct trigger fails
+              const latestState = await getProcessState();
+              await updateProcessState({
+                ...latestState,
+                error: `Failed to trigger step ${step.name}: ${error.message.substring(0, 150)}`,
+                lastUpdateTime: new Date().toISOString()
+              });
+           });
+           
+           // Return quickly indicating the trigger attempt has started
+           return NextResponse.json({
+              success: true,
+              message: `Attempting to execute step ${step.name}... Check status via GET.`,
+           });
+
+         } catch (triggerError) {
+             // Catch sync errors from finding the step etc.
+             return NextResponse.json({
+                 success: false,
+                 message: `Error preparing to trigger step ${step.name}: ${triggerError.message}`
+             }, { status: 500 });
+         }
+
+       } else {
+         // If no specific step requested, just try to continue the main process chain
+         addExecutionLog('No specific step requested, ensuring process chain continues...');
+         // Don't wait for this to complete - return quickly
+         processNextStep(config, dbState).catch(processError => {
+            console.error('Error explicitly continuing process chain from POST:', processError);
+            // Attempt to update the error state in the database
+            updateProcessState({
+              ...dbState, // Use the state known at the time of the POST call
+              error: `Error continuing process: ${processError.message.substring(0, 150)}`,
+              lastUpdateTime: new Date().toISOString()
+            }).catch(updateError => console.error("Failed to update error state:", updateError));
+         });
+       
+         // Return current status immediately
+         return NextResponse.json({
+             success: true,
+             message: 'Processing continues in background. Check status via GET.',
+             status: {
+                 ...dbState,
+                 percentComplete: calculateProgress(dbState.completedSteps)
+             }
+         });
+       }
     } else {
       // --- Starting a new process ---
       addExecutionLog('No process running or previous one completed/failed. Starting a new process...');
-      console.log('[run-postprocess POST] DIAGNOSIS: Would start new process');
-      // ... (original logic for starting new process) ...
+      console.log('[run-postprocess POST] Starting new process flow');
+       // Reset process state
+      const requestId = generateRequestId();
+      const newState = {
+        isRunning: true,
+        requestId: requestId,
+        currentStep: 'Starting...',
+        completedSteps: [],
+        error: null,
+        startTime: new Date().toISOString(),
+        lastUpdateTime: new Date().toISOString(),
+        stepAttempts: {}
+      };
+      
+      // Update the database
+      const updateSuccess = await updateProcessState(newState);
+      if (!updateSuccess) {
+          throw new Error("Failed to initialize process state in database.");
+      }
+      
+      // Update in-memory state too
+      progressStatus = {
+          ...progressStatus, // Keep existing log structure etc.
+          isRunning: true,
+          requestId: requestId,
+          currentStep: 'Starting...',
+          completedSteps: [],
+          error: null,
+          startTime: newState.startTime,
+          lastUpdateTime: newState.lastUpdateTime,
+          stepAttempts: {}
+      };
+      
+      addExecutionLog(`Starting processing chain with request ID: ${requestId}`);
+      
+      // Start the processing chain asynchronously
+      // Don't wait for this promise to resolve
+      processNextStep(config, newState).catch(async processError => {
+        console.error('Error starting process chain:', processError);
+        // Attempt to update state with error
+        const latestState = await getProcessState(); // Get potentially updated state
+         await updateProcessState({
+           ...latestState,
+           isRunning: false, // Mark as not running if the very start fails
+           error: `Failed to start process: ${processError.message.substring(0, 150)}`,
+           lastUpdateTime: new Date().toISOString()
+         }).catch(updateError => console.error("Failed to update error state after initial failure:", updateError));
+      });
+  
+      addExecutionLog('Returning initial success response to client');
+      console.log('[run-postprocess POST] Returning success response for new process');
+      // Return the newly initialized state
+      return NextResponse.json({
+        success: true, 
+        message: 'Process started successfully',
+        requestId: requestId,
+        status: {
+          ...newState,
+          percentComplete: 0
+        }
+      });
     }
-    */
-    // --- END COMMENTED OUT SECTION ---
-
-    console.log('[run-postprocess POST] Reached end of simplified try block');
-    // Immediately return a success response for diagnosis
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Diagnosis: Minimal POST handler executed.' 
-    });
+    
 
   } catch (error) {
     console.error('[run-postprocess POST] CRITICAL TOP-LEVEL ERROR:', error);
@@ -616,14 +736,14 @@ export async function POST(request: Request) {
         // Attempt to log error to DB state if possible, but don't rely on it
         const currentState = await getProcessState();
         if (currentState.isRunning) {
-            await updateProcessState({ ...currentState, isRunning: false, error: `Minimal POST handler failed: ${errorMessage.substring(0,150)}` });
+            await updateProcessState({ ...currentState, isRunning: false, error: `POST handler failed: ${errorMessage.substring(0,150)}` });
         }
     } catch (stateError) {
         console.error(`[run-postprocess POST] Failed to update state during error handling: ${stateError}`);
     }
     return NextResponse.json({
       success: false,
-      message: `Minimal POST handler failed: ${errorMessage}`
+      message: `POST handler failed: ${errorMessage}`
     }, { status: 500 });
   }
 } 
