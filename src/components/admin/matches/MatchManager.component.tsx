@@ -391,20 +391,41 @@ const MatchManager: React.FC = () => {
             // Get current visible step name (from step ID if needed)
             let currentStepName = progressData.currentStep;
             
-            // If currentStep is a step ID, convert it to a name
-            if (progressData.currentStep && STEP_ID_TO_NAME[progressData.currentStep]) {
+            // We need to determine if the current step from server is a name or an ID
+            // First check if it matches any step ID
+            const isStepId = PROCESS_STEPS.some(step => step.id === progressData.currentStep);
+            const isStepName = PROCESS_STEPS.some(step => step.name === progressData.currentStep);
+            
+            // If it's a step ID, convert to name for display
+            if (isStepId && STEP_ID_TO_NAME[progressData.currentStep]) {
               currentStepName = STEP_ID_TO_NAME[progressData.currentStep];
+            } 
+            // If it's neither a name nor ID, keep as is (could be "Starting..." or similar)
+            
+            // For completedSteps from server, make sure we're comparing with IDs consistently
+            let normalizedCompletedSteps = progressData.completedSteps || [];
+            
+            // If completedSteps contains step names instead of IDs, convert them
+            if (normalizedCompletedSteps.length > 0 && 
+                normalizedCompletedSteps.some(step => STEP_NAME_TO_ID[step])) {
+              normalizedCompletedSteps = normalizedCompletedSteps.map(step => 
+                STEP_NAME_TO_ID[step] || step
+              );
             }
             
             // Calculate progress based on completed steps (this matches server-side calculation)
-            const percent = calculateProgressFromSteps(progressData.completedSteps || []);
+            const percent = calculateProgressFromSteps(normalizedCompletedSteps);
             
             // Debug the progress calculation
             console.log('Progress calculation:', {
-              completedSteps: progressData.completedSteps || [],
+              completedSteps: normalizedCompletedSteps,
+              originalCompletedSteps: progressData.completedSteps,
               calculatedPercent: percent,
               serverPercent: progressData.percentComplete,
               currentStep: currentStepName,
+              rawCurrentStep: progressData.currentStep,
+              isStepId,
+              isStepName,
               isRunning: progressData.isRunning
             });
             
@@ -412,24 +433,37 @@ const MatchManager: React.FC = () => {
             setUpdateProgress(prev => ({
               ...prev,
               percentComplete: progressData.percentComplete || percent, // Prefer server's calculation
-              currentStep: progressData.currentStep || 'Processing...', // Keep the original currentStep (ID)
+              // Store the original step value from server (could be name or ID)
+              currentStep: progressData.currentStep || 'Processing...',
               isPolling: true,
-              completedSteps: progressData.completedSteps || [],
+              // Store the normalized completed steps (as IDs)
+              completedSteps: normalizedCompletedSteps,
               error: progressData.error || null
             }));
             
+            // Add more detailed debugging
+            console.log('Full progress update:', {
+              currentStepFromServer: progressData.currentStep,
+              normalizedCompletedSteps,
+              isRunning: progressData.isRunning,
+              percentComplete: progressData.percentComplete || percent,
+              allStepsCompleted: normalizedCompletedSteps.length === PROCESS_STEPS.length,
+              PROCESS_STEPS_LENGTH: PROCESS_STEPS.length
+            });
+            
             // Check for process completion (two ways to detect):
             // 1. isRunning flag is false
-            // 2. All steps are completed
+            // 2. All steps are completed (using normalized completedSteps)
+            // 3. currentStep is explicitly "Complete"
             const isComplete = 
               !progressData.isRunning || 
-              (progressData.completedSteps && 
-               progressData.completedSteps.length === PROCESS_STEPS.length);
+              (normalizedCompletedSteps.length === PROCESS_STEPS.length) ||
+              progressData.currentStep === 'Complete';
             
             if (isComplete) {
               console.log('Process complete detected:', {
                 isRunning: progressData.isRunning,
-                completedStepsCount: progressData.completedSteps?.length,
+                completedStepsCount: normalizedCompletedSteps.length,
                 totalSteps: PROCESS_STEPS.length
               });
               
@@ -1129,8 +1163,18 @@ const MatchManager: React.FC = () => {
                   {/* Get display name for current step */}
                   {(() => {
                     const currentStepId = updateProgress.currentStep;
-                    const stepInfo = PROCESS_STEPS.find(s => s.id === currentStepId);
-                    return stepInfo ? stepInfo.name : currentStepId;
+                    // First check if it's a step ID
+                    const stepById = PROCESS_STEPS.find(s => s.id === currentStepId);
+                    if (stepById) {
+                      return stepById.name;
+                    }
+                    // Then check if it's already a name
+                    const stepByName = PROCESS_STEPS.find(s => s.name === currentStepId);
+                    if (stepByName) {
+                      return stepByName.name;
+                    }
+                    // Fall back to the original value
+                    return currentStepId;
                   })()}
                 </span>
                 <span className="font-medium text-slate-700">{Math.round(updateProgress.percentComplete)}%</span>
@@ -1149,15 +1193,23 @@ const MatchManager: React.FC = () => {
                 <h4 className="text-xs uppercase font-semibold text-slate-500 mb-2">PROCESS STEPS</h4>
                 <ul className="text-sm space-y-2">
                   {updateProgress.steps?.map((stepId, index) => {
-                    // Determine step status based on current step ID
-                    const isCurrent = stepId === updateProgress.currentStep;
+                    // Handle both cases - server might be sending names or IDs
+                    const currentStepFromServer = updateProgress.currentStep;
+                    
+                    // Determine step status based on current step - handle ID or name from server
+                    const isCurrent = 
+                      stepId === currentStepFromServer || // Direct match
+                      (STEP_ID_TO_NAME[stepId] === currentStepFromServer) || // Current is name, step is ID
+                      (STEP_NAME_TO_ID[currentStepFromServer] === stepId); // Current is ID, step is name
                     
                     // Find step by ID to get the display name
                     const stepInfo = PROCESS_STEPS.find(s => s.id === stepId);
                     const stepName = stepInfo ? stepInfo.name : stepId; // Fallback to ID if not found
                     
-                    // Check if this step ID is in completedSteps
-                    const isCompleted = updateProgress.completedSteps?.includes(stepId);
+                    // Check if this step ID is in completedSteps - handle both formats
+                    const isCompleted = 
+                      updateProgress.completedSteps?.includes(stepId) || // Direct match
+                      (STEP_NAME_TO_ID[stepId] && updateProgress.completedSteps?.includes(STEP_NAME_TO_ID[stepId]));
                     
                     return (
                     <li key={index} className={`flex items-center ${

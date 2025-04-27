@@ -194,6 +194,24 @@ export async function GET(request: Request) {
   // Calculate progress percentage based on completed steps
   const progress = calculateProgress(dbState.completedSteps);
   
+  // Add detailed debugging
+  console.log(`[run-postprocess GET] Raw DB state: isRunning=${dbState.isRunning}, currentStep=${dbState.currentStep}, completedSteps=${JSON.stringify(dbState.completedSteps)}`);
+  console.log(`[run-postprocess GET] Calculated progress: ${progress}%, based on completedSteps: ${JSON.stringify(dbState.completedSteps)}`);
+  
+  // Check if the current step matches any process step
+  const isCurrentStepValid = dbState.currentStep === 'Starting...' || 
+                            dbState.currentStep === 'Complete' || 
+                            PROCESS_STEPS.some(step => step.id === dbState.currentStep || step.name === dbState.currentStep);
+  
+  console.log(`[run-postprocess GET] Current step validation: isValid=${isCurrentStepValid}, value="${dbState.currentStep}"`);
+  
+  // Check if any steps are missing from process tracking
+  for (const step of PROCESS_STEPS) {
+    if (!dbState.completedSteps.includes(step.id)) {
+      console.log(`[run-postprocess GET] Step not yet completed: ${step.id} (${step.name})`);
+    }
+  }
+  
   // Check for potential stalled process using the DB state
   if (dbState.isRunning && dbState.lastUpdateTime) {
     const lastUpdateTime = new Date(dbState.lastUpdateTime).getTime();
@@ -275,13 +293,13 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
   }
   
   // Update progress status in memory and database
-  progressStatus.currentStep = step.name;
+  progressStatus.currentStep = stepId;
   const currentTime = new Date().toISOString();
   
   // Update the database state
   await updateProcessState({
     ...dbState,
-    currentStep: step.name,
+    currentStep: stepId,
     lastUpdateTime: currentTime
   });
   
@@ -404,11 +422,16 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
       if (jsonResponse.success) {
         addExecutionLog(`update-recent-performance returned success: ${JSON.stringify(jsonResponse)}`);
         
-        // Mark step as completed in the database
+        // Mark step as completed in the database using step ID
         const completedSteps = [...dbState.completedSteps];
         if (!completedSteps.includes(stepId)) {
+          addExecutionLog(`Adding step ID '${stepId}' to completedSteps array`);
           completedSteps.push(stepId);
+        } else {
+          addExecutionLog(`Step ID '${stepId}' was already in completedSteps array`);
         }
+        
+        addExecutionLog(`completedSteps before database update: ${JSON.stringify(completedSteps)}`);
         
         await updateProcessState({
           ...dbState,
@@ -416,9 +439,15 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
           lastUpdateTime: new Date().toISOString()
         });
         
+        // Verify the update worked correctly
+        const updatedState = await getProcessState();
+        addExecutionLog(`Verified database state after update: completedSteps=${JSON.stringify(updatedState.completedSteps)}`);
+        
         // Update in-memory state too
         progressStatus.completedSteps = completedSteps;
         
+        // Log more details about the response we're sending back
+        addExecutionLog(`Returning response for step ${stepId}: completed=true, inProgress=false`);
         return { 
           ...jsonResponse,
           completed: true,
@@ -482,10 +511,19 @@ async function processNextStep(config: any, dbState: any) {
   addExecutionLog(`Processing next step. Completed steps: ${dbState.completedSteps.join(', ')}`);
   
   const completedIds = dbState.completedSteps;
+  addExecutionLog(`Looking for a step that is not in completedIds: ${JSON.stringify(completedIds)}`);
+  
+  // Log all steps with their completion status
+  PROCESS_STEPS.forEach(step => {
+    const isCompleted = completedIds.includes(step.id);
+    addExecutionLog(`Step ${step.id} (${step.name}) - completed: ${isCompleted}`);
+  });
+  
   const nextStep = PROCESS_STEPS.find(step => !completedIds.includes(step.id));
   
   if (!nextStep) {
     // All steps are complete!
+    addExecutionLog(`No next step found - all steps are completed`);
     const finalState = {
       ...dbState,
       isRunning: false,
@@ -494,6 +532,7 @@ async function processNextStep(config: any, dbState: any) {
     };
     
     // Update the database
+    addExecutionLog(`Updating database with final state: isRunning=false, currentStep=Complete`);
     await updateProcessState(finalState);
     
     // Update in-memory state too
@@ -531,7 +570,7 @@ async function processNextStep(config: any, dbState: any) {
     // This ensures even if the function execution is terminated, we know which step we were trying to start
     await updateProcessState({
       ...dbState,
-      currentStep: nextStep.name,
+      currentStep: nextStep.id,
       lastUpdateTime: new Date().toISOString()
     });
     

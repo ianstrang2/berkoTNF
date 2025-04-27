@@ -7,13 +7,15 @@ export async function POST(request: Request) {
   
   try {
     const { config, requestId } = await request.json();
-    console.log(`[update-recent-performance API] Request ID: ${requestId || 'none'}`);
+    console.log(`[update-recent-performance API] Request ID: ${requestId || 'none'}, Config: ${JSON.stringify(config || {})}`);
     
     // Execute in a transaction with a timeout
     console.log('[update-recent-performance API] Starting updateRecentPerformance function...');
     await prisma.$transaction(
       async (tx) => {
+        console.log('[update-recent-performance API] Inside transaction');
         await updateRecentPerformance(tx);
+        console.log('[update-recent-performance API] Transaction completed successfully');
       },
       { timeout: 60000 } // 60 second timeout
     );
@@ -22,11 +24,13 @@ export async function POST(request: Request) {
     
     // Return success response WITHOUT inProgress flag to signal completion
     console.log('[update-recent-performance API] Responding with completion signal, completed=true');
-    return NextResponse.json({ 
+    const responseObj = { 
       success: true, 
       message: 'Recent Performance updated successfully',
       completed: true
-    });
+    };
+    console.log(`[update-recent-performance API] Full response object: ${JSON.stringify(responseObj)}`);
+    return NextResponse.json(responseObj);
   } catch (error) {
     console.error('[update-recent-performance API] Error in Recent Performance update:', error);
     
@@ -38,24 +42,31 @@ export async function POST(request: Request) {
       
       // Handle specific error types
       if (error.name === 'PrismaClientInitializationError') {
-        return NextResponse.json({ 
+        const errorObj = { 
           success: false, 
           error: 'Database connection error. Please try again.'
-        }, { status: 503 });
+        };
+        console.error(`[update-recent-performance API] Returning error response: ${JSON.stringify(errorObj)}`);
+        return NextResponse.json(errorObj, { status: 503 });
       }
       
       // Handle transaction timeout errors
       if (error.message.includes('transaction timeout')) {
-        return NextResponse.json({ 
+        const errorObj = { 
           success: false, 
           error: 'Database operation timed out. Try reducing the data batch size.'
-        }, { status: 408 });
+        };
+        console.error(`[update-recent-performance API] Returning timeout response: ${JSON.stringify(errorObj)}`);
+        return NextResponse.json(errorObj, { status: 408 });
       }
     }
     
-    return NextResponse.json({ 
+    const errorObj = { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+      error: error instanceof Error ? error.message : 'Unknown error',
+      completed: false
+    };
+    console.error(`[update-recent-performance API] Returning generic error response: ${JSON.stringify(errorObj)}`);
+    return NextResponse.json(errorObj, { status: 500 });
   }
 } 
