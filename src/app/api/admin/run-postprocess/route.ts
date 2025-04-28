@@ -16,35 +16,42 @@ import { updateHalfAndFullSeasonStats } from '@/lib/stats/updateHalfAndFullSeaso
 // Define the type for the Prisma transaction client - Simplified Omit
 type PrismaTransactionClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
-// Define our steps with function references
-const PROCESS_STEPS = [
-  { 
+// Define type for the step functions (adjust parameters/return type as needed)
+type StepFunction = (prismaClient: Omit<PrismaClient, '...'>, config: any) => Promise<void>; // Simplified example type
+
+// Define type for process steps
+interface ProcessStep { 
+  id: string;
+  name: string;
+  weight: number;
+  func?: StepFunction; // Optional local function
+  edgeFunctionUrl?: string; // Optional Edge Function URL
+}
+
+// Define our steps using the ProcessStep type
+const PROCESS_STEPS: ProcessStep[] = [
+  {
     id: 'recent-performance',
     name: 'Updating Recent Performance',
-    // Remove endpoint, add function reference
-    // endpoint: '/api/admin/stats/update-recent-performance',
-    func: updateRecentPerformance,
+    edgeFunctionUrl: process.env.SUPABASE_UPDATE_RECENT_PERFORMANCE_URL,
     weight: 20
   },
-  { 
+  {
     id: 'all-time-stats',
     name: 'Updating All-Time Stats',
-    // endpoint: '/api/admin/stats/update-all-time-stats',
-    func: updateAllTimeStats,
+    func: updateAllTimeStats, 
     weight: 20
   },
-  { 
+  {
     id: 'season-honours',
     name: 'Updating Season Honours',
-    // endpoint: '/api/admin/stats/update-season-honours',
-    func: updateSeasonHonours,
+    func: updateSeasonHonours, 
     weight: 20
   },
-  { 
+  {
     id: 'season-stats',
     name: 'Updating Half & Full Season Stats',
-    // Use the corrected function name
-    func: updateHalfAndFullSeasonStats,
+    func: updateHalfAndFullSeasonStats, 
     weight: 20
   },
   // Comment out match report step for now
@@ -211,8 +218,8 @@ function generateRequestId() {
 async function triggerStep(stepId: string, config: any, dbState: any) {
   console.log(`[triggerStep] Invoked for stepId: ${stepId}`);
   const step = PROCESS_STEPS.find(s => s.id === stepId);
-  if (!step || !step.func) { 
-    throw new Error(`Step ${stepId} or its function not found`);
+  if (!step || (!step.func && !step.edgeFunctionUrl)) {
+    throw new Error(`Step ${stepId} definition is missing a function or edgeFunctionUrl`);
   }
   
   // Update step attempts 
@@ -247,15 +254,68 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
   addExecutionLog(`Executing step function: ${step.name}`);
   console.log(`[triggerStep] Preparing to execute function for step: ${step.name} (NO TRANSACTION)`);
 
-  // --- Execute WITHOUT Transaction --- 
+  // --- Execute Step --- 
   try {
-    console.log(`[triggerStep] Calling ${step.name} directly with global prisma client`);
-    // Call the function directly using the global prisma instance, NO 'tx'
-    await step.func(prisma, config); 
-    console.log(`[triggerStep] Direct call to ${step.name} completed.`);
-    
-    // Mark step as completed 
-    console.log(`[triggerStep] Marking step ${stepId} as completed after successful direct call.`);
+    // Check if this step uses an Edge Function
+    if (step.edgeFunctionUrl) {
+      addExecutionLog(`Executing Edge Function for step: ${step.name}`);
+      console.log(`[triggerStep] Preparing to call Edge Function for step: ${step.name} at ${step.edgeFunctionUrl}`);
+
+      // --- Fetch Call to Supabase Edge Function ---
+      console.log(`[triggerStep] Starting fetch POST to ${step.edgeFunctionUrl}`);
+      
+      // Ensure the Service Role Key environment variable exists
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!serviceKey) {
+          console.error(`[triggerStep] ERROR: SUPABASE_SERVICE_ROLE_KEY environment variable is not set.`);
+          throw new Error('Missing Supabase service role key configuration for Edge Function call.');
+      }
+
+      const response = await fetch(step.edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // --- ADDED Authorization Header --- 
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({}), // Empty JSON body
+      });
+      console.log(`[triggerStep] Fetch call finished for ${step.name}. Status: ${response.status}`);
+
+      if (!response.ok) {
+        let errorBody = 'Could not read error response body.';
+        try {
+          errorBody = await response.text();
+        } catch (e) { /* ignore */ }
+        console.error(`[triggerStep] Edge Function call failed for ${step.name}. Status: ${response.status}. Response: ${errorBody}`);
+        throw new Error(`Edge Function for ${step.name} failed with status ${response.status}`);
+      }
+
+      let responseData: { success?: boolean; message?: string; error?: string } | null = null;
+      try {
+        responseData = await response.json();
+        console.log(`[triggerStep] Edge Function call successful for ${step.name}. Response:`, responseData);
+        if (responseData && typeof responseData.success === 'boolean' && !responseData.success) {
+             console.error(`[triggerStep] Edge Function for ${step.name} reported failure:`, responseData.message || responseData.error);
+             throw new Error(responseData.message || responseData.error || `Edge Function for ${step.name} reported failure.`);
+        }
+      } catch (parseError) {
+          console.warn(`[triggerStep] Could not parse JSON response from Edge Function ${step.name}, assuming success based on status code.`);
+      }
+      // --- End Fetch Call ---
+
+    } else if (step.func) {
+      // --- Call Local Function --- 
+      addExecutionLog(`Executing local function for step: ${step.name}`);
+      console.log(`[triggerStep] Preparing to execute local function for step: ${step.name} (NO TRANSACTION)`);
+      console.log(`[triggerStep] Calling ${step.name} directly with global prisma client`);
+      await step.func(prisma, config); 
+      console.log(`[triggerStep] Direct call to local function ${step.name} completed.`);
+      // --- End Call Local Function --- 
+    }
+
+    // If execution reached here (either fetch or direct call didn't throw), mark step complete
+    console.log(`[triggerStep] Marking step ${stepId} as completed after successful execution.`);
     const latestState = await getProcessState(); 
     const completedSteps = [...latestState.completedSteps];
     if (!completedSteps.includes(stepId)) {
@@ -276,7 +336,7 @@ async function triggerStep(stepId: string, config: any, dbState: any) {
      // Re-throw the error to be handled by processNextStep
      throw error; 
   }
-  // --- END Execute WITHOUT Transaction --- 
+  // --- END Execute Step --- 
 }
 
 // Process the next step in the chain
