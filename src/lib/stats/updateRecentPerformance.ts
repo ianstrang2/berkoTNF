@@ -7,13 +7,13 @@ interface LastGameInfo { date: Date; goals: number; result: string; score: strin
 /**
  * Updates the aggregated_recent_performance table with the last 5 games,
  * goals, and results for each non-ringer player.
- * @param tx Optional Prisma transaction client (will receive global prisma in current usage)
+ * No longer accepts tx parameter, uses global prisma client.
  */
-export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">): Promise<void> {
+export async function updateRecentPerformance(): Promise<void> {
   console.log('[updateRecentPerformance] Function invoked.');
   const startTime = Date.now();
-  const client = tx || prisma; // Should receive global prisma now
-  console.log(`[updateRecentPerformance] Using ${client === prisma ? 'global prisma client' : 'provided client'}.`);
+  const client = prisma;
+  console.log(`[updateRecentPerformance] Using global prisma client.`);
 
   try {
     // --- Iterative Batch Fetching --- 
@@ -111,24 +111,34 @@ export async function updateRecentPerformance(tx?: Omit<PrismaClient, "$connect"
     } 
 
     console.log(`[updateRecentPerformance] All batches processed. Total successful players: ${playersProcessed}.`);
-    console.log(`[updateRecentPerformance] Preparing to update database...`);
+    console.log(`[updateRecentPerformance] Preparing to update database using non-interactive transaction...`);
+    console.log('[updateRecentPerformance] CHECKPOINT 1: Preparing delete/create operations.');
+    
+    // --- Use Non-Interactive Transaction for Writes --- 
+    const deleteOp = client.aggregated_recent_performance.deleteMany({});
+    console.log('[updateRecentPerformance] Delete operation defined.');
 
-    console.log('[updateRecentPerformance] CHECKPOINT 1: About to delete existing records and create new ones');
-    
-    // Perform writes using the provided client (which should be global prisma now)
-    console.log('[updateRecentPerformance] Performing DB writes (deleteMany/createMany)...');
-    await client.aggregated_recent_performance.deleteMany({}); 
-    
+    let createOp: Prisma.PrismaPromise<any> | null = null;
     if (recentPerformanceData.length > 0) {
-      console.log(`[updateRecentPerformance] Creating ${recentPerformanceData.length} recent performance records...`);
-      await client.aggregated_recent_performance.createMany({ 
+      createOp = client.aggregated_recent_performance.createMany({ 
         data: recentPerformanceData,
         skipDuplicates: true,
       });
-      console.log('[updateRecentPerformance] Recent performance records created successfully');
+      console.log(`[updateRecentPerformance] Create operation defined for ${recentPerformanceData.length} records.`);
     } else {
-        console.log('[updateRecentPerformance] No successful player data to insert, only cleared table.');
+      console.log('[updateRecentPerformance] No data to create, skipping create operation.');
     }
+
+    const transactionOps = [deleteOp];
+    if (createOp) {
+      transactionOps.push(createOp);
+    }
+
+    console.log(`[updateRecentPerformance] Executing non-interactive transaction with ${transactionOps.length} operations...`);
+    const transactionResult = await client.$transaction(transactionOps);
+    console.log('[updateRecentPerformance] Non-interactive transaction completed successfully.');
+    console.log(`[updateRecentPerformance] Transaction results: Delete count=${transactionResult[0].count}` + (transactionResult[1] ? `, Create count=${transactionResult[1].count}` : ''));
+    // --- END Non-Interactive Transaction --- 
       
     console.log('[updateRecentPerformance] CHECKPOINT 2: Database operations completed successfully');
 
