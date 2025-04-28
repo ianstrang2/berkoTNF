@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-// Don't import updateRecentPerformance yet to debug initialization
+// Remove prisma import if not used directly here after removing transaction
+// import { prisma } from '@/lib/prisma'; 
+// Import the function we need to call
+import { updateRecentPerformance } from '@/lib/stats/updateRecentPerformance'; 
 
 // Function to manually update recent performance without the import
+// Keep manualUpdate in case it was used by fallback logic, though transaction is removed
 async function manualUpdate(tx) {
   console.log('[EMERGENCY FIX] Running manual minimal implementation');
 
@@ -49,78 +52,57 @@ export async function POST(request: Request) {
     const { config, requestId } = await request.json();
     console.log(`[update-recent-performance API] Request ID: ${requestId || 'none'}, Config: ${JSON.stringify(config || {})}`);
     
-    // Try importing the function now
+    // Try importing the function (if not already imported globally)
+    // const { updateRecentPerformance } = await import('@/lib/stats/updateRecentPerformance');
+    
+    // --- REMOVE INTERACTIVE TRANSACTION --- 
+    console.log('[update-recent-performance API] Starting updateRecentPerformance function (NO TRANSACTION WRAPPER)...');
+    
+    let functionResult;
     try {
-      console.log('[DEBUG] About to import updateRecentPerformance');
-      const { updateRecentPerformance } = await import('@/lib/stats/updateRecentPerformance');
-      console.log('[DEBUG] Successfully imported updateRecentPerformance');
-      
-      // Execute in a transaction with a timeout
-      console.log('[update-recent-performance API] Starting updateRecentPerformance function...');
-      
-      let functionResult;
-      try {
-        await prisma.$transaction(
-          async (tx) => {
-            console.log('[update-recent-performance API] Inside transaction');
-            await updateRecentPerformance(tx);
-            console.log('[update-recent-performance API] Transaction completed successfully');
-          },
-          { timeout: 60000 } // 60 second timeout
-        );
-        functionResult = 'success';
-      } catch (txError) {
-        console.error('[update-recent-performance API] ❌ Transaction failed:', txError);
-        
-        // FALLBACK: Try the manual implementation as a last resort
-        console.log('[update-recent-performance API] Attempting emergency fallback implementation');
-        await prisma.$transaction(
-          async (tx) => {
-            await manualUpdate(tx);
-          },
-          { timeout: 30000 }
-        );
-        
-        functionResult = 'fallback-success';
-      }
-      
-      const endTime = Date.now();
-      const executionTime = endTime - startTime;
-      
-      console.log(`[update-recent-performance API] ✓ Recent Performance updated successfully in ${executionTime}ms`);
-      
-      // Return success response WITHOUT inProgress flag to signal completion
-      console.log('[update-recent-performance API] Responding with completion signal, completed=true');
-      const responseObj = { 
-        success: true, 
-        message: 'Recent Performance updated successfully',
-        completed: true,
-        executionTime,
-        functionResult
-      };
-      console.log(`[update-recent-performance API] Full response object: ${JSON.stringify(responseObj)}`);
-      return NextResponse.json(responseObj);
-    } catch (importError) {
-      console.error('[CRITICAL] Error importing updateRecentPerformance:', importError);
-      
-      // Try the emergency implementation
+      // Call directly (it uses global prisma internally)
+      await updateRecentPerformance(); 
+      console.log('[update-recent-performance API] Direct call completed successfully');
+      functionResult = 'success_direct_call';
+
+    } catch (stepError) {
+      console.error('[update-recent-performance API] ❌ Error during direct call:', stepError);
+      throw stepError; // Re-throw for the outer catch block
+    }
+    // --- END REMOVE INTERACTIVE TRANSACTION --- 
+
+    /* --- Original Transaction Logic (commented out) ---
+    try {
       await prisma.$transaction(
         async (tx) => {
-          await manualUpdate(tx);
+          console.log('[update-recent-performance API] Inside transaction');
+          await updateRecentPerformance(tx); // This was the line causing the error
+          console.log('[update-recent-performance API] Transaction completed successfully');
         },
-        { timeout: 30000 }
+        { timeout: 60000 } // 60 second timeout
       );
-      
-      const endTime = Date.now();
-      return NextResponse.json({
-        success: true,
-        message: 'Used emergency implementation due to import error',
-        completed: true,
-        error: importError instanceof Error ? importError.message : 'Unknown import error',
-        executionTime: endTime - startTime,
-        functionResult: 'emergency-success'
-      });
+      functionResult = 'success_transaction';
+    } catch (txError) {
+      console.error('[update-recent-performance API] ❌ Transaction failed:', txError);
+      // ... fallback logic ...
     }
+    --- End Original Transaction Logic --- */
+    
+    const endTime = Date.now();
+    const executionTime = endTime - startTime;
+    console.log(`[update-recent-performance API] ✓ Recent Performance updated successfully in ${executionTime}ms`);
+    
+    console.log('[update-recent-performance API] Responding with completion signal, completed=true');
+    const responseObj = { 
+      success: true, 
+      message: 'Recent Performance updated successfully',
+      completed: true, // Important for the run-postprocess logic if this endpoint was still somehow used
+      executionTime,
+      functionResult
+    };
+    console.log(`[update-recent-performance API] Full response object: ${JSON.stringify(responseObj)}`);
+    return NextResponse.json(responseObj);
+
   } catch (error) {
     const endTime = Date.now();
     const executionTime = endTime - startTime;
@@ -155,6 +137,19 @@ export async function POST(request: Request) {
         return NextResponse.json(errorObj, { status: 408 });
       }
     }
+    
+    // Maybe attempt fallback (Note: manualUpdate expects a transaction client, 
+    // so calling it here might need adjustment or removal if no longer viable)
+    /* 
+    try {
+        console.log('[update-recent-performance API] Attempting emergency fallback implementation (needs review)');
+        // This call might fail as manualUpdate expects a tx client
+        // await manualUpdate(prisma); // Or maybe don't fallback?
+        functionResult = 'fallback_attempted';
+    } catch (fallbackError) {
+        console.error('[update-recent-performance API] Fallback implementation also failed:', fallbackError);
+    }
+    */
     
     const errorObj = { 
       success: false, 
