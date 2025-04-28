@@ -529,12 +529,25 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   console.log('[run-postprocess POST] Handler invoked');
-  
+
+  // --- Force Prisma Connection Early --- 
   try {
-    // --- Restore Original Logic --- 
-    
+    console.log('[run-postprocess POST] Attempting explicit prisma.$connect()...');
+    await prisma.$connect();
+    console.log('[run-postprocess POST] prisma.$connect() successful.');
+  } catch (connectError) {
+    console.error('[run-postprocess POST] CRITICAL ERROR during prisma.$connect():', connectError);
+    // Return an error immediately if connection fails
+    return NextResponse.json({
+      success: false,
+      message: `Failed to connect to database: ${connectError.message}`
+    }, { status: 503 }); // Service Unavailable
+  }
+  // --- End Force Prisma Connection --- 
+
+  try {
     addExecutionLog('POST request received to start or continue processing');
-    console.log('[run-postprocess POST] Inside try block');
+    console.log('[run-postprocess POST] Inside main try block (after connect)');
 
     const body = await request.json();
     const config = body.config || {};
@@ -694,7 +707,7 @@ export async function POST(request: Request) {
     
 
   } catch (error) {
-    console.error('[run-postprocess POST] CRITICAL TOP-LEVEL ERROR:', error);
+    console.error('[run-postprocess POST] CRITICAL TOP-LEVEL ERROR (after connect):', error);
     const errorMessage = error instanceof Error 
       ? `${error.name}: ${error.message}` 
       : 'Unknown error';
