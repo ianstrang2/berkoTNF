@@ -4,7 +4,6 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { PrismaClient } from './generated/index.js';
 import { withAccelerate } from './extension-accelerate.ts';
 
-
 console.log('Initializing Supabase Edge Function: update-recent-performance');
 
 // Define interface (copied from original, ensure consistency)
@@ -197,3 +196,5 @@ serve(async (req: Request) => {
 });
 
 console.log('Edge Function update-recent-performance listener started.');
+
+

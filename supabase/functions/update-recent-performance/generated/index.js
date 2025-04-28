@@ -33,11 +33,11 @@ exports.$Enums = {}
 
 /**
  * Prisma Client JS version: 6.6.0
- * Query Engine version: 173f8d54f8d52e692c7e27e72a88314ec7aeff60
+ * Query Engine version: f676762280b54cd07c770017ed3711ddde35f37a
  */
 Prisma.prismaVersion = {
   client: "6.6.0",
-  engine: "173f8d54f8d52e692c7e27e72a88314ec7aeff60"
+  engine: "f676762280b54cd07c770017ed3711ddde35f37a"
 }
 
 Prisma.PrismaClientKnownRequestError = PrismaClientKnownRequestError;
@@ -183,11 +183,11 @@ const config = {
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": "../../../../.env"
+    "rootEnvPath": null
   },
   "relativePath": "..",
   "clientVersion": "6.6.0",
-  "engineVersion": "173f8d54f8d52e692c7e27e72a88314ec7aeff60",
+  "engineVersion": "f676762280b54cd07c770017ed3711ddde35f37a",
   "datasourceNames": [
     "db"
   ],
@@ -203,7 +203,7 @@ const config = {
   },
   "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"./generated\"\n}\n\ndatasource db {\n  provider  = \"postgresql\"\n  url       = env(\"DATABASE_URL\")\n  directUrl = env(\"DIRECT_URL\")\n}\n\nmodel players {\n  player_id  Int     @id\n  is_ringer  Boolean\n  is_retired Boolean\n}\n\nmodel player_matches {\n  id         Int      @id @default(autoincrement())\n  player_id  Int\n  team       String?\n  goals      Int?\n  result     String?\n  heavy_win  Boolean?\n  heavy_loss Boolean?\n\n  match_id Int?\n  matches  matches? @relation(fields: [match_id], references: [id])\n}\n\nmodel matches {\n  id           Int      @id @default(autoincrement())\n  match_date   DateTime\n  team_a_score Int\n  team_b_score Int\n\n  player_matches player_matches[] // 👈 👈 ADD THIS to fix the relation!\n}\n\nmodel aggregated_recent_performance {\n  id           Int      @id @default(autoincrement())\n  player_id    Int\n  last_5_goals Int\n  last_5_games Json\n  last_updated DateTime\n}\n",
   "inlineSchemaHash": "e3136aa16aec9ee29d8c222a4b19f5f6dfaa85077f7232ccf16444ea9b67642e",
-  "copyEngine": false
+  "copyEngine": true
 }
 
 const fs = require('fs')
@@ -240,3 +240,9 @@ const PrismaClient = getPrismaClient(config)
 exports.PrismaClient = PrismaClient
 Object.assign(exports, Prisma)
 
+// file annotations for bundling tools to include these files
+path.join(__dirname, "query_engine-windows.dll.node");
+path.join(process.cwd(), "generated/query_engine-windows.dll.node")
+// file annotations for bundling tools to include these files
+path.join(__dirname, "schema.prisma");
+path.join(process.cwd(), "generated/schema.prisma")
