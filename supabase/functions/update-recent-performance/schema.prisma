@@ -1,11 +1,13 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated"
+  // Remove custom output paths
+  // Use Edge-specific settings
+  previewFeatures = ["deno"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
