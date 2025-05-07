@@ -368,16 +368,3 @@ model aggregated_season_honours {
 
   @@index([year])
 }
-
-/// This model stores process state for long-running operations
-model process_state {
-  id              String    @id
-  is_running      Boolean   @default(false)
-  request_id      String?
-  current_step    String?
-  completed_steps String[]
-  error           String?
-  start_time      DateTime?
-  last_update_time DateTime?
-  step_attempts   Json?     @db.JsonB
-}

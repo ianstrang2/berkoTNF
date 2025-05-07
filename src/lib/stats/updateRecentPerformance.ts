@@ -18,7 +18,7 @@ export async function updateRecentPerformance(): Promise<void> {
   try {
     // --- Iterative Batch Fetching --- 
     const recentPerformanceData: Prisma.aggregated_recent_performanceCreateManyInput[] = [];
-    const BATCH_SIZE = 10; 
+    const BATCH_SIZE = 10;
     let playersProcessed = 0;
     let currentBatch = 0;
     let lastPlayerId = 0; // Use cursor-based pagination
@@ -49,49 +49,49 @@ export async function updateRecentPerformance(): Promise<void> {
         const playerId = player.player_id;
         try {
           const last5PlayerMatches = await client.player_matches.findMany({
-              where: { player_id: playerId },
-              include: {
+            where: { player_id: playerId },
+            include: {
                 matches: { select: { match_date: true, team_a_score: true, team_b_score: true } }
-              },
+            },
               orderBy: { matches: { match_date: 'desc' } },
-              take: 5,
+            take: 5,
           });
           let last5Goals = 0;
           const last5Games: LastGameInfo[] = [];
           for (const pm of last5PlayerMatches) {
-              const match = pm.matches;
+            const match = pm.matches;
               if (!match) continue;
-              const goals = pm.goals ?? 0;
+            const goals = pm.goals ?? 0;
               const result = pm.result ?? '';
-              const teamAScore = match.team_a_score ?? 0;
-              const teamBScore = match.team_b_score ?? 0;
-              const heavyWin = pm.heavy_win ?? false;
-              const heavyLoss = pm.heavy_loss ?? false;
-              const isTeamA = pm.team === 'A';
+            const teamAScore = match.team_a_score ?? 0;
+            const teamBScore = match.team_b_score ?? 0;
+            const heavyWin = pm.heavy_win ?? false;
+            const heavyLoss = pm.heavy_loss ?? false;
+            const isTeamA = pm.team === 'A';
               const score = isTeamA ? `${teamAScore}-${teamBScore}` : `${teamBScore}-${teamAScore}`;
-              const cleanSheet = isTeamA ? teamBScore === 0 : teamAScore === 0;
-              last5Games.push({
-                  date: match.match_date,
-                  goals: goals,
-                  result: result,
-                  score: score,
-                  heavy_win: heavyWin,
-                  heavy_loss: heavyLoss,
-                  clean_sheet: cleanSheet,
-              });
-              last5Goals += goals;
+            const cleanSheet = isTeamA ? teamBScore === 0 : teamAScore === 0;
+            last5Games.push({
+              date: match.match_date,
+              goals: goals,
+              result: result,
+              score: score,
+              heavy_win: heavyWin,
+              heavy_loss: heavyLoss,
+              clean_sheet: cleanSheet,
+            });
+            last5Goals += goals;
           }
           return {
-              player_id: playerId,
-              last_5_games: last5Games as any,
-              last_5_goals: last5Goals,
-              last_updated: new Date(),
+            player_id: playerId,
+            last_5_games: last5Games as any,
+            last_5_goals: last5Goals,
+            last_updated: new Date(),
           };
         } catch (playerError) {
           console.error(`[updateRecentPerformance] Error processing player ${playerId} in batch ${currentBatch}:`, playerError);
-          return null; 
+          return null;
         }
-      }); 
+      });
       
       console.log(`[updateRecentPerformance] Waiting for batch ${currentBatch} promises...`);
       const batchResults = await Promise.all(batchPromises);
@@ -108,7 +108,7 @@ export async function updateRecentPerformance(): Promise<void> {
       console.log(`[updateRecentPerformance] Batch ${currentBatch} complete. Processed ${successfulBatchResults}/${playerBatch.length} players successfully.`);
 
       lastPlayerId = playerBatch[playerBatch.length - 1].player_id;
-    } 
+    }
 
     console.log(`[updateRecentPerformance] All batches processed. Total successful players: ${playersProcessed}.`);
     console.log(`[updateRecentPerformance] Preparing to update database using non-interactive transaction...`);
@@ -119,13 +119,13 @@ export async function updateRecentPerformance(): Promise<void> {
     console.log('[updateRecentPerformance] Delete operation defined.');
 
     let createOp: Prisma.PrismaPromise<any> | null = null;
-    if (recentPerformanceData.length > 0) {
+        if (recentPerformanceData.length > 0) {
       createOp = client.aggregated_recent_performance.createMany({ 
-        data: recentPerformanceData,
-        skipDuplicates: true,
-      });
+            data: recentPerformanceData,
+            skipDuplicates: true,
+          });
       console.log(`[updateRecentPerformance] Create operation defined for ${recentPerformanceData.length} records.`);
-    } else {
+      } else {
       console.log('[updateRecentPerformance] No data to create, skipping create operation.');
     }
 
@@ -147,7 +147,7 @@ export async function updateRecentPerformance(): Promise<void> {
 
   } catch (error) {
      console.error('[updateRecentPerformance] CRITICAL FUNCTION-LEVEL ERROR:', error);
-     console.error('FUNCTION FAILED: updateRecentPerformance did not complete successfully');
-     throw new Error(`Failed to update recent performance: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('FUNCTION FAILED: updateRecentPerformance did not complete successfully');
+    throw new Error(`Failed to update recent performance: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 } 

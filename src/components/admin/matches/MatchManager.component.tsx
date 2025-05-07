@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';  // Import date-fns for date formatting
 import { Card, Table, TableHead, TableBody, TableRow, TableCell, Button } from '@/components/ui-kit';
 import { SoftUIConfirmationModal } from '@/components/ui-kit';
+import { createClient } from '@supabase/supabase-js'; // Import Supabase client
 
 interface Player {
   player_id: number;
@@ -36,15 +37,30 @@ interface FormData {
   team_b_score: number;
 }
 
-// Progress tracking interface
-interface UpdateProgress {
-  currentStep: string;
-  percentComplete: number;
-  isPolling: boolean;
-  steps?: string[];
-  completedSteps?: string[];
-  error?: string | null;
+// List of Edge Functions to call in order
+const EDGE_FUNCTIONS_TO_CALL = [
+  'call-update-all-time-stats',
+  'call-update-half-and-full-season-stats',
+  'call-update-hall-of-fame',
+  'call-update-recent-performance',
+  'call-update-season-honours-and-records',
+  'call-update-match-report-cache'
+];
+
+// Standard Supabase public environment variables
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Initialize Supabase client
+let supabase: any = null;
+if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} else {
+  console.error('Supabase URL or Anon Key is missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
 }
+
+// WARNING: Exposing the service role key on the client-side is a security risk. 
+// const SUPABASE_SERVICE_KEY = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || ''; // REMOVED
 
 const MatchManager: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -54,57 +70,10 @@ const MatchManager: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [matchToDelete, setMatchToDelete] = useState<number | null>(null);
-  const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
   const [isUpdatingStats, setIsUpdatingStats] = useState<boolean>(false);
   
-  // Define our steps in sequence - same as on the server
-  const PROCESS_STEPS = [
-    { 
-      id: 'recent-performance',
-      name: 'Updating Recent Performance',
-      endpoint: '/api/admin/stats/update-recent-performance',
-      weight: 20
-    },
-    { 
-      id: 'all-time-stats',
-      name: 'Updating All-Time Stats',
-      endpoint: '/api/admin/stats/update-all-time-stats',
-      weight: 20
-    },
-    { 
-      id: 'season-honours',
-      name: 'Updating Season Honours',
-      endpoint: '/api/admin/stats/update-season-honours',
-      weight: 20
-    },
-    { 
-      id: 'season-stats',
-      name: 'Updating Half & Full Season Stats',
-      endpoint: '/api/admin/stats/update-half-full-season',
-      weight: 20
-    },
-    { 
-      id: 'match-report',
-      name: 'Updating Match Report Cache',
-      endpoint: '/api/admin/stats/update-match-report',
-      weight: 20
-    }
-  ];
-  
-  // Create lookup maps for step IDs to names and vice versa
-  const STEP_ID_TO_NAME = Object.fromEntries(PROCESS_STEPS.map(step => [step.id, step.name]));
-  const STEP_NAME_TO_ID = Object.fromEntries(PROCESS_STEPS.map(step => [step.name, step.id]));
-  
-  const [updateProgress, setUpdateProgress] = useState<UpdateProgress>({
-    currentStep: '',
-    percentComplete: 0,
-    isPolling: false,
-    completedSteps: []
-  });
+  // State to track successful update for button feedback
   const [statsUpdated, setStatsUpdated] = useState<boolean>(false);
-  
-  // Reference to polling interval to clean up on unmount
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const defaultTeamState: TeamPlayer[] = Array(9).fill({ player_id: '', goals: 0 });
 
@@ -207,400 +176,45 @@ const MatchManager: React.FC = () => {
     return true;
   };
 
-  const updateStats = async (): Promise<void> => {
-    // Immediately set updating states before API call to ensure UI feedback
-    setIsUpdatingStats(true);
-    setError('');
-    
-    // Reset progress state and ensure polling is active
-    setUpdateProgress({
-      currentStep: 'Initializing',
-      percentComplete: 0,
-      isPolling: true, // Force this to true immediately
-      completedSteps: [],
-      // Use the process steps defined above
-      steps: PROCESS_STEPS.map(step => step.id)
-    });
-    
-    // Close the confirmation modal immediately
-    setShowStatsModal(false);
-    
-    // For debugging
-    console.log('Starting stats update, progress modal should be visible');
-    
-    // Clear any existing polling interval
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+  // Helper function to trigger Supabase Edge Functions sequentially
+  const triggerEdgeFunctions = async () => {
+    if (!supabase) { // Check if Supabase client failed to initialize
+      console.error('Supabase client is not initialized. Cannot trigger stat updates.');
+      setError('Configuration error: Supabase client not initialized.');
+      return;
     }
     
-    // Set a maximum duration failsafe - will force close the modal after 2 minutes
-    // This prevents the UI from getting permanently stuck if something goes wrong
-    const maxDurationTimer = setTimeout(() => {
-      if (isUpdatingStats) {
-        console.warn('Maximum update duration (2 minutes) reached - forcing modal to close');
-        
-        // Clean up all timers
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        
-        setIsUpdatingStats(false);
-        setUpdateProgress(prev => ({ 
-          ...prev, 
-          isPolling: false,
-          percentComplete: 100,
-          currentStep: 'Complete (Forced)'
-        }));
-        
-        // Show a warning notification
-        showNotification(
-          'Process Timeout', 
-          'The update is taking longer than expected. The UI has been reset, but the operation may still be running on the server.', 
-          'warning'
-        );
-      }
-    }, 120000);
+    setIsUpdatingStats(true); // Disable button during trigger
     
-    // Helper function to clean up timers and reset state
-    const cleanupProcess = (isSuccess: boolean = true) => {
-      // Clean up all timers
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-      
-      clearTimeout(maxDurationTimer);
-      
-      // Set final state
-      setUpdateProgress(prev => ({
-        ...prev,
-        isPolling: false,
-        percentComplete: 100,
-        currentStep: 'Complete'
-      }));
-      
-      setIsUpdatingStats(false);
-      
-      if (isSuccess) {
-        // Set a flag to indicate successful stats update (will be used to style the button)
-        setStatsUpdated(true);
-        
-        // Reset the flag after 3 seconds
-        setTimeout(() => {
-          setStatsUpdated(false);
-        }, 3000);
-      }
-    };
-    
-    // Helper function to calculate progress based on completed steps
-    const calculateProgressFromSteps = (completedSteps: string[]) => {
-      if (!completedSteps || completedSteps.length === 0) return 0;
-      
-      const totalWeight = PROCESS_STEPS.reduce((sum, step) => sum + step.weight, 0);
-      let completedWeight = 0;
-      
-      // Add up weights of completed steps
-      PROCESS_STEPS.forEach(step => {
-        if (completedSteps.includes(step.id)) {
-          completedWeight += step.weight;
-        }
-      });
-      
-      return Math.round((completedWeight / totalWeight) * 100);
-    };
-    
+    // Set a timer for the "Stats updated" notification
+    const updateCompleteTimer = setTimeout(() => {
+      setIsUpdatingStats(false); // Re-enable button
+      setStatsUpdated(true); // Indicate success for button styling
+      setTimeout(() => setStatsUpdated(false), 3000); // Reset button style after 3s
+    }, 5000); // Changed delay from 20000ms to 5000ms (5 seconds)
+
     try {
-      // Start the update process with retry mechanism
-      const maxRetries = 2;
-      let retryCount = 0;
-      let response;
-      
-      while (retryCount <= maxRetries) {
-        try {
-          response = await fetch('/api/admin/run-postprocess', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({}) // Send empty body as JSON
-          });
-          
-          // If we get a response (even an error), break the retry loop
-          break;
-        } catch (fetchError) {
-          console.warn(`Fetch attempt ${retryCount + 1} failed:`, fetchError);
-          retryCount++;
-          
-          // If we've exceeded retries, throw the error
-          if (retryCount > maxRetries) {
-            throw fetchError;
-          }
-          
-          // Wait before retry (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+      for (const functionName of EDGE_FUNCTIONS_TO_CALL) {
+        console.log(`Invoking Edge Function: ${functionName}`);
+        const { error: invokeError } = await supabase.functions.invoke(functionName);
+
+        if (invokeError) {
+          console.error(`Error invoking ${functionName}:`, invokeError);
+        } else {
+           console.log(`Successfully invoked ${functionName}`);
         }
       }
-      
-      // Check for gateway timeout specifically
-      if (response.status === 504) {
-        throw new Error("Server timeout occurred. The operation might still be running on the server. Please check stats again in a few minutes.");
-      }
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      }
-      
-      // Initial response data
-      const initialData = await response.json();
-      if (initialData.error) {
-        throw new Error(initialData.error);
-      }
-      
-      // Log initial data to help debug
-      console.log('Initial process data:', initialData);
-      
-      // Start polling for progress
-      pollIntervalRef.current = setInterval(async () => {
-        try {
-          // Use fetch with timeout to avoid hanging
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for poll requests
-          
-          const pollResponse = await fetch('/api/admin/run-postprocess', {
-            method: 'GET',
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          
-          // Handle specific status codes
-          if (pollResponse.status === 504) {
-            console.warn('Polling request timed out (504), will try again next interval');
-            return; // Skip this poll cycle and try again
-          }
-          
-          if (pollResponse.ok) {
-            const progressData = await pollResponse.json();
-            
-            // For debugging - log actual data structure from server
-            console.log('Raw server progress update:', progressData);
-            
-            // Get current visible step name (from step ID if needed)
-            let currentStepName = progressData.currentStep;
-            
-            // We need to determine if the current step from server is a name or an ID
-            // First check if it matches any step ID
-            const isStepId = PROCESS_STEPS.some(step => step.id === progressData.currentStep);
-            const isStepName = PROCESS_STEPS.some(step => step.name === progressData.currentStep);
-            
-            // If it's a step ID, convert to name for display
-            if (isStepId && STEP_ID_TO_NAME[progressData.currentStep]) {
-              currentStepName = STEP_ID_TO_NAME[progressData.currentStep];
-            } 
-            // If it's neither a name nor ID, keep as is (could be "Starting..." or similar)
-            
-            // For completedSteps from server, make sure we're comparing with IDs consistently
-            let normalizedCompletedSteps = progressData.completedSteps || [];
-            
-            // If completedSteps contains step names instead of IDs, convert them
-            if (normalizedCompletedSteps.length > 0 && 
-                normalizedCompletedSteps.some(step => STEP_NAME_TO_ID[step])) {
-              normalizedCompletedSteps = normalizedCompletedSteps.map(step => 
-                STEP_NAME_TO_ID[step] || step
-              );
-            }
-            
-            // Calculate progress based on completed steps (this matches server-side calculation)
-            const percent = calculateProgressFromSteps(normalizedCompletedSteps);
-            
-            // Debug the progress calculation
-            console.log('Progress calculation:', {
-              completedSteps: normalizedCompletedSteps,
-              originalCompletedSteps: progressData.completedSteps,
-              calculatedPercent: percent,
-              serverPercent: progressData.percentComplete,
-              currentStep: currentStepName,
-              rawCurrentStep: progressData.currentStep,
-              isStepId,
-              isStepName,
-              isRunning: progressData.isRunning
-            });
-            
-            // Update UI with current state
-            setUpdateProgress(prev => ({
-              ...prev,
-              percentComplete: progressData.percentComplete || percent, // Prefer server's calculation
-              // Store the original step value from server (could be name or ID)
-              currentStep: progressData.currentStep || 'Processing...',
-              isPolling: true,
-              // Store the normalized completed steps (as IDs)
-              completedSteps: normalizedCompletedSteps,
-              error: progressData.error || null
-            }));
-            
-            // Add more detailed debugging
-            console.log('Full progress update:', {
-              currentStepFromServer: progressData.currentStep,
-              normalizedCompletedSteps,
-              isRunning: progressData.isRunning,
-              percentComplete: progressData.percentComplete || percent,
-              allStepsCompleted: normalizedCompletedSteps.length === PROCESS_STEPS.length,
-              PROCESS_STEPS_LENGTH: PROCESS_STEPS.length
-            });
-            
-            // Check for process completion (two ways to detect):
-            // 1. isRunning flag is false
-            // 2. All steps are completed (using normalized completedSteps)
-            // 3. currentStep is explicitly "Complete"
-            const isComplete = 
-              !progressData.isRunning || 
-              (normalizedCompletedSteps.length === PROCESS_STEPS.length) ||
-              progressData.currentStep === 'Complete';
-            
-            if (isComplete) {
-              console.log('Process complete detected:', {
-                isRunning: progressData.isRunning,
-                completedStepsCount: normalizedCompletedSteps.length,
-                totalSteps: PROCESS_STEPS.length
-              });
-              
-              // Slight delay to show 100% before closing
-              setTimeout(() => {
-                cleanupProcess(!progressData.error);
-                
-                if (progressData.error) {
-                  setError(`Update failed: ${progressData.error}`);
-                  showNotification('Update Failed', `Update failed: ${progressData.error}`, 'error');
-                }
-              }, 1000);
-            }
-          }
-        } catch (pollError) {
-          console.error('Error polling for progress:', pollError);
-          
-          // If polling fails, we still need to make sure the UI doesn't get stuck
-          // This is a failsafe, not the primary mechanism
-          setTimeout(() => {
-            setUpdateProgress(prev => {
-              // Only trigger failsafe if we're still polling after 10s
-              if (prev.isPolling) {
-                cleanupProcess(false);
-                setError('Failed to get progress updates from server');
-                return { ...prev, isPolling: false };
-              }
-              return prev;
-            });
-          }, 10000); // 10 second failsafe to prevent stuck UI
-        }
-      }, 1000); // Poll every second
-      
-    } catch (error) {
-      console.error('Error updating stats:', error);
-      
-      // Clean up all timers
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-      
-      clearTimeout(maxDurationTimer);
-      
-      let errorMessage = 'Failed to update stats';
-      
-      // Enhanced error handling
-      if (error instanceof Error) {
-        errorMessage = error.message || errorMessage;
-        
-        // Special case for network errors
-        if (error instanceof TypeError && error.message.includes('NetworkError')) {
-          errorMessage = 'Network connection error. Check your internet connection and try again.';
-        }
-        
-        // Special case for AbortError (request timeouts)
-        if (error.name === 'AbortError') {
-          errorMessage = 'The request took too long to respond. The server might be busy.';
-        }
-        
-        // Special case for server timeout
-        if (error.message.includes('timeout') || error.message.includes('504')) {
-          errorMessage = 'The server took too long to respond, but your request might still be processing. Check back in a few minutes.';
-        }
-      }
-      
-      setError(errorMessage);
-      // Make sure to set polling to false to hide progress indicator
-      setUpdateProgress(prev => ({ ...prev, isPolling: false }));
-      setIsUpdatingStats(false);
-      
-      // Show error in a styled notification
-      showNotification('Update Failed', errorMessage, 'error');
+    } catch (error) { // Catch any unexpected errors during the loop or setup
+      console.error('Error triggering Edge Functions:', error);
+      // Clear the success timer if an error occurs before 5s
+      clearTimeout(updateCompleteTimer); 
+      setError('An error occurred while triggering stat updates.');
+      setIsUpdatingStats(false); // Re-enable button on error
     }
+    // Note: The "Stats updated" notification will still show after 5 seconds 
+    // even if errors occurred during the function calls, as per requirements.
+    // The `setIsUpdatingStats(false)` inside the timer ensures the button is re-enabled.
   };
-  
-  // Helper function to get a sensible step message based on progress percentage
-  const getNextProgressStep = (progress: number): string => {
-    if (progress < 10) return 'Initializing';
-    if (progress < 25) return 'Fetching Configuration';
-    if (progress < 40) return 'Updating Recent Performance';
-    if (progress < 60) return 'Updating All-Time Stats';
-    if (progress < 75) return 'Updating Season Honours';
-    if (progress < 85) return 'Updating Half & Full Season Stats';
-    if (progress < 95) return 'Updating Match Report Cache';
-    return 'Completing Updates';
-  };
-
-  // Custom notification function that matches the app's UI style
-  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info') => {
-    // Create notification element
-    const notificationDiv = document.createElement('div');
-    notificationDiv.className = `fixed top-4 right-4 p-4 rounded-xl shadow-soft-xl z-[9999] flex items-center
-      ${type === 'success' ? 'bg-gradient-to-tl from-green-600 to-lime-400 text-white' : 
-        type === 'error' ? 'bg-gradient-to-tl from-red-600 to-rose-400 text-white' : 
-        type === 'warning' ? 'bg-gradient-to-tl from-yellow-600 to-amber-400 text-white' : 
-        'bg-gradient-to-tl from-blue-600 to-cyan-400 text-white'}`;
-    
-    // Add content
-    notificationDiv.innerHTML = `
-      <div class="mr-3">
-        <div class="w-8 h-8 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
-          ${type === 'success' ? 
-            '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>' :
-            type === 'error' ? 
-            '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>' :
-            '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>'}
-        </div>
-      </div>
-      <div>
-        <h4 class="font-bold text-sm">${title}</h4>
-        <p class="text-xs opacity-90">${message}</p>
-      </div>
-      <button class="ml-4 opacity-70 hover:opacity-100" onclick="this.parentElement.remove()">
-        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-      </button>
-    `;
-    
-    // Add to document
-    document.body.appendChild(notificationDiv);
-    
-    // Auto remove after 4 seconds
-    setTimeout(() => {
-      if (document.body.contains(notificationDiv)) {
-        notificationDiv.remove();
-      }
-    }, 4000);
-  };
-
-  // Clean up polling interval on component unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -688,8 +302,9 @@ const MatchManager: React.FC = () => {
         setSelectedMatch(null);
         fetchMatches();
         
-        // Show the stats update modal after successful match creation/update
-        setShowStatsModal(true);
+        // Trigger edge functions automatically
+        triggerEdgeFunctions();
+        
       } catch (fetchError) {
         if (fetchError.name === 'AbortError') {
           throw new Error('Request timeout - the server took too long to respond. Try again or check server logs.');
@@ -974,10 +589,10 @@ const MatchManager: React.FC = () => {
                   </button>
                 )}
                 
-                {/* Update Stats button - styled like the Clear button in admin/next-match */}
+                {/* Update Stats button - Use isUpdatingStats for disabled state */}
                 <button
                   type="button"
-                  onClick={() => setShowStatsModal(true)}
+                  onClick={triggerEdgeFunctions}
                   disabled={isUpdatingStats}
                   className={`flex items-center px-4 py-2 font-medium text-center uppercase align-middle transition-all rounded-lg shadow-soft-sm cursor-pointer text-xs ${
                     statsUpdated 
@@ -1101,154 +716,6 @@ const MatchManager: React.FC = () => {
                     {isLoading ? 'Deleting...' : 'Delete'}
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stats Update Confirmation Modal using SoftUIConfirmationModal */}
-      <SoftUIConfirmationModal
-        isOpen={showStatsModal}
-        onClose={() => {
-          setShowStatsModal(false);
-          // Stop polling if modal is closed
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-          }
-          setIsUpdatingStats(false);
-        }}
-        onConfirm={updateStats}
-        title="Update Player Statistics"
-        message="This will recalculate all player statistics based on match data. This process may take a minute to complete. Do you want to continue?"
-        confirmText={isUpdatingStats ? "Processing..." : "Update Stats"}
-        cancelText="Cancel"
-        isConfirming={isUpdatingStats}
-        icon="warning"
-      />
-
-      {/* Separate progress indicator that appears when stats are updating */}
-      {isUpdatingStats && updateProgress.isPolling && (
-        <div className="fixed inset-0 z-[9999] overflow-auto flex items-center justify-center">
-          {/* Semi-transparent background overlay */}
-          <div className="absolute inset-0 bg-gray-900 bg-opacity-50"></div>
-          
-          {/* Modal content */}
-          <div className="bg-white p-6 rounded-xl shadow-soft-xl max-w-md w-full z-10 relative">
-            {/* Emergency close button */}
-            <button 
-              onClick={() => {
-                // Force cleanup all timers and state
-                if (pollIntervalRef.current) {
-                  clearInterval(pollIntervalRef.current);
-                  pollIntervalRef.current = null;
-                }
-                setIsUpdatingStats(false);
-                setUpdateProgress(prev => ({ ...prev, isPolling: false }));
-                console.log('Emergency modal close triggered by user');
-              }} 
-              className="absolute top-2 right-2 text-slate-400 hover:text-slate-700"
-              aria-label="Force close"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            
-            <h3 className="text-lg font-semibold text-slate-700 mb-4">Updating Player Statistics</h3>
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-slate-700">
-                  {/* Get display name for current step */}
-                  {(() => {
-                    const currentStepId = updateProgress.currentStep;
-                    // First check if it's a step ID
-                    const stepById = PROCESS_STEPS.find(s => s.id === currentStepId);
-                    if (stepById) {
-                      return stepById.name;
-                    }
-                    // Then check if it's already a name
-                    const stepByName = PROCESS_STEPS.find(s => s.name === currentStepId);
-                    if (stepByName) {
-                      return stepByName.name;
-                    }
-                    // Fall back to the original value
-                    return currentStepId;
-                  })()}
-                </span>
-                <span className="font-medium text-slate-700">{Math.round(updateProgress.percentComplete)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className="bg-gradient-to-tl from-purple-700 to-pink-500 h-3 rounded-full transition-all duration-300 ease-in-out"
-                  style={{ width: `${updateProgress.percentComplete}%` }}
-                ></div>
-              </div>
-            </div>
-            
-            {/* Display step list if available */}
-            {updateProgress.steps && updateProgress.steps.length > 0 && (
-              <div className="mb-4 border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
-                <h4 className="text-xs uppercase font-semibold text-slate-500 mb-2">PROCESS STEPS</h4>
-                <ul className="text-sm space-y-2">
-                  {updateProgress.steps?.map((stepId, index) => {
-                    // Handle both cases - server might be sending names or IDs
-                    const currentStepFromServer = updateProgress.currentStep;
-                    
-                    // Determine step status based on current step - handle ID or name from server
-                    const isCurrent = 
-                      stepId === currentStepFromServer || // Direct match
-                      (STEP_ID_TO_NAME[stepId] === currentStepFromServer) || // Current is name, step is ID
-                      (STEP_NAME_TO_ID[currentStepFromServer] === stepId); // Current is ID, step is name
-                    
-                    // Find step by ID to get the display name
-                    const stepInfo = PROCESS_STEPS.find(s => s.id === stepId);
-                    const stepName = stepInfo ? stepInfo.name : stepId; // Fallback to ID if not found
-                    
-                    // Check if this step ID is in completedSteps - handle both formats
-                    const isCompleted = 
-                      updateProgress.completedSteps?.includes(stepId) || // Direct match
-                      (STEP_NAME_TO_ID[stepId] && updateProgress.completedSteps?.includes(STEP_NAME_TO_ID[stepId]));
-                    
-                    return (
-                    <li key={index} className={`flex items-center ${
-                      isCurrent 
-                        ? 'text-purple-600 font-medium' 
-                        : isCompleted 
-                          ? 'text-green-600' 
-                          : 'text-slate-600'
-                    }`}>
-                      {isCurrent ? (
-                        <svg className="w-4 h-4 mr-2 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                      ) : isCompleted ? (
-                        <svg className="w-4 h-4 mr-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4 mr-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      )}
-                      <span className="mr-2 text-xs bg-slate-100 text-slate-600 rounded-full w-5 h-5 inline-flex items-center justify-center">
-                        {index + 1}
-                      </span>
-                      {stepName}
-                    </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            
-            <div className="flex flex-col space-y-2">
-              <p className="text-sm text-slate-500">This process may take a minute to complete. Please wait...</p>
-              <div className="text-xs text-slate-400 italic">
-                {updateProgress.percentComplete < 100 ? 
-                  "If this seems stuck, the server might be busy. The X button in the corner can force-close this window." :
-                  "Process completed. This window will close automatically."}
               </div>
             </div>
           </div>

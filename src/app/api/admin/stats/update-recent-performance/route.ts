@@ -54,11 +54,11 @@ export async function POST(request: Request) {
     
     // Try importing the function (if not already imported globally)
     // const { updateRecentPerformance } = await import('@/lib/stats/updateRecentPerformance');
-    
+      
     // --- REMOVE INTERACTIVE TRANSACTION --- 
     console.log('[update-recent-performance API] Starting updateRecentPerformance function (NO TRANSACTION WRAPPER)...');
-    
-    let functionResult;
+      
+      let functionResult;
     try {
       // Call directly (it uses global prisma internally)
       await updateRecentPerformance(); 
@@ -72,36 +72,36 @@ export async function POST(request: Request) {
     // --- END REMOVE INTERACTIVE TRANSACTION --- 
 
     /* --- Original Transaction Logic (commented out) ---
-    try {
-      await prisma.$transaction(
-        async (tx) => {
-          console.log('[update-recent-performance API] Inside transaction');
+      try {
+        await prisma.$transaction(
+          async (tx) => {
+            console.log('[update-recent-performance API] Inside transaction');
           await updateRecentPerformance(tx); // This was the line causing the error
-          console.log('[update-recent-performance API] Transaction completed successfully');
-        },
-        { timeout: 60000 } // 60 second timeout
-      );
+            console.log('[update-recent-performance API] Transaction completed successfully');
+          },
+          { timeout: 60000 } // 60 second timeout
+        );
       functionResult = 'success_transaction';
-    } catch (txError) {
-      console.error('[update-recent-performance API] ❌ Transaction failed:', txError);
+      } catch (txError) {
+        console.error('[update-recent-performance API] ❌ Transaction failed:', txError);
       // ... fallback logic ...
     }
     --- End Original Transaction Logic --- */
-    
-    const endTime = Date.now();
-    const executionTime = endTime - startTime;
-    console.log(`[update-recent-performance API] ✓ Recent Performance updated successfully in ${executionTime}ms`);
-    
-    console.log('[update-recent-performance API] Responding with completion signal, completed=true');
-    const responseObj = { 
-      success: true, 
-      message: 'Recent Performance updated successfully',
+      
+      const endTime = Date.now();
+      const executionTime = endTime - startTime;
+      console.log(`[update-recent-performance API] ✓ Recent Performance updated successfully in ${executionTime}ms`);
+      
+      console.log('[update-recent-performance API] Responding with completion signal, completed=true');
+      const responseObj = { 
+        success: true, 
+        message: 'Recent Performance updated successfully',
       completed: true, // Important for the run-postprocess logic if this endpoint was still somehow used
-      executionTime,
-      functionResult
-    };
-    console.log(`[update-recent-performance API] Full response object: ${JSON.stringify(responseObj)}`);
-    return NextResponse.json(responseObj);
+        executionTime,
+        functionResult
+      };
+      console.log(`[update-recent-performance API] Full response object: ${JSON.stringify(responseObj)}`);
+      return NextResponse.json(responseObj);
 
   } catch (error) {
     const endTime = Date.now();

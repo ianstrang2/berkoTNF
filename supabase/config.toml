@@ -1,0 +1,13 @@
+project_id = "wbxhnyoxkfakjuzvhfrk"
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+
+[auth]
+# enable_signup = true
+
+[Kildee]
+# level = "info"

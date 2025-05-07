@@ -1,5 +1,0 @@
-{
-    "imports": {
-      "@prisma/client/edge": "npm:@prisma/client/edge"
-    }
-  }
