@@ -13,8 +13,10 @@ DECLARE
     team_b_scorers TEXT;
     game_milestones_json JSONB := '[]'::jsonb;
     goal_milestones_json JSONB := '[]'::jsonb;
-    half_season_leaders_json JSONB := '{}'::jsonb;
-    season_leaders_json JSONB := '{}'::jsonb;
+    v_season_goal_leaders JSONB;        -- Added for direct assignment
+    v_season_fantasy_leaders JSONB;   -- Added for direct assignment
+    v_half_season_goal_leaders JSONB;   -- Added for direct assignment
+    v_half_season_fantasy_leaders JSONB; -- Added for direct assignment
     player_ids_in_match INT[];
     player_names_json JSONB := '{}'::jsonb;
     milestone_game_threshold INT;
@@ -179,7 +181,7 @@ BEGIN
             SUM(calculated_fantasy_points) as fantasy_points
         FROM match_stats_with_points
         WHERE match_date >= half_season_start
-        AND match_date <= target_date
+        AND match_date <= half_season_end
         GROUP BY name
     ),
     previous_half_season_stats AS (
@@ -189,87 +191,115 @@ BEGIN
             SUM(calculated_fantasy_points) as fantasy_points
         FROM match_stats_with_points
         WHERE match_date >= half_season_start
-        AND match_date < target_date
+        AND match_date < target_date -- This defines the state *before* the current match for comparison
         GROUP BY name
     )
     SELECT
-        (SELECT jsonb_build_object(
-            'change_type',
-            CASE
-                WHEN c.name IS NULL AND p.name IS NOT NULL THEN 'dropped_out'
-                WHEN c.name IS NULL THEN 'new_leader'
-                WHEN p.name IS NULL THEN 'new_leader'
-                WHEN c.name = p.name THEN 'remains'
-                WHEN c.total_goals = p.total_goals THEN 'tied'
-                ELSE 'overtake'
-            END,
-            'new_leader', c.name,
-            'new_leader_goals', c.total_goals,
-            'previous_leader', p.name,
-            'previous_leader_goals', p.total_goals
-        )
-        FROM (SELECT * FROM current_season_stats ORDER BY total_goals DESC, name LIMIT 1) c
-        FULL OUTER JOIN (SELECT * FROM previous_season_stats ORDER BY total_goals DESC, name LIMIT 1) p ON c.name = p.name
-        ),
-        (SELECT jsonb_build_object(
-            'change_type',
-            CASE
-                WHEN c.name IS NULL AND p.name IS NOT NULL THEN 'dropped_out'
-                WHEN c.name IS NULL THEN 'new_leader'
-                WHEN p.name IS NULL THEN 'new_leader'
-                WHEN c.name = p.name THEN 'remains'
-                WHEN c.fantasy_points = p.fantasy_points THEN 'tied'
-                ELSE 'overtake'
-            END,
-            'new_leader', c.name,
-            'new_leader_points', c.fantasy_points,
-            'previous_leader', p.name,
-            'previous_leader_points', p.fantasy_points
-        )
-        FROM (SELECT * FROM current_season_stats ORDER BY fantasy_points DESC, name LIMIT 1) c
-        FULL OUTER JOIN (SELECT * FROM previous_season_stats ORDER BY fantasy_points DESC, name LIMIT 1) p ON c.name = p.name
-        ),
-        (SELECT jsonb_build_object(
-            'change_type',
-            CASE
-                WHEN c.name IS NULL AND p.name IS NOT NULL THEN 'dropped_out'
-                WHEN c.name IS NULL THEN 'new_leader'
-                WHEN p.name IS NULL THEN 'new_leader'
-                WHEN c.name = p.name THEN 'remains'
-                WHEN c.total_goals = p.total_goals THEN 'tied'
-                ELSE 'overtake'
-            END,
-            'new_leader', c.name,
-            'new_leader_goals', c.total_goals,
-            'previous_leader', p.name,
-            'previous_leader_goals', p.total_goals
-        )
-        FROM (SELECT * FROM current_half_season_stats ORDER BY total_goals DESC, name LIMIT 1) c
-        FULL OUTER JOIN (SELECT * FROM previous_half_season_stats ORDER BY total_goals DESC, name LIMIT 1) p ON c.name = p.name
-        ),
-        (SELECT jsonb_build_object(
-            'change_type',
-            CASE
-                WHEN c.name IS NULL AND p.name IS NOT NULL THEN 'dropped_out'
-                WHEN c.name IS NULL THEN 'new_leader'
-                WHEN p.name IS NULL THEN 'new_leader'
-                WHEN c.name = p.name THEN 'remains'
-                WHEN c.fantasy_points = p.fantasy_points THEN 'tied'
-                ELSE 'overtake'
-            END,
-            'new_leader', c.name,
-            'new_leader_points', c.fantasy_points,
-            'previous_leader', p.name,
-            'previous_leader_points', p.fantasy_points
-        )
-        FROM (SELECT * FROM current_half_season_stats ORDER BY fantasy_points DESC, name LIMIT 1) c
-        FULL OUTER JOIN (SELECT * FROM previous_half_season_stats ORDER BY fantasy_points DESC, name LIMIT 1) p ON c.name = p.name
-        )
+        -- Season Goal Leaders
+        COALESCE(
+            (WITH current_ranked_leaders AS (
+                SELECT name, total_goals, DENSE_RANK() OVER (ORDER BY total_goals DESC) as rnk
+                FROM current_season_stats WHERE total_goals > 0
+            ),
+            previous_top_leader AS (
+                SELECT name, total_goals FROM previous_season_stats ORDER BY total_goals DESC, name LIMIT 1
+            )
+            SELECT jsonb_agg(jsonb_build_object(
+                'new_leader', crl.name, 'new_leader_goals', crl.total_goals,
+                'previous_leader', ptl.name, 'previous_leader_goals', ptl.total_goals,
+                'change_type', CASE
+                                WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
+                                WHEN crl.name = ptl.name THEN 'remains'
+                                WHEN crl.total_goals = ptl.total_goals AND crl.name != ptl.name THEN 'tied' -- New person tied with old leader
+                                WHEN crl.name != ptl.name THEN 'overtake'
+                                ELSE 'new_leader'
+                            END
+            ) ORDER BY crl.name)
+            FROM current_ranked_leaders crl LEFT JOIN previous_top_leader ptl ON TRUE
+            WHERE crl.rnk = 1
+            ),
+            '[]'::jsonb
+        ) AS sg_leaders, -- Alias for direct assignment
+        -- Season Fantasy Leaders
+        COALESCE(
+            (WITH current_ranked_leaders AS (
+                SELECT name, fantasy_points, DENSE_RANK() OVER (ORDER BY fantasy_points DESC) as rnk
+                FROM current_season_stats WHERE fantasy_points > 0
+            ),
+            previous_top_leader AS (
+                SELECT name, fantasy_points FROM previous_season_stats ORDER BY fantasy_points DESC, name LIMIT 1
+            )
+            SELECT jsonb_agg(jsonb_build_object(
+                'new_leader', crl.name, 'new_leader_points', crl.fantasy_points,
+                'previous_leader', ptl.name, 'previous_leader_points', ptl.fantasy_points,
+                'change_type', CASE
+                                WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
+                                WHEN crl.name = ptl.name THEN 'remains'
+                                WHEN crl.fantasy_points = ptl.fantasy_points AND crl.name != ptl.name THEN 'tied'
+                                WHEN crl.name != ptl.name THEN 'overtake'
+                                ELSE 'new_leader'
+                            END
+            ) ORDER BY crl.name)
+            FROM current_ranked_leaders crl LEFT JOIN previous_top_leader ptl ON TRUE
+            WHERE crl.rnk = 1
+            ),
+            '[]'::jsonb
+        ) AS sf_leaders, -- Alias for direct assignment
+        -- Half-Season Goal Leaders
+        COALESCE(
+            (WITH current_ranked_leaders AS (
+                SELECT name, total_goals, DENSE_RANK() OVER (ORDER BY total_goals DESC) as rnk
+                FROM current_half_season_stats WHERE total_goals > 0
+            ),
+            previous_top_leader AS (
+                SELECT name, total_goals FROM previous_half_season_stats ORDER BY total_goals DESC, name LIMIT 1
+            )
+            SELECT jsonb_agg(jsonb_build_object(
+                'new_leader', crl.name, 'new_leader_goals', crl.total_goals,
+                'previous_leader', ptl.name, 'previous_leader_goals', ptl.total_goals,
+                'change_type', CASE
+                                WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
+                                WHEN crl.name = ptl.name THEN 'remains'
+                                WHEN crl.total_goals = ptl.total_goals AND crl.name != ptl.name THEN 'tied'
+                                WHEN crl.name != ptl.name THEN 'overtake'
+                                ELSE 'new_leader'
+                            END
+            ) ORDER BY crl.name)
+            FROM current_ranked_leaders crl LEFT JOIN previous_top_leader ptl ON TRUE
+            WHERE crl.rnk = 1
+            ),
+            '[]'::jsonb
+        ) AS hg_leaders, -- Alias for direct assignment
+        -- Half-Season Fantasy Leaders
+        COALESCE(
+            (WITH current_ranked_leaders AS (
+                SELECT name, fantasy_points, DENSE_RANK() OVER (ORDER BY fantasy_points DESC) as rnk
+                FROM current_half_season_stats WHERE fantasy_points > 0
+            ),
+            previous_top_leader AS (
+                SELECT name, fantasy_points FROM previous_half_season_stats ORDER BY fantasy_points DESC, name LIMIT 1
+            )
+            SELECT jsonb_agg(jsonb_build_object(
+                'new_leader', crl.name, 'new_leader_points', crl.fantasy_points,
+                'previous_leader', ptl.name, 'previous_leader_points', ptl.fantasy_points,
+                'change_type', CASE
+                                WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
+                                WHEN crl.name = ptl.name THEN 'remains'
+                                WHEN crl.fantasy_points = ptl.fantasy_points AND crl.name != ptl.name THEN 'tied'
+                                WHEN crl.name != ptl.name THEN 'overtake'
+                                ELSE 'new_leader'
+                            END
+            ) ORDER BY crl.name)
+            FROM current_ranked_leaders crl LEFT JOIN previous_top_leader ptl ON TRUE
+            WHERE crl.rnk = 1
+            ),
+            '[]'::jsonb
+        ) AS hf_leaders -- Alias for direct assignment
     INTO
-        season_leaders_json->'goals',
-        season_leaders_json->'fantasy',
-        half_season_leaders_json->'goals',
-        half_season_leaders_json->'fantasy';
+        v_season_goal_leaders,        -- Changed from path assignment
+        v_season_fantasy_leaders,   -- Changed from path assignment
+        v_half_season_goal_leaders,   -- Changed from path assignment
+        v_half_season_fantasy_leaders; -- Changed from path assignment
 
     -- 5. Update Player Streaks
     RAISE NOTICE 'Updating player streaks...';
@@ -421,8 +451,10 @@ BEGIN
             'goal_milestone_threshold', milestone_goal_threshold
         ),
         game_milestones_json, goal_milestones_json,
-        half_season_leaders_json->'goals', half_season_leaders_json->'fantasy',
-        season_leaders_json->'goals', season_leaders_json->'fantasy',
+        v_half_season_goal_leaders,   -- Use new variable
+        v_half_season_fantasy_leaders, -- Use new variable
+        v_season_goal_leaders,        -- Use new variable
+        v_season_fantasy_leaders,     -- Use new variable
         NOW()
     );
 

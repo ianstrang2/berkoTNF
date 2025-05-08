@@ -435,3 +435,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Deployment scripts (contains secrets)
+deploy_all.ps1

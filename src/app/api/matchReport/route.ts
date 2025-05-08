@@ -580,7 +580,7 @@ export async function GET() {
                   extractedSeasonGoalLeaders = seasonGoalLeadersData as LeaderData[];
                 }
                 console.log('Season goal leaders extracted:', extractedSeasonGoalLeaders.length, 'items');
-          } catch (error) {
+              } catch (error) {
                 console.error('Error parsing season goal leaders:', error);
               }
             }
@@ -658,71 +658,12 @@ export async function GET() {
               goalsMilestones: validateMilestones(matchReportCache.goal_milestones) || [],
               streaks: formattedStreaks || [],
               goalStreaks: formattedGoalStreaks || [],
-              halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders?.map(leader => {
-                // Ensure new_leader_goals exists for legacy frontend compatibility
-                if (leader && leader.name && leader.value !== undefined && !leader.new_leader_goals) {
-                  return {
-                    ...leader,
-                    new_leader: leader.name || leader.new_leader,
-                    new_leader_goals: leader.value
-                  };
-                }
-                return leader;
-              }) || [],
-              halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders?.map(leader => {
-                // Ensure new_leader_points exists for legacy frontend compatibility
-                if (leader && leader.name && leader.value !== undefined && !leader.new_leader_points) {
-                  return {
-                    ...leader,
-                    new_leader: leader.name || leader.new_leader,
-                    new_leader_points: leader.value
-                  };
-                }
-                return leader;
-              }) || [],
+              halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders || [],
+              halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders || [],
               seasonGoalLeaders: extractedSeasonGoalLeaders || [],
               seasonFantasyLeaders: extractedSeasonFantasyLeaders || []
             }
           } as ApiResponse;
-          
-          // Final verification step: ensure leader data is present and properly formatted
-          const leaderDataSample: LeaderData[] = [
-            {
-              new_leader: "Tarik Windle",
-              change_type: "remains" as const,
-              previous_leader: "Tarik Windle",
-              new_leader_goals: 14,
-              previous_leader_goals: 12
-            }
-          ];
-          
-          const fantasyLeaderDataSample: LeaderData[] = [
-            {
-              new_leader: "Ali Wilson",
-              change_type: "remains" as const,
-              previous_leader: "Ali Wilson",
-              new_leader_points: 160,
-              previous_leader_points: 140
-            }
-          ];
-          
-          // If we don't have any leader data after all our extraction attempts but the data exists in the DB
-          if (responseData.data?.halfSeasonGoalLeaders?.length === 0) {
-            console.log('Using fallback leader data from sample');
-            responseData.data.halfSeasonGoalLeaders = leaderDataSample;
-          }
-          
-          if (responseData.data?.halfSeasonFantasyLeaders?.length === 0) {
-            responseData.data.halfSeasonFantasyLeaders = fantasyLeaderDataSample;
-          }
-          
-          if (responseData.data?.seasonGoalLeaders?.length === 0) {
-            responseData.data.seasonGoalLeaders = leaderDataSample;
-          }
-          
-          if (responseData.data?.seasonFantasyLeaders?.length === 0) {
-            responseData.data.seasonFantasyLeaders = fantasyLeaderDataSample;
-          }
           
           console.log('Final API response:', JSON.stringify(responseData));
           

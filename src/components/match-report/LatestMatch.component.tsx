@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Button from '@/components/ui-kit/Button.component';
 
 interface MatchInfo {
   match_date: string;
@@ -11,30 +12,67 @@ interface MatchInfo {
   team_b_scorers?: string;
 }
 
-interface LatestMatchData {
+interface Milestone {
+  name: string;
+  games_played?: number;
+  total_games?: number;
+  total_goals?: number;
+  value?: number;
+}
+
+interface Streak {
+  name: string;
+  streak_count: number;
+  streak_type: 'win' | 'loss' | 'unbeaten' | 'winless';
+}
+
+interface GoalStreak {
+  name: string;
+  matches_with_goals: number;
+  goals_in_streak: number;
+}
+
+interface LeaderData {
+  change_type: 'new_leader' | 'tied' | 'remains' | 'overtake';
+  new_leader: string;
+  previous_leader?: string;
+  new_leader_goals?: number;
+  new_leader_points?: number;
+  previous_leader_goals?: number;
+  previous_leader_points?: number;
+  value?: number;
+}
+
+interface FullMatchReportData {
   matchInfo: MatchInfo;
+  gamesMilestones?: Milestone[];
+  goalsMilestones?: Milestone[];
+  streaks?: Streak[];
+  goalStreaks?: GoalStreak[];
+  halfSeasonGoalLeaders?: LeaderData[];
+  halfSeasonFantasyLeaders?: LeaderData[];
+  seasonGoalLeaders?: LeaderData[];
+  seasonFantasyLeaders?: LeaderData[];
 }
 
 const LatestMatch: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
-  const [matchData, setMatchData] = useState<LatestMatchData | null>(null);
+  const [matchData, setMatchData] = useState<FullMatchReportData | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [teamAName, setTeamAName] = useState<string>('Team A');
   const [teamBName, setTeamBName] = useState<string>('Team B');
+  const [copySuccess, setCopySuccess] = useState<boolean>(false);
 
-  // Format date safely
   const formatDateSafely = (dateString: string | undefined | null): string => {
     if (!dateString) return '';
     
     try {
       const date = new Date(dateString);
       
-      // Check if date is valid
       if (isNaN(date.getTime())) {
         return '';
       }
       
-      // Use toLocaleDateString with explicit locale for consistency
       return date.toLocaleDateString('en-GB', {
         year: 'numeric',
         month: 'long',
@@ -44,6 +82,22 @@ const LatestMatch: React.FC = () => {
       console.error('Error formatting date:', error);
       return '';
     }
+  };
+
+  const getOrdinalSuffix = (num: number): string => {
+    if (num === 0) return "0th";
+    const j = num % 10;
+    const k = num % 100;
+    if (j === 1 && k !== 11) {
+      return num + "st";
+    }
+    if (j === 2 && k !== 12) {
+      return num + "nd";
+    }
+    if (j === 3 && k !== 13) {
+      return num + "rd";
+    }
+    return num + "th";
   };
 
   const fetchTeamNames = async () => {
@@ -66,7 +120,6 @@ const LatestMatch: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching team names:', error);
-      // Fall back to default names if fetch fails
     }
   };
 
@@ -85,9 +138,7 @@ const LatestMatch: React.FC = () => {
       const result = await response.json();
       
       if (result.success) {
-        setMatchData({
-          matchInfo: result.data.matchInfo
-        });
+        setMatchData(result.data);
       } else {
         setError(new Error(result.error || 'Failed to fetch match data'));
       }
@@ -96,6 +147,101 @@ const LatestMatch: React.FC = () => {
       setError(error instanceof Error ? error : new Error('Failed to fetch match data'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const formatMatchReportForCopy = (data: FullMatchReportData | null): string => {
+    if (!data || !data.matchInfo) return 'No match data available.';
+
+    const {
+      matchInfo,
+      gamesMilestones,
+      goalsMilestones,
+      streaks,
+      goalStreaks,
+      halfSeasonGoalLeaders,
+      halfSeasonFantasyLeaders,
+      seasonGoalLeaders,
+      seasonFantasyLeaders,
+    } = data;
+
+    let report = `⚽️ MATCH REPORT: ${formatDateSafely(matchInfo.match_date)} ⚽️\n\n`;
+    report += `FINAL SCORE: ${teamAName} ${matchInfo.team_a_score} - ${matchInfo.team_b_score} ${teamBName}\n\n`;
+
+    report += `--- ${teamAName.toUpperCase()} ---\n`;
+    report += `Players: ${matchInfo.team_a_players.join(', ')}\n`;
+    if (matchInfo.team_a_scorers) {
+      report += `Scorers: ${matchInfo.team_a_scorers}\n`;
+    }
+    report += `\n--- ${teamBName.toUpperCase()} ---\n`;
+    report += `Players: ${matchInfo.team_b_players.join(', ')}\n`;
+    if (matchInfo.team_b_scorers) {
+      report += `Scorers: ${matchInfo.team_b_scorers}\n`;
+    }
+
+    const formatList = (title: string, items: any[] | undefined, formatter: (item: any) => string) => {
+      if (items && items.length > 0) {
+        report += `\n--- ${title.toUpperCase()} ---\n`;
+        items.forEach(item => {
+          report += `- ${formatter(item)}\n`;
+        });
+      }
+    };
+
+    formatList('Game Milestones', gamesMilestones, item => `${item.name}: Played ${getOrdinalSuffix(item.total_games || item.value || 0)} game`);
+    formatList('Goal Milestones', goalsMilestones, item => `${item.name}: Scored ${getOrdinalSuffix(item.total_goals || item.value || 0)} goal`);
+    formatList('Form Streaks', streaks, item => `${item.name}: ${item.streak_count} game ${item.streak_type === 'win' ? 'winning' : item.streak_type === 'loss' ? 'losing' : item.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'} streak`);
+    formatList('Goal Scoring Streaks', goalStreaks, item => `${item.name}: Scored in ${item.matches_with_goals} consecutive matches (${item.goals_in_streak} goals)`);
+    
+    const formatLeaderSimple = (leaderData: LeaderData, metric: 'goals' | 'points', period: string): string => {
+       if (!leaderData || !leaderData.new_leader) return `Unknown leader in ${metric}`;
+       const value = metric === 'goals' ? (leaderData.new_leader_goals || leaderData.value || 0) : (leaderData.new_leader_points || leaderData.value || 0);
+       return `${leaderData.new_leader} leads ${period} ${metric} with ${value}`;
+    };
+
+    let leaderHeaderAdded = false;
+    const ensureLeaderHeader = () => {
+      if (!leaderHeaderAdded) {
+        report += `\n--- LEADERBOARDS ---\n`;
+        leaderHeaderAdded = true;
+      }
+    };
+
+    if (halfSeasonGoalLeaders?.[0]) {
+        ensureLeaderHeader();
+        report += `- ${formatLeaderSimple(halfSeasonGoalLeaders[0], 'goals', 'Half-Season')}\n`;
+    }
+    if (halfSeasonFantasyLeaders?.[0]) {
+        ensureLeaderHeader();
+        report += `- ${formatLeaderSimple(halfSeasonFantasyLeaders[0], 'points', 'Half-Season')}\n`;
+    }
+
+    const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
+    const isSecondHalf = currentDate.getMonth() >= 6;
+
+    if (isSecondHalf && seasonGoalLeaders?.[0]) {
+        ensureLeaderHeader();
+        report += `- ${formatLeaderSimple(seasonGoalLeaders[0], 'goals', 'Season')}\n`;
+    }
+    if (isSecondHalf && seasonFantasyLeaders?.[0]) {
+        ensureLeaderHeader();
+        report += `- ${formatLeaderSimple(seasonFantasyLeaders[0], 'points', 'Season')}\n`;
+    }
+
+    return report;
+  };
+
+  const handleCopyMatchReport = async () => {
+    if (!matchData) return;
+
+    const reportText = formatMatchReportForCopy(matchData);
+
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy match report: ', err);
     }
   };
 
@@ -148,7 +294,6 @@ const LatestMatch: React.FC = () => {
   
   return (
     <div className="animate-fade-in-up relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-6">
-      {/* Header with Title and Date */}
       <div className="flex justify-between items-center mb-6">
         <h6 className="font-bold text-lg text-slate-700">Latest Match Result</h6>
         <div className="flex items-center text-sm text-slate-500">
@@ -157,9 +302,7 @@ const LatestMatch: React.FC = () => {
         </div>
       </div>
       
-      {/* Match Score Section */}
       <div className="flex justify-center items-center gap-8 mb-6">
-        {/* Team A */}
         <div className="transition-soft transform hover:scale-105 hover:shadow-soft-xl flex flex-col items-center">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
             <span className="text-xl font-bold">A</span>
@@ -167,7 +310,6 @@ const LatestMatch: React.FC = () => {
           <h6 className="mt-2 text-sm font-semibold text-slate-700">{teamAName}</h6>
         </div>
 
-        {/* Score */}
         <div className="text-center">
           <h1 className="text-5xl font-extrabold text-slate-800">
             {matchInfo.team_a_score} - {matchInfo.team_b_score}
@@ -175,7 +317,6 @@ const LatestMatch: React.FC = () => {
           <p className="mt-0.5 text-sm uppercase text-slate-400 font-semibold">FINAL SCORE</p>
         </div>
 
-        {/* Team B */}
         <div className="transition-soft transform hover:scale-105 hover:shadow-soft-xl flex flex-col items-center">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
             <span className="text-xl font-bold">B</span>
@@ -184,9 +325,7 @@ const LatestMatch: React.FC = () => {
         </div>
       </div>
       
-      {/* Team Players Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Team A */}
         <div className="rounded-xl border border-slate-100 p-4">
           <h6 className="text-sm font-bold mb-4 text-slate-700">{teamAName}</h6>
           
@@ -211,7 +350,6 @@ const LatestMatch: React.FC = () => {
           )}
         </div>
         
-        {/* Team B */}
         <div className="rounded-xl border border-slate-100 p-4">
           <h6 className="text-sm font-bold mb-4 text-slate-700">{teamBName}</h6>
           
@@ -235,6 +373,17 @@ const LatestMatch: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-8 flex justify-center">
+        <Button
+          variant={copySuccess ? "primary" : "secondary"}
+          className={`rounded-lg ${copySuccess ? "bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md" : "shadow-soft-md"}`}
+          onClick={handleCopyMatchReport}
+          disabled={!matchData || loading}
+        >
+          {copySuccess ? 'Copied Report!' : 'Copy Match Report'}
+        </Button>
       </div>
     </div>
   );
