@@ -317,9 +317,18 @@ BEGIN
         WHERE pm.match_id = latest_match.match_id
     );
 
-    -- Goal Scoring Streaks (assuming the logic is correct)
-    -- ... (Win Streaks, Unbeaten, Winless, Loss Streaks CTEs and UPDATEs) ...
+    -- Goal Scoring Streaks
     WITH latest_players AS (
+        SELECT DISTINCT pm.player_id
+        FROM player_matches pm
+        WHERE pm.match_id = latest_match.match_id
+    )
+    -- Reset scoring streak for players in the current match before recalculation
+    UPDATE aggregated_match_streaks
+    SET current_scoring_streak = 0, goals_in_scoring_streak = 0
+    WHERE player_id IN (SELECT player_id FROM latest_players);
+
+    WITH latest_players AS ( -- Re-declare for this specific calculation block
         SELECT DISTINCT pm.player_id
         FROM player_matches pm
         WHERE pm.match_id = latest_match.match_id
@@ -371,6 +380,14 @@ BEGIN
     -- Win Streaks
     WITH latest_players_win AS (
         SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
+    )
+    -- Reset win streak for players in the current match before recalculation
+    UPDATE aggregated_match_streaks
+    SET current_win_streak = 0
+    WHERE player_id IN (SELECT player_id FROM latest_players_win);
+
+    WITH latest_players_win AS ( -- Re-declare for this specific calculation block
+        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
     ),
     player_matches_win AS (
         SELECT p.player_id, pm.result, ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as match_num
@@ -386,6 +403,14 @@ BEGIN
 
     -- Unbeaten Streaks
     WITH latest_players_unbeaten AS (
+        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
+    )
+    -- Reset unbeaten streak for players in the current match before recalculation
+    UPDATE aggregated_match_streaks
+    SET current_unbeaten_streak = 0
+    WHERE player_id IN (SELECT player_id FROM latest_players_unbeaten);
+
+    WITH latest_players_unbeaten AS ( -- Re-declare for this specific calculation block
         SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
     ),
     player_matches_unbeaten AS (
@@ -403,6 +428,14 @@ BEGIN
     -- Winless Streaks
     WITH latest_players_winless AS (
         SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
+    )
+    -- Reset winless streak for players in the current match before recalculation
+    UPDATE aggregated_match_streaks
+    SET current_winless_streak = 0
+    WHERE player_id IN (SELECT player_id FROM latest_players_winless);
+
+    WITH latest_players_winless AS ( -- Re-declare for this specific calculation block
+        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
     ),
     player_matches_winless AS (
         SELECT p.player_id, pm.result, ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as match_num
@@ -418,6 +451,14 @@ BEGIN
 
     -- Loss Streaks
     WITH latest_players_loss AS (
+        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
+    )
+    -- Reset loss streak for players in the current match before recalculation
+    UPDATE aggregated_match_streaks
+    SET current_loss_streak = 0
+    WHERE player_id IN (SELECT player_id FROM latest_players_loss);
+
+    WITH latest_players_loss AS ( -- Re-declare for this specific calculation block
         SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
     ),
     player_matches_loss AS (

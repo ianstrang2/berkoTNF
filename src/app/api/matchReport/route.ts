@@ -413,6 +413,14 @@ export async function GET() {
                   { current_loss_streak: { gte: Number(thresholds.loss_streak_threshold) } }
                 ]
               },
+              select: { // Explicitly select player_id and other needed fields
+                player_id: true,
+                name: true, // Keep for fallback, but prioritize joined name
+                current_unbeaten_streak: true,
+                current_winless_streak: true,
+                current_win_streak: true,
+                current_loss_streak: true
+              },
               orderBy: [
                 { current_win_streak: 'desc' },
                 { current_unbeaten_streak: 'desc' }
@@ -424,10 +432,16 @@ export async function GET() {
           }
 
           try {
-            // Get goal streak data 
+            // Get goal streak data
             goalStreaksCache = await prisma.aggregated_match_streaks.findMany({
               where: {
                 current_scoring_streak: { gte: Number(thresholds.goal_streak_threshold) }
+              },
+              select: { // Explicitly select player_id and other needed fields
+                player_id: true,
+                name: true, // Keep for fallback, but prioritize joined name
+                current_scoring_streak: true,
+                goals_in_scoring_streak: true
               },
               orderBy: [
                 { current_scoring_streak: 'desc' },
@@ -437,6 +451,31 @@ export async function GET() {
             console.log('Goal streaks cache fetched:', goalStreaksCache.length, 'items');
           } catch (error) {
             console.error('Error fetching goal streaks cache:', error);
+          }
+
+          // Fetch player names for all relevant streaks
+          const playerIdsFromAllStreaks = [
+            ...streaksCache.map(s => s.player_id),
+            ...goalStreaksCache.map(s => s.player_id)
+          ];
+          const uniquePlayerIdsFromStreaks = [...new Set(playerIdsFromAllStreaks.filter(id => id != null))];
+
+          let playerNamesMap: Record<number, string> = {};
+          if (uniquePlayerIdsFromStreaks.length > 0) {
+            try {
+              const playersData = await prisma.players.findMany({
+                where: { player_id: { in: uniquePlayerIdsFromStreaks } },
+                select: { player_id: true, name: true }
+              });
+              playersData.forEach(p => {
+                if (p.name) { // Ensure name is not null
+                  playerNamesMap[p.player_id] = p.name;
+                }
+              });
+              console.log('Player names map created for streaks:', Object.keys(playerNamesMap).length, 'players found');
+            } catch (error) {
+              console.error('Error fetching player names for streaks:', error);
+            }
           }
 
           // Extract leader data directly from the match report cache
@@ -610,7 +649,6 @@ export async function GET() {
           console.log('Formatting streaks data...');
           // Format streaks data to match expected format
           const formattedStreaks = streaksCache.map(streak => {
-            // Determine which streak to use (win, loss, unbeaten, winless)
             let streakType = '';
             let streakCount = 0;
 
@@ -627,9 +665,11 @@ export async function GET() {
               streakType = 'win';
               streakCount = streak.current_win_streak ?? 0;
             }
+            
+            const playerName = playerNamesMap[streak.player_id] || streak.name || 'Unknown Player';
 
             return {
-              name: streak.name,
+              name: playerName,
               streak_type: streakType as Streak['streak_type'],
               streak_count: streakCount
             };
@@ -637,11 +677,14 @@ export async function GET() {
           console.log('Formatted streaks:', formattedStreaks.length, 'items');
 
           // Format goal streaks
-          const formattedGoalStreaks = goalStreaksCache.map(streak => ({
-            name: streak.name,
-            matches_with_goals: streak.current_scoring_streak,
-            goals_in_streak: streak.goals_in_scoring_streak
-          }));
+          const formattedGoalStreaks = goalStreaksCache.map(streak => {
+            const playerName = playerNamesMap[streak.player_id] || streak.name || 'Unknown Player';
+            return {
+                name: playerName,
+                matches_with_goals: streak.current_scoring_streak,
+                goals_in_streak: streak.goals_in_scoring_streak
+            };
+          });
           console.log('Formatted goal streaks:', formattedGoalStreaks.length, 'items');
 
           console.log('Formatting leader data...');

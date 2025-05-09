@@ -207,25 +207,33 @@ const LatestMatch: React.FC = () => {
       }
     };
 
-    if (halfSeasonGoalLeaders?.[0]) {
+    if (halfSeasonGoalLeaders && halfSeasonGoalLeaders.length > 0) {
         ensureLeaderHeader();
-        report += `- ${formatLeaderSimple(halfSeasonGoalLeaders[0], 'goals', 'Half-Season')}\n`;
+        halfSeasonGoalLeaders.forEach(leader => {
+            report += `- ${formatLeaderSimple(leader, 'goals', 'Half-Season')}\n`;
+        });
     }
-    if (halfSeasonFantasyLeaders?.[0]) {
+    if (halfSeasonFantasyLeaders && halfSeasonFantasyLeaders.length > 0) {
         ensureLeaderHeader();
-        report += `- ${formatLeaderSimple(halfSeasonFantasyLeaders[0], 'points', 'Half-Season')}\n`;
+        halfSeasonFantasyLeaders.forEach(leader => {
+            report += `- ${formatLeaderSimple(leader, 'points', 'Half-Season')}\n`;
+        });
     }
 
     const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
     const isSecondHalf = currentDate.getMonth() >= 6;
 
-    if (isSecondHalf && seasonGoalLeaders?.[0]) {
+    if (isSecondHalf && seasonGoalLeaders && seasonGoalLeaders.length > 0) {
         ensureLeaderHeader();
-        report += `- ${formatLeaderSimple(seasonGoalLeaders[0], 'goals', 'Season')}\n`;
+        seasonGoalLeaders.forEach(leader => {
+            report += `- ${formatLeaderSimple(leader, 'goals', 'Season')}\n`;
+        });
     }
-    if (isSecondHalf && seasonFantasyLeaders?.[0]) {
+    if (isSecondHalf && seasonFantasyLeaders && seasonFantasyLeaders.length > 0) {
         ensureLeaderHeader();
-        report += `- ${formatLeaderSimple(seasonFantasyLeaders[0], 'points', 'Season')}\n`;
+        seasonFantasyLeaders.forEach(leader => {
+            report += `- ${formatLeaderSimple(leader, 'points', 'Season')}\n`;
+        });
     }
 
     return report;
