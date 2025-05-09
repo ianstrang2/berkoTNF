@@ -12,14 +12,27 @@ const EDGE_FUNCTIONS_TO_CALL = [
 ];
 
 export async function POST() {
+  console.log('API Route /api/admin/trigger-stats-update invoked.');
+
   // Ensure Supabase environment variables are available
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  // Detailed logging for environment variables
+  console.log(`NEXT_PUBLIC_SUPABASE_URL is present: ${!!supabaseUrl}`);
+  if (supabaseUrl) {
+    console.log(`NEXT_PUBLIC_SUPABASE_URL starts with: ${supabaseUrl.substring(0, 20)}...`);
+  }
+  console.log(`SUPABASE_SERVICE_ROLE_KEY is present: ${!!supabaseServiceRoleKey}`);
+  if (supabaseServiceRoleKey) {
+    console.log(`SUPABASE_SERVICE_ROLE_KEY length: ${supabaseServiceRoleKey.length}`);
+    console.log(`SUPABASE_SERVICE_ROLE_KEY starts with: ${supabaseServiceRoleKey.substring(0, 5)}...`); // Log only a tiny part for verification
+  }
+
   if (!supabaseUrl || !supabaseServiceRoleKey) {
-    console.error('Supabase URL or Service Role Key is missing.');
+    console.error('Supabase URL or Service Role Key is missing from environment variables.');
     return NextResponse.json(
-      { success: false, error: 'Server configuration error: Supabase credentials missing.' },
+      { success: false, error: 'Server configuration error: Supabase credentials missing from env.' }, // Updated error message
       { status: 500 }
     );
   }
@@ -27,7 +40,7 @@ export async function POST() {
   // Initialize Supabase client with the service role key for admin privileges
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-  console.log('API Route: Starting Edge Function triggers...');
+  console.log('API Route: Supabase client initialized. Starting Edge Function triggers...');
 
   try {
     for (const functionName of EDGE_FUNCTIONS_TO_CALL) {
@@ -36,7 +49,6 @@ export async function POST() {
 
       if (invokeError) {
         console.error(`API Route: Error invoking ${functionName}:`, invokeError);
-        // Stop on first error and return
         return NextResponse.json(
           { success: false, error: `Error invoking Edge Function ${functionName}: ${invokeError.message}` },
           { status: 500 }
