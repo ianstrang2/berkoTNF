@@ -144,31 +144,30 @@ const Milestones: React.FC = () => {
     
     const { change_type, new_leader, previous_leader } = leaderData;
     
-    // Handle fields that might be in different properties
     const value = metric === 'goals' 
       ? (leaderData.new_leader_goals || leaderData.value || 0) 
       : (leaderData.new_leader_points || leaderData.value || 0);
-      
-    const prevValue = metric === 'goals' 
-      ? (leaderData.previous_leader_goals || 0) 
-      : (leaderData.previous_leader_points || 0);
-    
+          
     // If we don't have a change_type but do have a name and value, use concise format
+    // This case might not be strictly needed if data always has change_type from SQL
     if (!change_type && new_leader) {
-      return `${new_leader} leads with ${value} ${metric}`;
+      return `${new_leader} leads with ${value}`;
     }
     
     switch (change_type) {
       case 'new_leader':
-        return `${new_leader} now leads with ${value} ${metric}`;
+        return `${new_leader} now leads with ${value}`;
       case 'tied':
-        return `${new_leader} tied with ${previous_leader} at ${value} ${metric}`;
+        // For UI, if we ever have a 'tied' type for a single leader item, this should be clear.
+        // However, 'tied' type from SQL usually means a new person tied a previous leader's score.
+        // If it's about current co-leaders, that's handled separately now.
+        return `${new_leader} tied with ${previous_leader} at ${value}`;
       case 'remains':
-        return `${new_leader} leads with ${value} ${metric}`; // More concise format
+        return `${new_leader} leads with ${value}`;
       case 'overtake':
-        return `${new_leader} overtook ${previous_leader} with ${value} ${metric}`;
+        return `${new_leader} overtook ${previous_leader} with ${value}`;
       default:
-        return `${new_leader} leads with ${value} ${metric}`;
+        return `${new_leader} leads with ${value}`;
     }
   };
 
@@ -275,58 +274,128 @@ const Milestones: React.FC = () => {
     }
     
     // Add current leader changes with improved handling
-    if (data.halfSeasonGoalLeaders?.[0]) {
-      const leaderData = data.halfSeasonGoalLeaders[0];
-      console.log('Half-season goal leader data:', leaderData);
-      items.push({
-        type: 'leader_change',
-        player: 'Half-Season Goals Leader',
-        content: formatLeaderText(leaderData, 'goals', 'current Half-Season'),
-        icon: 'crown',
-        date: matchDate,
-        color: 'amber'
-      });
+    if (data.halfSeasonGoalLeaders && data.halfSeasonGoalLeaders.length > 0) {
+      const leaders = data.halfSeasonGoalLeaders;
+      const firstLeader = leaders[0];
+
+      if (leaders.length === 1) {
+        // Single leader
+        items.push({
+          type: 'leader_change',
+          player: 'Half-Season Goals',
+          content: formatLeaderText(firstLeader, 'goals', 'current Half-Season'),
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+        });
+      } else {
+        // Co-leaders
+        const leaderNames = leaders.map(l => l.new_leader).join(' and ');
+        const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
+        const content = `${leaderNames} lead with ${goals}.`;
+        items.push({
+          type: 'leader_change',
+          player: 'Half-Season Goals',
+          content: content,
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+        });
+      }
     }
     
-    if (data.halfSeasonFantasyLeaders?.[0]) {
-      const leaderData = data.halfSeasonFantasyLeaders[0];
-      console.log('Half-season fantasy leader data:', leaderData);
-      items.push({
-        type: 'leader_change',
-        player: 'Half-Season Points Leader',
-        content: formatLeaderText(leaderData, 'points', 'current Half-Season'),
-        icon: 'crown',
-        date: matchDate,
-        color: 'amber'
-      });
+    if (data.halfSeasonFantasyLeaders && data.halfSeasonFantasyLeaders.length > 0) {
+      const leaders = data.halfSeasonFantasyLeaders;
+      const firstLeader = leaders[0];
+
+      if (leaders.length === 1) {
+        // Single leader
+        items.push({
+          type: 'leader_change',
+          player: 'Half-Season Points Leader',
+          content: formatLeaderText(firstLeader, 'points', 'current Half-Season'),
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+        });
+      } else {
+        // Co-leaders
+        const leaderNames = leaders.map(l => l.new_leader).join(' and ');
+        const points = firstLeader.new_leader_points || firstLeader.value || 0;
+        const content = `${leaderNames} lead with ${points}.`;
+        items.push({
+          type: 'leader_change',
+          player: 'Half-Season Points',
+          content: content,
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+        });
+      }
     }
     
     // Only show season leaders in the second half of the year (Jul-Dec)
     const currentDate = data.matchInfo.match_date ? new Date(data.matchInfo.match_date) : new Date();
     const isSecondHalf = currentDate.getMonth() >= 6; // getMonth() is 0-based, so 6 = July
     
-    if (isSecondHalf && data.seasonGoalLeaders?.[0]) {
-      const leaderData = data.seasonGoalLeaders[0];
-      items.push({
-        type: 'leader_change',
-        player: 'Season Goals Leader',
-        content: formatLeaderText(leaderData, 'goals', new Date().getFullYear() + ' Season'),
-        icon: 'crown',
-        date: matchDate,
-        color: 'amber'
-      });
+    if (isSecondHalf && data.seasonGoalLeaders && data.seasonGoalLeaders.length > 0) {
+      const leaders = data.seasonGoalLeaders;
+      const firstLeader = leaders[0];
+
+      if (leaders.length === 1) {
+        // Single leader
+        items.push({
+          type: 'leader_change',
+          player: 'Season Goals',
+          content: formatLeaderText(firstLeader, 'goals', new Date().getFullYear() + ' Season'),
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+        });
+      } else {
+        // Co-leaders
+        const leaderNames = leaders.map(l => l.new_leader).join(' and ');
+        const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
+        const content = `${leaderNames} lead with ${goals}.`;
+        items.push({
+          type: 'leader_change',
+          player: 'Season Goals',
+          content: content,
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+        });
+      }
     }
     
-    if (isSecondHalf && data.seasonFantasyLeaders?.[0]) {
-      const leaderData = data.seasonFantasyLeaders[0];
-      items.push({
-        type: 'leader_change',
-        player: 'Season Points Leader',
-        content: formatLeaderText(leaderData, 'points', new Date().getFullYear() + ' Season'),
-        icon: 'crown',
-        date: matchDate,
-        color: 'amber'
-      });
+    if (isSecondHalf && data.seasonFantasyLeaders && data.seasonFantasyLeaders.length > 0) {
+      const leaders = data.seasonFantasyLeaders;
+      const firstLeader = leaders[0];
+
+      if (leaders.length === 1) {
+        // Single leader
+        items.push({
+          type: 'leader_change',
+          player: 'Season Points Leader',
+          content: formatLeaderText(firstLeader, 'points', new Date().getFullYear() + ' Season'),
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+        });
+      } else {
+        // Co-leaders
+        const leaderNames = leaders.map(l => l.new_leader).join(' and ');
+        const points = firstLeader.new_leader_points || firstLeader.value || 0;
+        const content = `${leaderNames} lead with ${points}.`;
+        items.push({
+          type: 'leader_change',
+          player: 'Season Points',
+          content: content,
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+        });
+      }
     }
     
     setTimelineItems(items);

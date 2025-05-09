@@ -209,15 +209,23 @@ const LatestMatch: React.FC = () => {
 
     if (halfSeasonGoalLeaders && halfSeasonGoalLeaders.length > 0) {
         ensureLeaderHeader();
-        halfSeasonGoalLeaders.forEach(leader => {
-            report += `- ${formatLeaderSimple(leader, 'goals', 'Half-Season')}\n`;
-        });
+        if (halfSeasonGoalLeaders.length === 1) {
+            report += `- ${formatLeaderSimple(halfSeasonGoalLeaders[0], 'goals', 'Half-Season')}\n`;
+        } else {
+            const leaderNames = halfSeasonGoalLeaders.map(l => l.new_leader).join(' and ');
+            const goals = halfSeasonGoalLeaders[0].new_leader_goals || halfSeasonGoalLeaders[0].value || 0;
+            report += `- ${leaderNames} lead Half-Season goals with ${goals}\n`;
+        }
     }
     if (halfSeasonFantasyLeaders && halfSeasonFantasyLeaders.length > 0) {
         ensureLeaderHeader();
-        halfSeasonFantasyLeaders.forEach(leader => {
-            report += `- ${formatLeaderSimple(leader, 'points', 'Half-Season')}\n`;
-        });
+        if (halfSeasonFantasyLeaders.length === 1) {
+            report += `- ${formatLeaderSimple(halfSeasonFantasyLeaders[0], 'points', 'Half-Season')}\n`;
+        } else {
+            const leaderNames = halfSeasonFantasyLeaders.map(l => l.new_leader).join(' and ');
+            const points = halfSeasonFantasyLeaders[0].new_leader_points || halfSeasonFantasyLeaders[0].value || 0;
+            report += `- ${leaderNames} lead Half-Season points with ${points}\n`;
+        }
     }
 
     const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
@@ -225,15 +233,23 @@ const LatestMatch: React.FC = () => {
 
     if (isSecondHalf && seasonGoalLeaders && seasonGoalLeaders.length > 0) {
         ensureLeaderHeader();
-        seasonGoalLeaders.forEach(leader => {
-            report += `- ${formatLeaderSimple(leader, 'goals', 'Season')}\n`;
-        });
+        if (seasonGoalLeaders.length === 1) {
+            report += `- ${formatLeaderSimple(seasonGoalLeaders[0], 'goals', 'Season')}\n`;
+        } else {
+            const leaderNames = seasonGoalLeaders.map(l => l.new_leader).join(' and ');
+            const goals = seasonGoalLeaders[0].new_leader_goals || seasonGoalLeaders[0].value || 0;
+            report += `- ${leaderNames} lead Season goals with ${goals}\n`;
+        }
     }
     if (isSecondHalf && seasonFantasyLeaders && seasonFantasyLeaders.length > 0) {
         ensureLeaderHeader();
-        seasonFantasyLeaders.forEach(leader => {
-            report += `- ${formatLeaderSimple(leader, 'points', 'Season')}\n`;
-        });
+        if (seasonFantasyLeaders.length === 1) {
+            report += `- ${formatLeaderSimple(seasonFantasyLeaders[0], 'points', 'Season')}\n`;
+        } else {
+            const leaderNames = seasonFantasyLeaders.map(l => l.new_leader).join(' and ');
+            const points = seasonFantasyLeaders[0].new_leader_points || seasonFantasyLeaders[0].value || 0;
+            report += `- ${leaderNames} lead Season points with ${points}\n`;
+        }
     }
 
     return report;
