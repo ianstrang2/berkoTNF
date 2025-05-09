@@ -7,6 +7,7 @@ import { CardHeader, CardTitle, CardContent } from '@/components/ui-kit/Card.com
 import StatsCard from '@/components/ui-kit/StatsCard.component';
 import Chart from '@/components/ui-kit/Chart.component';
 import NavPills from '@/components/ui-kit/NavPills.component';
+import MatchPerformance from './MatchPerformance.component';
 
 interface PlayerProfileProps {
   id?: number;
@@ -189,8 +190,12 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
     undefeated_streak,
     undefeated_streak_dates,
     winless_streak,
-    winless_streak_dates
+    winless_streak_dates,
+    yearly_stats
   } = profile;
+
+  // Extract years for the MatchPerformance component
+  const availableYearsForMatchPerformance = yearly_stats.map(stat => stat.year).sort((a, b) => b - a);
 
   return (
     <div className="flex flex-wrap -mx-3">
@@ -367,6 +372,17 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           </div>
         </div>
       </div>
+
+      {/* Add MatchPerformance component here */}
+      {selectedPlayerId && availableYearsForMatchPerformance.length > 0 && (
+        <div className="w-full max-w-full px-3 mt-6">
+          <MatchPerformance 
+            playerId={selectedPlayerId} 
+            availableYears={availableYearsForMatchPerformance} 
+          />
+        </div>
+      )}
+
     </div>
   );
 };
