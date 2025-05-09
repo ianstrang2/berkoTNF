@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';  // Import date-fns for date formatting
 import { Card, Table, TableHead, TableBody, TableRow, TableCell, Button } from '@/components/ui-kit';
 import { SoftUIConfirmationModal } from '@/components/ui-kit';
-import { createClient } from '@supabase/supabase-js'; // Import Supabase client
+import { triggerEdgeFunctions as triggerStatsUpdateService } from '@/services/statsUpdate.service'; // ADD THIS LINE
 
 interface Player {
   player_id: number;
@@ -37,27 +37,27 @@ interface FormData {
   team_b_score: number;
 }
 
-// List of Edge Functions to call in order
-const EDGE_FUNCTIONS_TO_CALL = [
-  'call-update-all-time-stats',
-  'call-update-half-and-full-season-stats',
-  'call-update-hall-of-fame',
-  'call-update-recent-performance',
-  'call-update-season-honours-and-records',
-  'call-update-match-report-cache'
-];
+// List of Edge Functions to call in order - REMOVE THIS BLOCK
+// const EDGE_FUNCTIONS_TO_CALL = [
+//   'call-update-all-time-stats',
+//   'call-update-half-and-full-season-stats',
+//   'call-update-hall-of-fame',
+//   'call-update-recent-performance',
+//   'call-update-season-honours-and-records',
+//   'call-update-match-report-cache'
+// ];
 
-// Standard Supabase public environment variables
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Standard Supabase public environment variables - REMOVE THIS BLOCK
+// const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+// const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Initialize Supabase client
-let supabase: any = null;
-if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} else {
-  console.error('Supabase URL or Anon Key is missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
-}
+// Initialize Supabase client - REMOVE THIS BLOCK
+// let supabase: any = null;
+// if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+//   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// } else {
+//   console.error('Supabase URL or Anon Key is missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
+// }
 
 // WARNING: Exposing the service role key on the client-side is a security risk. 
 // const SUPABASE_SERVICE_KEY = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || ''; // REMOVED
@@ -70,10 +70,10 @@ const MatchManager: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [matchToDelete, setMatchToDelete] = useState<number | null>(null);
-  const [isUpdatingStats, setIsUpdatingStats] = useState<boolean>(false);
+  // const [isUpdatingStats, setIsUpdatingStats] = useState<boolean>(false); // REMOVE THIS LINE
   
   // State to track successful update for button feedback
-  const [statsUpdated, setStatsUpdated] = useState<boolean>(false);
+  // const [statsUpdated, setStatsUpdated] = useState<boolean>(false); // REMOVE THIS LINE
 
   const defaultTeamState: TeamPlayer[] = Array(9).fill({ player_id: '', goals: 0 });
 
@@ -176,45 +176,45 @@ const MatchManager: React.FC = () => {
     return true;
   };
 
-  // Helper function to trigger Supabase Edge Functions sequentially
-  const triggerEdgeFunctions = async () => {
-    if (!supabase) { // Check if Supabase client failed to initialize
-      console.error('Supabase client is not initialized. Cannot trigger stat updates.');
-      setError('Configuration error: Supabase client not initialized.');
-      return;
-    }
+  // Helper function to trigger Supabase Edge Functions sequentially - REMOVE THIS ENTIRE FUNCTION
+  // const triggerEdgeFunctions = async () => {
+  //   if (!supabase) { // Check if Supabase client failed to initialize
+  //     console.error('Supabase client is not initialized. Cannot trigger stat updates.');
+  //     setError('Configuration error: Supabase client not initialized.');
+  //     return;
+  //   }
     
-    setIsUpdatingStats(true); // Disable button during trigger
+  //   setIsUpdatingStats(true); // Disable button during trigger
     
-    // Set a timer for the "Stats updated" notification
-    const updateCompleteTimer = setTimeout(() => {
-      setIsUpdatingStats(false); // Re-enable button
-      setStatsUpdated(true); // Indicate success for button styling
-      setTimeout(() => setStatsUpdated(false), 3000); // Reset button style after 3s
-    }, 5000); // Changed delay from 20000ms to 5000ms (5 seconds)
+  //   // Set a timer for the "Stats updated" notification
+  //   const updateCompleteTimer = setTimeout(() => {
+  //     setIsUpdatingStats(false); // Re-enable button
+  //     setStatsUpdated(true); // Indicate success for button styling
+  //     setTimeout(() => setStatsUpdated(false), 3000); // Reset button style after 3s
+  //   }, 5000); // Changed delay from 20000ms to 5000ms (5 seconds)
 
-    try {
-      for (const functionName of EDGE_FUNCTIONS_TO_CALL) {
-        console.log(`Invoking Edge Function: ${functionName}`);
-        const { error: invokeError } = await supabase.functions.invoke(functionName);
+  //   try {
+  //     for (const functionName of EDGE_FUNCTIONS_TO_CALL) {
+  //       console.log(`Invoking Edge Function: ${functionName}`);
+  //       const { error: invokeError } = await supabase.functions.invoke(functionName);
 
-        if (invokeError) {
-          console.error(`Error invoking ${functionName}:`, invokeError);
-        } else {
-           console.log(`Successfully invoked ${functionName}`);
-        }
-      }
-    } catch (error) { // Catch any unexpected errors during the loop or setup
-      console.error('Error triggering Edge Functions:', error);
-      // Clear the success timer if an error occurs before 5s
-      clearTimeout(updateCompleteTimer); 
-      setError('An error occurred while triggering stat updates.');
-      setIsUpdatingStats(false); // Re-enable button on error
-    }
-    // Note: The "Stats updated" notification will still show after 5 seconds 
-    // even if errors occurred during the function calls, as per requirements.
-    // The `setIsUpdatingStats(false)` inside the timer ensures the button is re-enabled.
-  };
+  //       if (invokeError) {
+  //         console.error(`Error invoking ${functionName}:`, invokeError);
+  //       } else {
+  //          console.log(`Successfully invoked ${functionName}`);
+  //       }
+  //     }
+  //   } catch (error) { // Catch any unexpected errors during the loop or setup
+  //     console.error('Error triggering Edge Functions:', error);
+  //     // Clear the success timer if an error occurs before 5s
+  //     clearTimeout(updateCompleteTimer); 
+  //     setError('An error occurred while triggering stat updates.');
+  //     setIsUpdatingStats(false); // Re-enable button on error
+  //   }
+  //   // Note: The "Stats updated" notification will still show after 5 seconds 
+  //   // even if errors occurred during the function calls, as per requirements.
+  //   // The `setIsUpdatingStats(false)` inside the timer ensures the button is re-enabled.
+  // };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -303,7 +303,15 @@ const MatchManager: React.FC = () => {
         fetchMatches();
         
         // Trigger edge functions automatically
-        triggerEdgeFunctions();
+        // triggerEdgeFunctions(); // OLD CALL
+        try { // ADDED TRY-CATCH
+          await triggerStatsUpdateService(); // NEW CALL
+          console.log('Stats update service triggered successfully after match submission.');
+        } catch (statsError) {
+          console.error('Error triggering stats update service after match submission:', statsError);
+          // Optionally set an error message to display to the user, though not strictly required by spec
+          // setError('Match saved, but failed to trigger background stat update.');
+        }
         
       } catch (fetchError) {
         if (fetchError.name === 'AbortError') {
@@ -588,31 +596,6 @@ const MatchManager: React.FC = () => {
                     Cancel Edit
                   </button>
                 )}
-                
-                {/* Update Stats button - Use isUpdatingStats for disabled state */}
-                <button
-                  type="button"
-                  onClick={triggerEdgeFunctions}
-                  disabled={isUpdatingStats}
-                  className={`flex items-center px-4 py-2 font-medium text-center uppercase align-middle transition-all rounded-lg shadow-soft-sm cursor-pointer text-xs ${
-                    statsUpdated 
-                      ? 'bg-gradient-to-tl from-green-600 to-lime-400 text-white' 
-                      : 'text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50'
-                  }`}
-                >
-                  {isUpdatingStats ? (
-                    'Updating...'
-                  ) : statsUpdated ? (
-                    <>
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
-                      </svg>
-                      Updated!
-                    </>
-                  ) : (
-                    'Update Stats'
-                  )}
-                </button>
               </div>
             </form>
           </div>

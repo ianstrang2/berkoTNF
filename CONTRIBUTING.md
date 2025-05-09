@@ -21,6 +21,25 @@ src/
 └── utils/           # Utility functions
 ```
 
+### Backend and Database Assets
+
+In addition to the frontend application code in `src/`, this project also includes backend logic and database scripts managed within the repository:
+
+```
+supabase/
+├── functions/       # Source code for Supabase Edge Functions
+│   ├── call-update-all-time-stats/
+│   │   └── index.ts # Example Edge Function
+│   └── ...          # Other Edge Functions
+sql/                 # SQL scripts, often used by Edge Functions or for migrations
+├── update_aggregated_all_time_stats.sql # Example SQL script
+└── ...              # Other SQL files
+```
+
+-   **Supabase Edge Functions** are located in `supabase/functions/`. Each function typically resides in its own subdirectory.
+-   **SQL Scripts** used for database operations (e.g., creating views, updating aggregated tables, migrations) are located in the `sql/` directory.
+-   These assets are typically deployed to Supabase via a separate script or process.
+
 ## Naming Conventions
 
 We follow a consistent naming pattern for all files:
