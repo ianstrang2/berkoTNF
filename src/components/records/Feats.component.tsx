@@ -25,9 +25,7 @@ interface BiggestVictory {
 
 interface Records {
   most_goals_in_game?: GoalRecord[];
-  consecutive_goals?: {
-    holders: StreakHolder[];
-  };
+  consecutive_goals_streak?: StreakHolder[];
   biggest_victory?: BiggestVictory[];
   streaks?: {
     'Win Streak'?: {
@@ -36,7 +34,7 @@ interface Records {
     'Loss Streak'?: {
       holders: StreakHolder[];
     };
-    'No Win Streak'?: {
+    'Winless Streak'?: {
       holders: StreakHolder[];
     };
     'Undefeated Streak'?: {
@@ -66,13 +64,13 @@ const Feats: React.FC = () => {
           
           const modifiedData = {
             records: {
-              consecutive_goals: recordsData?.consecutive_goals,
+              consecutive_goals_streak: recordsData?.consecutive_goals_streak,
               most_goals_in_game: recordsData?.most_goals_in_game,
               biggest_victory: recordsData?.biggest_victory,
               streaks: {
                 'Win Streak': recordsData?.streaks?.['Win Streak'],
                 'Loss Streak': recordsData?.streaks?.['Loss Streak'],
-                'No Win Streak': recordsData?.streaks?.['No Win Streak'],
+                'Winless Streak': recordsData?.streaks?.['Winless Streak'],
                 'Undefeated Streak': recordsData?.streaks?.['Undefeated Streak']
               }
             }
@@ -157,7 +155,7 @@ const Feats: React.FC = () => {
                             <span className="font-normal leading-normal text-sm">
                               {streakType === 'Win Streak' ? 'Win Streak' :
                               streakType === 'Loss Streak' ? 'Losing Streak' :
-                              streakType === 'No Win Streak' ? 'Winless Streak' :
+                              streakType === 'Winless Streak' ? 'Winless Streak' :
                               'Undefeated Streak'}
                             </span>
                           </td>
@@ -187,7 +185,7 @@ const Feats: React.FC = () => {
                       )
                     )}
 
-                    {data.records.consecutive_goals && (
+                    {data.records.consecutive_goals_streak && (
                       <tr>
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                           <span className="font-normal leading-normal text-sm">Consecutive Games Scoring</span>
@@ -196,18 +194,18 @@ const Feats: React.FC = () => {
                           <div className="px-2 py-1">
                             <div className="flex flex-col justify-center">
                               <h6 className="mb-0 leading-normal text-sm font-semibold break-words">
-                                {formatNames(data.records.consecutive_goals.holders)}
+                                {formatNames(data.records.consecutive_goals_streak)}
                               </h6>
                             </div>
                           </div>
                         </td>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                           <span className="font-normal leading-normal text-sm">
-                            {data.records.consecutive_goals.holders[0].streak} games
+                            {data.records.consecutive_goals_streak[0].streak} games
                           </span>
                         </td>
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                          {data.records.consecutive_goals.holders.map((holder, index) => (
+                          {data.records.consecutive_goals_streak.map((holder, index) => (
                             <div key={`consecutive-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
                               {holder.name}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
                               {new Date(holder.end_date).toLocaleDateString()}

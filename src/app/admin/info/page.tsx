@@ -6,7 +6,7 @@ import { AdminLayout } from '@/components/layout';
 import { ErrorBoundary, Button } from '@/components/ui-kit'; 
 // Removed Table components from ui-kit to use direct HTML with Tailwind for style consistency
 
-import { triggerEdgeFunctions as triggerStatsUpdate } from '@/services/statsUpdate.service';
+// import { triggerEdgeFunctions as triggerStatsUpdate } from '@/services/statsUpdate.service'; // No longer needed
 import { format } from 'date-fns';
 
 interface CacheMetadata {
@@ -96,8 +96,25 @@ export default function AdminInfoPage() {
     setIsUpdatingStats(true);
     setError(null);
     try {
-      await triggerStatsUpdate();
+      // await triggerStatsUpdate(); // Old client-side call
+      const response = await fetch('/api/admin/trigger-stats-update', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorResult = await response.json();
+        throw new Error(errorResult.error || `Failed to trigger stats update: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'An unknown error occurred during stats update.');
+      }
+      
+      // If successful, refresh the cache metadata
       await fetchCacheMetadata(); 
+      // Optionally, display a success message to the user
+      // alert('Stats update triggered successfully!'); 
     } catch (err: any) {
       console.error('Error triggering stats update:', err);
       setError(err.message || 'Failed to trigger stats update.');

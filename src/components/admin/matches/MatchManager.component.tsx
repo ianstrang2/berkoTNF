@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';  // Import date-fns for date formatting
 import { Card, Table, TableHead, TableBody, TableRow, TableCell, Button } from '@/components/ui-kit';
 import { SoftUIConfirmationModal } from '@/components/ui-kit';
-import { triggerEdgeFunctions as triggerStatsUpdateService } from '@/services/statsUpdate.service'; // ADD THIS LINE
 
 interface Player {
   player_id: number;
@@ -37,31 +36,6 @@ interface FormData {
   team_b_score: number;
 }
 
-// List of Edge Functions to call in order - REMOVE THIS BLOCK
-// const EDGE_FUNCTIONS_TO_CALL = [
-//   'call-update-all-time-stats',
-//   'call-update-half-and-full-season-stats',
-//   'call-update-hall-of-fame',
-//   'call-update-recent-performance',
-//   'call-update-season-honours-and-records',
-//   'call-update-match-report-cache'
-// ];
-
-// Standard Supabase public environment variables - REMOVE THIS BLOCK
-// const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-// const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-// Initialize Supabase client - REMOVE THIS BLOCK
-// let supabase: any = null;
-// if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-//   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-// } else {
-//   console.error('Supabase URL or Anon Key is missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
-// }
-
-// WARNING: Exposing the service role key on the client-side is a security risk. 
-// const SUPABASE_SERVICE_KEY = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || ''; // REMOVED
-
 const MatchManager: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -70,11 +44,7 @@ const MatchManager: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [matchToDelete, setMatchToDelete] = useState<number | null>(null);
-  // const [isUpdatingStats, setIsUpdatingStats] = useState<boolean>(false); // REMOVE THIS LINE
   
-  // State to track successful update for button feedback
-  // const [statsUpdated, setStatsUpdated] = useState<boolean>(false); // REMOVE THIS LINE
-
   const defaultTeamState: TeamPlayer[] = Array(9).fill({ player_id: '', goals: 0 });
 
   const [formData, setFormData] = useState<FormData>({
@@ -85,7 +55,6 @@ const MatchManager: React.FC = () => {
     team_b_score: 0,
   });
 
-  // Fetch players and matches on component mount
   useEffect(() => {
     fetchPlayers();
     fetchMatches();
@@ -176,46 +145,6 @@ const MatchManager: React.FC = () => {
     return true;
   };
 
-  // Helper function to trigger Supabase Edge Functions sequentially - REMOVE THIS ENTIRE FUNCTION
-  // const triggerEdgeFunctions = async () => {
-  //   if (!supabase) { // Check if Supabase client failed to initialize
-  //     console.error('Supabase client is not initialized. Cannot trigger stat updates.');
-  //     setError('Configuration error: Supabase client not initialized.');
-  //     return;
-  //   }
-    
-  //   setIsUpdatingStats(true); // Disable button during trigger
-    
-  //   // Set a timer for the "Stats updated" notification
-  //   const updateCompleteTimer = setTimeout(() => {
-  //     setIsUpdatingStats(false); // Re-enable button
-  //     setStatsUpdated(true); // Indicate success for button styling
-  //     setTimeout(() => setStatsUpdated(false), 3000); // Reset button style after 3s
-  //   }, 5000); // Changed delay from 20000ms to 5000ms (5 seconds)
-
-  //   try {
-  //     for (const functionName of EDGE_FUNCTIONS_TO_CALL) {
-  //       console.log(`Invoking Edge Function: ${functionName}`);
-  //       const { error: invokeError } = await supabase.functions.invoke(functionName);
-
-  //       if (invokeError) {
-  //         console.error(`Error invoking ${functionName}:`, invokeError);
-  //       } else {
-  //          console.log(`Successfully invoked ${functionName}`);
-  //       }
-  //     }
-  //   } catch (error) { // Catch any unexpected errors during the loop or setup
-  //     console.error('Error triggering Edge Functions:', error);
-  //     // Clear the success timer if an error occurs before 5s
-  //     clearTimeout(updateCompleteTimer); 
-  //     setError('An error occurred while triggering stat updates.');
-  //     setIsUpdatingStats(false); // Re-enable button on error
-  //   }
-  //   // Note: The "Stats updated" notification will still show after 5 seconds 
-  //   // even if errors occurred during the function calls, as per requirements.
-  //   // The `setIsUpdatingStats(false)` inside the timer ensures the button is re-enabled.
-  // };
-
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
   
@@ -258,70 +187,53 @@ const MatchManager: React.FC = () => {
         matchData.match_id = selectedMatch.match_id;
       }
   
-      const url = '/api/admin/matches';
-      const method = selectedMatch ? 'PUT' : 'POST';
-  
-      console.log('Sending match data:', matchData);  // Debugging log
-      
-      // Create an AbortController to handle timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-  
-      try {
-        const response = await fetch(url, {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(matchData),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId); // Clear the timeout if request completes
-  
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Server response error:', response.status, errorText);
-          throw new Error(`Server error: ${response.status} - ${errorText || 'No error details'}`);
-        }
-  
-        const data = await response.json();
-        if (data.error) {
-          console.error('API error:', data.error, data.details);
-          throw new Error(data.error);
-        }
-  
-        // Reset form and refresh matches
-        setFormData({
-          match_date: new Date().toISOString().split('T')[0],
-          team_a: Array(9).fill(0).map(() => ({ player_id: '', goals: 0 })),
-          team_b: Array(9).fill(0).map(() => ({ player_id: '', goals: 0 })),
-          team_a_score: 0,
-          team_b_score: 0,
-        });
-        setSelectedMatch(null);
-        fetchMatches();
-        
-        // Trigger edge functions automatically
-        // triggerEdgeFunctions(); // OLD CALL
-        try { // ADDED TRY-CATCH
-          await triggerStatsUpdateService(); // NEW CALL
-          console.log('Stats update service triggered successfully after match submission.');
-        } catch (statsError) {
-          console.error('Error triggering stats update service after match submission:', statsError);
-          // Optionally set an error message to display to the user, though not strictly required by spec
-          // setError('Match saved, but failed to trigger background stat update.');
-        }
-        
-      } catch (fetchError) {
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Request timeout - the server took too long to respond. Try again or check server logs.');
-        }
-        throw fetchError;
+      const response = await fetch('/api/admin/matches', {
+        method: selectedMatch ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(matchData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save match');
       }
-    } catch (error) {
-      console.error('Error updating match:', error);  // Debugging log
-      setError((error as Error).message || 'Unknown error occurred');
+
+      // If match save is successful, trigger the stats update via the API route
+      console.log('Match saved successfully. Triggering stats update...');
+      const statsUpdateResponse = await fetch('/api/admin/trigger-stats-update', {
+        method: 'POST',
+      });
+
+      if (!statsUpdateResponse.ok) {
+        const errorResult = await statsUpdateResponse.json();
+        // Log this error but don't necessarily block success of match save
+        console.error('Error triggering stats update:', errorResult.error || statsUpdateResponse.statusText);
+        setError('Match saved, but failed to trigger subsequent stats update. Please trigger manually if needed.');
+      } else {
+        const statsResult = await statsUpdateResponse.json();
+        if (!statsResult.success) {
+          console.error('Stats update API returned an error:', statsResult.error);
+          setError('Match saved, but the stats update process reported an error. Please check logs or trigger manually.');
+        } else {
+          console.log('Stats update triggered successfully via API route.');
+        }
+      }
+
+      fetchMatches(); // Refresh matches list
+      setSelectedMatch(null); // Reset form
+      setFormData({
+        match_date: new Date().toISOString().split('T')[0],
+        team_a: [...defaultTeamState],
+        team_b: [...defaultTeamState],
+        team_a_score: 0,
+        team_b_score: 0,
+      });
+      // Optionally, add a success message to the user here
+      // For example: showToast('Match saved and stats update initiated!');
+
+    } catch (err: any) {
+      console.error('Error saving match:', err);
+      setError(err.message || 'Failed to save match');
     } finally {
       setIsLoading(false);
     }
