@@ -12,7 +12,7 @@ const serializeData = (data: any) => {
   }));
 };
 
-export const dynamic = 'force-dynamic'; // Opt out of caching
+// export const dynamic = 'force-dynamic'; // Keep for now, but headers are more explicit
 
 export async function GET() {
   try {
@@ -25,7 +25,15 @@ export async function GET() {
     // It's generally better to set cache-control headers on the response
     // if you need more fine-grained control, but `export const dynamic = 'force-dynamic'`
     // is the simpler way for Next.js App Router to opt out of data caching for a route.
-    return NextResponse.json({ success: true, data: serializeData(cacheMetadata) });
+    const response = NextResponse.json({ success: true, data: serializeData(cacheMetadata) });
+
+    // Set explicit no-cache headers
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    response.headers.set('Surrogate-Control', 'no-store');
+    
+    return response;
 
   } catch (error) {
     console.error('Error fetching cache_metadata:', error);

@@ -46,7 +46,9 @@ export default function AdminInfoPage() {
     setIsLoadingCache(true);
     setError(null);
     try {
-      const response = await fetch('/api/cache-metadata');
+      // Add a cache-busting query parameter
+      const cacheBuster = `_=${new Date().getTime()}`;
+      const response = await fetch(`/api/cache-metadata?${cacheBuster}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch cache metadata: ${response.statusText}`);
       }
