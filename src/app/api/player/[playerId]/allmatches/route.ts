@@ -1,26 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma'; // Assuming prisma client is here
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl) {
-  console.error('Error: NEXT_PUBLIC_SUPABASE_URL is not set.');
-}
-if (!supabaseAnonKey) {
-  console.error('Error: NEXT_PUBLIC_SUPABASE_ANON_KEY is not set.');
-}
-
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Helper to serialize BigInt if present (though less likely in this specific query result)
+const serializeData = (data: any) => {
+  return JSON.parse(JSON.stringify(data, (_, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+  ));
+};
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { playerId: string } }
 ) {
-  if (!supabase) {
-    return NextResponse.json({ error: 'Supabase client is not initialized. Check server configuration.' }, { status: 500 });
-  }
-
   const { playerId } = params;
 
   if (!playerId) {
@@ -34,42 +25,42 @@ export async function GET(
   }
 
   try {
-    const { data, error } = await supabase
-      .from('player_matches')
-      .select(`
-        goals,
-        result,
-        matches!inner (
-          match_date
-        )
-      `)
-      .eq('player_id', numericPlayerId)
-      .order('match_date', { foreignTable: 'matches', ascending: true });
+    const playerMatches = await prisma.player_matches.findMany({
+      where: {
+        player_id: numericPlayerId,
+      },
+      include: {
+        matches: { // This assumes a relation named 'matches' is defined in your Prisma schema
+          select: {
+            match_date: true,
+          },
+        },
+      },
+      orderBy: {
+        matches: {
+          match_date: 'asc', // Order by match_date from the related matches table
+        },
+      },
+    });
 
-    if (error) {
-      console.error('Supabase error fetching all matches:', error);
-      return NextResponse.json({ error: 'Error fetching data from database.' }, { status: 500 });
-    }
-
-    if (!data) {
+    if (!playerMatches) {
       return NextResponse.json({ matches: [] }, { status: 200 });
     }
 
-    let formattedMatches = data.map((pm: any) => ({
-      date: pm.matches.match_date,
+    const formattedMatches = playerMatches.map(pm => ({
+      // Ensure pm.matches exists and is not null before accessing match_date
+      date: pm.matches?.match_date ? new Date(pm.matches.match_date).toISOString().split('T')[0] : null, 
       goals: pm.goals,
-      result: pm.result.toLowerCase(),
-    }));
+      result: pm.result ? pm.result.toLowerCase() : null, 
+    })).filter(match => match.date !== null); // Filter out any matches where date couldn't be determined
+    
+    // The Prisma query should already order it, but an explicit sort here is a good safety net if needed.
+    // formattedMatches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    formattedMatches.sort((a, b) => {
-      if (a.date < b.date) return -1;
-      if (a.date > b.date) return 1;
-      return 0;
-    });
+    return NextResponse.json({ matches: serializeData(formattedMatches) }, { status: 200 });
 
-    return NextResponse.json({ matches: formattedMatches }, { status: 200 });
   } catch (err: any) {
-    console.error('Error fetching all player matches:', err);
+    console.error('Error fetching all player matches with Prisma:', err);
     return NextResponse.json({ error: 'Failed to fetch all player matches', details: err.message }, { status: 500 });
   }
 } 
