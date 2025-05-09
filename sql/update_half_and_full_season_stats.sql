@@ -22,7 +22,8 @@ BEGIN
     DELETE FROM aggregated_half_season_stats WHERE TRUE;
     INSERT INTO aggregated_half_season_stats (
         player_id, games_played, wins, draws, losses, goals,
-        heavy_wins, heavy_losses, clean_sheets, fantasy_points, points_per_game
+        heavy_wins, heavy_losses, clean_sheets, fantasy_points, points_per_game,
+        win_percentage
     )
     SELECT
         pm.player_id, COUNT(*),
@@ -30,7 +31,9 @@ BEGIN
         SUM(COALESCE(pm.goals, 0)), SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END), SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END), SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
         -- Call centralized helper
         SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet)),
-        ROUND(CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet))::numeric / COUNT(*) ELSE 0 END, 1)
+        ROUND(CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet))::numeric / COUNT(*) ELSE 0 END, 1),
+        -- Calculate win_percentage
+        ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100 ELSE 0 END), 1)
     FROM player_matches pm
     JOIN matches m ON pm.match_id = m.match_id
     JOIN players p ON pm.player_id = p.player_id
