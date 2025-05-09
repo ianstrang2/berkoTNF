@@ -12,6 +12,8 @@ const serializeData = (data: any) => {
   }));
 };
 
+export const dynamic = 'force-dynamic'; // Opt out of caching
+
 export async function GET() {
   try {
     const cacheMetadata = await prisma.cache_metadata.findMany({
@@ -20,7 +22,11 @@ export async function GET() {
       },
     });
 
+    // It's generally better to set cache-control headers on the response
+    // if you need more fine-grained control, but `export const dynamic = 'force-dynamic'`
+    // is the simpler way for Next.js App Router to opt out of data caching for a route.
     return NextResponse.json({ success: true, data: serializeData(cacheMetadata) });
+
   } catch (error) {
     console.error('Error fetching cache_metadata:', error);
     return NextResponse.json(
