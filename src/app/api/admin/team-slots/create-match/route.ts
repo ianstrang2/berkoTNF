@@ -38,10 +38,14 @@ export async function POST(request: Request) {
       });
 
       // Create player_matches entries
-      await prisma.player_matches.createMany({
-        data: players.map(player => ({
+      // Filter players to ensure player_id is not null for TypeScript
+      const validPlayerMatchData = players
+        .filter(player => player.player_id !== null) // This will satisfy TypeScript
+        .map(player => ({
           match_id: newMatch.match_id,
-          ...player,
+          player_id: player.player_id as number, // Asserting here since we filtered
+          team: player.team,
+          goals: player.goals, // player.goals is 0 from the 'players' array mapping
           clean_sheet: player.team === 'A' ? team_b_score === 0 : team_a_score === 0,
           heavy_win: player.team === 'A' 
             ? team_a_score > team_b_score && (team_a_score - team_b_score) >= 4
@@ -52,8 +56,13 @@ export async function POST(request: Request) {
           result: player.team === 'A'
             ? team_a_score > team_b_score ? 'win' : (team_a_score < team_b_score ? 'loss' : 'draw')
             : team_b_score > team_a_score ? 'win' : (team_b_score < team_a_score ? 'loss' : 'draw')
-        })),
-      });
+        }));
+
+      if (validPlayerMatchData.length > 0) { // Only call createMany if there's valid data
+        await prisma.player_matches.createMany({
+          data: validPlayerMatchData,
+        });
+      }
 
       return newMatch;
     });
