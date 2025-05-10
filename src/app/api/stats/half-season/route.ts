@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
     // Format season stats
     const seasonStats = preAggregatedData.map(stat => ({
       name: stat.player_name,
+      player_id: stat.player_id,
       games_played: stat.games_played,
       wins: stat.wins,
       draws: stat.draws,
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
       
       return {
         name: perf.player.name,
+        player_id: perf.player_id,
         total_goals: seasonStat?.goals || 0,
         minutes_per_goal: Math.round(((seasonStat?.games_played || 0) * 60) / (seasonStat?.goals || 1)),
         last_five_games: last5Goals,

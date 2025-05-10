@@ -23,18 +23,22 @@ model matches {
 /// Visit https://pris.ly/d/check-constraints for more info.
 model player_matches {
   player_match_id Int      @id @default(autoincrement())
-  player_id       Int?
-  match_id        Int?
-  team            String?  @db.Char(1)
-  goals           Int?     @default(0)
+  player_id       Int
+  match_id        Int
+  team            String   @db.VarChar(1)
+  goals           Int?
   clean_sheet     Boolean? @default(false)
   heavy_win       Boolean? @default(false)
   heavy_loss      Boolean? @default(false)
-  result          String?  @db.VarChar
+  result          String?  @db.VarChar(4)
   fantasy_points  Int?
-  matches         matches? @relation(fields: [match_id], references: [match_id], onDelete: NoAction, onUpdate: NoAction)
-  players         players? @relation(fields: [player_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
-  updated_at      DateTime @updatedAt @default(now())
+  players         players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+  matches         matches  @relation(fields: [match_id], references: [match_id], onDelete: Cascade)
+
+  @@index([player_id])
+  @@index([match_id])
+  @@index([team])
+  @@index([result])
 }
 
 model players {
@@ -308,6 +312,8 @@ model aggregated_match_report {
   half_season_fantasy_leaders  Json?     @db.JsonB
   season_goal_leaders          Json?     @db.JsonB
   season_fantasy_leaders       Json?     @db.JsonB
+  on_fire_player_id           Int?      // ID of the player who is "on fire"
+  grim_reaper_player_id       Int?      // ID of the player who is the "grim reaper"
   last_updated                 DateTime  @default(now()) @db.Timestamptz
 
   @@index([match_date])

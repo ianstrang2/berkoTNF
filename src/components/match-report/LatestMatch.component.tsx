@@ -1,6 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
+import FireIcon from '@/components/icons/FireIcon';
+import GrimReaperIcon from '@/components/icons/GrimReaperIcon';
 
 interface MatchInfo {
   match_date: string;
@@ -55,13 +57,26 @@ interface FullMatchReportData {
   seasonFantasyLeaders?: LeaderData[];
 }
 
+interface PlayerWithNameAndId {
+  id: number;
+  name: string;
+}
+
+interface FullMatchReportDataWithSpecialPlayers extends FullMatchReportData {
+  on_fire_player_id?: number | null;
+  grim_reaper_player_id?: number | null;
+}
+
 const LatestMatch: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
-  const [matchData, setMatchData] = useState<FullMatchReportData | null>(null);
+  const [matchData, setMatchData] = useState<FullMatchReportDataWithSpecialPlayers | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [teamAName, setTeamAName] = useState<string>('Team A');
   const [teamBName, setTeamBName] = useState<string>('Team B');
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
+  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
+  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
+  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
 
   const formatDateSafely = (dateString: string | undefined | null): string => {
     if (!dateString) return '';
@@ -100,81 +115,98 @@ const LatestMatch: React.FC = () => {
     return num + "th";
   };
 
-  const fetchTeamNames = async () => {
-    try {
-      const response = await fetch('/api/admin/app-config?group=match_settings');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          const teamAConfig = data.data.find((config: any) => config.config_key === 'team_a_name');
-          const teamBConfig = data.data.find((config: any) => config.config_key === 'team_b_name');
-          
-          if (teamAConfig && teamAConfig.config_value) {
-            setTeamAName(teamAConfig.config_value);
-          }
-          
-          if (teamBConfig && teamBConfig.config_value) {
-            setTeamBName(teamBConfig.config_value);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching team names:', error);
-    }
-  };
-
-  const fetchMatchData = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/matchReport');
+      // Fetch all data in parallel
+      const [matchResponse, playersResponse, configResponse] = await Promise.all([
+        fetch('/api/matchReport'),
+        fetch('/api/players'),
+        fetch('/api/admin/app-config?group=match_settings')
+      ]);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API error: ${response.status} - ${errorText || 'No details'}`);
+      // Handle match data
+      if (!matchResponse.ok) {
+        throw new Error(`Match API error: ${matchResponse.status}`);
       }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setMatchData(result.data);
-      } else {
-        setError(new Error(result.error || 'Failed to fetch match data'));
+      const matchResult = await matchResponse.json();
+      if (matchResult.success) {
+        setMatchData(matchResult.data);
+      }
+
+      // Handle players data
+      if (playersResponse.ok) {
+        const playersData = await playersResponse.json();
+        setAllPlayers(playersData.data || []);
+      }
+
+      // Handle config data
+      if (configResponse.ok) {
+        const configData = await configResponse.json();
+        if (configData.success) {
+          const teamAConfig = configData.data.find((config: any) => config.config_key === 'team_a_name');
+          const teamBConfig = configData.data.find((config: any) => config.config_key === 'team_b_name');
+          const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
+          const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
+          
+          if (teamAConfig?.config_value) setTeamAName(teamAConfig.config_value);
+          if (teamBConfig?.config_value) setTeamBName(teamBConfig.config_value);
+          setShowOnFireConfig(showOnFire?.config_value !== 'false');
+          setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
+        }
       }
     } catch (error) {
-      console.error('Error in fetchMatchData:', error);
-      setError(error instanceof Error ? error : new Error('Failed to fetch match data'));
+      console.error('Error fetching data:', error);
+      setError(error instanceof Error ? error : new Error('Failed to fetch data'));
     } finally {
       setLoading(false);
     }
   };
 
-  const formatMatchReportForCopy = (data: FullMatchReportData | null): string => {
-    if (!data || !data.matchInfo) return 'No match data available.';
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-    const {
-      matchInfo,
-      gamesMilestones,
-      goalsMilestones,
-      streaks,
-      goalStreaks,
-      halfSeasonGoalLeaders,
-      halfSeasonFantasyLeaders,
-      seasonGoalLeaders,
-      seasonFantasyLeaders,
-    } = data;
+  const getPlayerIdByName = (name: string): number | undefined => {
+    const player = allPlayers.find(p => p.name === name);
+    return player?.id;
+  };
+
+  const formatMatchReportForCopy = (data: FullMatchReportDataWithSpecialPlayers | null, showOnFireUi: boolean, showGrimReaperUi: boolean): string => {
+    if (!data || !data.matchInfo) return 'No match data available.';
+    const { matchInfo } = data;
+    const onFireId = data.on_fire_player_id;
+    const grimReaperId = data.grim_reaper_player_id;
 
     let report = `⚽️ MATCH REPORT: ${formatDateSafely(matchInfo.match_date)} ⚽️\n\n`;
     report += `FINAL SCORE: ${teamAName} ${matchInfo.team_a_score} - ${matchInfo.team_b_score} ${teamBName}\n\n`;
 
+    const formatPlayerListForCopy = (playerNames: string[]): string => {
+      if (!playerNames || playerNames.length === 0) return '';
+      return playerNames.map(playerNameStr => {
+        let nameToDisplay = playerNameStr;
+        const playerId = getPlayerIdByName(playerNameStr);
+        if (playerId !== undefined) {
+          if (showOnFireUi && playerId === onFireId) {
+            nameToDisplay += ' 🔥';
+          }
+          if (showGrimReaperUi && playerId === grimReaperId) {
+            nameToDisplay += ' 💀';
+          }
+        }
+        return nameToDisplay;
+      }).join(', ');
+    };
+
     report += `--- ${teamAName.toUpperCase()} ---\n`;
-    report += `Players: ${matchInfo.team_a_players.join(', ')}\n`;
+    report += `Players: ${formatPlayerListForCopy(matchInfo.team_a_players)}\n`;
     if (matchInfo.team_a_scorers) {
       report += `Scorers: ${matchInfo.team_a_scorers}\n`;
     }
     report += `\n--- ${teamBName.toUpperCase()} ---\n`;
-    report += `Players: ${matchInfo.team_b_players.join(', ')}\n`;
+    report += `Players: ${formatPlayerListForCopy(matchInfo.team_b_players)}\n`;
     if (matchInfo.team_b_scorers) {
       report += `Scorers: ${matchInfo.team_b_scorers}\n`;
     }
@@ -188,10 +220,10 @@ const LatestMatch: React.FC = () => {
       }
     };
 
-    formatList('Game Milestones', gamesMilestones, item => `${item.name}: Played ${getOrdinalSuffix(item.total_games || item.value || 0)} game`);
-    formatList('Goal Milestones', goalsMilestones, item => `${item.name}: Scored ${getOrdinalSuffix(item.total_goals || item.value || 0)} goal`);
-    formatList('Form Streaks', streaks, item => `${item.name}: ${item.streak_count} game ${item.streak_type === 'win' ? 'winning' : item.streak_type === 'loss' ? 'losing' : item.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'} streak`);
-    formatList('Goal Scoring Streaks', goalStreaks, item => `${item.name}: Scored in ${item.matches_with_goals} consecutive matches (${item.goals_in_streak} goals)`);
+    formatList('Game Milestones', data.gamesMilestones, item => `${item.name}: Played ${getOrdinalSuffix(item.total_games || item.value || 0)} game`);
+    formatList('Goal Milestones', data.goalsMilestones, item => `${item.name}: Scored ${getOrdinalSuffix(item.total_goals || item.value || 0)} goal`);
+    formatList('Form Streaks', data.streaks, item => `${item.name}: ${item.streak_count} game ${item.streak_type === 'win' ? 'winning' : item.streak_type === 'loss' ? 'losing' : item.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'} streak`);
+    formatList('Goal Scoring Streaks', data.goalStreaks, item => `${item.name}: Scored in ${item.matches_with_goals} consecutive matches (${item.goals_in_streak} goals)`);
     
     const formatLeaderSimple = (leaderData: LeaderData, metric: 'goals' | 'points', period: string): string => {
        if (!leaderData || !leaderData.new_leader) return `Unknown leader in ${metric}`;
@@ -207,23 +239,23 @@ const LatestMatch: React.FC = () => {
       }
     };
 
-    if (halfSeasonGoalLeaders && halfSeasonGoalLeaders.length > 0) {
+    if (data.halfSeasonGoalLeaders && data.halfSeasonGoalLeaders.length > 0) {
         ensureLeaderHeader();
-        if (halfSeasonGoalLeaders.length === 1) {
-            report += `- ${formatLeaderSimple(halfSeasonGoalLeaders[0], 'goals', 'Half-Season')}\n`;
+        if (data.halfSeasonGoalLeaders.length === 1) {
+            report += `- ${formatLeaderSimple(data.halfSeasonGoalLeaders[0], 'goals', 'Half-Season')}\n`;
         } else {
-            const leaderNames = halfSeasonGoalLeaders.map(l => l.new_leader).join(' and ');
-            const goals = halfSeasonGoalLeaders[0].new_leader_goals || halfSeasonGoalLeaders[0].value || 0;
+            const leaderNames = data.halfSeasonGoalLeaders.map(l => l.new_leader).join(' and ');
+            const goals = data.halfSeasonGoalLeaders[0].new_leader_goals || data.halfSeasonGoalLeaders[0].value || 0;
             report += `- ${leaderNames} lead Half-Season goals with ${goals}\n`;
         }
     }
-    if (halfSeasonFantasyLeaders && halfSeasonFantasyLeaders.length > 0) {
+    if (data.halfSeasonFantasyLeaders && data.halfSeasonFantasyLeaders.length > 0) {
         ensureLeaderHeader();
-        if (halfSeasonFantasyLeaders.length === 1) {
-            report += `- ${formatLeaderSimple(halfSeasonFantasyLeaders[0], 'points', 'Half-Season')}\n`;
+        if (data.halfSeasonFantasyLeaders.length === 1) {
+            report += `- ${formatLeaderSimple(data.halfSeasonFantasyLeaders[0], 'points', 'Half-Season')}\n`;
         } else {
-            const leaderNames = halfSeasonFantasyLeaders.map(l => l.new_leader).join(' and ');
-            const points = halfSeasonFantasyLeaders[0].new_leader_points || halfSeasonFantasyLeaders[0].value || 0;
+            const leaderNames = data.halfSeasonFantasyLeaders.map(l => l.new_leader).join(' and ');
+            const points = data.halfSeasonFantasyLeaders[0].new_leader_points || data.halfSeasonFantasyLeaders[0].value || 0;
             report += `- ${leaderNames} lead Half-Season points with ${points}\n`;
         }
     }
@@ -231,23 +263,23 @@ const LatestMatch: React.FC = () => {
     const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
     const isSecondHalf = currentDate.getMonth() >= 6;
 
-    if (isSecondHalf && seasonGoalLeaders && seasonGoalLeaders.length > 0) {
+    if (isSecondHalf && data.seasonGoalLeaders && data.seasonGoalLeaders.length > 0) {
         ensureLeaderHeader();
-        if (seasonGoalLeaders.length === 1) {
-            report += `- ${formatLeaderSimple(seasonGoalLeaders[0], 'goals', 'Season')}\n`;
+        if (data.seasonGoalLeaders.length === 1) {
+            report += `- ${formatLeaderSimple(data.seasonGoalLeaders[0], 'goals', 'Season')}\n`;
         } else {
-            const leaderNames = seasonGoalLeaders.map(l => l.new_leader).join(' and ');
-            const goals = seasonGoalLeaders[0].new_leader_goals || seasonGoalLeaders[0].value || 0;
+            const leaderNames = data.seasonGoalLeaders.map(l => l.new_leader).join(' and ');
+            const goals = data.seasonGoalLeaders[0].new_leader_goals || data.seasonGoalLeaders[0].value || 0;
             report += `- ${leaderNames} lead Season goals with ${goals}\n`;
         }
     }
-    if (isSecondHalf && seasonFantasyLeaders && seasonFantasyLeaders.length > 0) {
+    if (isSecondHalf && data.seasonFantasyLeaders && data.seasonFantasyLeaders.length > 0) {
         ensureLeaderHeader();
-        if (seasonFantasyLeaders.length === 1) {
-            report += `- ${formatLeaderSimple(seasonFantasyLeaders[0], 'points', 'Season')}\n`;
+        if (data.seasonFantasyLeaders.length === 1) {
+            report += `- ${formatLeaderSimple(data.seasonFantasyLeaders[0], 'points', 'Season')}\n`;
         } else {
-            const leaderNames = seasonFantasyLeaders.map(l => l.new_leader).join(' and ');
-            const points = seasonFantasyLeaders[0].new_leader_points || seasonFantasyLeaders[0].value || 0;
+            const leaderNames = data.seasonFantasyLeaders.map(l => l.new_leader).join(' and ');
+            const points = data.seasonFantasyLeaders[0].new_leader_points || data.seasonFantasyLeaders[0].value || 0;
             report += `- ${leaderNames} lead Season points with ${points}\n`;
         }
     }
@@ -257,8 +289,7 @@ const LatestMatch: React.FC = () => {
 
   const handleCopyMatchReport = async () => {
     if (!matchData) return;
-
-    const reportText = formatMatchReportForCopy(matchData);
+    const reportText = formatMatchReportForCopy(matchData, showOnFireConfig, showGrimReaperConfig);
 
     try {
       await navigator.clipboard.writeText(reportText);
@@ -269,10 +300,20 @@ const LatestMatch: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchMatchData();
-    fetchTeamNames();
-  }, []);
+  const renderPlayerName = (playerName: string) => {
+    const playerId = getPlayerIdByName(playerName);
+    return (
+      <span className="flex items-center text-sm text-slate-700">
+        {playerName}
+        {showOnFireConfig && playerId === matchData?.on_fire_player_id && (
+          <FireIcon className="w-4 h-4 ml-1 text-green-500" />
+        )}
+        {showGrimReaperConfig && playerId === matchData?.grim_reaper_player_id && (
+          <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
+        )}
+      </span>
+    );
+  };
 
   if (loading) {
     return (
@@ -353,14 +394,14 @@ const LatestMatch: React.FC = () => {
         <div className="rounded-xl border border-slate-100 p-4">
           <h6 className="text-sm font-bold mb-4 text-slate-700">{teamAName}</h6>
           
-          <div className="space-y-2">
+          <div className="flex flex-col space-y-2">
             {matchInfo.team_a_players.map((player, index) => (
-              <li key={`player-a-${index}`} className="animate-fade-in-up delay-100 flex items-center list-none" style={{animationFillMode: 'forwards'}}>
+              <div key={index} className="flex items-center">
                 <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-100 to-purple-200 text-purple-700 flex items-center justify-center text-xs font-semibold mr-3">
                   {index + 1}
                 </div>
-                <span className="text-sm text-slate-700">{player}</span>
-              </li>
+                {renderPlayerName(player)}
+              </div>
             ))}
           </div>
           
@@ -377,14 +418,14 @@ const LatestMatch: React.FC = () => {
         <div className="rounded-xl border border-slate-100 p-4">
           <h6 className="text-sm font-bold mb-4 text-slate-700">{teamBName}</h6>
           
-          <div className="space-y-2">
+          <div className="flex flex-col space-y-2">
             {matchInfo.team_b_players.map((player, index) => (
-              <li key={`player-b-${index}`} className="animate-fade-in-up delay-100 flex items-center list-none" style={{animationFillMode: 'forwards'}}>
+              <div key={index} className="flex items-center">
                 <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-100 to-purple-200 text-purple-700 flex items-center justify-center text-xs font-semibold mr-3">
                   {index + 1}
                 </div>
-                <span className="text-sm text-slate-700">{player}</span>
-              </li>
+                {renderPlayerName(player)}
+              </div>
             ))}
           </div>
           

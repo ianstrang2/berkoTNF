@@ -17,6 +17,8 @@ DECLARE
     v_season_fantasy_leaders JSONB;   -- Added for direct assignment
     v_half_season_goal_leaders JSONB;   -- Added for direct assignment
     v_half_season_fantasy_leaders JSONB; -- Added for direct assignment
+    v_on_fire_player_id INT;            -- NEW: For On Fire player
+    v_grim_reaper_player_id INT;        -- NEW: For Grim Reaper player
     player_ids_in_match INT[];
     player_names_json JSONB := '{}'::jsonb;
     milestone_game_threshold INT;
@@ -24,13 +26,37 @@ DECLARE
     target_date DATE;
     half_season_start DATE;
     half_season_end DATE;
+    v_window_days INT;                  -- NEW: For configurable window
+    v_min_games INT;                    -- NEW: For configurable minimum games
 BEGIN
     -- Removed the temporary debug notices and RETURN
     RAISE NOTICE 'Starting update_aggregated_match_report_cache...';
+    
     -- Fetch config values
     milestone_game_threshold := get_config_value('game_milestone_threshold', '50')::int;
     milestone_goal_threshold := get_config_value('goal_milestone_threshold', '25')::int;
-    RAISE NOTICE 'Using config: game_milestone=%, goal_milestone=%', milestone_game_threshold, milestone_goal_threshold;
+    
+    -- NEW: Get On Fire/Grim Reaper config values with fallbacks
+    BEGIN
+        v_window_days := get_config_value('on_fire_grim_reaper_window_days', '45')::int;
+        IF v_window_days < 1 THEN
+            v_window_days := 45; -- Fallback if invalid
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        v_window_days := 45; -- Fallback on any error
+    END;
+
+    BEGIN
+        v_min_games := get_config_value('on_fire_grim_reaper_min_games', '4')::int;
+        IF v_min_games < 1 THEN
+            v_min_games := 4; -- Fallback if invalid
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        v_min_games := 4; -- Fallback on any error
+    END;
+    
+    RAISE NOTICE 'Using config: game_milestone=%, goal_milestone=%, window_days=%, min_games=%', 
+        milestone_game_threshold, milestone_goal_threshold, v_window_days, v_min_games;
 
     -- 1. Get Latest Match
     SELECT * INTO latest_match FROM matches ORDER BY match_date DESC, match_id DESC LIMIT 1;
@@ -38,7 +64,88 @@ BEGIN
     RAISE NOTICE 'Processing latest match ID: %', latest_match.match_id;
     target_date := latest_match.match_date::date; -- Ensure target_date is DATE
 
-    -- 2. Get Match Participants & Details
+    -- 2. Calculate On Fire and Grim Reaper Players
+    RAISE NOTICE 'Calculating On Fire and Grim Reaper players...';
+    WITH recent_matches AS (
+        -- Get all matches from the configurable window
+        SELECT 
+            m.match_id,
+            m.match_date,
+            m.team_a_score,
+            m.team_b_score,
+            pm.player_id,
+            p.name AS player_name,
+            pm.team,
+            pm.goals,
+            pm.result,
+            pm.heavy_win,
+            pm.heavy_loss,
+            pm.clean_sheet,
+            calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet) AS fantasy_points
+        FROM matches m
+        JOIN player_matches pm ON m.match_id = pm.match_id
+        JOIN players p ON pm.player_id = p.player_id
+        WHERE m.match_date >= (target_date - (v_window_days || ' days')::interval)
+        AND m.match_date <= target_date
+        AND p.is_ringer = false 
+        AND p.is_retired = false
+    ),
+    player_recent_stats AS (
+        -- Calculate stats for each player's matches in the window
+        SELECT
+            player_id,
+            player_name,
+            COUNT(*) as matches_played,
+            SUM(fantasy_points) as total_fantasy_points,
+            SUM(goals) as total_goals_scored,
+            SUM(CASE 
+                WHEN team = 'A' THEN team_b_score
+                WHEN team = 'B' THEN team_a_score
+                ELSE 0
+            END) as total_goals_conceded,
+            SUM(CASE WHEN clean_sheet THEN 1 ELSE 0 END) as total_clean_sheets,
+            SUM(CASE WHEN heavy_win THEN 1 ELSE 0 END) as total_heavy_wins,
+            SUM(CASE WHEN heavy_loss THEN 1 ELSE 0 END) as total_heavy_losses
+        FROM recent_matches
+        GROUP BY player_id, player_name
+        HAVING COUNT(*) >= v_min_games    -- Must have played minimum required matches
+    )
+    SELECT 
+        -- First try to get the On Fire player
+        COALESCE(
+            (SELECT player_id
+            FROM player_recent_stats
+            ORDER BY
+                total_fantasy_points DESC,     -- Total points as primary sort
+                total_goals_scored DESC,
+                total_goals_conceded ASC,
+                total_clean_sheets DESC,
+                total_heavy_wins DESC,
+                total_heavy_losses ASC,
+                player_name ASC
+            LIMIT 1),
+            NULL
+        ),
+        -- Then try to get the Grim Reaper player
+        COALESCE(
+            (SELECT player_id
+            FROM player_recent_stats
+            ORDER BY
+                total_fantasy_points ASC,      -- Total points as primary sort
+                total_goals_scored ASC,
+                total_goals_conceded DESC,
+                total_clean_sheets ASC,
+                total_heavy_wins ASC,
+                total_heavy_losses DESC,
+                player_name ASC
+            LIMIT 1),
+            NULL
+        )
+    INTO v_on_fire_player_id, v_grim_reaper_player_id;
+
+    RAISE NOTICE 'On Fire Player ID: %, Grim Reaper Player ID: %', v_on_fire_player_id, v_grim_reaper_player_id;
+
+    -- 3. Get Match Participants & Details
     SELECT
         COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'A'), '[]'::jsonb),
         COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'B'), '[]'::jsonb),
@@ -65,6 +172,7 @@ BEGIN
             config_values, game_milestones, goal_milestones,
             half_season_goal_leaders, half_season_fantasy_leaders,
             season_goal_leaders, season_fantasy_leaders,
+            on_fire_player_id, grim_reaper_player_id, -- NEW
             last_updated
         ) VALUES (
             latest_match.match_id, latest_match.match_date, latest_match.team_a_score, latest_match.team_b_score,
@@ -75,6 +183,7 @@ BEGIN
             ),
             '[]'::jsonb, '[]'::jsonb, -- Default empty values
             '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb,
+            v_on_fire_player_id, v_grim_reaper_player_id, -- NEW
             NOW()
         );
         -- Update Cache Metadata
@@ -85,7 +194,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- 3. Calculate Milestones (for players in the match)
+    -- 4. Calculate Milestones (for players in the match)
     RAISE NOTICE 'Calculating milestones...';
     WITH player_totals_base AS ( -- Renamed original CTE
         SELECT player_id, COUNT(*) as total_games, SUM(COALESCE(goals, 0)) as total_goals
@@ -124,7 +233,7 @@ BEGIN
                  ), '[]'::jsonb)
     INTO game_milestones_json, goal_milestones_json FROM player_totals pt;
 
-    -- 4. Calculate Leaders
+    -- 5. Calculate Leaders
     RAISE NOTICE 'Calculating leaders...';
     half_season_start := get_current_half_season_start_date();
     half_season_end := get_current_half_season_end_date();
@@ -301,7 +410,7 @@ BEGIN
         v_half_season_goal_leaders,   -- Changed from path assignment
         v_half_season_fantasy_leaders; -- Changed from path assignment
 
-    -- 5. Update Player Streaks
+    -- 6. Update Player Streaks
     RAISE NOTICE 'Updating player streaks...';
     UPDATE aggregated_match_streaks ams
     SET
@@ -473,7 +582,7 @@ BEGIN
     current_streaks_loss AS (SELECT player_id, COUNT(*) as streak_length FROM streak_groups_loss WHERE streak_group = 0 GROUP BY player_id)
     UPDATE aggregated_match_streaks ams SET current_loss_streak = cs.streak_length FROM current_streaks_loss cs WHERE ams.player_id = cs.player_id;
 
-    -- 6. Update aggregated_match_report Table
+    -- 7. Update aggregated_match_report Table
     RAISE NOTICE 'Updating aggregated_match_report table for match ID: %', latest_match.match_id;
     DELETE FROM aggregated_match_report WHERE TRUE; -- Keep WHERE TRUE fix
 
@@ -483,6 +592,7 @@ BEGIN
         config_values, game_milestones, goal_milestones,
         half_season_goal_leaders, half_season_fantasy_leaders,
         season_goal_leaders, season_fantasy_leaders,
+        on_fire_player_id, grim_reaper_player_id, -- NEW
         last_updated
     ) VALUES (
         latest_match.match_id, latest_match.match_date, latest_match.team_a_score, latest_match.team_b_score,
@@ -496,10 +606,12 @@ BEGIN
         v_half_season_fantasy_leaders, -- Use new variable
         v_season_goal_leaders,        -- Use new variable
         v_season_fantasy_leaders,     -- Use new variable
+        v_on_fire_player_id,          -- NEW
+        v_grim_reaper_player_id,      -- NEW
         NOW()
     );
 
-    -- 7. Update Cache Metadata
+    -- 8. Update Cache Metadata (Renumbered step)
     INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
     VALUES ('match_report', NOW(), 'match_report')
     ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();

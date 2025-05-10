@@ -70,6 +70,8 @@ interface MatchReportCache {
     winless_streak_threshold: number;
     goal_streak_threshold: number;
   };
+  on_fire_player_id: number | null;
+  grim_reaper_player_id: number | null;
   last_updated?: Date;
 }
 
@@ -85,6 +87,8 @@ interface ApiResponse {
     halfSeasonFantasyLeaders?: LeaderData[];
     seasonGoalLeaders?: LeaderData[];
     seasonFantasyLeaders?: LeaderData[];
+    on_fire_player_id?: number | null;
+    grim_reaper_player_id?: number | null;
   };
   error?: string;
 }
@@ -704,7 +708,9 @@ export async function GET() {
               halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders || [],
               halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders || [],
               seasonGoalLeaders: extractedSeasonGoalLeaders || [],
-              seasonFantasyLeaders: extractedSeasonFantasyLeaders || []
+              seasonFantasyLeaders: extractedSeasonFantasyLeaders || [],
+              on_fire_player_id: matchReportCache.on_fire_player_id,
+              grim_reaper_player_id: matchReportCache.grim_reaper_player_id
             }
           } as ApiResponse;
           
@@ -746,7 +752,9 @@ export async function GET() {
             halfSeasonGoalLeaders: [],
             halfSeasonFantasyLeaders: [],
             seasonGoalLeaders: [],
-            seasonFantasyLeaders: []
+            seasonFantasyLeaders: [],
+            on_fire_player_id: null,
+            grim_reaper_player_id: null
           }
         } as ApiResponse);
       }

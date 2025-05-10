@@ -1,25 +1,32 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import NavPills from '@/components/ui-kit/NavPills.component';
+import FireIcon from '@/components/icons/FireIcon';
+import GrimReaperIcon from '@/components/icons/GrimReaperIcon';
 
 interface PlayerStats {
   name: string;
+  player_id: number;
   games_played: number;
   wins: number;
   draws: number;
+  losses: number;
   goals: number;
   heavy_wins: number;
   heavy_losses: number;
   clean_sheets: number;
   win_percentage: number;
   fantasy_points: number;
+  points_per_game: number;
 }
 
 interface GoalStats {
   name: string;
+  player_id: number;
   total_goals: number;
   minutes_per_goal: number;
-  last_five_games?: string;
+  last_five_games: string;
+  max_goals_in_game: number;
 }
 
 interface FormData {
@@ -49,6 +56,16 @@ const CurrentHalfSeason: React.FC = () => {
     goalStats: [],
     formData: []
   });
+  const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  // NEW: State for special player IDs and config
+  const [onFirePlayerId, setOnFirePlayerId] = useState<number | null>(null);
+  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<number | null>(null);
+  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
+  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
+
   // Track component mount state
   const isMounted = useRef(true);
   
@@ -77,65 +94,77 @@ const CurrentHalfSeason: React.FC = () => {
     };
   };
 
-  useEffect(() => {
-    let isCancelled = false;
-    
-    const fetchData = async () => {
-      try {
-        if (!isMounted.current) return;
-        
-        const currentPeriod = getCurrentHalf();
-        console.log('Current period:', currentPeriod);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        // Add a slight delay to ensure component has fully hydrated
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const response = await fetch('/api/stats/half-season', {
+      // Fetch all data in parallel
+      const [statsResponse, reportResponse, configResponse] = await Promise.all([
+        fetch('/api/stats/half-season', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
-        });
-        
-        // Exit if component unmounted during fetch
-        if (!isMounted.current || isCancelled) return;
+        }),
+        fetch('/api/matchReport'),
+        fetch('/api/admin/app-config?group=match_settings')
+      ]);
 
-        console.log('API Response:', response.status);
-        const result = await response.json();
-        console.log('API Data:', result);
+      if (!statsResponse.ok) throw new Error('Failed to fetch stats');
+      const statsData = await statsResponse.json();
+      // Ensure we have valid data structure even if the API returns unexpected format
+      setStats({
+        seasonStats: statsData?.data?.seasonStats || [],
+        goalStats: statsData?.data?.goalStats || [],
+        formData: statsData?.data?.formData || []
+      });
 
-        if (result.data && result.data.seasonStats && result.data.seasonStats.length > 0) {
-          if (isMounted.current && !isCancelled) {
-            setStats(result.data);
-            console.log('Stats updated in state:', result.data);
-          }
-        } else {
-          console.log('No data received from API');
-          if (isMounted.current && !isCancelled) {
-            setStats({
-              seasonStats: [],
-              goalStats: [],
-              formData: []
-            });
-          }
-        }
+      // Get On Fire and Grim Reaper IDs from match report
+      if (reportResponse.ok) {
+        const reportData = await reportResponse.json();
+        setOnFirePlayerId(reportData.data?.on_fire_player_id || null);
+        setGrimReaperPlayerId(reportData.data?.grim_reaper_player_id || null);
+      }
 
-        if (isMounted.current && !isCancelled) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        if (isMounted.current && !isCancelled) {
-          setLoading(false);
+      // Get config for visibility
+      if (configResponse.ok) {
+        const configData = await configResponse.json();
+        if (configData.success) {
+          const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
+          const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
+          setShowOnFireConfig(showOnFire?.config_value !== 'false');
+          setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
         }
       }
-    };
 
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      setError('Failed to load stats');
+      // Ensure we have valid empty state on error
+      setStats({
+        seasonStats: [],
+        goalStats: [],
+        formData: []
+      });
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
-    
-    // Cleanup to prevent state updates after unmount
-    return () => {
-      isCancelled = true;
-    };
   }, []);
+
+  const renderPlayerName = (playerId: number, name: string) => (
+    <div className="flex items-center">
+      <span>{name}</span>
+      {showOnFireConfig && playerId === onFirePlayerId && (
+        <FireIcon className="w-4 h-4 ml-1 text-green-500" />
+      )}
+      {showGrimReaperConfig && playerId === grimReaperPlayerId && (
+        <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
+      )}
+    </div>
+  );
 
   const renderMainStats = () => (
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border max-w-screen-2xl mx-auto">
@@ -169,7 +198,9 @@ const CurrentHalfSeason: React.FC = () => {
                   <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                     <div className="flex px-2 py-1">
                       <div className="flex flex-col justify-center">
-                        <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                        <h6 className="mb-0 leading-normal text-sm">
+                          {renderPlayerName(player.player_id, player.name)}
+                        </h6>
                       </div>
                     </div>
                   </td>
@@ -253,7 +284,9 @@ const CurrentHalfSeason: React.FC = () => {
                 <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                   <div className="flex px-2 py-1">
                     <div className="flex flex-col justify-center">
-                      <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                      <h6 className="mb-0 leading-normal text-sm">
+                        {renderPlayerName(player.player_id, player.name)}
+                      </h6>
                     </div>
                   </div>
                 </td>
