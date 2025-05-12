@@ -125,14 +125,14 @@ const AllTimeStats: React.FC = () => {
   }
 
   return (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">All-Time Leaderboard</h5>
       </div>
       <div>
         <div className="overflow-x-auto">
-          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
-            <thead className="align-bottom sticky top-0 z-20 bg-white shadow-sm">
+          <table className="mb-0 align-top border-gray-200 text-slate-500">
+            <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
               <tr>
                 <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">#</th>
                 <th className="sticky left-[50px] z-10 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
@@ -245,7 +245,7 @@ const AllTimeStats: React.FC = () => {
 
                 return (
                   <tr key={index} className={`${isRetired ? 'opacity-60' : ''} hover:bg-gray-50`}>
-                    <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap text-center">
+                    <td className="sticky left-0 z-10 px-4 py-2 align-middle bg-white border-b whitespace-nowrap text-center">
                       <span className="font-normal leading-normal text-sm">{index + 1}</span>
                     </td>
                     <td className="sticky left-[50px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">

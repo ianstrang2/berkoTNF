@@ -88,20 +88,20 @@ const Feats: React.FC = () => {
   }, []);
 
   // Helper function to format names, moved outside renderRecords
-  const formatNames = (records: Array<{name: string}>) => {
-    return records.map(record => record.name).join(', ');
-  };
+    const formatNames = (records: Array<{name: string}>) => {
+      return records.map(record => record.name).join(', ');
+    };
 
   const renderRecords = () => {
     return (
-      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-fit">
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4 pb-0">
           <h5 className="mb-0">Feats & Record Breakers</h5>
         </div>
         <div>
           <div className="overflow-x-auto p-4">
-            <table className="items-center min-w-full mb-0 align-top border-gray-200 text-slate-500 relative">
-              <thead className="align-bottom sticky top-0 z-20 bg-white shadow-sm">
+            <table className="mb-0 align-top border-gray-200 text-slate-500 relative">
+              <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
                 <tr>
                   <th className="sticky left-0 z-10 p-2 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
                     Record
@@ -307,14 +307,14 @@ const Feats: React.FC = () => {
   return (
     <div className="flex flex-wrap -mx-3">
       <div className="w-full max-w-full px-3 flex-none">
-        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-fit">
           <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4 pb-0">
             <h5 className="mb-0">Feats & Record Breakers</h5>
           </div>
           <div>
             <div className="overflow-x-auto p-4">
-              <table className="items-center min-w-full mb-0 align-top border-gray-200 text-slate-500 relative">
-                <thead className="align-bottom sticky top-0 z-20 bg-white shadow-sm">
+              <table className="mb-0 align-top border-gray-200 text-slate-500 relative">
+                <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
                   <tr>
                     <th className="sticky left-0 z-10 p-2 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
                       Record

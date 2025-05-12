@@ -167,14 +167,14 @@ const CurrentHalfSeason: React.FC = () => {
   );
 
   const renderMainStats = () => (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border max-w-screen-2xl mb-6">
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-fit mb-6">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Points Leaderboard</h5>
       </div>
       <div>
         <div className="overflow-x-auto">
           <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
-            <thead className="align-bottom sticky top-0 z-20 bg-white shadow-sm">
+            <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
               <tr>
                 {/* Sticky Columns Headers */}
                 <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">#</th>
@@ -278,14 +278,14 @@ const CurrentHalfSeason: React.FC = () => {
   );
 
   const renderGoalStats = () => (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border max-w-screen-2xl mb-6">
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-fit mb-6">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Goalscoring Leaderboard</h5>
       </div>
       <div>
         <div className="overflow-x-auto">
           <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
-            <thead className="align-bottom sticky top-0 z-20 bg-white shadow-sm">
+            <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
               <tr>
                 {/* Sticky Columns Headers */}
                 <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">#</th>

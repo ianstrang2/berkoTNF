@@ -243,7 +243,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       />
       
       {/* Main Content Area */}
-      <main className={`relative h-full max-h-screen transition-all duration-200 ease-soft-in-out ${isSidebarMini ? 'xl:ml-24' : 'xl:ml-[17rem]'} rounded-xl`}>
+      <main className={`relative transition-all duration-200 ease-soft-in-out ${isSidebarMini ? 'xl:ml-24' : 'xl:ml-[17rem]'} rounded-xl`}>
         {/* Navbar Component */}
         <Navbar 
           pageTitle={pageTitle}
@@ -252,7 +252,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         />
         
         {/* Main Content */}
-        <div className="w-full p-6 mx-auto">
+        <div className="p-6 overflow-visible">
           <ErrorBoundary>
             {children}
           </ErrorBoundary>
