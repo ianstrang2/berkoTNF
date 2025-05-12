@@ -129,9 +129,10 @@ const AllTimeStats: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">All-Time Leaderboard</h5>
       </div>
-      <div>
+      {/* Outer container for vertical scrolling */}
+      <div className="overflow-y-auto max-h-[80vh]">
         <div className="overflow-x-auto">
-          <table className="mb-0 align-top border-gray-200 text-slate-500">
+          <table className="min-w-full mb-0 align-top border-gray-200 text-slate-500">
             <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
               <tr>
                 <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">#</th>

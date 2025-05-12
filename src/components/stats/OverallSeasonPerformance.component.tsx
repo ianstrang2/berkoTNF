@@ -189,12 +189,12 @@ const OverallSeasonPerformance: React.FC = () => {
     }
 
     return (
-      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-fit mb-6">
+      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
           <h5 className="mb-0">{title}</h5>
         </div>
-        {/* Outer container - REMOVED overflow-y-auto max-h-[80vh] */}
-        <div>
+        {/* Outer container for vertical scrolling */}
+        <div className="overflow-y-auto max-h-[80vh]">
           {/* Inner container for horizontal scrolling */}
           <div className="overflow-x-auto">
             <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">

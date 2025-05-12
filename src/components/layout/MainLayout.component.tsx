@@ -243,7 +243,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       />
       
       {/* Main Content Area */}
-      <main className={`relative transition-all duration-200 ease-soft-in-out ${isSidebarMini ? 'xl:ml-24' : 'xl:ml-[17rem]'} rounded-xl`}>
+      <main className={`relative transition-all duration-200 ease-soft-in-out ${isSidebarMini ? 'xl:ml-24' : 'xl:ml-[17rem]'} rounded-xl max-h-screen`}>
         {/* Navbar Component */}
         <Navbar 
           pageTitle={pageTitle}
