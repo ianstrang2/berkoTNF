@@ -94,19 +94,19 @@ const Feats: React.FC = () => {
 
   const renderRecords = () => {
     return (
-      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-fit">
+      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4 pb-0">
           <h5 className="mb-0">Feats & Record Breakers</h5>
         </div>
         <div>
           <div className="overflow-x-auto p-4">
-            <table className="mb-0 align-top border-gray-200 text-slate-500 relative">
+            <table className="min-w-full mb-0 align-top border-gray-200 text-slate-500">
               <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
                 <tr>
                   <th className="sticky left-0 z-10 p-2 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
                     Record
                   </th>
-                  <th className="sticky left-[160px] z-10 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
+                  <th className="px-2 py-3 font-bold uppercase align-middle border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
                   <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
                     Player(s) / Team(s)
                   </th>
@@ -126,7 +126,7 @@ const Feats: React.FC = () => {
                         <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                           <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
                         </td>
-                        <td className="sticky left-[160px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                        <td className="p-2 align-middle border-b whitespace-nowrap">
                           <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                           </svg>
@@ -166,7 +166,7 @@ const Feats: React.FC = () => {
                               'Undefeated Streak'}
                             </span>
                           </td>
-                          <td className="sticky left-[160px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                          <td className="p-2 align-middle border-b whitespace-nowrap">
                             <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                             </svg>
@@ -202,7 +202,7 @@ const Feats: React.FC = () => {
                         <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                           <span className="font-normal leading-normal text-sm">Consecutive Games Scoring</span>
                         </td>
-                        <td className="sticky left-[160px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                        <td className="p-2 align-middle border-b whitespace-nowrap">
                           <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                           </svg>
@@ -237,7 +237,7 @@ const Feats: React.FC = () => {
                         <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                           <span className="font-normal leading-normal text-sm">Biggest Victory</span>
                         </td>
-                        <td className="sticky left-[160px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                        <td className="p-2 align-middle border-b whitespace-nowrap">
                           <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                           </svg>
@@ -307,19 +307,19 @@ const Feats: React.FC = () => {
   return (
     <div className="flex flex-wrap -mx-3">
       <div className="w-full max-w-full px-3 flex-none">
-        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-fit">
+        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border lg:w-fit">
           <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4 pb-0">
             <h5 className="mb-0">Feats & Record Breakers</h5>
           </div>
           <div>
             <div className="overflow-x-auto p-4">
-              <table className="mb-0 align-top border-gray-200 text-slate-500 relative">
+              <table className="min-w-full mb-0 align-top border-gray-200 text-slate-500">
                 <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
                   <tr>
                     <th className="sticky left-0 z-10 p-2 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
                       Record
                     </th>
-                    <th className="sticky left-[160px] z-10 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
+                    <th className="px-2 py-3 font-bold uppercase align-middle border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
                     <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
                       Player(s) / Team(s)
                     </th>
@@ -339,7 +339,7 @@ const Feats: React.FC = () => {
                           <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                             <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
                           </td>
-                          <td className="sticky left-[160px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                          <td className="p-2 align-middle border-b whitespace-nowrap">
                             <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                             </svg>
@@ -379,7 +379,7 @@ const Feats: React.FC = () => {
                                 'Undefeated Streak'}
                               </span>
                             </td>
-                            <td className="sticky left-[160px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                            <td className="p-2 align-middle border-b whitespace-nowrap">
                               <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                               </svg>
@@ -415,7 +415,7 @@ const Feats: React.FC = () => {
                           <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                             <span className="font-normal leading-normal text-sm">Consecutive Games Scoring</span>
                           </td>
-                          <td className="sticky left-[160px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                          <td className="p-2 align-middle border-b whitespace-nowrap">
                             <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                             </svg>
@@ -450,7 +450,7 @@ const Feats: React.FC = () => {
                           <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                             <span className="font-normal leading-normal text-sm">Biggest Victory</span>
                           </td>
-                          <td className="sticky left-[160px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                          <td className="p-2 align-middle border-b whitespace-nowrap">
                             <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                             </svg>
