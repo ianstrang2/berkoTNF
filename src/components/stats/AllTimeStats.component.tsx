@@ -125,18 +125,20 @@ const AllTimeStats: React.FC = () => {
   }
 
   return (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border max-w-screen-2xl">
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">All-Time Leaderboard</h5>
       </div>
-      <div className="relative">
-        <div className="overflow-auto max-h-[calc(100vh-200px)] md:touch-auto" style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}>
-          <table className="table-auto mb-0 align-top border-gray-200 text-slate-500 w-full">
-            <thead className="align-bottom sticky top-0 bg-white z-10 shadow-sm">
+      <div>
+        <div className="overflow-x-auto">
+          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
+            <thead className="align-bottom sticky top-0 z-20 bg-white shadow-sm">
               <tr>
+                <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">#</th>
+                <th className="sticky left-[50px] z-10 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
                 <th 
                   onClick={() => sortData('name')}
-                  className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 text-left min-w-[120px]"
+                  className="sticky left-[80px] z-10 p-2 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 text-left min-w-[150px]"
                 >
                   Player {getSortIndicator('name')}
                 </th>
@@ -236,14 +238,22 @@ const AllTimeStats: React.FC = () => {
               {stats.map((player, index) => {
                 const isRetired = player.is_retired;
                 const wins = player.wins || 0;
-                const losses = player.losses || 0;
+                const losses = (player.games_played || 0) - (player.wins || 0) - (player.draws || 0);
                 const heavyWins = player.heavy_wins || 0;
                 const heavyLosses = player.heavy_losses || 0;
                 const cleanSheets = player.clean_sheets || 0;
 
                 return (
-                  <tr key={index} className={isRetired ? 'opacity-60' : ''}>
-                    <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                  <tr key={index} className={`${isRetired ? 'opacity-60' : ''} hover:bg-gray-50`}>
+                    <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap text-center">
+                      <span className="font-normal leading-normal text-sm">{index + 1}</span>
+                    </td>
+                    <td className="sticky left-[50px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                      <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    </td>
+                    <td className="sticky left-[80px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                       <div className="flex px-2 py-1">
                         <div className="flex flex-col justify-center">
                           <h6 className={`mb-0 leading-normal text-sm ${isRetired ? 'text-slate-400' : ''}`}>{player.name}</h6>

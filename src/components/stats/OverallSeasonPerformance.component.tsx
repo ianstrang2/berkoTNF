@@ -183,128 +183,127 @@ const OverallSeasonPerformance: React.FC = () => {
     );
   };
 
-  const renderMainStats = () => (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-      <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-        <h5 className="mb-0">Points Leaderboard</h5>
-      </div>
-      <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
-        <div className="table-responsive" style={{position: 'relative'}}>
-          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-            <thead className="align-bottom">
-              <tr>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">P</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">W</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">D</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">L</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">G</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HW</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HL</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">CS</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Win %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.seasonStats.map((player, index) => {
-                const losses = player.games_played - player.wins - player.draws;
-                return (
-                  <tr key={index}>
-                    <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                      <div className="flex px-2 py-1">
-                        <div className="flex flex-col justify-center">
-                          <h6 className="mb-0 leading-normal text-sm">
-                            {renderPlayerName(player.player_id, player.name)}
-                          </h6>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasy_points}</p>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.games_played}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.wins}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.draws}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{losses}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.goals}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.heavy_wins}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.heavy_losses}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.clean_sheets}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+  const renderTable = (data: any[], title: string, statsType: 'points' | 'goals') => {
+    if (!data || data.length === 0) {
+      return <p>No data available for {title}.</p>;
+    }
 
-  const renderGoalStats = () => (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-      <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-        <h5 className="mb-0">Goalscoring Leaderboard</h5>
-      </div>
-      <div className="overflow-x-auto" style={{maxHeight: "80vh"}}>
-        <div className="table-responsive" style={{position: 'relative'}}>
-          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
-            <thead className="align-bottom">
-              <tr>
-                <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Player</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Goals</th>
-                <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">MPG</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.goalStats
-                .filter(player => player.total_goals > 0)
-                .map((player, index) => (
-                <tr key={index}>
-                  <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                    <div className="flex px-2 py-1">
-                      <div className="flex flex-col justify-center">
-                        <h6 className="mb-0 leading-normal text-sm">
-                          {renderPlayerName(player.player_id, player.name)}
-                        </h6>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-semibold leading-normal text-sm">{player.total_goals}</span>
-                  </td>
-                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className={`leading-normal text-sm ${player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
-                      {player.minutes_per_goal}
-                    </span>
-                  </td>
+    return (
+      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border w-full mb-6">
+        <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+          <h5 className="mb-0">{title}</h5>
+        </div>
+        {/* Outer container - REMOVED overflow-y-auto max-h-[80vh] */}
+        <div>
+          {/* Inner container for horizontal scrolling */}
+          <div className="overflow-x-auto">
+            <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
+              <thead className="align-bottom sticky top-0 z-20 bg-white shadow-sm">
+                <tr>
+                  {/* Sticky Headers */}
+                  <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">#</th>
+                  <th className="sticky left-[50px] z-10 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th> {/* Icon Placeholder */}
+                  <th className="sticky left-[80px] z-10 px-6 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">Player</th>
+                  {/* Scrollable Headers */}
+                  {statsType === 'points' ? (
+                    <>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">P</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">W</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">D</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">L</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">G</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HW</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HL</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">CS</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Win %</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Goals</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">MPG</th>
+                    </>
+                  )}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.map((player: any, index: number) => {
+                   const losses = player.games_played - player.wins - player.draws; // Calculate losses if needed
+                   return (
+                    <tr key={index} className="hover:bg-gray-50">
+                      {/* Sticky Data */}
+                      <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap text-center">
+                         <span className="font-normal leading-normal text-sm">{index + 1}</span>
+                      </td>
+                      <td className="sticky left-[50px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                        {/* Placeholder Icon */}
+                        <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                      </td>
+                       <td className="sticky left-[80px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                        <div className="flex px-2 py-1">
+                          <div className="flex flex-col justify-center">
+                            <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                          </div>
+                        </div>
+                      </td>
+                      {/* Scrollable Data */}
+                      {statsType === 'points' ? (
+                        <>
+                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                            <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasy_points}</p>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                            <span className="font-normal leading-normal text-sm">{player.games_played}</span>
+                          </td>
+                           <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                             <span className="font-normal leading-normal text-sm">{player.wins}</span>
+                           </td>
+                           <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                             <span className="font-normal leading-normal text-sm">{player.draws}</span>
+                           </td>
+                           <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                             <span className="font-normal leading-normal text-sm">{losses}</span>
+                           </td>
+                           <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                             <span className="font-normal leading-normal text-sm">{player.goals}</span>
+                           </td>
+                           <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                             <span className="font-normal leading-normal text-sm">{player.heavy_wins}</span>
+                           </td>
+                           <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                             <span className="font-normal leading-normal text-sm">{player.heavy_losses}</span>
+                           </td>
+                           <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                             <span className="font-normal leading-normal text-sm">{player.clean_sheets}</span>
+                           </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                            <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                            <span className="font-semibold leading-normal text-sm">{player.total_goals}</span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                             <span className={`leading-normal text-sm ${player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
+                              {player.minutes_per_goal}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                   );
+                 })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading || !isClient) {
     return (
@@ -384,19 +383,19 @@ const OverallSeasonPerformance: React.FC = () => {
           <div className="hidden lg:block">
             {/* Points Leaderboard */}
             <div className="inline-block align-top px-3 mb-6">
-              {renderMainStats()}
+              {renderTable(stats.seasonStats, 'Points Leaderboard', 'points')}
             </div>
             
             {/* Goalscoring Leaderboard */}
             <div className="inline-block align-top px-3 mb-6">
-              {renderGoalStats()}
+              {renderTable(stats.goalStats, 'Goalscoring Leaderboard', 'goals')}
             </div>
           </div>
 
           {/* Mobile Layout - Hidden on desktop */}
           <div className="block lg:hidden w-full px-3">
-            {activeTab === 'stats' && renderMainStats()}
-            {activeTab === 'goals' && renderGoalStats()}
+            {activeTab === 'stats' && renderTable(stats.seasonStats, 'Points Leaderboard', 'points')}
+            {activeTab === 'goals' && renderTable(stats.goalStats, 'Goalscoring Leaderboard', 'goals')}
           </div>
         </>
       )}
