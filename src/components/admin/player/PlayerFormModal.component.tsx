@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Define attribute descriptions for tooltips
 const attributeDescriptions: Record<string, string> = {
@@ -66,6 +66,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   submitButtonText = "Create Player"
 }) => {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<PlayerFormData>({
     name: initialData?.name || '',
@@ -79,6 +80,13 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     resilience: initialData?.resilience || 3
   });
 
+  // Effect to clear nameError when formData.name changes
+  useEffect(() => {
+    if (nameError) {
+      setNameError(null);
+    }
+  }, [formData.name, nameError]);
+
   // Toggle tooltip display
   const toggleTooltip = (key: string) => {
     setActiveTooltip(activeTooltip === key ? null : key);
@@ -88,10 +96,11 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNameError(null); // Clear previous errors
     
     try {
       await onSubmit(formData);
-      // Reset form after submission
+      // Reset form after submission only on success
       setFormData({
         name: '',
         is_ringer: true,
@@ -103,8 +112,17 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
         teamwork: 3,
         resilience: 3
       });
-    } catch (error) {
+      // On successful submission, onClose should be called by the parent component if needed.
+    } catch (error: any) {
       console.error('Error submitting player form:', error);
+      // Check for Supabase unique constraint violation (example error check)
+      // You might need to adjust this check based on the actual error structure from Supabase
+      if (error.message && error.message.includes('duplicate key value violates unique constraint')) {
+        setNameError('That name already exists. Please choose a different one.');
+      } else {
+        // Handle other types of errors (optional, or let parent handle)
+        setNameError('An unexpected error occurred. Please try again.');
+      }
     }
   };
 
@@ -150,8 +168,13 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
                 placeholder="Enter player name"
+                maxLength={14}
                 required
               />
+              <div className="text-xs text-slate-500 mt-1 flex justify-between">
+                <span>{nameError && <span className="text-red-500">{nameError}</span>}</span>
+                <span>{formData.name.length} / 14</span>
+              </div>
             </div>
             
             <div className="mb-4">
@@ -252,8 +275,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
-                disabled={isProcessing}
+                className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-fuchsia-500 to-pink-400 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isProcessing || !formData.name || formData.name.length > 14 || !!nameError}
               >
                 {isProcessing ? 'Processing...' : submitButtonText}
               </button>

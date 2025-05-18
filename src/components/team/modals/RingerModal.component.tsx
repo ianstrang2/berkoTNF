@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RingerForm } from '@/types/team-algorithm.types';
 import Button from '@/components/ui-kit/Button.component';
 
@@ -54,6 +54,7 @@ const RingerModal: React.FC<RingerModalProps> = ({
   isLoading
 }) => {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   
   // Toggle tooltip display
   const toggleTooltip = (key: string) => {
@@ -62,9 +63,27 @@ const RingerModal: React.FC<RingerModalProps> = ({
   
   if (!isOpen) return null;
   
-  const handleSubmit = (e: React.FormEvent) => {
+  // Effect to clear nameError when form.name changes
+  useEffect(() => {
+    if (nameError) {
+      setNameError(null);
+    }
+  }, [form.name, nameError]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit();
+    setNameError(null); // Clear previous errors
+    try {
+      await onSubmit(); // This calls handleAddRinger
+      // onClose(); // Do not call onClose here, parent (useTeamAlgorithm) should handle it on successful creation
+    } catch (error: any) {
+      console.error('Error submitting ringer form:', error);
+      if (error.message && error.message.includes('duplicate key value violates unique constraint')) {
+        setNameError('That name already exists. Please choose a different one.');
+      } else {
+        setNameError('An unexpected error occurred. Please try again.');
+      }
+    }
   };
   
   const attributeFields = [
@@ -109,8 +128,13 @@ const RingerModal: React.FC<RingerModalProps> = ({
                 onChange={(e) => onChange('name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
                 placeholder="Enter player name"
+                maxLength={14}
                 required
               />
+              <div className="text-xs text-slate-500 mt-1 flex justify-between">
+                <span>{nameError && <span className="text-red-500">{nameError}</span>}</span>
+                <span>{form.name.length} / 14</span>
+              </div>
             </div>
 
             <div className="mb-4">
@@ -211,7 +235,7 @@ const RingerModal: React.FC<RingerModalProps> = ({
                 variant="primary"
                 className="bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md rounded-lg uppercase"
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !form.name || form.name.length > 14 || !!nameError}
               >
                 {isLoading ? 'PROCESSING...' : 'CREATE PLAYER'}
               </Button>

@@ -55,19 +55,23 @@ export const usePlayerData = () => {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to add ringer');
+        const errorMessage = data?.error || 'Failed to add ringer. An unknown error occurred.';
+        console.error('API error when adding ringer:', data);
+        throw new Error(errorMessage);
       }
       
-      // Add the new player to the local state
-      setPlayers(prevPlayers => [...prevPlayers, data.data]);
+      setPlayers(prevPlayers => 
+        [...prevPlayers, data.data].sort((a, b) => a.name.localeCompare(b.name))
+      );
       
       return data.data;
     } catch (error) {
-      console.error('Error adding ringer:', error);
-      setError(`Failed to add ringer: ${error instanceof Error ? error.message : String(error)}`);
-      return null;
+      console.error('Error in addRinger (usePlayerData):', error);
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred while adding ringer.';
+      setError(message);
+      throw error;
     }
-  }, []);
+  }, [setPlayers]);
   
   // Load players on mount
   useEffect(() => {

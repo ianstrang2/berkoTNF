@@ -59,6 +59,7 @@ const PlayerManager: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<EditableRowData | null>(null);
+  const [inlineEditError, setInlineEditError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlayers();
@@ -84,13 +85,14 @@ const PlayerManager: React.FC = () => {
     setError('');
 
     try {
+      const isEditing = !!selectedPlayer;
       const url = '/api/admin/players';
-      const method = 'POST';
+      const method = isEditing ? 'PUT' : 'POST';
       
-      // Create a copy of the data and map 'defending' to 'defender' for API compatibility
       const apiFormData = {
         ...formData,
         defender: formData.defending,
+        player_id: isEditing ? selectedPlayer.player_id : undefined,
       };
 
       const response = await fetch(url, {
@@ -102,15 +104,21 @@ const PlayerManager: React.FC = () => {
       });
 
       const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
+
+      if (!response.ok) {
+        throw new Error(data.error || (isEditing ? 'Failed to update player' : 'Failed to add player'));
       }
 
-      // Close modal and refresh player list
       setShowPlayerModal(false);
+      setSelectedPlayer(null);
       fetchPlayers();
+
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('That name already exists')) {
+          setError(errorMessage);
+      }
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
@@ -191,29 +199,39 @@ const PlayerManager: React.FC = () => {
       is_ringer: player.is_ringer,
       is_retired: player.is_retired
     });
+    setInlineEditError(null); // Clear previous inline edit errors
+    setError(''); // Clear general component errors too
   };
 
   const handleEditCancel = (): void => {
     setEditingId(null);
     setEditData(null);
+    setInlineEditError(null); // Clear inline edit errors on cancel
   };
 
   const handleEditSave = async (): Promise<void> => {
     if (!editData || !editingId) return;
     
+    setInlineEditError(null); // Clear previous errors
+    setError(''); // Clear general component errors
+
+    // Client-side validation
+    if (!editData.name.trim()) {
+      setInlineEditError("Name cannot be empty.");
+      return;
+    }
+    if (editData.name.length > 14) {
+      setInlineEditError("Name cannot exceed 14 characters.");
+      return;
+    }
+
     try {
-      setIsLoading(true);
-      setError('');
-
-      // Get the original player to preserve other fields
-      const originalPlayer = players.find(p => p.player_id === editingId);
-      if (!originalPlayer) return;
-
+      setIsLoading(true); // Use general loading for inline save as well, or a specific one
       const response = await fetch('/api/admin/players', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...originalPlayer,
+          ...players.find(p => p.player_id === editingId),
           name: editData.name,
           is_ringer: editData.is_ringer,
           is_retired: editData.is_retired,
@@ -222,7 +240,10 @@ const PlayerManager: React.FC = () => {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to update player');
+      if (!response.ok) {
+        const errorData = await response.json(); // Ensure we try to parse error data
+        throw new Error(errorData.error || 'Failed to update player');
+      }
 
       // Update local state
       setPlayers(players.map(p => 
@@ -234,10 +255,18 @@ const PlayerManager: React.FC = () => {
         } : p
       ));
       
+      // Only clear editing state on successful save
       setEditingId(null);
       setEditData(null);
+      setInlineEditError(null);
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      if (message && message.includes('duplicate key value violates unique constraint')) {
+        setInlineEditError('That name already exists. Please choose a different one.');
+      } else {
+        setInlineEditError(message || 'Failed to update player.');
+      }
+      // Do not clear editingId or editData here, so the user can correct the error.
     } finally {
       setIsLoading(false);
     }
@@ -245,17 +274,31 @@ const PlayerManager: React.FC = () => {
 
   const renderEditableRow = (player: Player): JSX.Element => {
     if (!editData) return <></>;
+    
+    const isSaveDisabled = isLoading || !editData.name.trim() || editData.name.length > 14 || !!inlineEditError;
 
     return (
       <tr key={player.player_id} className="bg-gradient-to-r from-fuchsia-50 to-slate-50">
         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-          <div className="flex px-2 py-1">
+          <div className="flex flex-col px-2 py-1">
             <input
               type="text"
               value={editData.name}
-              onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-              className="w-full px-2 py-1 border border-fuchsia-200 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
+              onChange={(e) => {
+                setEditData({ ...editData, name: e.target.value });
+                // Clear error as user types
+                if (inlineEditError && (e.target.value.trim() && e.target.value.length <= 14)) {
+                    setInlineEditError(null);
+                }
+              }}
+              maxLength={14}
+              className={`w-full px-2 py-1 border rounded-lg focus:outline-none text-sm ${inlineEditError ? 'border-red-500' : 'border-fuchsia-200 focus:border-fuchsia-300'}`}
             />
+            <div className="text-xs text-slate-500 mt-1 flex justify-between w-full">
+                {inlineEditError && <span className="text-red-500 text-xs">{inlineEditError}</span>}
+                {!inlineEditError && <span>&nbsp;</span>} {/* Placeholder to maintain height */} 
+                <span className={`${(editData.name.length > 14 || !editData.name.trim()) ? 'text-red-500' : 'text-slate-500'}`}>{editData.name.length} / 14</span>
+            </div>
           </div>
         </td>
         <td className="p-2 text-center align-middle bg-transparent border-b">
@@ -291,8 +334,8 @@ const PlayerManager: React.FC = () => {
           <div className="flex justify-center space-x-2">
             <button
               onClick={handleEditSave}
-              disabled={isLoading}
-              className="inline-block px-3 py-1.5 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+              disabled={isSaveDisabled}
+              className="inline-block px-3 py-1.5 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save
             </button>
@@ -462,11 +505,27 @@ const PlayerManager: React.FC = () => {
       {/* Player Form Modal - only for adding new players */}
       <PlayerFormModal 
         isOpen={showPlayerModal}
-        onClose={() => setShowPlayerModal(false)}
+        onClose={() => {
+          setShowPlayerModal(false);
+          setSelectedPlayer(null); // Clear selected player when closing modal
+          setError(''); // Clear any general errors when modal is closed by user
+        }}
         onSubmit={handleSubmitPlayer}
         isProcessing={isSubmitting}
-        title="Add Player"
-        submitButtonText="Create Player"
+        initialData={selectedPlayer ? {
+          name: selectedPlayer.name,
+          is_ringer: selectedPlayer.is_ringer,
+          is_retired: selectedPlayer.is_retired,
+          goalscoring: selectedPlayer.goalscoring,
+          // Map 'defender' from player object to 'defending' for form
+          defending: selectedPlayer.defender, 
+          stamina_pace: selectedPlayer.stamina_pace,
+          control: selectedPlayer.control,
+          teamwork: selectedPlayer.teamwork,
+          resilience: selectedPlayer.resilience,
+        } : undefined}
+        title={selectedPlayer ? "Edit Player" : "Add Player"}
+        submitButtonText={selectedPlayer ? "Save Changes" : "Create Player"}
       />
     </div>
   );

@@ -310,20 +310,24 @@ export const useTeamAlgorithm = () => {
   const handleAddRinger = useCallback(async () => {
     try {
       setIsLoading(true);
-      
+      setError(null); // Clear previous general errors
+
       // Validate required fields
       if (!ringerForm.name.trim()) {
-        setError('Player name is required');
-        return;
+        // This error should ideally be handled by the form itself,
+        // but as a safeguard, we can throw here too.
+        throw new Error('Player name is required');
       }
-      
+      if (ringerForm.name.length > 14) {
+         throw new Error('Player name cannot exceed 14 characters');
+      }
+
       // Check if we've already reached the maximum players for the pool
       const maxAllowedPlayers = (activeMatch?.team_size || 9) * 2;
       if (selectedPoolPlayers.length >= maxAllowedPlayers) {
-        setError('Maximum number of players has been reached');
-        return;
+        throw new Error('Maximum number of players has been reached for the pool');
       }
-      
+
       // Add the ringer
       const result = await addRinger({
         name: ringerForm.name,
@@ -333,30 +337,42 @@ export const useTeamAlgorithm = () => {
         control: ringerForm.control,
         teamwork: ringerForm.teamwork,
         resilience: ringerForm.resilience,
-        is_ringer: true
+        is_ringer: true // RingerModal always creates ringers
       });
-      
-      if (result) {
-        // Reset form and close modal
-        setRingerForm(DEFAULT_RINGER_FORM);
-        setIsRingerModalOpen(false);
-        
-        // Add the new player to the pool
-        if (activeMatch) {
-          const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
-          await TeamAPIService.addPlayerToPool(matchId.toString(), result.id.toString());
-          
-          // Update the local player pool state
-          setSelectedPoolPlayers(prev => [...prev, result]);
+
+      // No specific 'result' check here as addRinger should throw on failure
+      // If addRinger is successful, 'result' will be the new player object.
+
+      // Reset form and close modal on success
+      setRingerForm(DEFAULT_RINGER_FORM);
+      setIsRingerModalOpen(false);
+
+      // Add the new player to the pool if a match is active
+      if (activeMatch && result) { // Ensure result is available
+        const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
+        if (matchId && result.id) { // Ensure matchId and result.id are valid
+            await TeamAPIService.addPlayerToPool(matchId.toString(), result.id.toString());
+            // Update the local player pool state
+            setSelectedPoolPlayers(prev => [...prev, result]);
+        } else {
+            console.warn('Match ID or new player ID is missing, cannot add to pool.');
+            // Optionally, set an error or notification for the user
         }
       }
+      // Return the result or void, RingerModal's onSubmit expects Promise<void> or similar
+      // For RingerModal, it doesn't directly use the result, but it's good practice
+      // if other parts of the system might use a similar handler.
+      return result; // Or simply return; if nothing downstream needs it.
+
     } catch (error) {
-      console.error('Error adding ringer:', error);
-      setError(`Failed to add ringer: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('Error adding ringer in useTeamAlgorithm:', error);
+      // Re-throw the error so the modal can catch it and display a specific message
+      // The modal will handle displaying "That name already exists..."
+      throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [ringerForm, addRinger, activeMatch, selectedPoolPlayers.length]);
+  }, [ringerForm, addRinger, activeMatch, selectedPoolPlayers, setIsLoading, setError, setIsRingerModalOpen]);
   
   // Handle ringer form field changes
   const handleRingerFormChange = (field: string, value: any) => {
