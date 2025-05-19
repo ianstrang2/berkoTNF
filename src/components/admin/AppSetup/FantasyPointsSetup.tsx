@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Card, ConfirmationModal } from '@/components/ui-kit';
 
 interface ConfigItem {
@@ -34,19 +34,10 @@ const FantasyPointsSetup: React.FC = () => {
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
   const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  useEffect(() => {
-    const hasChanges = JSON.stringify(configs) !== JSON.stringify(originalConfigs);
-    setIsDirty(hasChanges);
-  }, [configs, originalConfigs]);
-
-  const fetchSettings = async (): Promise<void> => {
+  const fetchSettings = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/app-config?group=fantasy_points');
+      const response = await fetch('/api/admin/settings/fantasy-points');
       
       if (!response.ok) throw new Error('Failed to fetch fantasy points settings');
       
@@ -67,7 +58,16 @@ const FantasyPointsSetup: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  useEffect(() => {
+    const hasChanges = JSON.stringify(configs) !== JSON.stringify(originalConfigs);
+    setIsDirty(hasChanges);
+  }, [configs, originalConfigs]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;

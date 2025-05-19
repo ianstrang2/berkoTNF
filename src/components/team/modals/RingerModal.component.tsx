@@ -56,6 +56,13 @@ const RingerModal: React.FC<RingerModalProps> = ({
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   
+  // Move useEffect before any conditional returns
+  useEffect(() => {
+    if (nameError) {
+      setNameError(null);
+    }
+  }, [form.name, nameError]);
+  
   // Toggle tooltip display
   const toggleTooltip = (key: string) => {
     setActiveTooltip(activeTooltip === key ? null : key);
@@ -63,13 +70,6 @@ const RingerModal: React.FC<RingerModalProps> = ({
   
   if (!isOpen) return null;
   
-  // Effect to clear nameError when form.name changes
-  useEffect(() => {
-    if (nameError) {
-      setNameError(null);
-    }
-  }, [form.name, nameError]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNameError(null); // Clear previous errors

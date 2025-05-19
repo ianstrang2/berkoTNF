@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 
 interface NavPillsProps<T extends string> {
   items: {
@@ -28,32 +28,21 @@ export const NavPills = <T extends string>({
     opacity: '1'
   });
 
-  // Calculate moving tab position and width
-  const updateMovingTab = (withTransition = true) => {
-    if (!navRef.current) return;
-
-    const nav = navRef.current;
-    const activeLi = nav.children[activeIndex] as HTMLElement;
-    
-    if (!activeLi) return;
-
-    // Calculate position
-    let sum = 0;
-    for (let i = 0; i < activeIndex; i++) {
-      const child = nav.children[i] as HTMLElement;
-      if (child) {
-        sum += child.offsetWidth;
+  const updateMovingTab = useCallback(() => {
+    if (navRef.current) {
+      const activeTabElement = document.querySelector(`[data-tab="${activeTab}"]`);
+      if (activeTabElement) {
+        const { left, width } = activeTabElement.getBoundingClientRect();
+        const containerLeft = navRef.current.parentElement?.getBoundingClientRect().left || 0;
+        setMovingTabStyle({
+          transform: `translateX(${left - containerLeft}px)`,
+          width: `${width}px`,
+          transition: '.5s ease',
+          opacity: '1'
+        });
       }
     }
-    
-    // Update moving tab style
-    setMovingTabStyle({
-      transform: `translate3d(${sum}px, 0px, 0px)`,
-      width: `${activeLi.offsetWidth}px`,
-      transition: withTransition ? '.5s ease' : 'none',
-      opacity: '1'
-    });
-  };
+  }, [activeTab]);
 
   // Handle client-side mounting
   useEffect(() => {
@@ -65,7 +54,7 @@ export const NavPills = <T extends string>({
     if (!isClient) return;
 
     const initializeTab = () => {
-      updateMovingTab(true);
+      updateMovingTab();
     };
 
     // Initialize on mount and when active tab changes
@@ -89,7 +78,7 @@ export const NavPills = <T extends string>({
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
     };
-  }, [isClient, activeIndex, items]);
+  }, [isClient, activeIndex, items, updateMovingTab]);
 
   // Update active index when tab changes
   useEffect(() => {

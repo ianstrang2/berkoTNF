@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigation } from '@/contexts/NavigationContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 
 interface NavItem {
   label: string;
@@ -85,11 +86,16 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Brand/Logo */}
         <Link href="/" className="block px-8 py-6 m-0 text-sm whitespace-nowrap text-slate-700 dark:text-white">
-          <img src={logoLight} className="inline-block h-full max-w-full transition-all duration-200 ease-soft-in-out max-h-8 dark:hidden" alt="main_logo" />
-          <img src={logoDark} className="hidden h-full max-w-full transition-all duration-200 ease-soft-in-out max-h-8 dark:inline-block" alt="main_logo" />
-          {(!isSidebarMini || isHovering) && (
+          <div className="flex items-center">
+            <Image
+              src="/img/logo.png"
+              alt="Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8"
+            />
             <span className="ml-2 font-semibold text-sm transition-all duration-200 ease-soft-in-out">StatKick</span>
-          )}
+          </div>
         </Link>
       </div>
       

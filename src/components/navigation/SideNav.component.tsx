@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import NavItem from './NavItem.component';
 import { useNavigation } from '@/contexts/NavigationContext';
+import Image from 'next/image';
 
 export default function SideNav() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -12,7 +13,14 @@ export default function SideNav() {
       <div className="flex items-center justify-between p-4 border-b border-neutral-200">
         {!isCollapsed && (
           <div className="flex items-center justify-center w-full">
-            <img src="/logo.png" alt="StatKick" className="h-8 w-auto" />
+            <Image
+              src="/img/logo.png"
+              alt="Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8"
+            />
+            <span className="ml-2 font-semibold text-sm transition-all duration-200 ease-soft-in-out">StatKick</span>
           </div>
         )}
         <button 
