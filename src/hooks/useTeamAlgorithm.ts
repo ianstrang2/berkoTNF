@@ -9,6 +9,18 @@ import { TeamAPIService } from '@/services/TeamAPI.service';
 import { DEFAULT_RINGER_FORM } from '@/constants/team-algorithm.constants';
 import { determinePositionGroups, formatTeamsForCopy, createCopyModal } from '@/utils/team-algorithm.utils';
 
+// Define a type for the player status API response
+interface PlayerStatusResponse {
+  on_fire_player_id: number | null;
+  grim_reaper_player_id: number | null;
+}
+
+// Define a type for the app config API response
+interface AppConfig {
+  config_key: string;
+  config_value: string;
+}
+
 export const useTeamAlgorithm = () => {
   // Local state
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +32,12 @@ export const useTeamAlgorithm = () => {
   const [selectedPoolPlayers, setSelectedPoolPlayers] = useState<Player[]>([]);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const [pendingPlayerToggles, setPendingPlayerToggles] = useState<Set<string>>(new Set());
+  
+  // New state for player status and config
+  const [onFirePlayerId, setOnFirePlayerId] = useState<number | null>(null);
+  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<number | null>(null);
+  const [showOnFireIcon, setShowOnFireIcon] = useState<boolean>(true);
+  const [showGrimReaperIcon, setShowGrimReaperIcon] = useState<boolean>(true);
   
   // Use our custom hooks
   const { 
@@ -51,6 +69,42 @@ export const useTeamAlgorithm = () => {
     clearSlots, 
     getAvailablePlayers: getAvailablePlayersFn
   } = useTeamSlots(activeMatch, setError);
+  
+  // Fetch player status and admin config on mount
+  useEffect(() => {
+    const fetchStatusAndConfig = async () => {
+      try {
+        // Fetch player status (on fire/grim reaper)
+        const playerStatusRes = await fetch('/api/latest-player-status');
+        if (playerStatusRes.ok) {
+          const statusData: PlayerStatusResponse = await playerStatusRes.json();
+          setOnFirePlayerId(statusData.on_fire_player_id);
+          setGrimReaperPlayerId(statusData.grim_reaper_player_id);
+        } else {
+          console.warn('Failed to fetch latest player status');
+        }
+
+        // Fetch admin config for icons
+        const configRes = await fetch('/api/admin/app-config?group=match_report'); // Assuming group is match_report or similar
+        if (configRes.ok) {
+          const configData: { success: boolean, data: AppConfig[] } = await configRes.json();
+          if (configData.success && configData.data) {
+            const onFireSetting = configData.data.find(c => c.config_key === 'show_on_fire');
+            const grimReaperSetting = configData.data.find(c => c.config_key === 'show_grim_reaper');
+            setShowOnFireIcon(onFireSetting?.config_value !== 'false');
+            setShowGrimReaperIcon(grimReaperSetting?.config_value !== 'false');
+          }
+        } else {
+          console.warn('Failed to fetch app config for icons');
+        }
+      } catch (err) {
+        console.error('Error fetching player status or config:', err);
+        // Optionally set an error state for the UI
+      }
+    };
+
+    fetchStatusAndConfig();
+  }, []); // Empty dependency array to run once on mount
   
   // Load existing pool players when match changes
   useEffect(() => {
@@ -236,7 +290,14 @@ export const useTeamAlgorithm = () => {
   // Function to handle copying teams to clipboard
   const handleCopyTeams = useCallback(async () => {
     try {
-      const teamsText = formatTeamsForCopy(currentSlots, players);
+      const teamsText = formatTeamsForCopy(
+        currentSlots,
+        players,
+        onFirePlayerId,
+        grimReaperPlayerId,
+        showOnFireIcon,
+        showGrimReaperIcon
+      );
       
       // Use the Clipboard API if available
       if (navigator.clipboard && window.isSecureContext) {
@@ -283,7 +344,7 @@ export const useTeamAlgorithm = () => {
       const modal = createCopyModal(formatTeamsForCopy(currentSlots, players));
       document.body.appendChild(modal);
     }
-  }, [currentSlots, players]);
+  }, [currentSlots, players, onFirePlayerId, grimReaperPlayerId, showOnFireIcon, showGrimReaperIcon]);
   
   // Handle a new match creation or update
   const handleCreateMatch = useCallback(async (matchData: NewMatchData) => {

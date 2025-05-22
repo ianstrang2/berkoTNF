@@ -299,21 +299,40 @@ export const validateMatchData = (matchData: { date: string, team_size: number }
 /**
  * Formats teams for copying/exporting
  */
-export const formatTeamsForCopy = (slots: Slot[], players: Player[]): string => {
+export const formatTeamsForCopy = (
+  slots: Slot[],
+  players: Player[],
+  on_fire_player_id?: number | null,
+  grim_reaper_player_id?: number | null,
+  showOnFire?: boolean,
+  showGrimReaper?: boolean
+): string => {
   const formatTeam = (teamSlots: Slot[]) => {
     return teamSlots
       .filter(slot => slot.player_id)
       .map(slot => {
         const player = players.find(p => p.id === slot.player_id);
-        return player ? player.name : '';
+        if (!player) return '';
+
+        let playerName = player.name;
+        // Ensure player.id is treated as a number for comparison
+        const playerIdAsNumber = typeof player.id === 'string' ? parseInt(player.id, 10) : player.id;
+
+        if (showOnFire && playerIdAsNumber === on_fire_player_id) {
+          playerName += ' 🔥';
+        }
+        if (showGrimReaper && playerIdAsNumber === grim_reaper_player_id) {
+          playerName += ' 💀';
+        }
+        return playerName;
       })
       .filter(name => name)
       .sort()
       .join('\n');
   };
 
-  const teamASlots = slots.filter(s => s.slot_number <= 9);
-  const teamBSlots = slots.filter(s => s.slot_number > 9);
+  const teamASlots = slots.filter(s => s.slot_number <= 9); // Assuming 9 is max for Team A, adjust if dynamic
+  const teamBSlots = slots.filter(s => s.slot_number > 9); // Assuming 9 is max for Team A, adjust if dynamic
 
   return `Orange\n${formatTeam(teamASlots)}\n\nGreen\n${formatTeam(teamBSlots)}`;
 }; 
