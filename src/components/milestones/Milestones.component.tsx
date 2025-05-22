@@ -502,7 +502,7 @@ const Milestones: React.FC = () => {
 
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto">
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700">{item.player}</h6>
-                  <p className="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">{item.date}</p>
+                  {/* <p className="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">{item.date}</p> */}
                   <p className="mt-3 mb-2 leading-normal text-sm text-slate-600">{item.content}</p>
                   {item.subtext && (
                     <p className="mb-2 leading-normal text-xs text-slate-500">{item.subtext}</p>

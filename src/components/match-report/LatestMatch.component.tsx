@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import FireIcon from '@/components/icons/FireIcon';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon';
+import { PersonalBestsAPIResponseData as PersonalBestsData } from '@/app/api/personal-bests/route';
 
 interface MatchInfo {
   match_date: string;
@@ -67,9 +68,19 @@ interface FullMatchReportDataWithSpecialPlayers extends FullMatchReportData {
   grim_reaper_player_id?: number | null;
 }
 
+const PB_METRIC_DETAILS_FOR_COPY: { [key: string]: { name: string; unit: string } } = {
+  'most_goals_in_game': { name: 'Most Goals in Game', unit: 'goals' },
+  'longest_win_streak': { name: 'Longest Win Streak', unit: 'games' },
+  'longest_undefeated_streak': { name: 'Longest Undefeated Streak', unit: 'games' },
+  'longest_losing_streak': { name: 'Longest Losing Streak', unit: 'games' },
+  'longest_winless_streak': { name: 'Longest Winless Streak', unit: 'games' },
+  'attendance_streak': { name: 'Attendance Streak', unit: 'games' },
+};
+
 const LatestMatch: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [matchData, setMatchData] = useState<FullMatchReportDataWithSpecialPlayers | null>(null);
+  const [personalBestsData, setPersonalBestsData] = useState<PersonalBestsData | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [teamAName, setTeamAName] = useState<string>('Team A');
   const [teamBName, setTeamBName] = useState<string>('Team B');
@@ -120,14 +131,13 @@ const LatestMatch: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch all data in parallel
-      const [matchResponse, playersResponse, configResponse] = await Promise.all([
+      const [matchResponse, playersResponse, configResponse, personalBestsResponse] = await Promise.all([
         fetch('/api/matchReport'),
         fetch('/api/players'),
-        fetch('/api/admin/app-config?group=match_settings')
+        fetch('/api/admin/app-config?group=match_settings'),
+        fetch('/api/personal-bests')
       ]);
       
-      // Handle match data
       if (!matchResponse.ok) {
         throw new Error(`Match API error: ${matchResponse.status}`);
       }
@@ -136,13 +146,11 @@ const LatestMatch: React.FC = () => {
         setMatchData(matchResult.data);
       }
 
-      // Handle players data
       if (playersResponse.ok) {
         const playersData = await playersResponse.json();
         setAllPlayers(playersData.data || []);
       }
 
-      // Handle config data
       if (configResponse.ok) {
         const configData = await configResponse.json();
         if (configData.success) {
@@ -156,6 +164,19 @@ const LatestMatch: React.FC = () => {
           setShowOnFireConfig(showOnFire?.config_value !== 'false');
           setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
         }
+      }
+
+      if (personalBestsResponse.ok) {
+        const pbResult = await personalBestsResponse.json();
+        if (pbResult.success) {
+          setPersonalBestsData(pbResult.data);
+        } else {
+          console.warn('Failed to fetch personal bests for match report copy:', pbResult.error);
+          setPersonalBestsData(null);
+        }
+      } else {
+        console.warn(`Personal Bests API error: ${personalBestsResponse.status}`);
+        setPersonalBestsData(null);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -174,7 +195,12 @@ const LatestMatch: React.FC = () => {
     return player?.id;
   };
 
-  const formatMatchReportForCopy = (data: FullMatchReportDataWithSpecialPlayers | null, showOnFireUi: boolean, showGrimReaperUi: boolean): string => {
+  const formatMatchReportForCopy = (
+    data: FullMatchReportDataWithSpecialPlayers | null, 
+    pbsData: PersonalBestsData | null,
+    showOnFireUi: boolean, 
+    showGrimReaperUi: boolean
+  ): string => {
     if (!data || !data.matchInfo) return 'No match data available.';
     const { matchInfo } = data;
     const onFireId = data.on_fire_player_id;
@@ -209,6 +235,20 @@ const LatestMatch: React.FC = () => {
     report += `Players: ${formatPlayerListForCopy(matchInfo.team_b_players)}\n`;
     if (matchInfo.team_b_scorers) {
       report += `Scorers: ${matchInfo.team_b_scorers}\n`;
+    }
+
+    if (pbsData && pbsData.broken_pbs_data && Object.keys(pbsData.broken_pbs_data).length > 0) {
+      report += `\n--- PERSONAL BESTS ACHIEVED ---\n`;
+      Object.values(pbsData.broken_pbs_data).forEach(playerPbData => {
+        playerPbData.pbs.forEach(pb => {
+          const metricDetail = PB_METRIC_DETAILS_FOR_COPY[pb.metric_type];
+          if (metricDetail) {
+            report += `- ${playerPbData.name}: ${metricDetail.name} - ${pb.value} ${metricDetail.unit}\n`;
+          } else {
+            report += `- ${playerPbData.name}: ${pb.metric_type.replace(/_/g, ' ')} - ${pb.value}\n`;
+          }
+        });
+      });
     }
 
     const formatList = (title: string, items: any[] | undefined, formatter: (item: any) => string) => {
@@ -289,7 +329,7 @@ const LatestMatch: React.FC = () => {
 
   const handleCopyMatchReport = async () => {
     if (!matchData) return;
-    const reportText = formatMatchReportForCopy(matchData, showOnFireConfig, showGrimReaperConfig);
+    const reportText = formatMatchReportForCopy(matchData, personalBestsData, showOnFireConfig, showGrimReaperConfig);
 
     try {
       await navigator.clipboard.writeText(reportText);

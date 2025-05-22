@@ -8,7 +8,8 @@ const EDGE_FUNCTIONS_TO_CALL = [
   'call-update-hall-of-fame',
   'call-update-recent-performance',
   'call-update-season-honours-and-records',
-  'call-update-match-report-cache'
+  'call-update-match-report-cache',
+  'call-update-personal-bests'
 ];
 
 export async function POST() {
