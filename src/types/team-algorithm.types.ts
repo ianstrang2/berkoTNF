@@ -168,6 +168,7 @@ export interface PlayerFormData {
   control: number;
   teamwork: number;
   resilience: number;
+  selected_club?: { id: string; name: string; filename: string; search: string; league: string; country: string; } | null;
 }
 
 export interface MatchFormData {

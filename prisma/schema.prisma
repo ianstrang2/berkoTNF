@@ -51,6 +51,7 @@ model players {
   control                                                                                           Int                            @default(3) @db.SmallInt
   teamwork                                                                                          Int                            @default(3) @db.SmallInt
   resilience                                                                                        Int?                           @default(3) @db.SmallInt
+  selected_club                                                                                     Json?
   all_time_stats                                                                                    aggregated_all_time_stats?
   half_season_stats                                                                                 aggregated_half_season_stats?
   hall_of_fame                                                                                      aggregated_hall_of_fame[]

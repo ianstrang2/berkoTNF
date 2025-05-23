@@ -3,6 +3,7 @@ import Card from '@/components/ui-kit/Card.component';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 import Button from '@/components/ui-kit/Button.component';
 import PlayerFormModal from './PlayerFormModal.component';
+import ClubSelector, { Club } from './ClubSelector.component';
 
 // Import the AttributeKey type
 type AttributeKey = 'goalscoring' | 'defender' | 'stamina_pace' | 'control' | 'teamwork' | 'resilience';
@@ -19,6 +20,7 @@ interface Player {
   teamwork: number;
   resilience: number;
   matches_played: number;
+  selected_club?: Club | null;
 }
 
 interface FormData {
@@ -31,18 +33,27 @@ interface FormData {
   control: number;
   teamwork: number;
   resilience: number;
+  selected_club?: Club | null;
 }
 
 interface EditableRowData {
   name: string;
   is_ringer: boolean;
   is_retired: boolean;
+  selected_club?: Club | null;
 }
 
 interface SortConfig {
   key: string;
   direction: 'asc' | 'desc';
 }
+
+// Default Person Icon SVG
+const DefaultPlayerIcon = () => (
+  <svg className="h-6 w-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+    <path fillRule="evenodd" d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clipRule="evenodd" />
+  </svg>
+);
 
 const PlayerManager: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -93,6 +104,7 @@ const PlayerManager: React.FC = () => {
         ...formData,
         defender: formData.defending,
         player_id: isEditing ? selectedPlayer.player_id : undefined,
+        selected_club: formData.selected_club,
       };
 
       const response = await fetch(url, {
@@ -197,7 +209,8 @@ const PlayerManager: React.FC = () => {
     setEditData({
       name: player.name,
       is_ringer: player.is_ringer,
-      is_retired: player.is_retired
+      is_retired: player.is_retired,
+      selected_club: player.selected_club || null,
     });
     setInlineEditError(null); // Clear previous inline edit errors
     setError(''); // Clear general component errors too
@@ -212,10 +225,9 @@ const PlayerManager: React.FC = () => {
   const handleEditSave = async (): Promise<void> => {
     if (!editData || !editingId) return;
     
-    setInlineEditError(null); // Clear previous errors
-    setError(''); // Clear general component errors
+    setInlineEditError(null);
+    setError('');
 
-    // Client-side validation
     if (!editData.name.trim()) {
       setInlineEditError("Name cannot be empty.");
       return;
@@ -224,49 +236,80 @@ const PlayerManager: React.FC = () => {
       setInlineEditError("Name cannot exceed 14 characters.");
       return;
     }
+    
+    const originalPlayer = players.find(p => p.player_id === editingId);
+    if (!originalPlayer) {
+        setInlineEditError("Original player data not found. Cannot save.");
+        return;
+    }
 
     try {
-      setIsLoading(true); // Use general loading for inline save as well, or a specific one
+      setIsLoading(true); 
+      
+      // Construct payload, ensuring all required fields for the API are present
+      const payload = {
+        player_id: editingId,
+        name: editData.name,
+        is_ringer: editData.is_ringer,
+        is_retired: editData.is_retired,
+        selected_club: editData.selected_club, // This will be object or null
+        // Preserve existing rating attributes from the original player data
+        goalscoring: originalPlayer.goalscoring,
+        defender: originalPlayer.defender, // API expects 'defender'
+        stamina_pace: originalPlayer.stamina_pace,
+        control: originalPlayer.control,
+        teamwork: originalPlayer.teamwork,
+        resilience: originalPlayer.resilience,
+        // Ensure any other fields expected by the API but not in editData are included from originalPlayer
+        // For example, if join_date was mutable or important: join_date: originalPlayer.join_date 
+      };
+
       const response = await fetch('/api/admin/players', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...players.find(p => p.player_id === editingId),
-          name: editData.name,
-          is_ringer: editData.is_ringer,
-          is_retired: editData.is_retired,
-          player_id: editingId
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const responseData = await response.json(); // Parse the JSON response body
+
       if (!response.ok) {
-        const errorData = await response.json(); // Ensure we try to parse error data
-        throw new Error(errorData.error || 'Failed to update player');
+        const errorDetail = responseData?.error || responseData?.details?.message || responseData?.message || 'Failed to update player';
+        throw new Error(errorDetail);
       }
 
-      // Update local state
+      // Assuming API returns the full updated player object in responseData.data
+      const updatedPlayerFromAPI = responseData.data;
+
       setPlayers(players.map(p => 
-        p.player_id === editingId ? {
-          ...p,
-          name: editData.name,
-          is_ringer: editData.is_ringer,
-          is_retired: editData.is_retired
-        } : p
+        p.player_id === editingId ? 
+        {
+          ...originalPlayer, // Spread original player to retain any non-API returned fields (e.g., matches_played if not returned by this PUT)
+          ...updatedPlayerFromAPI, // Overlay with what the API returned (should be the most up-to-date)
+          selected_club: updatedPlayerFromAPI.selected_club ? { 
+            // Ensure selected_club is an object with the correct structure, or null
+            id: updatedPlayerFromAPI.selected_club.id,
+            name: updatedPlayerFromAPI.selected_club.name,
+            filename: updatedPlayerFromAPI.selected_club.filename,
+            search: updatedPlayerFromAPI.selected_club.search,
+            league: updatedPlayerFromAPI.selected_club.league,
+            country: updatedPlayerFromAPI.selected_club.country,
+          } : null,
+        } 
+        : p
       ));
       
-      // Only clear editing state on successful save
       setEditingId(null);
       setEditData(null);
       setInlineEditError(null);
     } catch (error) {
+      console.error("Error saving player (inline edit):", error); // Log the full error
       const message = error instanceof Error ? error.message : String(error);
       if (message && message.includes('duplicate key value violates unique constraint')) {
         setInlineEditError('That name already exists. Please choose a different one.');
       } else {
-        setInlineEditError(message || 'Failed to update player.');
+        setInlineEditError(message || 'Failed to update player (see console for details).');
       }
-      // Do not clear editingId or editData here, so the user can correct the error.
+      // Do not clear editingId or editData here if save failed, so the user can see the error and try again
     } finally {
       setIsLoading(false);
     }
@@ -279,49 +322,49 @@ const PlayerManager: React.FC = () => {
 
     return (
       <tr key={player.player_id} className="bg-gradient-to-r from-fuchsia-50 to-slate-50">
-        <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+        <td className="p-2 align-middle bg-transparent border-b">
           <div className="flex flex-col px-2 py-1">
             <input
               type="text"
               value={editData.name}
               onChange={(e) => {
                 setEditData({ ...editData, name: e.target.value });
-                // Clear error as user types
-                if (inlineEditError && (e.target.value.trim() && e.target.value.length <= 14)) {
+                if (e.target.value.trim() && e.target.value.length <= 14 && inlineEditError === "Name cannot be empty." || inlineEditError === "Name cannot exceed 14 characters.") {
                     setInlineEditError(null);
                 }
               }}
               maxLength={14}
-              className={`w-full px-2 py-1 border rounded-lg focus:outline-none text-sm ${inlineEditError ? 'border-red-500' : 'border-fuchsia-200 focus:border-fuchsia-300'}`}
+              className={`w-full px-2 py-1 border rounded-lg focus:outline-none text-sm ${ (inlineEditError && (!editData.name.trim() || editData.name.length > 14)) || (inlineEditError && editData.name.trim() && editData.name.length <=14) ? 'border-red-500' : 'border-fuchsia-200 focus:border-fuchsia-300'}`}
             />
             <div className="text-xs text-slate-500 mt-1 flex justify-between w-full">
-                {inlineEditError && <span className="text-red-500 text-xs">{inlineEditError}</span>}
-                {!inlineEditError && <span>&nbsp;</span>} {/* Placeholder to maintain height */} 
+                {inlineEditError ? (
+                  <span className="text-red-500 text-xs">{inlineEditError}</span>
+                ) : (
+                  <span>&nbsp;</span>
+                )}
                 <span className={`${(editData.name.length > 14 || !editData.name.trim()) ? 'text-red-500' : 'text-slate-500'}`}>{editData.name.length} / 14</span>
             </div>
           </div>
         </td>
+        <td className="p-2 align-middle bg-transparent border-b">
+           <ClubSelector
+                value={editData.selected_club || null}
+                onChange={(club) => {
+                  setEditData({ ...editData, selected_club: club });
+                }}
+            />
+        </td>
         <td className="p-2 text-center align-middle bg-transparent border-b">
           <button
             onClick={() => setEditData({ ...editData, is_retired: !editData.is_retired })}
-            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${
-              editData.is_retired 
-                ? 'bg-gradient-to-tl from-red-600 to-rose-400 text-white' 
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
+            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.is_retired ? 'bg-gradient-to-tl from-red-600 to-rose-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
             {editData.is_retired ? 'Retired' : 'Active'}
           </button>
         </td>
         <td className="p-2 text-center align-middle bg-transparent border-b">
           <button
             onClick={() => setEditData({ ...editData, is_ringer: !editData.is_ringer })}
-            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${
-              editData.is_ringer 
-                ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' 
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
+            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.is_ringer ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
             {editData.is_ringer ? 'YES' : 'NO'}
           </button>
         </td>
@@ -335,14 +378,12 @@ const PlayerManager: React.FC = () => {
             <button
               onClick={handleEditSave}
               disabled={isSaveDisabled}
-              className="inline-block px-3 py-1.5 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+              className="inline-block px-3 py-1.5 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed">
               Save
             </button>
             <button
               onClick={handleEditCancel}
-              className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
-            >
+              className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25">
               Cancel
             </button>
           </div>
@@ -418,6 +459,9 @@ const PlayerManager: React.FC = () => {
               <th onClick={() => handleSort('name')} className="cursor-pointer px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Name {getSortIndicator('name')}
               </th>
+              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Club
+              </th>
               <th onClick={() => handleSort('status')} className="cursor-pointer px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Status {getSortIndicator('status')}
               </th>
@@ -435,7 +479,7 @@ const PlayerManager: React.FC = () => {
           <tbody>
             {isLoading && !editingId ? (
               <tr>
-                <td colSpan={5} className="p-2 text-center align-middle bg-transparent border-b">
+                <td colSpan={6} className="p-2 text-center align-middle bg-transparent border-b">
                   <div className="flex justify-center items-center py-4">
                     <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
                       <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
@@ -446,7 +490,7 @@ const PlayerManager: React.FC = () => {
               </tr>
             ) : filteredPlayers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-2 text-center align-middle bg-transparent border-b">
+                <td colSpan={6} className="p-2 text-center align-middle bg-transparent border-b">
                   <div className="py-4 text-slate-500">No players found</div>
                 </td>
               </tr>
@@ -458,26 +502,30 @@ const PlayerManager: React.FC = () => {
                     <tr key={player.player_id}>
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                         <div className="flex px-2 py-1">
-                          <div className="flex flex-row items-center justify-start">
-                            <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
-                          </div>
+                          <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                        </div>
+                      </td>
+                      <td className="p-2 align-middle bg-transparent border-b text-center">
+                        <div className="flex justify-center items-center">
+                          {player.selected_club ? (
+                            <img 
+                              src={`/club-logos-40px/${player.selected_club.filename}`} 
+                              alt={player.selected_club.name} 
+                              className="h-6 w-6" 
+                              title={player.selected_club.name}
+                            />
+                          ) : (
+                            <DefaultPlayerIcon />
+                          )}
                         </div>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${
-                          player.is_retired 
-                            ? 'bg-slate-300 text-slate-700' 
-                            : 'bg-gradient-to-tl from-green-600 to-lime-400 text-white'
-                        }`}>
+                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.is_retired ? 'bg-slate-300 text-slate-700' : 'bg-gradient-to-tl from-green-600 to-lime-400 text-white'}`}>
                           {player.is_retired ? 'RETIRED' : 'ACTIVE'}
                         </span>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${
-                          player.is_ringer 
-                            ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' 
-                            : 'bg-slate-100 text-slate-700'
-                        }`}>
+                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.is_ringer ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
                           {player.is_ringer ? 'YES' : 'NO'}
                         </span>
                       </td>
@@ -489,8 +537,7 @@ const PlayerManager: React.FC = () => {
                       <td className="p-2 text-center align-middle bg-transparent border-b">
                         <button
                           onClick={() => handleEditStart(player)}
-                          className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
-                        >
+                          className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25">
                           EDIT
                         </button>
                       </td>
@@ -517,14 +564,14 @@ const PlayerManager: React.FC = () => {
           is_ringer: selectedPlayer.is_ringer,
           is_retired: selectedPlayer.is_retired,
           goalscoring: selectedPlayer.goalscoring,
-          // Map 'defender' from player object to 'defending' for form
-          defending: selectedPlayer.defender, 
+          defending: selectedPlayer.defender,
           stamina_pace: selectedPlayer.stamina_pace,
           control: selectedPlayer.control,
           teamwork: selectedPlayer.teamwork,
           resilience: selectedPlayer.resilience,
-        } : undefined}
-        title={selectedPlayer ? "Edit Player" : "Add Player"}
+          selected_club: selectedPlayer.selected_club,
+        } : {is_ringer: true, goalscoring: 3, defending: 3, stamina_pace: 3, control: 3, teamwork: 3, resilience: 3, selected_club: null}}
+        title={selectedPlayer ? "Edit Player" : "Add New Player"}
         submitButtonText={selectedPlayer ? "Save Changes" : "Create Player"}
       />
     </div>

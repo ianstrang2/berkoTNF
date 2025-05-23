@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlayerFormData } from '@/types/team-algorithm.types';
+import ClubSelector, { Club } from './ClubSelector.component';
 
 // Define attribute descriptions for tooltips
 const attributeDescriptions: Record<string, string> = {
@@ -66,7 +67,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     stamina_pace: initialData?.stamina_pace || 3,
     control: initialData?.control || 3,
     teamwork: initialData?.teamwork || 3,
-    resilience: initialData?.resilience || 3
+    resilience: initialData?.resilience || 3,
+    selected_club: initialData?.selected_club || null
   });
 
   // Effect to clear nameError when formData.name changes
@@ -99,7 +101,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
         stamina_pace: 3,
         control: 3,
         teamwork: 3,
-        resilience: 3
+        resilience: 3,
+        selected_club: null
       });
       // On successful submission, onClose should be called by the parent component if needed.
     } catch (error: any) {
@@ -251,6 +254,14 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                   </div>
                 ))}
               </div>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-slate-700 text-sm font-medium mb-2">Club (Optional)</label>
+              <ClubSelector 
+                value={formData.selected_club as Club | null}
+                onChange={(club) => setFormData({ ...formData, selected_club: club })}
+              />
             </div>
             
             <div className="flex justify-end pt-2 border-t border-slate-200 mt-4">

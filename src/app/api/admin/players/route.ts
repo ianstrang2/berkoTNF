@@ -33,10 +33,10 @@ export async function GET(request: Request) {
     } else {
       // Just fetch players without match counts
       players = await prisma.players.findMany({
-      orderBy: {
-        name: 'asc',
-      },
-    });
+        orderBy: {
+          name: 'asc',
+        },
+      });
     }
     
     return new NextResponse(JSON.stringify({ 
@@ -62,37 +62,59 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { 
-      name, 
-      is_ringer, 
+    const {
+      name,
+      is_ringer,
       is_retired,
       goalscoring,
       defender,
       stamina_pace,
       control,
       teamwork,
-      resilience 
+      resilience,
+      selected_club // Will be object or null from client if provided, or undefined if not in form
     } = body;
 
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+
+    const createData: any = {
+      name,
+      is_ringer: is_ringer !== undefined ? is_ringer : false, // Default for new player
+      is_retired: is_retired !== undefined ? is_retired : false, // Default for new player
+      goalscoring: goalscoring || 3,
+      defender: defender || 3,
+      stamina_pace: stamina_pace || 3,
+      control: control || 3,
+      teamwork: teamwork || 3,
+      resilience: resilience || 3,
+      join_date: new Date(),
+      // Only include selected_club if it's not undefined.
+      // If selected_club is explicitly null, it will be set to null.
+      // If selected_club is an object, it will be set.
+      // If selected_club is undefined in body, it won't be included in createData, Prisma uses default (null for Json?)
+    };
+
+    if (selected_club !== undefined) {
+      createData.selected_club = selected_club;
+    }
+
     const player = await prisma.players.create({
-      data: {
-        name,
-        is_ringer,
-        is_retired,
-        goalscoring: goalscoring || 3,
-        defender: defender || 3,
-        stamina_pace: stamina_pace || 3,
-        control: control || 3,
-        teamwork: teamwork || 3,
-        resilience: resilience || 3,
-        join_date: new Date(),
-      },
+      data: createData,
     });
     return NextResponse.json({ data: serializeData(player) });
-  } catch (error) {
-    console.error('Error creating player:', error);
+  } catch (error: any) {
+    console.error('API POST Error in /api/admin/players:', error);
+    let errorMessage = 'Failed to create player';
+    if (error.message) {
+      errorMessage = error.message;
+    }
     return NextResponse.json(
-      { error: 'Failed to create player', details: error },
+      { 
+        error: errorMessage, 
+        details: error instanceof Error ? error.stack : String(error)
+      },
       { status: 500 }
     );
   }
@@ -112,30 +134,61 @@ export async function PUT(request: Request) {
       stamina_pace,
       control,
       teamwork,
-      resilience 
+      resilience,
+      selected_club 
     } = body;
+
+    if (!player_id) {
+      return NextResponse.json({ error: 'player_id is required' }, { status: 400 });
+    }
+
+    // Construct data payload for Prisma update
+    // We explicitly list fields to ensure type safety and to avoid passing undefined values for fields not being updated (though our client sends all)
+    const updateData: {
+      name?: string;
+      is_ringer?: boolean;
+      is_retired?: boolean;
+      goalscoring?: number;
+      defender?: number;
+      stamina_pace?: number;
+      control?: number;
+      teamwork?: number;
+      resilience?: number;
+      selected_club?: any; // Prisma handles object or null for Json?
+    } = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (is_ringer !== undefined) updateData.is_ringer = is_ringer;
+    if (is_retired !== undefined) updateData.is_retired = is_retired;
+    if (goalscoring !== undefined) updateData.goalscoring = goalscoring;
+    if (defender !== undefined) updateData.defender = defender;
+    if (stamina_pace !== undefined) updateData.stamina_pace = stamina_pace;
+    if (control !== undefined) updateData.control = control;
+    if (teamwork !== undefined) updateData.teamwork = teamwork;
+    if (resilience !== undefined) updateData.resilience = resilience;
+    // selected_club can be null, so we assign it if it's explicitly provided in the body
+    if (selected_club !== undefined) {
+      updateData.selected_club = selected_club;
+    }
 
     const player = await prisma.players.update({
       where: {
-        player_id: player_id,
+        player_id: Number(player_id), // Ensure player_id is a number if schema expects Int
       },
-      data: {
-        name,
-        is_ringer,
-        is_retired,
-        goalscoring: goalscoring || 3,
-        defender: defender || 3,
-        stamina_pace: stamina_pace || 3,
-        control: control || 3,
-        teamwork: teamwork || 3,
-        resilience: resilience || 3,
-      },
+      data: updateData,
     });
     return NextResponse.json({ data: serializeData(player) });
-  } catch (error) {
-    console.error('Error updating player:', error);
+  } catch (error: any) {
+    console.error('API PUT Error in /api/admin/players:', error); // Enhanced server-side logging
+    let errorMessage = 'Failed to update player';
+    if (error.message) {
+      errorMessage = error.message;
+    }
     return NextResponse.json(
-      { error: 'Failed to update player', details: error },
+      { 
+        error: errorMessage, 
+        details: error instanceof Error ? error.stack : String(error) // Send stack or stringified error
+      },
       { status: 500 }
     );
   }
