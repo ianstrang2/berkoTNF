@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
         player: {
           select: {
             name: true,
-            is_retired: true
+            is_retired: true,
+            selected_club: true
           }
         }
       },
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       const allTimeStats = preAggregatedData.map(stat => ({
         name: stat.player.name,
         is_retired: stat.player.is_retired,
+        selected_club: stat.player.selected_club,
         games_played: stat.games_played,
         wins: stat.wins,
         draws: stat.draws,
@@ -77,6 +79,7 @@ export async function GET(request: NextRequest) {
           SELECT 
             p.name,
             p.is_retired,
+            p.selected_club,
             COUNT(*) as games_played,
             COUNT(CASE WHEN pm.result = 'win' THEN 1 END) as wins,
             COUNT(CASE WHEN pm.result = 'draw' THEN 1 END) as draws,
@@ -113,7 +116,7 @@ export async function GET(request: NextRequest) {
           JOIN player_matches pm ON p.player_id = pm.player_id
           JOIN matches m ON pm.match_id = m.match_id
           WHERE p.is_ringer = false
-          GROUP BY p.name, p.is_retired
+          GROUP BY p.name, p.is_retired, p.selected_club
           HAVING COUNT(*) >= 50
         )
         SELECT 

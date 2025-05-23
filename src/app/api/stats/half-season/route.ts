@@ -24,6 +24,10 @@ interface HalfSeasonStats {
   win_percentage: string;
   fantasy_points: number;
   points_per_game: string;
+  selected_club?: {
+    name: string;
+    filename: string;
+  } | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
     
     // Use a raw query to get half-season stats with a timeout
     const queryPromise = prisma.$queryRaw<HalfSeasonStats[]>`
-      SELECT hs.*, p.name as player_name 
+      SELECT hs.*, p.name as player_name, p.selected_club
       FROM aggregated_half_season_stats hs
       JOIN players p ON hs.player_id = p.player_id
     `;
@@ -73,7 +77,8 @@ export async function POST(request: NextRequest) {
       include: {
         player: {
           select: {
-            name: true
+            name: true,
+            selected_club: true
           }
         }
       }
@@ -94,7 +99,8 @@ export async function POST(request: NextRequest) {
       clean_sheets: stat.clean_sheets,
       win_percentage: Number(stat.win_percentage),
       fantasy_points: Number(stat.fantasy_points),
-      points_per_game: Number(stat.points_per_game)
+      points_per_game: Number(stat.points_per_game),
+      selected_club: stat.selected_club
     })).sort((a, b) => b.fantasy_points - a.fantasy_points);
     console.log('Formatted half-season stats count:', seasonStats.length);
 
@@ -111,7 +117,8 @@ export async function POST(request: NextRequest) {
         total_goals: seasonStat?.goals || 0,
         minutes_per_goal: Math.round(((seasonStat?.games_played || 0) * 60) / (seasonStat?.goals || 1)),
         last_five_games: last5Goals,
-        max_goals_in_game: Math.max(...(perf.last_5_games as RecentGame[] || []).map(g => g.goals))
+        max_goals_in_game: Math.max(...(perf.last_5_games as RecentGame[] || []).map(g => g.goals)),
+        selected_club: perf.player.selected_club
       };
     }).sort((a, b) => b.total_goals - a.total_goals || a.minutes_per_goal - b.minutes_per_goal);
 

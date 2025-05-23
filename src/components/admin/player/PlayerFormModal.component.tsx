@@ -248,7 +248,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                         />
                       </div>
                       <div className="ml-2 w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-tl from-slate-100 to-slate-200 text-slate-700 text-xs font-bold shadow-soft-xs">
-                        {formData[key as keyof PlayerFormData]}
+                        {formData[key as keyof PlayerFormData] as number}
                       </div>
                     </div>
                   </div>

@@ -21,6 +21,33 @@ export async function GET() {
       SELECT records FROM aggregated_records
       LIMIT 1`;
 
+    // Collect all player names
+    let playerNames = new Set<string>();
+    seasonHonours.forEach(row => {
+      (row.season_winners.winners || []).forEach(p => playerNames.add(p.name));
+      (row.season_winners.runners_up || []).forEach(p => playerNames.add(p.name));
+      (row.season_winners.third_place || []).forEach(p => playerNames.add(p.name));
+      (row.top_scorers.winners || []).forEach(p => playerNames.add(p.name));
+      (row.top_scorers.runners_up || []).forEach(p => playerNames.add(p.name));
+      (row.top_scorers.third_place || []).forEach(p => playerNames.add(p.name));
+    });
+
+    const uniquePlayerNames = Array.from(playerNames);
+    let playerClubMap = new Map<string, any>();
+
+    if (uniquePlayerNames.length > 0) {
+      const playersData = await prisma.players.findMany({
+        where: {
+          name: { in: uniquePlayerNames }
+        },
+        select: {
+          name: true,
+          selected_club: true
+        }
+      });
+      playersData.forEach(p => playerClubMap.set(p.name, p.selected_club));
+    }
+
     // Transform the data to match the expected format
     const seasonWinners = seasonHonours.map(row => {
       const winners = row.season_winners.winners || [];
@@ -35,9 +62,11 @@ export async function GET() {
         winners: {
           winner: winners.length > 0 ? winners[0].name : "",
           winner_points: winners.length > 0 ? winners[0].points : 0,
+          selected_club: winners.length > 0 ? playerClubMap.get(winners[0].name) : null,
           runners_up: allRunnersUp.map(runner => ({
             name: runner.name,
-            points: runner.points
+            points: runner.points,
+            selected_club: playerClubMap.get(runner.name)
           }))
         }
       };
@@ -56,9 +85,11 @@ export async function GET() {
         scorers: {
           winner: winners.length > 0 ? winners[0].name : "",
           winner_goals: winners.length > 0 ? winners[0].goals : 0,
+          selected_club: winners.length > 0 ? playerClubMap.get(winners[0].name) : null,
           runners_up: allRunnersUp.map(runner => ({
             name: runner.name,
-            goals: runner.goals
+            goals: runner.goals,
+            selected_club: playerClubMap.get(runner.name)
           }))
         }
       };

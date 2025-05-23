@@ -6,6 +6,10 @@ interface Runner {
   name: string;
   points?: number;
   goals?: number;
+  selected_club?: {
+    name: string;
+    filename: string;
+  } | null;
 }
 
 interface SeasonWinner {
@@ -13,6 +17,10 @@ interface SeasonWinner {
   winners: {
     winner: string;
     winner_points: number;
+    selected_club?: {
+      name: string;
+      filename: string;
+    } | null;
     runners_up?: Runner[];
   };
 }
@@ -22,6 +30,10 @@ interface TopScorer {
   scorers: {
     winner: string;
     winner_goals: number;
+    selected_club?: {
+      name: string;
+      filename: string;
+    } | null;
     runners_up?: Runner[];
   };
 }
@@ -141,10 +153,18 @@ const HonourRoll: React.FC = () => {
                   <span className="font-normal leading-normal text-sm">{season.year}</span>
                 </td>
                  <td className="sticky left-[80px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
-                    {/* Placeholder Icon */}
-                    <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
+                    {/* Champion Icon */}
+                    {season.winners.selected_club ? (
+                      <img
+                        src={`/club-logos-40px/${season.winners.selected_club.filename}`}
+                        alt={season.winners.selected_club.name}
+                        className="w-8 h-8"
+                      />
+                    ) : (
+                      <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    )}
                   </td>
                 <td className="sticky left-[110px] z-10 p-2 pl-6 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                   <div className="flex py-1">
@@ -159,8 +179,12 @@ const HonourRoll: React.FC = () => {
                 </td>
                 <td className="p-2 pl-6 align-middle bg-transparent border-b min-w-[200px]">
                   <span className="font-normal leading-normal text-sm">
-                    {season.winners.runners_up?.map(runner =>
-                      `${runner.name} (${runner.points})`).join(', ')}
+                    {season.winners.runners_up?.map((runner, idx) => (
+                      <React.Fragment key={idx}>
+                        {`${runner.name} (${runner.points})`}
+                        {idx < (season.winners.runners_up?.length ?? 0) - 1 ? ', ' : ''}
+                      </React.Fragment>
+                    ))}
                   </span>
                 </td>
               </tr>
@@ -206,10 +230,18 @@ const HonourRoll: React.FC = () => {
                   <span className="font-normal leading-normal text-sm">{season.year}</span>
                 </td>
                  <td className="sticky left-[80px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
-                    {/* Placeholder Icon */}
-                    <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
+                    {/* Top Scorer (Champion) Icon */}
+                    {season.scorers.selected_club ? (
+                      <img
+                        src={`/club-logos-40px/${season.scorers.selected_club.filename}`}
+                        alt={season.scorers.selected_club.name}
+                        className="w-8 h-8"
+                      />
+                    ) : (
+                      <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    )}
                   </td>
                 <td className="sticky left-[110px] z-10 p-2 pl-6 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                   <div className="flex py-1">
@@ -224,8 +256,12 @@ const HonourRoll: React.FC = () => {
                 </td>
                 <td className="p-2 pl-6 align-middle bg-transparent border-b min-w-[200px]">
                   <span className="font-normal leading-normal text-sm">
-                    {season.scorers.runners_up?.map(runner =>
-                      `${runner.name} (${runner.goals})`).join(', ')}
+                    {season.scorers.runners_up?.map((runner, idx) => (
+                      <React.Fragment key={idx}>
+                        {`${runner.name} (${runner.goals})`}
+                        {idx < (season.scorers.runners_up?.length ?? 0) - 1 ? ', ' : ''}
+                      </React.Fragment>
+                    ))}
                   </span>
                 </td>
               </tr>

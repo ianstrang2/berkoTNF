@@ -18,6 +18,10 @@ interface PlayerStats {
   win_percentage: number;
   fantasy_points: number;
   points_per_game: number;
+  selected_club?: {
+    name: string;
+    filename: string;
+  } | null;
 }
 
 interface GoalStats {
@@ -27,6 +31,10 @@ interface GoalStats {
   minutes_per_goal: number;
   last_five_games: string;
   max_goals_in_game: number;
+  selected_club?: {
+    name: string;
+    filename: string;
+  } | null;
 }
 
 interface FormData {
@@ -237,9 +245,17 @@ const OverallSeasonPerformance: React.FC = () => {
                       </td>
                       <td className="sticky left-[50px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
                         {/* Placeholder Icon */}
-                        <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                        </svg>
+                        {player.selected_club ? (
+                          <img
+                            src={`/club-logos-40px/${player.selected_club.filename}`}
+                            alt={player.selected_club.name}
+                            className="w-8 h-8"
+                          />
+                        ) : (
+                          <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                          </svg>
+                        )}
                       </td>
                        <td className="sticky left-[80px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
                         <div className="flex px-2 py-1">

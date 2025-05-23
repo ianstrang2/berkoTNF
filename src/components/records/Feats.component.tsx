@@ -6,12 +6,20 @@ interface StreakHolder {
   streak: number;
   start_date: string;
   end_date: string;
+  selected_club?: {
+    name: string;
+    filename: string;
+  } | null;
 }
 
 interface GoalRecord {
   name: string;
   goals: number;
   date: string;
+  selected_club?: {
+    name: string;
+    filename: string;
+  } | null;
 }
 
 interface BiggestVictory {
@@ -52,6 +60,7 @@ const Feats: React.FC = () => {
   const [data, setData] = useState<FeatsData>({
     records: null
   });
+  const [playerClubMap, setPlayerClubMap] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -103,17 +112,17 @@ const Feats: React.FC = () => {
             <table className="min-w-full mb-0 align-top border-gray-200 text-slate-500">
               <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
                 <tr>
-                  <th className="sticky left-0 z-10 p-2 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
+                  <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
                     Record
                   </th>
-                  <th className="px-2 py-3 font-bold uppercase align-middle border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
-                  <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
+                  <th className="px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
+                  <th className="px-4 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
                     Player(s) / Team(s)
                   </th>
-                  <th className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[100px]">
+                  <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[100px]">
                     Details
                   </th>
-                  <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px]">
+                  <th className="px-4 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px]">
                     Date / Period
                   </th>
                 </tr>
@@ -127,9 +136,17 @@ const Feats: React.FC = () => {
                           <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
                         </td>
                         <td className="p-2 align-middle border-b whitespace-nowrap">
-                          <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                          </svg>
+                          {data.records.most_goals_in_game[0]?.selected_club ? (
+                            <img
+                              src={`/club-logos-40px/${data.records.most_goals_in_game[0].selected_club.filename}`}
+                              alt={data.records.most_goals_in_game[0].selected_club.name}
+                              className="w-8 h-8"
+                            />
+                          ) : (
+                            <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                            </svg>
+                          )}
                         </td>
                         <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
                           <div className="px-2 py-1">
@@ -167,9 +184,17 @@ const Feats: React.FC = () => {
                             </span>
                           </td>
                           <td className="p-2 align-middle border-b whitespace-nowrap">
-                            <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
+                            {streakData.holders[0]?.selected_club ? (
+                              <img
+                                src={`/club-logos-40px/${streakData.holders[0].selected_club.filename}`}
+                                alt={streakData.holders[0].selected_club.name}
+                                className="w-8 h-8"
+                              />
+                            ) : (
+                              <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                              </svg>
+                            )}
                           </td>
                           <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
                             <div className="px-2 py-1">
@@ -203,9 +228,17 @@ const Feats: React.FC = () => {
                           <span className="font-normal leading-normal text-sm">Consecutive Games Scoring</span>
                         </td>
                         <td className="p-2 align-middle border-b whitespace-nowrap">
-                          <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                          </svg>
+                          {data.records.consecutive_goals_streak[0]?.selected_club ? (
+                            <img
+                              src={`/club-logos-40px/${data.records.consecutive_goals_streak[0].selected_club.filename}`}
+                              alt={data.records.consecutive_goals_streak[0].selected_club.name}
+                              className="w-8 h-8"
+                            />
+                          ) : (
+                            <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                            </svg>
+                          )}
                         </td>
                         <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
                           <div className="px-2 py-1">
@@ -238,7 +271,7 @@ const Feats: React.FC = () => {
                           <span className="font-normal leading-normal text-sm">Biggest Victory</span>
                         </td>
                         <td className="p-2 align-middle border-b whitespace-nowrap">
-                          <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                           </svg>
                         </td>
@@ -316,17 +349,17 @@ const Feats: React.FC = () => {
               <table className="min-w-full mb-0 align-top border-gray-200 text-slate-500">
                 <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
                   <tr>
-                    <th className="sticky left-0 z-10 p-2 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
+                    <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
                       Record
                     </th>
-                    <th className="px-2 py-3 font-bold uppercase align-middle border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
-                    <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
+                    <th className="px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
+                    <th className="px-4 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
                       Player(s) / Team(s)
                     </th>
-                    <th className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[100px]">
+                    <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[100px]">
                       Details
                     </th>
-                    <th className="p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px]">
+                    <th className="px-4 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px]">
                       Date / Period
                     </th>
                   </tr>
@@ -340,9 +373,17 @@ const Feats: React.FC = () => {
                             <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
                           </td>
                           <td className="p-2 align-middle border-b whitespace-nowrap">
-                            <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
+                            {data.records.most_goals_in_game[0]?.selected_club ? (
+                              <img
+                                src={`/club-logos-40px/${data.records.most_goals_in_game[0].selected_club.filename}`}
+                                alt={data.records.most_goals_in_game[0].selected_club.name}
+                                className="w-8 h-8"
+                              />
+                            ) : (
+                              <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                              </svg>
+                            )}
                           </td>
                           <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
                             <div className="px-2 py-1">
@@ -380,9 +421,17 @@ const Feats: React.FC = () => {
                               </span>
                             </td>
                             <td className="p-2 align-middle border-b whitespace-nowrap">
-                              <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                              </svg>
+                              {streakData.holders[0]?.selected_club ? (
+                                <img
+                                  src={`/club-logos-40px/${streakData.holders[0].selected_club.filename}`}
+                                  alt={streakData.holders[0].selected_club.name}
+                                  className="w-8 h-8"
+                                />
+                              ) : (
+                                <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                </svg>
+                              )}
                             </td>
                             <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
                               <div className="px-2 py-1">
@@ -416,9 +465,17 @@ const Feats: React.FC = () => {
                             <span className="font-normal leading-normal text-sm">Consecutive Games Scoring</span>
                           </td>
                           <td className="p-2 align-middle border-b whitespace-nowrap">
-                            <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
+                            {data.records.consecutive_goals_streak[0]?.selected_club ? (
+                              <img
+                                src={`/club-logos-40px/${data.records.consecutive_goals_streak[0].selected_club.filename}`}
+                                alt={data.records.consecutive_goals_streak[0].selected_club.name}
+                                className="w-8 h-8"
+                              />
+                            ) : (
+                              <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                              </svg>
+                            )}
                           </td>
                           <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
                             <div className="px-2 py-1">
@@ -451,7 +508,7 @@ const Feats: React.FC = () => {
                             <span className="font-normal leading-normal text-sm">Biggest Victory</span>
                           </td>
                           <td className="p-2 align-middle border-b whitespace-nowrap">
-                            <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                             </svg>
                           </td>
