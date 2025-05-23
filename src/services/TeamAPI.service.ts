@@ -173,6 +173,32 @@ export const TeamAPIService = {
     }
   },
   
+  // New function for balancing by past performance
+  balanceTeamsByPastPerformance: async (matchId: string, playerIds: string[]): Promise<any> => {
+    try {
+      const response = await fetch(`/api/admin/balance-by-past-performance`, { // Updated endpoint
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, playerIds }) // Pass matchId and playerIds
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to balance teams by past performance: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Balancing by past performance failed according to API response.');
+      }
+      return data;
+    } catch (error) {
+      console.error('Error in balanceTeamsByPastPerformance:', error);
+      // Consider if a client-side fallback is appropriate or even possible here
+      throw error; // Re-throw the error to be handled by the calling hook
+    }
+  },
+  
   // Client-side fallback for random balancing
   performClientSideRandomBalance: async (matchId: string, playerIds: string[]): Promise<any> => {
     try {

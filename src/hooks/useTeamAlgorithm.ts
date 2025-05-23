@@ -20,6 +20,8 @@ interface AppConfig {
   config_value: string;
 }
 
+export type BalanceMethod = 'ability' | 'random' | 'performance';
+
 export const useTeamAlgorithm = () => {
   // Local state
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export const useTeamAlgorithm = () => {
   const [selectedPoolPlayers, setSelectedPoolPlayers] = useState<Player[]>([]);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const [pendingPlayerToggles, setPendingPlayerToggles] = useState<Set<string>>(new Set());
+  const [lastSuccessfulBalanceMethod, setLastSuccessfulBalanceMethod] = useState<BalanceMethod | null>(null);
   
   // New state for player status and config
   const [onFirePlayerId, setOnFirePlayerId] = useState<number | null>(null);
@@ -67,6 +70,13 @@ export const useTeamAlgorithm = () => {
     clearSlots, 
     getAvailablePlayers: getAvailablePlayersFn
   } = useTeamSlots(activeMatch, setError);
+  
+  // Effect to reset lastSuccessfulBalanceMethod when teams become unbalanced
+  useEffect(() => {
+    if (!isBalanced) {
+      setLastSuccessfulBalanceMethod(null);
+    }
+  }, [isBalanced]);
   
   // Fetch player status and admin config on mount
   useEffect(() => {
@@ -155,7 +165,7 @@ export const useTeamAlgorithm = () => {
     activeMatch, 
     currentSlots, 
     setCurrentSlots, 
-    setIsBalanced, 
+    setIsBalanced,
     setIsLoading, 
     setError, 
     refreshMatchData
@@ -171,7 +181,7 @@ export const useTeamAlgorithm = () => {
   }, [activeMatch]);
   
   // Function to handle team balancing
-  const handleBalanceTeams = async (method: 'ability' | 'random' = 'ability') => {
+  const handleBalanceTeams = async (method: BalanceMethod = 'ability') => {
     try {
       setIsLoading(true);
       setError(null);
@@ -204,23 +214,27 @@ export const useTeamAlgorithm = () => {
       
       setBalanceProgress(50); // Processing
       
-      // Use the appropriate balancing method
+      // Get player IDs from the selected pool for methods that require it
+      const playerIds = selectedPoolPlayers.map(player => player.id.toString());
+
       let result;
       
       if (method === 'random') {
-        // Get player IDs from the selected pool
-        const playerIds = selectedPoolPlayers.map(player => player.id.toString());
         result = await TeamAPIService.balanceTeamsRandomly(matchId, playerIds);
+      } else if (method === 'performance') {
+        result = await TeamAPIService.balanceTeamsByPastPerformance(matchId, playerIds);
       } else {
         // Default to ability-based balancing
-        // The server already knows to use players from the pool
+        // The server already knows to use players from the pool for ability balancing
+        // and doesn't require playerIds to be passed for that specific legacy endpoint.
         result = await TeamBalanceService.balanceTeams(matchId);
       }
       
       setBalanceProgress(75); // Almost done
         
-      // Mark as balanced
+      // Mark as balanced and store the method used
       setIsBalanced(true);
+      setLastSuccessfulBalanceMethod(method);
       
       // Refresh data to get updated team assignments
       await refreshMatchData();
@@ -503,11 +517,12 @@ export const useTeamAlgorithm = () => {
       // Close confirmation dialog immediately
       setIsClearConfirmOpen(false);
       
-      // First clear slots
-      await clearSlots();
+      // First clear slots (this will set isBalanced to false, triggering the useEffect)
+      await clearSlots(); 
       
       // Then clear the player pool
       await clearPlayerPool();
+
     } catch (error) {
       console.error('Error in confirmClearTeams:', error);
       setError(`Failed to clear data: ${error instanceof Error ? error.message : String(error)}`);
@@ -594,6 +609,7 @@ export const useTeamAlgorithm = () => {
     createMatchError,
     copySuccess,
     pendingPlayerToggles,
+    lastSuccessfulBalanceMethod,
     
     // Actions
     setIsRingerModalOpen,

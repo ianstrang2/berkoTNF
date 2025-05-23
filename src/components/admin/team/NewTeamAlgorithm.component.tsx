@@ -15,7 +15,7 @@ import { SoftUIConfirmationModal } from '@/components/ui-kit';
 const NewTeamAlgorithm: React.FC = () => {
   // State for balance options modal
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
-  const [balanceMethod, setBalanceMethod] = useState<'ability' | 'random'>('ability');
+  const [balanceMethod, setBalanceMethod] = useState<'ability' | 'random' | 'performance'>('performance');
   
   // Fetch balance algorithm weights
   const { formattedWeights } = useBalanceWeights();
@@ -64,7 +64,8 @@ const NewTeamAlgorithm: React.FC = () => {
     handleDrop,
     handleSlotTap,
     selectPlayer,
-    getAvailablePlayers
+    getAvailablePlayers,
+    lastSuccessfulBalanceMethod
   } = useTeamAlgorithm();
   
   // Balance teams using the selected method
@@ -223,8 +224,8 @@ const NewTeamAlgorithm: React.FC = () => {
             </div>
           </Card>
           
-          {/* Team Analysis Section - Matched with Teams section position */}
-          {orangeTeamStats && greenTeamStats && (
+          {/* Team Analysis Section - Conditionally render based on lastSuccessfulBalanceMethod */}
+          {lastSuccessfulBalanceMethod === 'ability' && orangeTeamStats && greenTeamStats && (
             <div className="w-full max-w-[600px] mb-6">
               <div className="relative z-20 flex flex-col min-w-0 break-words bg-white border-0 border-solid border-black-125 shadow-soft-xl rounded-2xl bg-clip-border">
                 <div className="flex-auto p-4">
@@ -332,14 +333,27 @@ const NewTeamAlgorithm: React.FC = () => {
             
             <div className="space-y-2">
               <div 
+                className={`p-2 border rounded-lg cursor-pointer ${balanceMethod === 'performance' ? 'border-purple-500 bg-purple-50' : 'border-gray-300'}`}
+                onClick={() => setBalanceMethod('performance')}
+              >
+                <div className="flex items-center">
+                  <div className={`w-3.5 h-3.5 rounded-full mr-2 ${balanceMethod === 'performance' ? 'bg-gradient-to-tl from-purple-700 to-pink-500' : 'border border-gray-400'}`}></div>
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-700 font-sans">Balance by Performance</h3>
+                    <p className="text-xs text-slate-500">Balance players based on their actual performance</p>
+                  </div>
+                </div>
+              </div>
+
+              <div 
                 className={`p-2 border rounded-lg cursor-pointer ${balanceMethod === 'ability' ? 'border-purple-500 bg-purple-50' : 'border-gray-300'}`}
                 onClick={() => setBalanceMethod('ability')}
               >
                 <div className="flex items-center">
                   <div className={`w-3.5 h-3.5 rounded-full mr-2 ${balanceMethod === 'ability' ? 'bg-gradient-to-tl from-purple-700 to-pink-500' : 'border border-gray-400'}`}></div>
                   <div>
-                    <h3 className="text-sm font-medium text-slate-700 font-sans">Your Ratings</h3>
-                    <p className="text-xs text-slate-500">Balance players based on your player ratings</p>
+                    <h3 className="text-sm font-medium text-slate-700 font-sans">Balance by Ratings</h3>
+                    <p className="text-xs text-slate-500">Balance players based on the ratings you've entered</p>
                   </div>
                 </div>
               </div>
@@ -353,26 +367,6 @@ const NewTeamAlgorithm: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-medium text-slate-700 font-sans">Random Assignment</h3>
                     <p className="text-xs text-slate-500">Create unpredictable teams with random player distribution</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-2 border rounded-lg cursor-not-allowed opacity-50">
-                <div className="flex items-center">
-                  <div className="w-3.5 h-3.5 rounded-full border border-gray-400 mr-2"></div>
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-700 font-sans">Past Performance (Coming Soon)</h3>
-                    <p className="text-xs text-slate-500">Balance players based on past performance</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-2 border rounded-lg cursor-not-allowed opacity-50">
-                <div className="flex items-center">
-                  <div className="w-3.5 h-3.5 rounded-full border border-gray-400 mr-2"></div>
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-700 font-sans">Fresh Partnerships (Coming Soon)</h3>
-                    <p className="text-xs text-slate-500">Match players with their least frequent teammates</p>
                   </div>
                 </div>
               </div>
