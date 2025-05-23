@@ -103,7 +103,11 @@ export async function GET() {
       }
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'max-age=60, must-revalidate'
+      }
+    });
 
   } catch (error) {
     console.error('Database Error:', error);

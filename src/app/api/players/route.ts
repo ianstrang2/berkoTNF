@@ -22,10 +22,15 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.json({ 
       data: serializeData(cached)
+    },
+    {
+      headers: {
+        'Cache-Control': 'max-age=60, must-revalidate'
+      }
     });
 
     // Add cache control headers
-    response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=59');
+    // response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=59');
     
     return response;
   } catch (error) {

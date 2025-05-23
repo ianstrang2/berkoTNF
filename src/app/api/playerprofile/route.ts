@@ -286,7 +286,11 @@ export async function GET(request: Request) {
     };
 
     // Return the serialized profile
-    return NextResponse.json({ profile: serializedProfile });
+    return NextResponse.json({ profile: serializedProfile }, {
+      headers: {
+        'Cache-Control': 'max-age=60, must-revalidate'
+      }
+    });
 
   } catch (error) {
     console.error('Database Error:', error);
