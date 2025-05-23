@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PlayerFormData } from '@/types/team-algorithm.types';
 
 // Define attribute descriptions for tooltips
 const attributeDescriptions: Record<string, string> = {
@@ -33,18 +34,6 @@ const AttributeTooltip: React.FC<{ attribute: string; description: string; onClo
     <p>{description}</p>
   </div>
 );
-
-interface PlayerFormData {
-  name: string;
-  is_ringer: boolean;
-  is_retired: boolean;
-  goalscoring: number;
-  defending: number;
-  stamina_pace: number;
-  control: number;
-  teamwork: number;
-  resilience: number;
-}
 
 interface PlayerFormModalProps {
   isOpen: boolean;

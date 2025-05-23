@@ -158,6 +158,18 @@ export interface RingerFormData {
   resilience: number;
 }
 
+export interface PlayerFormData {
+  name: string;
+  is_ringer: boolean;
+  is_retired: boolean;
+  goalscoring: number;
+  defending: number;
+  stamina_pace: number;
+  control: number;
+  teamwork: number;
+  resilience: number;
+}
+
 export interface MatchFormData {
   match_date: string;
   team_size: number;

@@ -6,7 +6,7 @@ import PlayerPool from '@/components/team/PlayerPool.component';
 import TeamSection from '@/components/team/TeamSection.component';
 import TornadoChart from '@/components/team/TornadoChart.component';
 import ComparativeStats from '@/components/team/ComparativeStats.component';
-import RingerModal from '@/components/team/modals/RingerModal.component';
+import PlayerFormModal from '@/components/admin/player/PlayerFormModal.component';
 import MatchModal from '@/components/team/modals/MatchModal.component';
 import Card from '@/components/ui-kit/Card.component';
 import Button from '@/components/ui-kit/Button.component';
@@ -29,7 +29,6 @@ const NewTeamAlgorithm: React.FC = () => {
     error,
     balanceProgress,
     isRingerModalOpen,
-    ringerForm,
     isMatchModalOpen,
     newMatchData,
     isClearConfirmOpen,
@@ -51,7 +50,6 @@ const NewTeamAlgorithm: React.FC = () => {
     setIsRingerModalOpen,
     setIsMatchModalOpen,
     setIsClearConfirmOpen,
-    handleRingerFormChange,
     handleMatchFormChange,
     handleAddRinger,
     handleCreateMatch,
@@ -294,13 +292,13 @@ const NewTeamAlgorithm: React.FC = () => {
       )}
       
       {/* Modals */}
-      <RingerModal 
+      <PlayerFormModal 
         isOpen={isRingerModalOpen}
         onClose={() => setIsRingerModalOpen(false)}
-        form={ringerForm}
-        onChange={handleRingerFormChange}
         onSubmit={handleAddRinger}
-        isLoading={isLoading}
+        isProcessing={isLoading}
+        title="Add New Player"
+        submitButtonText="Create Player"
       />
       
       <MatchModal 

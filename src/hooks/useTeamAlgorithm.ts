@@ -3,10 +3,9 @@ import { usePlayerData } from './usePlayerData';
 import { useMatchData } from './useMatchData';
 import { useTeamSlots } from './useTeamSlots';
 import { useDragAndDrop } from './useDragAndDrop';
-import { RingerForm, Player, NewMatchData } from '@/types/team-algorithm.types';
+import { Player, NewMatchData, PlayerFormData } from '@/types/team-algorithm.types';
 import { TeamBalanceService } from '@/services/TeamBalanceService';
 import { TeamAPIService } from '@/services/TeamAPI.service';
-import { DEFAULT_RINGER_FORM } from '@/constants/team-algorithm.constants';
 import { determinePositionGroups, formatTeamsForCopy, createCopyModal } from '@/utils/team-algorithm.utils';
 
 // Define a type for the player status API response
@@ -26,7 +25,6 @@ export const useTeamAlgorithm = () => {
   const [error, setError] = useState<string | null>(null);
   const [balanceProgress, setBalanceProgress] = useState<number>(0);
   const [isRingerModalOpen, setIsRingerModalOpen] = useState<boolean>(false);
-  const [ringerForm, setRingerForm] = useState<RingerForm>(DEFAULT_RINGER_FORM);
   const [isMatchModalOpen, setIsMatchModalOpen] = useState<boolean>(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
   const [selectedPoolPlayers, setSelectedPoolPlayers] = useState<Player[]>([]);
@@ -43,7 +41,7 @@ export const useTeamAlgorithm = () => {
   const { 
     players, 
     isLoadingPlayers, 
-    addRinger, 
+    addRinger,
     fetchPlayers 
   } = usePlayerData();
   
@@ -367,78 +365,53 @@ export const useTeamAlgorithm = () => {
     }
   }, [activeMatch, createMatch, updateMatch]);
   
-  // Handle adding a ringer player
-  const handleAddRinger = useCallback(async () => {
+  // Handle adding a new ringer/player
+  const handleAddRinger = useCallback(async (playerData: PlayerFormData) => { 
     try {
       setIsLoading(true);
-      setError(null); // Clear previous general errors
+      setError(null);
+      
+      // PlayerData should already have is_ringer set by PlayerFormModal's defaults if not changed
+      // Ensure any necessary transformations from PlayerFormData to what addRinger (from usePlayerData) expects
+      // For example, if addRinger expects a specific structure.
+      // Assuming playerData is compatible with what addRinger (from usePlayerData) expects.
+      const result = await addRinger(playerData); // addRinger is from usePlayerData
 
-      // Validate required fields
-      if (!ringerForm.name.trim()) {
-        // This error should ideally be handled by the form itself,
-        // but as a safeguard, we can throw here too.
-        throw new Error('Player name is required');
-      }
-      if (ringerForm.name.length > 14) {
-         throw new Error('Player name cannot exceed 14 characters');
-      }
-
-      // Check if we've already reached the maximum players for the pool
-      const maxAllowedPlayers = (activeMatch?.team_size || 9) * 2;
-      if (selectedPoolPlayers.length >= maxAllowedPlayers) {
-        throw new Error('Maximum number of players has been reached for the pool');
-      }
-
-      // Add the ringer
-      const result = await addRinger({
-        name: ringerForm.name,
-        goalscoring: ringerForm.goalscoring,
-        defending: ringerForm.defending,
-        stamina_pace: ringerForm.stamina_pace,
-        control: ringerForm.control,
-        teamwork: ringerForm.teamwork,
-        resilience: ringerForm.resilience,
-        is_ringer: true // RingerModal always creates ringers
-      });
-
-      // No specific 'result' check here as addRinger should throw on failure
-      // If addRinger is successful, 'result' will be the new player object.
-
-      // Reset form and close modal on success
-      setRingerForm(DEFAULT_RINGER_FORM);
-      setIsRingerModalOpen(false);
-
-      // Add the new player to the pool if a match is active
-      if (activeMatch && result) { // Ensure result is available
-        const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
-        if (matchId && result.id) { // Ensure matchId and result.id are valid
+      if (result && result.id) { // Check for result and result.id
+        setIsRingerModalOpen(false); // Close modal on success
+        // No need to reset ringerForm as it's removed
+        
+        // Add the new player to the pool if a match is active
+        if (activeMatch) {
+          const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
+          if (matchId) { 
             await TeamAPIService.addPlayerToPool(matchId.toString(), result.id.toString());
-            // Update the local player pool state
-            setSelectedPoolPlayers(prev => [...prev, result]);
-        } else {
-            console.warn('Match ID or new player ID is missing, cannot add to pool.');
-            // Optionally, set an error or notification for the user
+            // Update the local player pool state, ensuring result is a complete Player object
+            setSelectedPoolPlayers(prev => [...prev, result as Player]); 
+          } else {
+            console.warn('Match ID is missing, cannot add to pool.');
+          }
         }
+        await fetchPlayers(); // Refresh player list to include the new player everywhere
+      } else {
+        // Handle cases where addRinger might not return a result or id (e.g., validation error handled by addRinger)
+        // Or if an error wasn't thrown but submission wasn't fully successful.
+        // PlayerFormModal will display its own errors based on what addRinger throws.
+        console.warn('Ringer addition did not return expected result or ID.');
       }
-      // Return the result or void, RingerModal's onSubmit expects Promise<void> or similar
-      // For RingerModal, it doesn't directly use the result, but it's good practice
-      // if other parts of the system might use a similar handler.
-      return result; // Or simply return; if nothing downstream needs it.
+      // PlayerFormModal expects Promise<void> or a promise that resolves.
+      // If addRinger throws, PlayerFormModal catches it.
+      // If it resolves (even with null/undefined), PlayerFormModal's onSubmit finishes.
+      // The success/closing logic is now mostly within this handleAddRinger function.
 
     } catch (error) {
       console.error('Error adding ringer in useTeamAlgorithm:', error);
-      // Re-throw the error so the modal can catch it and display a specific message
-      // The modal will handle displaying "That name already exists..."
+      // Re-throw the error so PlayerFormModal can catch it and display a specific message
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [ringerForm, addRinger, activeMatch, selectedPoolPlayers, setIsLoading, setError, setIsRingerModalOpen]);
-  
-  // Handle ringer form field changes
-  const handleRingerFormChange = (field: string, value: any) => {
-    setRingerForm(prev => ({ ...prev, [field]: value }));
-  };
+  }, [addRinger, activeMatch, selectedPoolPlayers, setIsLoading, setError, setIsRingerModalOpen, fetchPlayers]);
   
   // Handle toggling a player in the pool
   const handleTogglePoolPlayer = useCallback(async (player: Player) => {
@@ -605,7 +578,6 @@ export const useTeamAlgorithm = () => {
     error,
     balanceProgress,
     isRingerModalOpen,
-    ringerForm,
     isMatchModalOpen,
     newMatchData,
     isClearConfirmOpen,
@@ -627,7 +599,6 @@ export const useTeamAlgorithm = () => {
     setIsRingerModalOpen,
     setIsMatchModalOpen,
     setIsClearConfirmOpen,
-    handleRingerFormChange,
     handleMatchFormChange,
     handleAddRinger,
     handleCreateMatch,
