@@ -338,8 +338,8 @@ const NewTeamAlgorithm: React.FC = () => {
                 <div className="flex items-center">
                   <div className={`w-3.5 h-3.5 rounded-full mr-2 ${balanceMethod === 'ability' ? 'bg-gradient-to-tl from-purple-700 to-pink-500' : 'border border-gray-400'}`}></div>
                   <div>
-                    <h3 className="text-sm font-medium text-slate-700 font-sans">Balanced Ability</h3>
-                    <p className="text-xs text-slate-500">Evenly distribute player ratings across teams for fair matchups</p>
+                    <h3 className="text-sm font-medium text-slate-700 font-sans">Your Ratings</h3>
+                    <p className="text-xs text-slate-500">Balance players based on your player ratings</p>
                   </div>
                 </div>
               </div>
@@ -361,8 +361,8 @@ const NewTeamAlgorithm: React.FC = () => {
                 <div className="flex items-center">
                   <div className="w-3.5 h-3.5 rounded-full border border-gray-400 mr-2"></div>
                   <div>
-                    <h3 className="text-sm font-medium text-slate-700 font-sans">Title Contention (Coming Soon)</h3>
-                    <p className="text-xs text-slate-500">Create teams designed to keep the title race close</p>
+                    <h3 className="text-sm font-medium text-slate-700 font-sans">Past Performance (Coming Soon)</h3>
+                    <p className="text-xs text-slate-500">Balance players based on past performance</p>
                   </div>
                 </div>
               </div>
