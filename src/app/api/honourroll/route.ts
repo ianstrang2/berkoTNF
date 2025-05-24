@@ -32,6 +32,18 @@ export async function GET() {
       (row.top_scorers.third_place || []).forEach(p => playerNames.add(p.name));
     });
 
+    // Collect all player names from records
+    if (records.length > 0 && records[0].records) {
+      const rec = records[0].records;
+      (rec.most_goals_in_game || []).forEach(p => playerNames.add(p.name));
+      (rec.consecutive_goals_streak || []).forEach(p => playerNames.add(p.name));
+      if (rec.streaks) {
+        Object.values(rec.streaks).forEach((streakData: any) => {
+          (streakData.holders || []).forEach(h => playerNames.add(h.name));
+        });
+      }
+    }
+
     const uniquePlayerNames = Array.from(playerNames);
     let playerClubMap = new Map<string, any>();
 
@@ -95,11 +107,44 @@ export async function GET() {
       };
     });
 
+    // Add selected_club to records
+    let finalRecords = records; // Initialize with original records
+    if (records.length > 0 && records[0].records) {
+      const originalRecordObject = records[0].records;
+      // Create a deep copy to avoid modifying the original cache
+      const processedRecordObject = JSON.parse(JSON.stringify(originalRecordObject));
+
+      if (processedRecordObject.most_goals_in_game) {
+        processedRecordObject.most_goals_in_game = processedRecordObject.most_goals_in_game.map(p => ({
+          ...p,
+          selected_club: playerClubMap.get(p.name) || null // Ensure selected_club is null if not found
+        }));
+      }
+      if (processedRecordObject.consecutive_goals_streak) {
+        processedRecordObject.consecutive_goals_streak = processedRecordObject.consecutive_goals_streak.map(p => ({
+          ...p,
+          selected_club: playerClubMap.get(p.name) || null // Ensure selected_club is null if not found
+        }));
+      }
+      if (processedRecordObject.streaks) {
+        Object.keys(processedRecordObject.streaks).forEach(streakType => {
+          if (processedRecordObject.streaks[streakType] && processedRecordObject.streaks[streakType].holders) {
+            processedRecordObject.streaks[streakType].holders = processedRecordObject.streaks[streakType].holders.map(h => ({
+              ...h,
+              selected_club: playerClubMap.get(h.name) || null // Ensure selected_club is null if not found
+            }));
+          }
+        });
+      }
+      // For biggest_victory, icons are not applicable as it's team-based
+      finalRecords = [{ records: processedRecordObject }];
+    }
+
     const response = { 
       data: {
         seasonWinners: serializeData(seasonWinners),
         topScorers: serializeData(topScorers),
-        records: serializeData(records)
+        records: serializeData(finalRecords) // Use finalRecords which is correctly structured
       }
     };
 

@@ -12,10 +12,12 @@ AS $$
 DECLARE
     -- Fetch config from app_config using helper function
     match_duration INT := get_config_value('match_duration_minutes', '60')::int;
+    min_games_for_hof INT := get_config_value('games_required_for_hof', '0')::int; -- Default to 0 if not found
     inserted_count INT := 0;
 BEGIN
     RAISE NOTICE 'Starting update_aggregated_all_time_stats...';
-    RAISE NOTICE 'Using config: match_duration=% min', match_duration;
+    RAISE NOTICE 'Using config: match_duration=% min, min_games_for_hof=%',
+                 match_duration, min_games_for_hof;
 
     -- Calculate base stats directly into insert statement
     RAISE NOTICE 'Deleting existing all-time stats...';
@@ -37,8 +39,9 @@ BEGIN
             SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet)) as fantasy_points
         FROM player_matches pm
         JOIN players p ON pm.player_id = p.player_id
-        WHERE p.is_ringer = false AND p.is_retired = false
+        WHERE p.is_ringer = false
         GROUP BY pm.player_id
+        HAVING COUNT(*) >= min_games_for_hof -- Add this condition
     )
     INSERT INTO aggregated_all_time_stats (
         player_id, games_played, wins, draws, losses, goals,
