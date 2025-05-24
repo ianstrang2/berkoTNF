@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Define types for player data and ratings
 export interface PlayerRating {
@@ -20,9 +20,9 @@ export interface TeamResult {
 }
 
 // Supabase client initialization
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const ALPHA = 0.6; // attack weight
 const BETA = 0.4;  // defence weight
@@ -31,9 +31,12 @@ const DEFAULT_VARIANCE = 0.10;
 const MAX_HILL_CLIMB_ITERATIONS = 2000;
 const GAP_THRESHOLD = 1.0;
 
-export async function balanceByPastPerformance(playerIds: number[]): Promise<TeamResult> {
+export async function balanceByPastPerformance(
+  supabaseClient: SupabaseClient, // Accept SupabaseClient as the first argument
+  playerIds: number[]
+): Promise<TeamResult> {
   // Fetch ratings from Supabase
-  const { data: fetchedRatings, error: fetchError } = await supabase
+  const { data: fetchedRatings, error: fetchError } = await supabaseClient
     .from('aggregated_player_power_ratings')
     .select('player_id,rating,variance,goal_threat,defensive_shield')
     .in('player_id', playerIds);

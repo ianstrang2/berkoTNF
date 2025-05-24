@@ -252,7 +252,7 @@ const PersonalBests: React.FC = () => {
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto"> {/* max-w-120 might be specific, adjust if needed */}
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700 dark:text-slate-200">{item.player}</h6>
                   {/* <p className="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400 dark:text-slate-500">{item.date}</p> */}
-                  <p className="mt-1 mb-2 leading-normal text-sm text-slate-600 dark:text-slate-300">{item.content}</p> {/* Adjusted margin top to mt-1 as date is removed */}
+                  <p className="mt-1 mb-2 leading-normal text-sm text-slate-700 dark:text-slate-400">{item.content}</p> {/* Adjusted margin top to mt-1 as date is removed */}
                   {/* {item.subtext && (
                     <p className="mb-2 leading-normal text-xs text-slate-500 dark:text-slate-400">{item.subtext}</p>
                   )} */}

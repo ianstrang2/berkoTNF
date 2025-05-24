@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { balanceByPastPerformance } from './utils'; // Import the helper function
+import { createClient } from '@supabase/supabase-js'; // Import createClient
 
 // POST handler for API route
 export async function POST(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // Use SUPABASE_SERVICE_ROLE_KEY consistent with personal-bests/route.ts
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      console.error('[API /balance-by-past-performance] Missing Supabase environment variables (URL or Service Role Key).');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error: Supabase credentials missing.' }, 
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
     const body = await request.json();
     const { matchId, playerIds } = body; // playerIds expected from client
 
@@ -57,7 +72,7 @@ export async function POST(request: NextRequest) {
     const playersForBalancing = playerIds.slice(0, totalPlayersNeeded);
 
 
-    const result = await balanceByPastPerformance(playersForBalancing.map(id => Number(id)));
+    const result = await balanceByPastPerformance(supabase, playersForBalancing.map(id => Number(id)));
 
     // Delete existing slot assignments
     await prisma.upcoming_match_players.deleteMany({
