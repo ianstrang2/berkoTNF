@@ -133,203 +133,200 @@ const AllTimeStats: React.FC = () => {
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">All-Time Leaderboard</h5>
       </div>
-      {/* Outer container for vertical scrolling */}
-      <div className="overflow-y-auto max-h-[calc(100vh-16rem)] sm:max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-12rem)]">
-        {/* Inner container for horizontal scrolling */}
-        <div className="overflow-x-auto">
-          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
-            <thead className="align-bottom sticky top-0 z-30 bg-white shadow-md border-b-2 border-gray-300">
-              <tr>
-                {/* Sticky Headers */}
-                <th className="sticky left-0 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-8 text-center">#</th>
-                <th className="sticky left-8 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-10"></th> {/* Icon Placeholder */}
-                <th 
-                  onClick={() => sortData('name')}
-                  className="sticky left-18 z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 text-left min-w-[120px] shadow-sm"
-                >
-                  Player {getSortIndicator('name')}
-                </th>
-                {/* Scrollable Headers */}
-                <th 
-                  onClick={() => sortData('fantasy_points')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
-                >
-                  Pts {getSortIndicator('fantasy_points')}
-                </th>
-                <th 
-                  onClick={() => sortData('games_played')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
-                >
-                  P {getSortIndicator('games_played')}
-                </th>
-                <th 
-                  onClick={() => sortData('wins')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
-                >
-                  W {getSortIndicator('wins')}
-                </th>
-                <th 
-                  onClick={() => sortData('draws')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
-                >
-                  D {getSortIndicator('draws')}
-                </th>
-                <th 
-                  onClick={() => sortData('losses')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
-                >
-                  L {getSortIndicator('losses')}
-                </th>
-                <th 
-                  onClick={() => sortData('goals')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
-                >
-                  G {getSortIndicator('goals')}
-                </th>
-                <th 
-                  onClick={() => sortData('win_percentage')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
-                >
-                  Win% {getSortIndicator('win_percentage')}
-                </th>
-                <th 
-                  onClick={() => sortData('minutes_per_goal')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
-                >
-                  MPG {getSortIndicator('minutes_per_goal')}
-                </th>
-                <th 
-                  onClick={() => sortData('heavy_wins')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
-                >
-                  HW {getSortIndicator('heavy_wins')}
-                </th>
-                <th 
-                  onClick={() => sortData('heavy_win_percentage')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
-                >
-                  HW% {getSortIndicator('heavy_win_percentage')}
-                </th>
-                <th 
-                  onClick={() => sortData('heavy_losses')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
-                >
-                  HL {getSortIndicator('heavy_losses')}
-                </th>
-                <th 
-                  onClick={() => sortData('heavy_loss_percentage')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
-                >
-                  HL% {getSortIndicator('heavy_loss_percentage')}
-                </th>
-                <th 
-                  onClick={() => sortData('clean_sheets')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
-                >
-                  CS {getSortIndicator('clean_sheets')}
-                </th>
-                <th 
-                  onClick={() => sortData('clean_sheet_percentage')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
-                >
-                  CS% {getSortIndicator('clean_sheet_percentage')}
-                </th>
-                <th 
-                  onClick={() => sortData('points_per_game')}
-                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
-                >
-                  PPG {getSortIndicator('points_per_game')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.map((player, index) => {
-                const isRetired = player.is_retired;
-                const wins = player.wins || 0;
-                const losses = (player.games_played || 0) - (player.wins || 0) - (player.draws || 0);
-                const heavyWins = player.heavy_wins || 0;
-                const heavyLosses = player.heavy_losses || 0;
-                const cleanSheets = player.clean_sheets || 0;
+      {/* Container for horizontal scrolling only */}
+      <div className="overflow-x-auto">
+        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
+          <thead className="align-bottom">
+            <tr>
+              {/* Sticky Headers */}
+              <th className="sticky left-0 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-8 text-center">#</th>
+              <th className="sticky left-8 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-10"></th> {/* Icon Placeholder */}
+              <th 
+                onClick={() => sortData('name')}
+                className="sticky left-18 z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 text-left min-w-[120px]"
+              >
+                Player {getSortIndicator('name')}
+              </th>
+              {/* Scrollable Headers */}
+              <th 
+                onClick={() => sortData('fantasy_points')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+              >
+                Pts {getSortIndicator('fantasy_points')}
+              </th>
+              <th 
+                onClick={() => sortData('games_played')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+              >
+                P {getSortIndicator('games_played')}
+              </th>
+              <th 
+                onClick={() => sortData('wins')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+              >
+                W {getSortIndicator('wins')}
+              </th>
+              <th 
+                onClick={() => sortData('draws')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+              >
+                D {getSortIndicator('draws')}
+              </th>
+              <th 
+                onClick={() => sortData('losses')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+              >
+                L {getSortIndicator('losses')}
+              </th>
+              <th 
+                onClick={() => sortData('goals')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+              >
+                G {getSortIndicator('goals')}
+              </th>
+              <th 
+                onClick={() => sortData('win_percentage')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+              >
+                Win% {getSortIndicator('win_percentage')}
+              </th>
+              <th 
+                onClick={() => sortData('minutes_per_goal')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+              >
+                MPG {getSortIndicator('minutes_per_goal')}
+              </th>
+              <th 
+                onClick={() => sortData('heavy_wins')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+              >
+                HW {getSortIndicator('heavy_wins')}
+              </th>
+              <th 
+                onClick={() => sortData('heavy_win_percentage')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+              >
+                HW% {getSortIndicator('heavy_win_percentage')}
+              </th>
+              <th 
+                onClick={() => sortData('heavy_losses')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+              >
+                HL {getSortIndicator('heavy_losses')}
+              </th>
+              <th 
+                onClick={() => sortData('heavy_loss_percentage')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+              >
+                HL% {getSortIndicator('heavy_loss_percentage')}
+              </th>
+              <th 
+                onClick={() => sortData('clean_sheets')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+              >
+                CS {getSortIndicator('clean_sheets')}
+              </th>
+              <th 
+                onClick={() => sortData('clean_sheet_percentage')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+              >
+                CS% {getSortIndicator('clean_sheet_percentage')}
+              </th>
+              <th 
+                onClick={() => sortData('points_per_game')}
+                className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+              >
+                PPG {getSortIndicator('points_per_game')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.map((player, index) => {
+              const isRetired = player.is_retired;
+              const wins = player.wins || 0;
+              const losses = (player.games_played || 0) - (player.wins || 0) - (player.draws || 0);
+              const heavyWins = player.heavy_wins || 0;
+              const heavyLosses = player.heavy_losses || 0;
+              const cleanSheets = player.clean_sheets || 0;
 
-                return (
-                  <tr key={index} className={`${isRetired ? 'opacity-60' : ''} hover:bg-gray-50`}>
-                    {/* Sticky Data */}
-                    <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center shadow-sm w-8">
-                      <span className="font-normal leading-normal text-sm">{index + 1}</span>
-                    </td>
-                    <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
-                      {player.selected_club ? (
-                        <img
-                          src={`/club-logos-40px/${player.selected_club.filename}`}
-                          alt={player.selected_club.name}
-                          className="w-8 h-8"
-                        />
-                      ) : (
-                        <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </td>
-                    <td className="sticky left-18 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
-                      <div className="flex px-2 py-1">
-                        <div className="flex flex-col justify-center">
-                          <h6 className={`mb-0 leading-normal text-sm ${isRetired ? 'text-slate-400' : ''}`}>{player.name}</h6>
-                        </div>
+              return (
+                <tr key={index} className={`${isRetired ? 'opacity-60' : ''} hover:bg-gray-50`}>
+                  {/* Sticky Data */}
+                  <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center w-8">
+                    <span className="font-normal leading-normal text-sm">{index + 1}</span>
+                  </td>
+                  <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
+                    {player.selected_club ? (
+                      <img
+                        src={`/club-logos-40px/${player.selected_club.filename}`}
+                        alt={player.selected_club.name}
+                        className="w-8 h-8"
+                      />
+                    ) : (
+                      <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </td>
+                  <td className="sticky left-18 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
+                    <div className="flex px-2 py-1">
+                      <div className="flex flex-col justify-center">
+                        <h6 className={`mb-0 leading-normal text-sm ${isRetired ? 'text-slate-400' : ''}`}>{player.name}</h6>
                       </div>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-semibold leading-normal text-sm">{player.fantasy_points}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.games_played}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{wins}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.draws}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{losses}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{player.goals}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className={`leading-normal text-sm ${player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
-                        {Math.round(player.minutes_per_goal)}
-                      </span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{heavyWins}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{Math.round(player.heavy_win_percentage)}%</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{heavyLosses}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{Math.round(player.heavy_loss_percentage)}%</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{cleanSheets}</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{Math.round(player.clean_sheet_percentage)}%</span>
-                    </td>
-                    <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                      <span className="font-normal leading-normal text-sm">{parseFloat(String(player.points_per_game)).toFixed(1)}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-semibold leading-normal text-sm">{player.fantasy_points}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.games_played}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{wins}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.draws}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{losses}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{player.goals}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className={`leading-normal text-sm ${player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
+                      {Math.round(player.minutes_per_goal)}
+                    </span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{heavyWins}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.heavy_win_percentage)}%</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{heavyLosses}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.heavy_loss_percentage)}%</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{cleanSheets}</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.clean_sheet_percentage)}%</span>
+                  </td>
+                  <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                    <span className="font-normal leading-normal text-sm">{parseFloat(String(player.points_per_game)).toFixed(1)}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
