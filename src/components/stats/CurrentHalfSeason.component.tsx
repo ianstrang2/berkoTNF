@@ -56,9 +56,13 @@ interface HalfSeasonPeriod {
   description: string;
 }
 
-const CurrentHalfSeason: React.FC = () => {
+interface CurrentHalfSeasonProps {
+  initialView?: 'points' | 'goals';
+}
+
+const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'points' }) => {
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'stats' | 'goals'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'goals'>(initialView === 'goals' ? 'goals' : 'stats');
   const [stats, setStats] = useState<StatsData>({
     seasonStats: [],
     goalStats: [],
@@ -162,6 +166,11 @@ const CurrentHalfSeason: React.FC = () => {
     fetchData();
   }, []);
 
+  // Update activeTab when initialView changes
+  useEffect(() => {
+    setActiveTab(initialView === 'goals' ? 'goals' : 'stats');
+  }, [initialView]);
+
   const renderPlayerName = (playerId: number, name: string) => (
     <div className="flex items-center">
       <span>{name}</span>
@@ -175,7 +184,7 @@ const CurrentHalfSeason: React.FC = () => {
   );
 
   const renderMainStats = () => (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Points Leaderboard</h5>
       </div>
@@ -293,7 +302,7 @@ const CurrentHalfSeason: React.FC = () => {
   );
 
   const renderGoalStats = () => (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Goalscoring Leaderboard</h5>
       </div>
@@ -405,33 +414,8 @@ const CurrentHalfSeason: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Mobile Nav Pills - Only visible on mobile */}
-              <div className="w-full px-3 mb-4 lg:hidden">
-                <NavPills<'stats' | 'goals'>
-                  items={[
-                    { label: 'Points', value: 'stats' },
-                    { label: 'Goals', value: 'goals' }
-                  ]}
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                />
-              </div>
-
-              {/* Desktop Layout - Hidden on mobile */}
-              <div className="hidden lg:block">
-                {/* Points Leaderboard */}
-                <div className="inline-block align-top px-3 mb-6">
-                  {renderMainStats()}
-                </div>
-                
-                {/* Goalscoring Leaderboard */}
-                <div className="inline-block align-top px-3 mb-6">
-                  {renderGoalStats()}
-                </div>
-              </div>
-
-              {/* Mobile Layout - Hidden on desktop */}
-              <div className="block lg:hidden w-full px-3">
+              {/* Single table display controlled by tertiary navigation */}
+              <div className="w-full px-3">
                 {activeTab === 'stats' && renderMainStats()}
                 {activeTab === 'goals' && renderGoalStats()}
               </div>

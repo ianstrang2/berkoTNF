@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import NavPills from '@/components/ui-kit/NavPills.component';
 
 interface Runner {
   name: string;
@@ -82,18 +81,27 @@ interface Records {
   };
 }
 
-interface HonourRollData {
+interface LegendsData {
   seasonWinners: SeasonWinner[];
   topScorers: TopScorer[];
 }
 
-const HonourRoll: React.FC = () => {
+interface LegendsProps {
+  initialView?: 'winners' | 'scorers';
+}
+
+const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'winners' | 'scorers'>('winners');
-  const [data, setData] = useState<HonourRollData>({
+  const [activeTab, setActiveTab] = useState<'winners' | 'scorers'>(initialView);
+  const [data, setData] = useState<LegendsData>({
     seasonWinners: [],
     topScorers: []
   });
+
+  // Update activeTab when initialView changes
+  useEffect(() => {
+    setActiveTab(initialView);
+  }, [initialView]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -110,7 +118,7 @@ const HonourRoll: React.FC = () => {
         }
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching honour roll:', error);
+        console.error('Error fetching legends:', error);
         setLoading(false);
       }
     };
@@ -119,7 +127,7 @@ const HonourRoll: React.FC = () => {
   }, []);
 
   const renderSeasonWinners = () => (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Season Winners</h5>
       </div>
@@ -196,7 +204,7 @@ const HonourRoll: React.FC = () => {
   );
 
   const renderTopScorers = () => (
-    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
+    <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">Top Scorers</h5>
       </div>
@@ -291,28 +299,8 @@ const HonourRoll: React.FC = () => {
 
   return (
     <div className="flex flex-wrap -mx-3 max-w-screen-2xl mx-auto">
-      {/* Mobile Nav Pills - Only visible on mobile */}
-      <div className="w-full px-3 mb-4 lg:hidden">
-        <NavPills<'winners' | 'scorers'>
-          items={[
-            { label: 'Season Winners', value: 'winners' },
-            { label: 'Top Scorers', value: 'scorers' }
-          ]}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
-      </div>
-
-      {/* Desktop Layout - Hidden on mobile */}
-      <div className="hidden lg:block w-full lg:w-1/2 px-3 mb-4">
-        {renderSeasonWinners()}
-      </div>
-      <div className="hidden lg:block w-full lg:w-1/2 px-3 mb-4">
-        {renderTopScorers()}
-      </div>
-
-      {/* Mobile Layout - Hidden on desktop, shows one table based on activeTab */}
-      <div className="block lg:hidden w-full px-3 mb-4">
+      {/* Single table display controlled by tertiary navigation */}
+      <div className="w-full px-3 mb-4">
         {activeTab === 'winners' && renderSeasonWinners()}
         {activeTab === 'scorers' && renderTopScorers()}
       </div>
@@ -320,4 +308,4 @@ const HonourRoll: React.FC = () => {
   );
 };
 
-export default HonourRoll; 
+export default Legends; 

@@ -2,12 +2,12 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function RecordsPage() {
+export default function TablePage() {
   const router = useRouter();
   
   useEffect(() => {
-    // Redirect to leaderboard by default
-    router.replace('/records/leaderboard');
+    // Redirect to half season by default
+    router.replace('/table/half');
   }, [router]);
   
   return null;

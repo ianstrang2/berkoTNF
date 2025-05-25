@@ -30,7 +30,7 @@ interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
-const AllTimeStats: React.FC = () => {
+const LeaderboardStats: React.FC = () => {
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -131,7 +131,7 @@ const AllTimeStats: React.FC = () => {
   return (
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border lg:w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-        <h5 className="mb-0">All-Time Leaderboard</h5>
+        <h5 className="mb-0">Leaderboard</h5>
       </div>
       {/* Container for horizontal scrolling only */}
       <div className="overflow-x-auto">
@@ -332,4 +332,4 @@ const AllTimeStats: React.FC = () => {
   );
 };
 
-export default AllTimeStats; 
+export default LeaderboardStats; 

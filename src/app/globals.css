@@ -58,7 +58,7 @@ body {
 
 /* Soft UI shadows */
 .shadow-soft-xl {
-  box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 20px 27px 0 rgba(139, 92, 246, 0.05), 0 10px 60px -12px rgba(139, 92, 246, 0.15);
 }
 
 .shadow-soft-2xl {
@@ -129,5 +129,14 @@ body {
   /* Mobile table scrolling */
   .table-container {
     @apply w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
+  }
+
+  /* Custom purple-tinted shadows for content cards and tables */
+  .shadow-card {
+    box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.05), 0 2px 4px -1px rgba(139, 92, 246, 0.06);
+  }
+  
+  .shadow-elevated {
+    box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.08), 0 4px 6px -2px rgba(139, 92, 246, 0.05);
   }
 }

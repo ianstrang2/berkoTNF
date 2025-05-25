@@ -1,5 +1,6 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { ErrorBoundary } from '@/components/ui-kit';
 import dynamic from 'next/dynamic';
@@ -23,13 +24,30 @@ const LoadingIndicator = () => (
 );
 
 export default function AdminSetupPage() {
+  const [isClient, setIsClient] = useState(false);
+  const searchParams = useSearchParams();
+  const section = searchParams?.get('section') || 'general';
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Show loading state during server rendering and initial hydration
+  if (!isClient) {
+    return (
+      <MainLayout>
+        <LoadingIndicator />
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <React.Suspense fallback={<LoadingIndicator />}>
         <div className="flex flex-col w-full">
           <div className="min-w-0 max-w-3xl">
             <ErrorBoundary>
-              <AppSetup />
+              <AppSetup initialSection={section as any} />
             </ErrorBoundary>
           </div>
         </div>

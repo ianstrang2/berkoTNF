@@ -48,9 +48,13 @@ interface StatsData {
   formData: FormData[];
 }
 
-const OverallSeasonPerformance: React.FC = () => {
+interface OverallSeasonPerformanceProps {
+  initialView?: 'points' | 'goals';
+}
+
+const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ initialView = 'points' }) => {
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'stats' | 'goals'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'goals'>(initialView === 'goals' ? 'goals' : 'stats');
   const [stats, setStats] = useState<StatsData>({
     seasonStats: [],
     goalStats: [],
@@ -174,6 +178,11 @@ const OverallSeasonPerformance: React.FC = () => {
     };
   }, [selectedYear]);
 
+  // Update activeTab when initialView changes
+  useEffect(() => {
+    setActiveTab(initialView === 'goals' ? 'goals' : 'stats');
+  }, [initialView]);
+
   const renderPlayerName = (playerId: number, name: string) => {
     const currentYear = new Date().getFullYear();
     const isCurrentYear = selectedYear === currentYear;
@@ -197,7 +206,7 @@ const OverallSeasonPerformance: React.FC = () => {
     }
 
     return (
-      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
+      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
           <h5 className="mb-0">{title}</h5>
         </div>
@@ -380,33 +389,8 @@ const OverallSeasonPerformance: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Mobile Nav Pills - Only visible on mobile */}
-          <div className="w-full px-3 mb-4 lg:hidden">
-            <NavPills<'stats' | 'goals'>
-              items={[
-                { label: 'Points', value: 'stats' },
-                { label: 'Goals', value: 'goals' }
-              ]}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-            />
-          </div>
-
-          {/* Desktop Layout - Hidden on mobile */}
-          <div className="hidden lg:block">
-            {/* Points Leaderboard */}
-            <div className="inline-block align-top px-3 mb-6">
-              {renderTable(stats.seasonStats, 'Points Leaderboard', 'points')}
-            </div>
-            
-            {/* Goalscoring Leaderboard */}
-            <div className="inline-block align-top px-3 mb-6">
-              {renderTable(stats.goalStats, 'Goalscoring Leaderboard', 'goals')}
-            </div>
-          </div>
-
-          {/* Mobile Layout - Hidden on desktop */}
-          <div className="block lg:hidden w-full px-3">
+          {/* Single table display controlled by tertiary navigation */}
+          <div className="w-full px-3">
             {activeTab === 'stats' && renderTable(stats.seasonStats, 'Points Leaderboard', 'points')}
             {activeTab === 'goals' && renderTable(stats.goalStats, 'Goalscoring Leaderboard', 'goals')}
           </div>

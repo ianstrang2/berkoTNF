@@ -1,5 +1,6 @@
 'use client';
-import React from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { ErrorBoundary } from '@/components/ui-kit';
 import { AdminLayout } from '@/components/layout';
@@ -8,15 +9,12 @@ import dynamic from 'next/dynamic';
 const MatchManager = dynamic(() => import('@/components/admin/matches/MatchManager.component'), { ssr: false });
 
 export default function AdminMatchesPage() {
-  return (
-    <MainLayout>
-      <div className="py-6">
-        <ErrorBoundary>
-          <AdminLayout>
-            <MatchManager />
-          </AdminLayout>
-        </ErrorBoundary>
-      </div>
-    </MainLayout>
-  );
+  const router = useRouter();
+  
+  useEffect(() => {
+    // Redirect to next match by default
+    router.replace('/admin/matches/next');
+  }, [router]);
+  
+  return null;
 } 

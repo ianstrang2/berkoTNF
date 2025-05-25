@@ -103,7 +103,7 @@ const Feats: React.FC = () => {
 
   const renderRecords = () => {
     return (
-      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border lg:w-fit">
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4 pb-0">
           <h5 className="mb-0">Feats & Record Breakers</h5>
         </div>
