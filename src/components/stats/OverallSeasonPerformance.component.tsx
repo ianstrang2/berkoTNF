@@ -209,9 +209,9 @@ const OverallSeasonPerformance: React.FC = () => {
               <thead className="align-bottom sticky top-0 z-30 bg-white shadow-md border-b-2 border-gray-300">
                 <tr>
                   {/* Sticky Headers */}
-                  <th className="sticky left-0 z-40 px-4 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-16">#</th>
-                  <th className="sticky left-16 z-40 px-3 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-16"></th> {/* Icon Placeholder */}
-                  <th className="sticky left-32 z-40 px-6 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">Player</th>
+                  <th className="sticky left-0 z-40 px-3 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-12">#</th>
+                  <th className="sticky left-12 z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-12"></th> {/* Icon Placeholder */}
+                  <th className="sticky left-24 z-40 px-4 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">Player</th>
                   {/* Scrollable Headers */}
                   {statsType === 'points' ? (
                     <>
@@ -240,24 +240,24 @@ const OverallSeasonPerformance: React.FC = () => {
                    return (
                     <tr key={index} className="hover:bg-gray-50">
                       {/* Sticky Data */}
-                      <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center shadow-sm w-16">
+                      <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center shadow-sm w-12">
                          <span className="font-normal leading-normal text-sm">{index + 1}</span>
                       </td>
-                      <td className="sticky left-16 z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-16 text-center">
+                      <td className="sticky left-12 z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-12">
                         {/* Placeholder Icon */}
                         {player.selected_club ? (
                           <img
                             src={`/club-logos-40px/${player.selected_club.filename}`}
                             alt={player.selected_club.name}
-                            className="w-8 h-8 mx-auto"
+                            className="w-8 h-8"
                           />
                         ) : (
-                          <svg className="w-8 h-8 text-gray-400 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                           </svg>
                         )}
                       </td>
-                       <td className="sticky left-32 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px] shadow-sm">
+                       <td className="sticky left-24 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px] shadow-sm">
                         <div className="flex px-2 py-1">
                           <div className="flex flex-col justify-center">
                             <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
