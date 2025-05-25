@@ -107,22 +107,26 @@ const Feats: React.FC = () => {
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4 pb-0">
           <h5 className="mb-0">Feats & Record Breakers</h5>
         </div>
-        <div>
+        {/* Outer container for vertical scrolling */}
+        <div className="overflow-y-auto max-h-[calc(100vh-16rem)] sm:max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-12rem)]">
+          {/* Inner container for horizontal scrolling */}
           <div className="overflow-x-auto p-4">
-            <table className="min-w-full mb-0 align-top border-gray-200 text-slate-500">
-              <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
+            <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
+              <thead className="align-bottom sticky top-0 z-30 bg-white shadow-md border-b-2 border-gray-300">
                 <tr>
-                  <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
+                  {/* Sticky Headers */}
+                  <th className="sticky left-0 z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[120px] shadow-sm">
                     Record
                   </th>
-                  <th className="px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
-                  <th className="px-4 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
+                  <th className="sticky left-[120px] z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-10"></th>
+                  {/* Scrollable Headers */}
+                  <th className="px-6 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
                     Player(s) / Team(s)
                   </th>
-                  <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[100px]">
+                  <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[100px]">
                     Details
                   </th>
-                  <th className="px-4 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px]">
+                  <th className="px-6 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px]">
                     Date / Period
                   </th>
                 </tr>
@@ -132,10 +136,10 @@ const Feats: React.FC = () => {
                   <>
                     {data.records.most_goals_in_game && (
                       <tr className="hover:bg-gray-50">
-                        <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                        <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                           <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
                         </td>
-                        <td className="p-2 align-middle border-b whitespace-nowrap">
+                        <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                           {data.records.most_goals_in_game[0]?.selected_club ? (
                             <img
                               src={`/club-logos-40px/${data.records.most_goals_in_game[0].selected_club.filename}`}
@@ -175,7 +179,7 @@ const Feats: React.FC = () => {
                     {data.records.streaks && Object.entries(data.records.streaks).map(([streakType, streakData], streakIndex) => 
                       streakData && (
                         <tr key={streakType} className="hover:bg-gray-50">
-                          <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                          <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                             <span className="font-normal leading-normal text-sm">
                               {streakType === 'Win Streak' ? 'Win Streak' :
                               streakType === 'Loss Streak' ? 'Losing Streak' :
@@ -183,7 +187,7 @@ const Feats: React.FC = () => {
                               'Undefeated Streak'}
                             </span>
                           </td>
-                          <td className="p-2 align-middle border-b whitespace-nowrap">
+                          <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                             {streakData.holders[0]?.selected_club ? (
                               <img
                                 src={`/club-logos-40px/${streakData.holders[0].selected_club.filename}`}
@@ -224,10 +228,10 @@ const Feats: React.FC = () => {
 
                     {data.records.consecutive_goals_streak && (
                       <tr className="hover:bg-gray-50">
-                        <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                        <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                           <span className="font-normal leading-normal text-sm">Consecutive Games Scoring</span>
                         </td>
-                        <td className="p-2 align-middle border-b whitespace-nowrap">
+                        <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                           {data.records.consecutive_goals_streak[0]?.selected_club ? (
                             <img
                               src={`/club-logos-40px/${data.records.consecutive_goals_streak[0].selected_club.filename}`}
@@ -265,14 +269,14 @@ const Feats: React.FC = () => {
                       </tr>
                     )}
 
-                    {data.records.biggest_victory && data.records.biggest_victory[0] && (
+                    {data.records.biggest_victory && (
                       <tr className="hover:bg-gray-50">
-                        <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                        <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                           <span className="font-normal leading-normal text-sm">Biggest Victory</span>
                         </td>
-                        <td className="p-2 align-middle border-b whitespace-nowrap">
+                        <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                           <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                            <path fillRule="evenodd" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" clipRule="evenodd" />
                           </svg>
                         </td>
                         <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
@@ -344,22 +348,26 @@ const Feats: React.FC = () => {
           <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4 pb-0">
             <h5 className="mb-0">Feats & Record Breakers</h5>
           </div>
-          <div>
+          {/* Outer container for vertical scrolling */}
+          <div className="overflow-y-auto max-h-[calc(100vh-16rem)] sm:max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-12rem)]">
+            {/* Inner container for horizontal scrolling */}
             <div className="overflow-x-auto p-4">
-              <table className="min-w-full mb-0 align-top border-gray-200 text-slate-500">
-                <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
+              <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
+                <thead className="align-bottom sticky top-0 z-30 bg-white shadow-md border-b-2 border-gray-300">
                   <tr>
-                    <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">
+                    {/* Sticky Headers */}
+                    <th className="sticky left-0 z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[120px] shadow-sm">
                       Record
                     </th>
-                    <th className="px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
-                    <th className="px-4 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
+                    <th className="sticky left-[120px] z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-10"></th>
+                    {/* Scrollable Headers */}
+                    <th className="px-6 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[200px] max-w-[300px]">
                       Player(s) / Team(s)
                     </th>
-                    <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[100px]">
+                    <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[100px]">
                       Details
                     </th>
-                    <th className="px-4 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px]">
+                    <th className="px-6 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[180px]">
                       Date / Period
                     </th>
                   </tr>
@@ -369,10 +377,10 @@ const Feats: React.FC = () => {
                     <>
                       {data.records.most_goals_in_game && (
                         <tr className="hover:bg-gray-50">
-                          <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                          <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                             <span className="font-normal leading-normal text-sm">Most Goals in a Game</span>
                           </td>
-                          <td className="p-2 align-middle border-b whitespace-nowrap">
+                          <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                             {data.records.most_goals_in_game[0]?.selected_club ? (
                               <img
                                 src={`/club-logos-40px/${data.records.most_goals_in_game[0].selected_club.filename}`}
@@ -412,7 +420,7 @@ const Feats: React.FC = () => {
                       {data.records.streaks && Object.entries(data.records.streaks).map(([streakType, streakData], streakIndex) => 
                         streakData && (
                           <tr key={streakType} className="hover:bg-gray-50">
-                            <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                            <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                               <span className="font-normal leading-normal text-sm">
                                 {streakType === 'Win Streak' ? 'Win Streak' :
                                 streakType === 'Loss Streak' ? 'Losing Streak' :
@@ -420,7 +428,7 @@ const Feats: React.FC = () => {
                                 'Undefeated Streak'}
                               </span>
                             </td>
-                            <td className="p-2 align-middle border-b whitespace-nowrap">
+                            <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                               {streakData.holders[0]?.selected_club ? (
                                 <img
                                   src={`/club-logos-40px/${streakData.holders[0].selected_club.filename}`}
@@ -461,10 +469,10 @@ const Feats: React.FC = () => {
 
                       {data.records.consecutive_goals_streak && (
                         <tr className="hover:bg-gray-50">
-                          <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                          <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                             <span className="font-normal leading-normal text-sm">Consecutive Games Scoring</span>
                           </td>
-                          <td className="p-2 align-middle border-b whitespace-nowrap">
+                          <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                             {data.records.consecutive_goals_streak[0]?.selected_club ? (
                               <img
                                 src={`/club-logos-40px/${data.records.consecutive_goals_streak[0].selected_club.filename}`}
@@ -502,14 +510,14 @@ const Feats: React.FC = () => {
                         </tr>
                       )}
 
-                      {data.records.biggest_victory && data.records.biggest_victory[0] && (
+                      {data.records.biggest_victory && (
                         <tr className="hover:bg-gray-50">
-                          <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                          <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                             <span className="font-normal leading-normal text-sm">Biggest Victory</span>
                           </td>
-                          <td className="p-2 align-middle border-b whitespace-nowrap">
+                          <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                             <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                              <path fillRule="evenodd" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" clipRule="evenodd" />
                             </svg>
                           </td>
                           <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">

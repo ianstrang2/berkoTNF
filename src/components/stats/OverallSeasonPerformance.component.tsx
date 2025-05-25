@@ -209,9 +209,9 @@ const OverallSeasonPerformance: React.FC = () => {
               <thead className="align-bottom sticky top-0 z-30 bg-white shadow-md border-b-2 border-gray-300">
                 <tr>
                   {/* Sticky Headers */}
-                  <th className="sticky left-0 z-40 px-3 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-12">#</th>
-                  <th className="sticky left-12 z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-12"></th> {/* Icon Placeholder */}
-                  <th className="sticky left-24 z-40 px-4 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">Player</th>
+                  <th className="sticky left-0 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-8 text-center">#</th>
+                  <th className="sticky left-8 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-10"></th> {/* Icon Placeholder */}
+                  <th className="sticky left-18 z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[120px]">Player</th>
                   {/* Scrollable Headers */}
                   {statsType === 'points' ? (
                     <>
@@ -240,10 +240,10 @@ const OverallSeasonPerformance: React.FC = () => {
                    return (
                     <tr key={index} className="hover:bg-gray-50">
                       {/* Sticky Data */}
-                      <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center shadow-sm w-12">
+                      <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center shadow-sm w-8">
                          <span className="font-normal leading-normal text-sm">{index + 1}</span>
                       </td>
-                      <td className="sticky left-12 z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-12">
+                      <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                         {/* Placeholder Icon */}
                         {player.selected_club ? (
                           <img
@@ -257,7 +257,7 @@ const OverallSeasonPerformance: React.FC = () => {
                           </svg>
                         )}
                       </td>
-                       <td className="sticky left-24 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px] shadow-sm">
+                       <td className="sticky left-18 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                         <div className="flex px-2 py-1">
                           <div className="flex flex-col justify-center">
                             <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>

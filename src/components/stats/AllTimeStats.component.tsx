@@ -134,106 +134,109 @@ const AllTimeStats: React.FC = () => {
         <h5 className="mb-0">All-Time Leaderboard</h5>
       </div>
       {/* Outer container for vertical scrolling */}
-      {/* <div className="overflow-y-auto max-h-[80vh]"> */}
+      <div className="overflow-y-auto max-h-[calc(100vh-16rem)] sm:max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-12rem)]">
+        {/* Inner container for horizontal scrolling */}
         <div className="overflow-x-auto">
-          <table className="min-w-full mb-0 align-top border-gray-200 text-slate-500">
-            <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
+          <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
+            <thead className="align-bottom sticky top-0 z-30 bg-white shadow-md border-b-2 border-gray-300">
               <tr>
-                <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">#</th>
-                <th className="sticky left-[50px] z-10 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th>
+                {/* Sticky Headers */}
+                <th className="sticky left-0 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-8 text-center">#</th>
+                <th className="sticky left-8 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b-2 border-r border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-10"></th> {/* Icon Placeholder */}
                 <th 
                   onClick={() => sortData('name')}
-                  className="sticky left-[80px] z-10 p-2 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 text-left min-w-[150px]"
+                  className="sticky left-18 z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 text-left min-w-[120px] shadow-sm"
                 >
                   Player {getSortIndicator('name')}
                 </th>
+                {/* Scrollable Headers */}
                 <th 
                   onClick={() => sortData('fantasy_points')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                 >
                   Pts {getSortIndicator('fantasy_points')}
                 </th>
                 <th 
                   onClick={() => sortData('games_played')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                 >
                   P {getSortIndicator('games_played')}
                 </th>
                 <th 
                   onClick={() => sortData('wins')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                 >
                   W {getSortIndicator('wins')}
                 </th>
                 <th 
                   onClick={() => sortData('draws')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                 >
                   D {getSortIndicator('draws')}
                 </th>
                 <th 
                   onClick={() => sortData('losses')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                 >
                   L {getSortIndicator('losses')}
                 </th>
                 <th 
                   onClick={() => sortData('goals')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                 >
                   G {getSortIndicator('goals')}
                 </th>
                 <th 
                   onClick={() => sortData('win_percentage')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                 >
                   Win% {getSortIndicator('win_percentage')}
                 </th>
                 <th 
                   onClick={() => sortData('minutes_per_goal')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                 >
                   MPG {getSortIndicator('minutes_per_goal')}
                 </th>
                 <th 
                   onClick={() => sortData('heavy_wins')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                 >
                   HW {getSortIndicator('heavy_wins')}
                 </th>
                 <th 
                   onClick={() => sortData('heavy_win_percentage')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                 >
                   HW% {getSortIndicator('heavy_win_percentage')}
                 </th>
                 <th 
                   onClick={() => sortData('heavy_losses')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                 >
                   HL {getSortIndicator('heavy_losses')}
                 </th>
                 <th 
                   onClick={() => sortData('heavy_loss_percentage')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                 >
                   HL% {getSortIndicator('heavy_loss_percentage')}
                 </th>
                 <th 
                   onClick={() => sortData('clean_sheets')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
                 >
                   CS {getSortIndicator('clean_sheets')}
                 </th>
                 <th 
                   onClick={() => sortData('clean_sheet_percentage')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                 >
                   CS% {getSortIndicator('clean_sheet_percentage')}
                 </th>
                 <th 
                   onClick={() => sortData('points_per_game')}
-                  className="p-2 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
+                  className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
                 >
                   PPG {getSortIndicator('points_per_game')}
                 </th>
@@ -250,10 +253,11 @@ const AllTimeStats: React.FC = () => {
 
                 return (
                   <tr key={index} className={`${isRetired ? 'opacity-60' : ''} hover:bg-gray-50`}>
-                    <td className="sticky left-0 z-10 px-4 py-2 align-middle bg-white border-b whitespace-nowrap text-center">
+                    {/* Sticky Data */}
+                    <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center shadow-sm w-8">
                       <span className="font-normal leading-normal text-sm">{index + 1}</span>
                     </td>
-                    <td className="sticky left-[50px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                    <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-10">
                       {player.selected_club ? (
                         <img
                           src={`/club-logos-40px/${player.selected_club.filename}`}
@@ -266,7 +270,7 @@ const AllTimeStats: React.FC = () => {
                         </svg>
                       )}
                     </td>
-                    <td className="sticky left-[80px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                    <td className="sticky left-18 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px] shadow-sm">
                       <div className="flex px-2 py-1">
                         <div className="flex flex-col justify-center">
                           <h6 className={`mb-0 leading-normal text-sm ${isRetired ? 'text-slate-400' : ''}`}>{player.name}</h6>
@@ -326,7 +330,7 @@ const AllTimeStats: React.FC = () => {
             </tbody>
           </table>
         </div>
-      {/* </div> */}
+      </div>
     </div>
   );
 };
