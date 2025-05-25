@@ -202,34 +202,34 @@ const OverallSeasonPerformance: React.FC = () => {
           <h5 className="mb-0">{title}</h5>
         </div>
         {/* Outer container for vertical scrolling */}
-        <div className="overflow-y-auto max-h-[80vh]">
+        <div className="overflow-y-auto max-h-[calc(100vh-16rem)] sm:max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-12rem)]">
           {/* Inner container for horizontal scrolling */}
           <div className="overflow-x-auto">
             <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
-              <thead className="align-bottom sticky top-0 z-30 bg-white shadow-sm">
+              <thead className="align-bottom sticky top-0 z-30 bg-white shadow-md border-b-2 border-gray-300">
                 <tr>
                   {/* Sticky Headers */}
-                  <th className="sticky left-0 z-10 px-4 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">#</th>
-                  <th className="sticky left-[50px] z-10 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70"></th> {/* Icon Placeholder */}
-                  <th className="sticky left-[80px] z-10 px-6 py-3 font-bold uppercase align-middle bg-white border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">Player</th>
+                  <th className="sticky left-0 z-40 px-4 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-16">#</th>
+                  <th className="sticky left-16 z-40 px-3 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-16"></th> {/* Icon Placeholder */}
+                  <th className="sticky left-32 z-40 px-6 py-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[150px]">Player</th>
                   {/* Scrollable Headers */}
                   {statsType === 'points' ? (
                     <>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">P</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">W</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">D</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">L</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">G</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HW</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HL</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">CS</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Win %</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Points</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">P</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">W</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">D</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">L</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">G</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HW</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">HL</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">CS</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Win %</th>
                     </>
                   ) : (
                     <>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Goals</th>
-                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">MPG</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">Goals</th>
+                      <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b-2 border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">MPG</th>
                     </>
                   )}
                 </tr>
@@ -240,24 +240,24 @@ const OverallSeasonPerformance: React.FC = () => {
                    return (
                     <tr key={index} className="hover:bg-gray-50">
                       {/* Sticky Data */}
-                      <td className="sticky left-0 z-10 p-2 align-middle bg-white border-b whitespace-nowrap text-center">
+                      <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center shadow-sm w-16">
                          <span className="font-normal leading-normal text-sm">{index + 1}</span>
                       </td>
-                      <td className="sticky left-[50px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap">
+                      <td className="sticky left-16 z-20 p-2 align-middle bg-white border-b whitespace-nowrap shadow-sm w-16 text-center">
                         {/* Placeholder Icon */}
                         {player.selected_club ? (
                           <img
                             src={`/club-logos-40px/${player.selected_club.filename}`}
                             alt={player.selected_club.name}
-                            className="w-8 h-8"
+                            className="w-8 h-8 mx-auto"
                           />
                         ) : (
-                          <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-8 h-8 text-gray-400 mx-auto" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                           </svg>
                         )}
                       </td>
-                       <td className="sticky left-[80px] z-10 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px]">
+                       <td className="sticky left-32 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[150px] shadow-sm">
                         <div className="flex px-2 py-1">
                           <div className="flex flex-col justify-center">
                             <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
