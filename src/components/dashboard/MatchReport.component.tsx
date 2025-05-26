@@ -343,7 +343,7 @@ const LatestMatch: React.FC = () => {
   const renderPlayerName = (playerName: string) => {
     const playerId = getPlayerIdByName(playerName);
     return (
-      <span className="flex items-center text-sm text-slate-700">
+      <span className="inline-flex items-center text-slate-700">
         {playerName}
         {showOnFireConfig && playerId === matchData?.on_fire_player_id && (
           <FireIcon className="w-4 h-4 ml-1 text-green-500" />
@@ -451,87 +451,51 @@ const LatestMatch: React.FC = () => {
         </div>
       </div>
       
-      {/* Score section with team names positioned between score and screen edges */}
-      <div className="flex items-center justify-between mb-4 sm:mb-6">
-        {/* Team A - positioned between left edge and score */}
-        <div className="flex-1 flex justify-center">
-          <div className="flex flex-col items-center">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold">A</span>
-            </div>
-            <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamAName}</h6>
+      {/* Score section with team names positioned closer to score */}
+      <div className="flex items-center justify-center gap-8 sm:gap-12 lg:gap-16 mb-4 sm:mb-6">
+        {/* Team A - positioned closer to score */}
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
+            <span className="text-lg sm:text-xl lg:text-2xl font-bold">A</span>
           </div>
+          <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamAName}</h6>
         </div>
 
         {/* Centered Score */}
-        <div className="text-center px-3 sm:px-4">
+        <div className="text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-slate-800">
             {matchInfo.team_a_score} - {matchInfo.team_b_score}
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm uppercase text-slate-400 font-semibold">FINAL SCORE</p>
         </div>
 
-        {/* Team B - positioned between score and right edge */}
-        <div className="flex-1 flex justify-center">
-          <div className="flex flex-col items-center">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold">B</span>
-            </div>
-            <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamBName}</h6>
+        {/* Team B - positioned closer to score */}
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
+            <span className="text-lg sm:text-xl lg:text-2xl font-bold">B</span>
           </div>
+          <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamBName}</h6>
         </div>
       </div>
       
-      {/* Players in 2-column layout for each team */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Team A Players */}
-        <div className="rounded-xl border border-slate-100 p-3 sm:p-4">
-          <div className="flex justify-center">
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-xs">
-              {/* Left column */}
-              <div className="space-y-1.5 sm:space-y-2 text-center">
-                {teamAColumns.leftColumn.map((player, index) => (
-                  <div key={index} className="text-sm sm:text-base text-slate-700">
-                    {renderPlayerName(player)}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Right column */}
-              <div className="space-y-1.5 sm:space-y-2 text-center">
-                {teamAColumns.rightColumn.map((player, index) => (
-                  <div key={index} className="text-sm sm:text-base text-slate-700">
-                    {renderPlayerName(player)}
-                  </div>
-                ))}
-              </div>
+      {/* Players in 2-column layout for each team - Inner Alignment */}
+      <div className="grid grid-cols-2 gap-4 mt-5">
+        {/* Team A Players - Right-aligned (toward center) */}
+        <div className="text-right pr-2">
+          {[...teamAColumns.leftColumn, ...teamAColumns.rightColumn].map((player, index) => (
+            <div key={index} className="text-sm sm:text-base text-slate-700 mb-2">
+              {renderPlayerName(player)}
             </div>
-          </div>
+          ))}
         </div>
         
-        {/* Team B Players */}
-        <div className="rounded-xl border border-slate-100 p-3 sm:p-4">
-          <div className="flex justify-center">
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-xs">
-              {/* Left column */}
-              <div className="space-y-1.5 sm:space-y-2 text-center">
-                {teamBColumns.leftColumn.map((player, index) => (
-                  <div key={index} className="text-sm sm:text-base text-slate-700">
-                    {renderPlayerName(player)}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Right column */}
-              <div className="space-y-1.5 sm:space-y-2 text-center">
-                {teamBColumns.rightColumn.map((player, index) => (
-                  <div key={index} className="text-sm sm:text-base text-slate-700">
-                    {renderPlayerName(player)}
-                  </div>
-                ))}
-              </div>
+        {/* Team B Players - Left-aligned (toward center) */}
+        <div className="text-left pl-2">
+          {[...teamBColumns.leftColumn, ...teamBColumns.rightColumn].map((player, index) => (
+            <div key={index} className="text-sm sm:text-base text-slate-700 mb-2">
+              {renderPlayerName(player)}
             </div>
-          </div>
+          ))}
         </div>
       </div>
 
