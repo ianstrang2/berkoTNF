@@ -74,7 +74,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           <NavigationSubTabs />
           
           {/* Main Content with bottom padding for navigation and light gray background */}
-          <main className="pb-20 bg-slate-50 min-h-screen">
+          <main className="p-2 pb-20 bg-slate-50 min-h-screen sm:p-4 lg:p-6">
             <ErrorBoundary>
               {children}
             </ErrorBoundary>

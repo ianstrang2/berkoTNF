@@ -355,6 +355,42 @@ const LatestMatch: React.FC = () => {
     );
   };
 
+  // Helper function to parse goalscorers and add goal counts to player names
+  const getPlayersWithGoals = (players: string[], scorers?: string) => {
+    if (!scorers) return players;
+    
+    // Parse scorers string to count goals per player
+    const goalCounts: { [key: string]: number } = {};
+    
+    // Split by commas and process each scorer entry
+    const scorerEntries = scorers.split(',').map(s => s.trim());
+    scorerEntries.forEach(entry => {
+      // Handle formats like "Player Name (2)" or just "Player Name"
+      const match = entry.match(/^(.+?)(?:\s*\((\d+)\))?$/);
+      if (match) {
+        const playerName = match[1].trim();
+        const goals = match[2] ? parseInt(match[2]) : 1;
+        goalCounts[playerName] = (goalCounts[playerName] || 0) + goals;
+      }
+    });
+    
+    // Add goal counts to player names
+    return players.map(player => {
+      const goals = goalCounts[player];
+      return goals ? `${player} (${goals})` : player;
+    });
+  };
+
+  // Helper function to split players into two columns more evenly
+  const splitPlayersIntoColumns = (players: string[]) => {
+    // For better visual balance, left column gets the extra player for odd numbers
+    const leftCount = Math.ceil(players.length / 2);
+    return {
+      leftColumn: players.slice(0, leftCount),
+      rightColumn: players.slice(leftCount)
+    };
+  };
+
   if (loading) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
@@ -397,93 +433,112 @@ const LatestMatch: React.FC = () => {
 
   const { matchInfo } = matchData;
   
+  // Get players with goal counts integrated
+  const teamAPlayersWithGoals = getPlayersWithGoals(matchInfo.team_a_players, matchInfo.team_a_scorers);
+  const teamBPlayersWithGoals = getPlayersWithGoals(matchInfo.team_b_players, matchInfo.team_b_scorers);
+  
+  // Split into columns
+  const teamAColumns = splitPlayersIntoColumns(teamAPlayersWithGoals);
+  const teamBColumns = splitPlayersIntoColumns(teamBPlayersWithGoals);
+  
   return (
-    <div className="animate-fade-in-up relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h6 className="font-bold text-lg text-slate-700">Latest Match Result</h6>
-        <div className="flex items-center text-sm text-slate-500">
-          <i className="fas fa-calendar-alt text-slate-400 mr-2"></i>
+    <div className="animate-fade-in-up relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-3 sm:p-4 lg:p-6">
+      {/* Date above score */}
+      <div className="text-center mb-3 sm:mb-4">
+        <div className="flex items-center justify-center text-xs sm:text-sm text-slate-500">
+          <i className="fas fa-calendar-alt text-slate-400 mr-1 sm:mr-2"></i>
           <span suppressHydrationWarning>{formatDateSafely(matchInfo.match_date)}</span>
         </div>
       </div>
       
-      <div className="flex justify-center items-center gap-8 mb-6">
-        <div className="transition-soft transform hover:scale-105 hover:shadow-soft-xl flex flex-col items-center">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
-            <span className="text-xl font-bold">A</span>
+      {/* Score section with team names positioned between score and screen edges */}
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        {/* Team A - positioned between left edge and score */}
+        <div className="flex-1 flex justify-center">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
+              <span className="text-lg sm:text-xl lg:text-2xl font-bold">A</span>
+            </div>
+            <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamAName}</h6>
           </div>
-          <h6 className="mt-2 text-sm font-semibold text-slate-700">{teamAName}</h6>
         </div>
 
-        <div className="text-center">
-          <h1 className="text-5xl font-extrabold text-slate-800">
+        {/* Centered Score */}
+        <div className="text-center px-3 sm:px-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-slate-800">
             {matchInfo.team_a_score} - {matchInfo.team_b_score}
           </h1>
-          <p className="mt-0.5 text-sm uppercase text-slate-400 font-semibold">FINAL SCORE</p>
+          <p className="mt-0.5 text-xs sm:text-sm uppercase text-slate-400 font-semibold">FINAL SCORE</p>
         </div>
 
-        <div className="transition-soft transform hover:scale-105 hover:shadow-soft-xl flex flex-col items-center">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
-            <span className="text-xl font-bold">B</span>
+        {/* Team B - positioned between score and right edge */}
+        <div className="flex-1 flex justify-center">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
+              <span className="text-lg sm:text-xl lg:text-2xl font-bold">B</span>
+            </div>
+            <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamBName}</h6>
           </div>
-          <h6 className="mt-2 text-sm font-semibold text-slate-700">{teamBName}</h6>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-xl border border-slate-100 p-4">
-          <h6 className="text-sm font-bold mb-4 text-slate-700">{teamAName}</h6>
-          
-          <div className="flex flex-col space-y-2">
-            {matchInfo.team_a_players.map((player, index) => (
-              <div key={index} className="flex items-center">
-                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-100 to-purple-200 text-purple-700 flex items-center justify-center text-xs font-semibold mr-3">
-                  {index + 1}
-                </div>
-                {renderPlayerName(player)}
+      {/* Players in 2-column layout for each team */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Team A Players */}
+        <div className="rounded-xl border border-slate-100 p-3 sm:p-4">
+          <div className="flex justify-center">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-xs">
+              {/* Left column */}
+              <div className="space-y-1.5 sm:space-y-2 text-center">
+                {teamAColumns.leftColumn.map((player, index) => (
+                  <div key={index} className="text-sm sm:text-base text-slate-700">
+                    {renderPlayerName(player)}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          
-          {matchInfo.team_a_scorers && (
-            <div className="mt-4 flex items-start">
-              <i className="ni ni-football text-purple-600 mr-2 text-lg"></i>
-              <div className="text-sm text-slate-600">
-                {matchInfo.team_a_scorers}
+              
+              {/* Right column */}
+              <div className="space-y-1.5 sm:space-y-2 text-center">
+                {teamAColumns.rightColumn.map((player, index) => (
+                  <div key={index} className="text-sm sm:text-base text-slate-700">
+                    {renderPlayerName(player)}
+                  </div>
+                ))}
               </div>
             </div>
-          )}
+          </div>
         </div>
         
-        <div className="rounded-xl border border-slate-100 p-4">
-          <h6 className="text-sm font-bold mb-4 text-slate-700">{teamBName}</h6>
-          
-          <div className="flex flex-col space-y-2">
-            {matchInfo.team_b_players.map((player, index) => (
-              <div key={index} className="flex items-center">
-                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-100 to-purple-200 text-purple-700 flex items-center justify-center text-xs font-semibold mr-3">
-                  {index + 1}
-                </div>
-                {renderPlayerName(player)}
+        {/* Team B Players */}
+        <div className="rounded-xl border border-slate-100 p-3 sm:p-4">
+          <div className="flex justify-center">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-xs">
+              {/* Left column */}
+              <div className="space-y-1.5 sm:space-y-2 text-center">
+                {teamBColumns.leftColumn.map((player, index) => (
+                  <div key={index} className="text-sm sm:text-base text-slate-700">
+                    {renderPlayerName(player)}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          
-          {matchInfo.team_b_scorers && (
-            <div className="mt-4 flex items-start">
-              <i className="ni ni-football text-purple-600 mr-2 text-lg"></i>
-              <div className="text-sm text-slate-600">
-                {matchInfo.team_b_scorers}
+              
+              {/* Right column */}
+              <div className="space-y-1.5 sm:space-y-2 text-center">
+                {teamBColumns.rightColumn.map((player, index) => (
+                  <div key={index} className="text-sm sm:text-base text-slate-700">
+                    {renderPlayerName(player)}
+                  </div>
+                ))}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      <div className="mt-8 flex justify-center">
+      <div className="mt-4 sm:mt-6 lg:mt-8 flex justify-center">
         <Button
           variant={copySuccess ? "primary" : "secondary"}
-          className={`rounded-lg ${copySuccess ? "bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md" : "shadow-soft-md"}`}
+          className={`rounded-lg text-sm ${copySuccess ? "bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md" : "shadow-soft-md"}`}
           onClick={handleCopyMatchReport}
           disabled={!matchData || loading}
         >
