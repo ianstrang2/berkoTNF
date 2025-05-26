@@ -45,8 +45,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
             ? 'bg-slate-50 dark:bg-slate-950' 
             : 'bg-gray-50 dark:bg-slate-950'
         } m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white`}>
-          {/* Mobile Header - Purple System Bar */}
-          <header className="sticky top-0 z-40 bg-purple-600 border-b border-purple-700">
+          {/* Mobile Header - Consistent Soft UI Gradient */}
+          <header className="sticky top-0 z-40 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
             <div className="flex items-center justify-between px-4 py-3">
               {/* App Branding */}
               <div className="flex items-center">
@@ -101,8 +101,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
           sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
         } bg-slate-50 min-h-screen`}>
           
-          {/* Enhanced Header - Purple System Bar */}
-          <header className="sticky top-0 z-30 bg-purple-600 border-b border-purple-700">
+          {/* Enhanced Header - Consistent Soft UI Gradient */}
+          <header className="sticky top-0 z-30 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
             <div className="flex items-center justify-between px-6 py-4">
               {/* App Branding */}
               <div className="flex items-center">

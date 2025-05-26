@@ -409,7 +409,7 @@ const LatestMatch: React.FC = () => {
       
       <div className="flex justify-center items-center gap-8 mb-6">
         <div className="transition-soft transform hover:scale-105 hover:shadow-soft-xl flex flex-col items-center">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
             <span className="text-xl font-bold">A</span>
           </div>
           <h6 className="mt-2 text-sm font-semibold text-slate-700">{teamAName}</h6>
@@ -423,7 +423,7 @@ const LatestMatch: React.FC = () => {
         </div>
 
         <div className="transition-soft transform hover:scale-105 hover:shadow-soft-xl flex flex-col items-center">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
             <span className="text-xl font-bold">B</span>
           </div>
           <h6 className="mt-2 text-sm font-semibold text-slate-700">{teamBName}</h6>

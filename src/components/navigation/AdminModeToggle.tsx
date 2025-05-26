@@ -45,7 +45,7 @@ export const AdminModeToggle: React.FC<AdminModeToggleProps> = ({ className = ''
         {/* Toggle Switch */}
         <button
           onClick={handleToggleClick}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-purple-600 ${
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-purple-700 ${
             isAdminMode
               ? 'bg-orange-500 focus:ring-orange-300'
               : 'bg-white/20 focus:ring-white/50'

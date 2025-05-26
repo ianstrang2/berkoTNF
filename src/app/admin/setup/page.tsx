@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { ErrorBoundary } from '@/components/ui-kit';
@@ -23,7 +23,8 @@ const LoadingIndicator = () => (
   </div>
 );
 
-export default function AdminSetupPage() {
+// Component that uses useSearchParams - wrapped in its own Suspense boundary
+function SetupContent() {
   const [isClient, setIsClient] = useState(false);
   const searchParams = useSearchParams();
   const section = searchParams?.get('section') || 'general';
@@ -34,24 +35,26 @@ export default function AdminSetupPage() {
 
   // Show loading state during server rendering and initial hydration
   if (!isClient) {
-    return (
-      <MainLayout>
-        <LoadingIndicator />
-      </MainLayout>
-    );
+    return <LoadingIndicator />;
   }
 
   return (
+    <div className="flex flex-col w-full">
+      <div className="min-w-0 max-w-3xl">
+        <ErrorBoundary>
+          <AppSetup initialSection={section as any} />
+        </ErrorBoundary>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminSetupPage() {
+  return (
     <MainLayout>
-      <React.Suspense fallback={<LoadingIndicator />}>
-        <div className="flex flex-col w-full">
-          <div className="min-w-0 max-w-3xl">
-            <ErrorBoundary>
-              <AppSetup initialSection={section as any} />
-            </ErrorBoundary>
-          </div>
-        </div>
-      </React.Suspense>
+      <Suspense fallback={<LoadingIndicator />}>
+        <SetupContent />
+      </Suspense>
     </MainLayout>
   );
 } 

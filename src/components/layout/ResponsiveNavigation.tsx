@@ -20,8 +20,6 @@ export const ResponsiveNavigation: React.FC<ResponsiveNavigationProps> = ({ chil
       
       {/* Mobile Navigation */}
       {isMobile && <BottomNavigation />}
-      
-      {/* Desktop Navigation will be added in Phase 3 */}
     </>
   );
 }; 

@@ -11,6 +11,7 @@ interface DesktopSidebarProps {
 export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }) => {
   const { 
     primarySection, 
+    secondarySection,
     sidebarCollapsed, 
     setSidebarCollapsed, 
     isAdminMode, 
@@ -149,26 +150,34 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
       <nav className="flex-1 p-4">
         <div className="space-y-2">
           {navigationItems.map((item) => {
-            const isActive = primarySection === item.key || 
-              (item.key === 'admin' && primarySection === 'admin');
+            // Fix active state logic for both user and admin modes
+            const isActive = isAdminMode 
+              ? secondarySection === item.key  // In admin mode, check against secondarySection
+              : primarySection === item.key;   // In user mode, check against primarySection
             
             return (
               <Link
                 key={item.key}
                 href={item.href}
-                className={`flex items-center px-3 py-2 rounded-lg transition-colors group relative ${
+                className={`flex items-center px-3 py-2 rounded-lg transition-all duration-200 group relative ${
                   isActive
-                    ? isAdminMode
-                      ? 'bg-orange-600/20 text-white border-l-4 border-orange-500'
-                      : 'bg-purple-600/20 text-white border-l-4 border-purple-500'
+                    ? 'bg-gradient-to-r from-purple-700/20 to-pink-500/20 text-white shadow-soft-md'
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
               >
-                <span className={`flex-shrink-0 ${sidebarCollapsed ? 'mx-auto' : ''}`}>
+                <span className={`flex-shrink-0 ${sidebarCollapsed ? 'mx-auto' : ''} ${
+                  isActive 
+                    ? 'text-purple-400'
+                    : ''
+                }`}>
                   {item.icon}
                 </span>
                 {!sidebarCollapsed && (
                   <span className="ml-3 font-medium">{item.label}</span>
+                )}
+                {/* Active indicator line */}
+                {isActive && (
+                  <div className="absolute right-0 top-0 bottom-0 w-1 rounded-l-lg bg-gradient-to-b from-purple-700 to-pink-500" />
                 )}
               </Link>
             );

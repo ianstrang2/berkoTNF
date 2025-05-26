@@ -53,40 +53,6 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
             }
           ];
         
-        case 'setup':
-          return [
-            {
-              key: 'general',
-              label: 'General',
-              href: '/admin/setup?section=general',
-              active: pathname === '/admin/setup' && (!currentView || currentView === 'general')
-            },
-            {
-              key: 'fantasy',
-              label: 'Fantasy',
-              href: '/admin/setup?section=fantasy',
-              active: pathname === '/admin/setup' && currentView === 'fantasy'
-            },
-            {
-              key: 'milestones',
-              label: 'Milestones',
-              href: '/admin/setup?section=milestones',
-              active: pathname === '/admin/setup' && currentView === 'milestones'
-            },
-            {
-              key: 'templates',
-              label: 'Templates',
-              href: '/admin/setup?section=templates',
-              active: pathname === '/admin/setup' && currentView === 'templates'
-            },
-            {
-              key: 'balancing',
-              label: 'Balancing',
-              href: '/admin/setup?section=balancing',
-              active: pathname === '/admin/setup' && currentView === 'balancing'
-            }
-          ];
-        
         default:
           return [];
       }
@@ -143,7 +109,7 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
 
   return (
     <div className={`border-b ${
-      isAdminMode ? 'border-gray-600 bg-gray-700' : 'border-gray-100 bg-gray-50'
+      isAdminMode ? 'border-gray-100 bg-gray-50' : 'border-gray-100 bg-gray-50'
     } ${className}`}>
       <div className="px-6">
         <nav className="flex space-x-6">
@@ -151,17 +117,17 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
             <Link
               key={option.key}
               href={option.href}
-              className={`py-3 px-1 text-sm font-medium transition-colors ${
+              className={`py-3 px-1 text-sm font-medium transition-colors relative ${
                 option.active
-                  ? isAdminMode
-                    ? 'text-white border-b-2 border-orange-400'
-                    : 'text-purple-600 border-b-2 border-purple-500'
-                  : isAdminMode
-                    ? 'text-gray-300 hover:text-white'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-gray-900 font-bold'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               {option.label}
+              {/* Gradient underline for active state */}
+              {option.active && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-700 to-pink-500" />
+              )}
             </Link>
           ))}
         </nav>

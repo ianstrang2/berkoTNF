@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout';
-import { LeaderboardStats } from '@/components/stats';
+import { LeaderboardStats } from '@/components/records';
 
 export default function RecordsLeaderboardPage() {
   const [isClient, setIsClient] = useState(false);

@@ -2,6 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useNavigation } from '@/contexts/NavigationContext';
+import { useSearchParams } from 'next/navigation';
 
 interface NavigationTabsProps {
   className?: string;
@@ -9,12 +10,50 @@ interface NavigationTabsProps {
 
 export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }) => {
   const { primarySection, secondarySection, isAdminMode, isAdminAuthenticated } = useNavigation();
+  const searchParams = useSearchParams();
 
   // Get secondary navigation options based on primary section
   const getSecondaryOptions = () => {
     if (isAdminMode && isAdminAuthenticated) {
-      // Admin mode has NO secondary navigation - admin sections are primary navigation
-      return [];
+      // Admin mode secondary navigation
+      switch (secondarySection) {
+        case 'setup':
+          return [
+            {
+              key: 'general',
+              label: 'General',
+              href: '/admin/setup?section=general',
+              active: !searchParams?.get('section') || searchParams?.get('section') === 'general'
+            },
+            {
+              key: 'fantasy',
+              label: 'Fantasy',
+              href: '/admin/setup?section=fantasy',
+              active: searchParams?.get('section') === 'fantasy'
+            },
+            {
+              key: 'milestones',
+              label: 'Milestones',
+              href: '/admin/setup?section=milestones',
+              active: searchParams?.get('section') === 'milestones'
+            },
+            {
+              key: 'templates',
+              label: 'Templates',
+              href: '/admin/setup?section=templates',
+              active: searchParams?.get('section') === 'templates'
+            },
+            {
+              key: 'balancing',
+              label: 'Balancing',
+              href: '/admin/setup?section=balancing',
+              active: searchParams?.get('section') === 'balancing'
+            }
+          ];
+        
+        default:
+          return [];
+      }
     }
 
     // User mode secondary navigation
@@ -71,7 +110,7 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
 
   return (
     <div className={`border-b ${
-      isAdminMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+      isAdminMode ? 'border-gray-200 bg-white' : 'border-gray-200 bg-white'
     } ${className}`}>
       <div className="px-6">
         <nav className="flex space-x-8">
@@ -79,17 +118,17 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
             <Link
               key={option.key}
               href={option.href}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors relative ${
                 option.active
-                  ? isAdminMode
-                    ? 'border-orange-500 text-white'
-                    : 'border-purple-500 text-purple-600'
-                  : isAdminMode
-                    ? 'border-transparent text-gray-400 hover:text-white hover:border-orange-300'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-purple-300'
+                  ? 'border-transparent text-gray-900 font-bold'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               {option.label}
+              {/* Gradient underline for active state */}
+              {option.active && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-700 to-pink-500" />
+              )}
             </Link>
           ))}
         </nav>

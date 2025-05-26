@@ -17,16 +17,18 @@ const BottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon, labe
     <Link href={href} className="flex flex-col items-center justify-center h-full">
       <div className={`flex flex-col items-center justify-center transition-all duration-200 ${
         isActive 
-          ? 'text-purple-600 dark:text-purple-400' 
+          ? 'text-white' 
           : 'text-gray-400 dark:text-slate-500 hover:text-purple-500 dark:hover:text-purple-400'
       }`}>
-        <div className={`w-6 h-6 mb-1 transition-all duration-200 ${
-          isActive ? 'scale-110' : 'scale-100'
+        <div className={`w-6 h-6 mb-1 transition-all duration-200 rounded-lg flex items-center justify-center ${
+          isActive 
+            ? 'scale-110 bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md' 
+            : 'scale-100'
         }`}>
           {icon}
         </div>
         <span className={`text-xs font-medium transition-all duration-200 ${
-          isActive ? 'opacity-100' : 'opacity-70'
+          isActive ? 'opacity-100 text-gray-900 font-bold' : 'opacity-70'
         }`}>
           {label}
         </span>
@@ -41,16 +43,18 @@ const AdminBottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon,
     <Link href={href} className="flex flex-col items-center justify-center h-full">
       <div className={`flex flex-col items-center justify-center transition-all duration-200 ${
         isActive 
-          ? 'text-orange-500 dark:text-orange-400' 
-          : 'text-gray-300 dark:text-slate-400 hover:text-orange-400 dark:hover:text-orange-300'
+          ? 'text-white' 
+          : 'text-gray-400 dark:text-slate-500 hover:text-purple-500 dark:hover:text-purple-400'
       }`}>
-        <div className={`w-6 h-6 mb-1 transition-all duration-200 ${
-          isActive ? 'scale-110' : 'scale-100'
+        <div className={`w-6 h-6 mb-1 transition-all duration-200 rounded-lg flex items-center justify-center ${
+          isActive 
+            ? 'scale-110 bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md' 
+            : 'scale-100'
         }`}>
           {icon}
         </div>
         <span className={`text-xs font-medium transition-all duration-200 ${
-          isActive ? 'opacity-100' : 'opacity-80'
+          isActive ? 'opacity-100 text-gray-900 font-bold' : 'opacity-70'
         }`}>
           {label}
         </span>
@@ -186,11 +190,7 @@ export const BottomNavigation: React.FC = () => {
   const NavItemComponent = isAdminMode ? AdminBottomNavItem : BottomNavItem;
 
   return (
-    <div className={`fixed bottom-0 left-0 right-0 z-50 lg:hidden transition-all duration-200 ${
-      isAdminMode 
-        ? 'bg-gray-800 dark:bg-slate-900 border-t border-gray-700' 
-        : 'bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700'
-    }`}>
+    <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden transition-all duration-200 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
       {/* Safe area for iOS */}
       <div className="pb-safe">
         <div className="grid grid-cols-4 h-16">
