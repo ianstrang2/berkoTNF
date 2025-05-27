@@ -1,0 +1,85 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# BerkoTNF Project Rules
+
+## File Organization
+- Organize code by feature, not by type
+- Use App Router (Next.js 13+) - pages in `/app`, components in `/components`
+- Backend assets: Supabase Edge Functions in `supabase/functions/`, SQL scripts in `sql/`
+
+## Naming Conventions
+- Components: `{ComponentName}.component.tsx`
+- Pages: `{PageName}.page.tsx`  
+- Layouts: `{LayoutName}.layout.tsx`
+- Hooks: `use{HookName}.hook.ts`
+- Utilities: `{utilName}.util.ts`
+- Services: `{ServiceName}.service.ts`
+
+## Import Conventions
+- Use absolute imports with `@/` prefix
+- Import UI components individually, avoid barrel exports
+- Example: `import Button from '@/components/ui-kit/Button.component';`
+
+## React Conventions
+- Add `'use client'` directive for client-side components
+- Use functional components with hooks
+- Use TypeScript interfaces for props
+- Prefer explicit prop types over `React.FC<Props>`
+
+## Directory Structure
+```
+src/
+├── app/                    # App Router pages and layouts
+├── components/            # React components by feature
+│   ├── admin/             # Admin-related components
+│   ├── dashboard/         # Dashboard widgets
+│   ├── layout/            # Layout components
+│   ├── navigation/        # Navigation components
+│   ├── ui-kit/            # Reusable UI components
+├── contexts/              # React Context providers
+├── hooks/                 # Custom React hooks
+├── services/              # Business logic and API services
+├── types/                 # TypeScript type definitions
+└── utils/                 # Utility functions
+```
+
+## App Router Flow
+- Pages in `/app` should be minimal - just import and render components
+- Business logic and UI should live in `/components`
+- Example pattern:
+```typescript
+// /app/some-route/page.tsx
+import { SomeComponent } from '@/components/feature';
+export default function SomePage() {
+  return <SomeComponent />;
+}
+```
+
+## Component Template
+```typescript
+'use client';
+import React from 'react';
+
+interface ComponentProps {
+  children: React.ReactNode;
+  // other props
+}
+
+const ComponentName = ({ children }: ComponentProps) => {
+  return (
+    // component JSX
+  );
+};
+
+export default ComponentName;
+```
+
+## Key Feature Directories
+- `/components/dashboard/` - Dashboard widgets (PersonalBests, Milestones, MatchReport)
+- `/components/records/` - All-time records (LeaderboardStats, Legends, Feats)  
+- `/components/tables/` - Season standings (CurrentHalfSeason, OverallSeasonPerformance)
+
+- `/components/ui-kit/` - Reusable UI components

@@ -126,7 +126,7 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
               {option.label}
               {/* Gradient underline for active state */}
               {option.active && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-700 to-pink-500" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-l from-purple-700 to-pink-500" />
               )}
             </Link>
           ))}

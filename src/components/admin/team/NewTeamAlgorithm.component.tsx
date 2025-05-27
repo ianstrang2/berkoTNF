@@ -84,11 +84,11 @@ const NewTeamAlgorithm: React.FC = () => {
   };
   
   return (
-    <div className="flex flex-col w-full">
-      <div className="grid grid-cols-1 md:grid-cols-2 md:gap-6 items-start">
+    <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-start">
         {/* SECTION 1: Match setup and player pool */}
         <Card 
-          className="mb-6 md:mb-0 w-full"
+          className="w-full"
           title={
             <div className="flex justify-between items-center w-full">
               <div>
@@ -165,7 +165,7 @@ const NewTeamAlgorithm: React.FC = () => {
         <div className="flex flex-col">
           {/* SECTION 2: Team display */}
           <Card
-            className="mb-6 w-full max-w-[600px]"
+            className="w-full lg:max-w-sm"
             title={
               <div className="flex justify-between items-center w-full">
                 <h2 className="text-lg font-bold text-slate-700 font-sans">Teams</h2>
@@ -181,7 +181,7 @@ const NewTeamAlgorithm: React.FC = () => {
             }
           >
             {/* Teams display - 2 columns: Team A | Team B */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {/* Team A */}
               <div className="w-full">
                 <TeamSection 
@@ -226,7 +226,7 @@ const NewTeamAlgorithm: React.FC = () => {
           
           {/* Team Analysis Section - Conditionally render based on lastSuccessfulBalanceMethod */}
           {lastSuccessfulBalanceMethod === 'ability' && orangeTeamStats && greenTeamStats && (
-            <div className="w-full max-w-[600px] mb-6">
+            <div className="w-full lg:max-w-sm">
               <div className="relative z-20 flex flex-col min-w-0 break-words bg-white border-0 border-solid border-black-125 shadow-soft-xl rounded-2xl bg-clip-border">
                 <div className="flex-auto p-4">
                   {/* Chart with dark background - Just like soft-ui chart */}
@@ -278,7 +278,7 @@ const NewTeamAlgorithm: React.FC = () => {
       
       {/* Progress bar for balancing */}
       {isLoading && (
-        <div className="mb-6 w-full max-w-md">
+        <div className="w-full max-w-md mx-auto">
           <div className="flex justify-between items-center mb-1">
             <span className="text-xs font-medium text-slate-500">Balancing teams...</span>
             <span className="text-xs font-medium text-slate-700">{Math.round(balanceProgress)}%</span>

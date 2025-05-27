@@ -46,7 +46,7 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
     >
       {player ? (
         <div
-          className="flex items-center bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 w-full font-sans"
+          className="flex items-center bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 max-w-40 font-sans"
           draggable={!disabled}
           onDragStart={() => onDragStart(slotNumber, player)}
         >
@@ -56,7 +56,7 @@ const DraggablePlayerSlot: React.FC<DraggablePlayerSlotProps> = ({
           </svg>
         </div>
       ) : (
-        <div className="h-10 flex items-center justify-center text-slate-500 text-sm border border-gray-200 bg-white rounded-lg shadow-soft-sm w-full font-sans">
+        <div className="h-10 flex items-center justify-center text-slate-500 text-sm border border-gray-200 bg-white rounded-lg shadow-soft-sm max-w-40 font-sans">
           {isReadOnly ? 'Empty slot' : (players.length > 0 ? 'Waiting for Build Teams' : 'No players available')}
         </div>
       )}

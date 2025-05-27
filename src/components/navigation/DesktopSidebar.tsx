@@ -161,7 +161,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
                 href={item.href}
                 className={`flex items-center px-3 py-2 rounded-lg transition-all duration-200 group relative ${
                   isActive
-                    ? 'bg-gradient-to-r from-purple-700/20 to-pink-500/20 text-white shadow-soft-md'
+                    ? 'bg-gradient-to-tl from-purple-700/20 to-pink-500/20 text-white shadow-soft-md'
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
               >
@@ -177,7 +177,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
                 )}
                 {/* Active indicator line */}
                 {isActive && (
-                  <div className="absolute right-0 top-0 bottom-0 w-1 rounded-l-lg bg-gradient-to-b from-purple-700 to-pink-500" />
+                  <div className="absolute right-0 top-0 bottom-0 w-1 rounded-l-lg bg-gradient-to-b from-pink-500 to-purple-700" />
                 )}
               </Link>
             );

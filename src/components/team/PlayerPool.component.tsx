@@ -62,11 +62,11 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
         {selectedPlayers.length === 0 ? (
           <div className="text-slate-500 text-sm italic">No players selected yet.</div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+          <div className="flex flex-wrap gap-2">
             {selectedPlayers.map(player => (
               <div 
                 key={player.id} 
-                className={`flex items-center bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 font-sans w-full ${pendingPlayers.has(player.id) ? 'opacity-50' : ''}`}
+                className={`flex items-center bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 font-sans max-w-40 ${pendingPlayers.has(player.id) ? 'opacity-50' : ''}`}
               >
                 <span className="truncate flex-1 text-sm">{player.name}</span>
                 <button 
@@ -120,7 +120,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
                 onClick={() => !hasReachedMaxPlayers && !pendingPlayers.has(player.id) && onTogglePlayer(player)}
               >
                 <div className="flex items-center">
-                  <span className="bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 font-sans text-sm w-full">{player.name}</span>
+                  <span className="bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 font-sans text-sm max-w-40">{player.name}</span>
                 </div>
                 <button 
                   className="text-purple-500 hover:text-purple-700 focus:outline-none transition-colors"
