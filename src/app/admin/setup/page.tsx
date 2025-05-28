@@ -1,11 +1,11 @@
 'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MainLayout } from '@/components/layout';
-import { ErrorBoundary } from '@/components/ui-kit';
+import MainLayout from '@/components/layout/MainLayout.layout';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import dynamic from 'next/dynamic';
 
-const AppSetup = dynamic(() => import('@/components/admin/config/AppSetup'), { ssr: false });
+const AppSetup = dynamic(() => import('@/components/admin/config/AppSetup.component'), { ssr: false });
 
 // Loading component
 const LoadingIndicator = () => (

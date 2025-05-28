@@ -263,14 +263,11 @@ export const useDragAndDrop = (
       }
     }
   }, [selectedSlot, currentSlots, activeMatch, setIsLoading, setCurrentSlots, setIsBalanced, onError, onSuccess]);
-  
+
   return {
     draggedItem,
-    setDraggedItem,
     highlightedSlot,
-    setHighlightedSlot,
     selectedSlot,
-    setSelectedSlot,
     handleDragStart,
     handleDragOver,
     handleDrop,

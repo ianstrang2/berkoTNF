@@ -20,4 +20,4 @@ export function useAuth() {
   return { user, isAdmin, loading };
 }
 
-export default useAuth; 
+// No default export for hooks with .hook.ts 

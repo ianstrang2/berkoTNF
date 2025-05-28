@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useTeamAlgorithm } from '@/hooks/useTeamAlgorithm';
-import { useBalanceWeights } from '@/hooks/useBalanceWeights';
-import { formatDateSafely } from '@/utils/team-algorithm.utils';
+import { useTeamAlgorithm } from '@/hooks/useTeamAlgorithm.hook';
+import { useBalanceWeights } from '@/hooks/useBalanceWeights.hook';
+import { formatDateSafely, getCurrentDateString } from '@/utils/teamAlgorithm.util';
 import PlayerPool from '@/components/team/PlayerPool.component';
 import TeamSection from '@/components/team/TeamSection.component';
 import TornadoChart from '@/components/team/TornadoChart.component';
@@ -10,13 +10,21 @@ import PlayerFormModal from '@/components/admin/player/PlayerFormModal.component
 import MatchModal from '@/components/team/modals/MatchModal.component';
 import Card from '@/components/ui-kit/Card.component';
 import Button from '@/components/ui-kit/Button.component';
-import { SoftUIConfirmationModal } from '@/components/ui-kit';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+import { NewMatchData as NewMatchDataType, Player, Slot } from '@/types/team-algorithm.types';
 
 const NewTeamAlgorithm: React.FC = () => {
   // State for balance options modal
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
   const [balanceMethod, setBalanceMethod] = useState<'ability' | 'random' | 'performance'>('performance');
   
+  // Local state for NewMatchData
+  const [newMatchData, setNewMatchData] = useState<NewMatchDataType>({
+    match_date: getCurrentDateString(), // Initialize with current date
+    team_size: 9, // Default team size
+    date: getCurrentDateString(), // duplicate date field for NewMatchDataType
+  });
+
   // Fetch balance algorithm weights
   const { formattedWeights } = useBalanceWeights();
   
@@ -30,7 +38,6 @@ const NewTeamAlgorithm: React.FC = () => {
     balanceProgress,
     isRingerModalOpen,
     isMatchModalOpen,
-    newMatchData,
     isClearConfirmOpen,
     isLoading,
     selectedPoolPlayers,
@@ -39,9 +46,6 @@ const NewTeamAlgorithm: React.FC = () => {
     draggedItem,
     highlightedSlot,
     selectedSlot,
-    orangeTeamStats,
-    greenTeamStats,
-    comparativeStats,
     createMatchError,
     copySuccess,
     pendingPlayerToggles,
@@ -50,12 +54,11 @@ const NewTeamAlgorithm: React.FC = () => {
     setIsRingerModalOpen,
     setIsMatchModalOpen,
     setIsClearConfirmOpen,
-    handleMatchFormChange,
     handleAddRinger,
     handleCreateMatch,
     handleClearTeams,
     confirmClearTeams,
-    handleTogglePoolPlayer,
+    handleTogglePlayerInPool,
     handleAssignPoolPlayers,
     handleBalanceTeams,
     handleCopyTeams,
@@ -64,9 +67,17 @@ const NewTeamAlgorithm: React.FC = () => {
     handleDrop,
     handleSlotTap,
     selectPlayer,
-    getAvailablePlayers,
+    getAvailablePlayersFn,
     lastSuccessfulBalanceMethod
   } = useTeamAlgorithm();
+
+  // Alias for convenience if needed, or use getAvailablePlayersFn directly
+  // const getAvailablePlayers = getAvailablePlayersFn; // We will use a wrapper
+
+  // Component's own handler for match form changes
+  const handleMatchFormChange = (field: keyof NewMatchDataType, value: any) => {
+    setNewMatchData(prev => ({ ...prev, [field]: value }));
+  };
   
   // Balance teams using the selected method
   const proceedWithBalancing = async () => {
@@ -79,8 +90,20 @@ const NewTeamAlgorithm: React.FC = () => {
 
   // Method for getting comparative balance value
   const getComparativeBalanceValue = () => {
-    if (!comparativeStats) return 0;
-    return Math.round((1 - comparativeStats.balanceScore) * 100);
+    // if (!comparativeStats) return 0; // Commented out as comparativeStats is not available
+    // return Math.round((1 - comparativeStats.balanceScore) * 100);
+    return 0; // Return 0 temporarily
+  };
+
+  // Wrapper for handleTogglePlayerInPool
+  const togglePlayerWrapper = (player: Player) => {
+    const isCurrentlySelected = selectedPoolPlayers.some(p => p.id === player.id);
+    handleTogglePlayerInPool(player.id, !isCurrentlySelected);
+  };
+
+  // Wrapper for getAvailablePlayersFn
+  const getAvailablePlayersWrapper = (slot: Slot): Player[] => {
+    return getAvailablePlayersFn(slot, players); // players is from useTeamAlgorithm hook
   };
   
   return (
@@ -123,7 +146,7 @@ const NewTeamAlgorithm: React.FC = () => {
             <PlayerPool 
               allPlayers={players}
               selectedPlayers={selectedPoolPlayers}
-              onTogglePlayer={handleTogglePoolPlayer}
+              onTogglePlayer={togglePlayerWrapper}
               teamSize={activeMatch?.team_size || 9}
               onBalanceTeams={() => handleBalanceTeams('ability')}
               isBalancing={isLoading && balanceProgress > 0}
@@ -197,7 +220,7 @@ const NewTeamAlgorithm: React.FC = () => {
                   isLoading={isLoading}
                   highlightedSlot={highlightedSlot}
                   selectedSlot={selectedSlot}
-                  getAvailablePlayers={getAvailablePlayers}
+                  getAvailablePlayers={getAvailablePlayersWrapper}
                   isReadOnly={isBalanced} // Make read-only when balanced
                 />
               </div>
@@ -217,7 +240,7 @@ const NewTeamAlgorithm: React.FC = () => {
                   isLoading={isLoading}
                   highlightedSlot={highlightedSlot}
                   selectedSlot={selectedSlot}
-                  getAvailablePlayers={getAvailablePlayers}
+                  getAvailablePlayers={getAvailablePlayersWrapper}
                   isReadOnly={isBalanced} // Make read-only when balanced
                 />
               </div>
@@ -225,11 +248,11 @@ const NewTeamAlgorithm: React.FC = () => {
           </Card>
           
           {/* Team Analysis Section - Conditionally render based on lastSuccessfulBalanceMethod */}
-          {lastSuccessfulBalanceMethod === 'ability' && orangeTeamStats && greenTeamStats && (
+          {/* {lastSuccessfulBalanceMethod === 'ability' && orangeTeamStats && greenTeamStats && (
             <div className="w-full lg:max-w-sm">
               <div className="relative z-20 flex flex-col min-w-0 break-words bg-white border-0 border-solid border-black-125 shadow-soft-xl rounded-2xl bg-clip-border">
                 <div className="flex-auto p-4">
-                  {/* Chart with dark background - Just like soft-ui chart */}
+                  
                   <div className="pt-0 pb-0 pr-1 mb-4 bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl">
                     <div>
                       <TornadoChart 
@@ -240,7 +263,7 @@ const NewTeamAlgorithm: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Balance score with same styling as soft-ui user/click/stats metrics - Left aligned */}
+                  
                   <div className="w-full px-0 mx-auto max-w-screen-2xl rounded-xl">
                     <div className="flex flex-wrap mt-0">
                       <div className="flex-none max-w-full py-4 pl-0 pr-3 mt-0">
@@ -272,7 +295,7 @@ const NewTeamAlgorithm: React.FC = () => {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
       

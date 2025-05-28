@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Card, ConfirmationModal } from '@/components/ui-kit';
+import Button from '@/components/ui-kit/Button.component';
+import Card from '@/components/ui-kit/Card.component';
+import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
 
 interface ConfigItem {
   config_key: string;
@@ -245,7 +247,7 @@ const FantasyPointsSetup: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Heavy Win
+                  Heavy Win (e.g., by 5+ goals)
                 </label>
                 <input
                   type="number"

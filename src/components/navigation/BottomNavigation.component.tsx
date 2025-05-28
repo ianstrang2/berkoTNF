@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useNavigation, NAVIGATION_CONFIG } from '@/contexts/NavigationContext';
-import { useCurrentNavigation } from '@/hooks/useNavigationSync';
+import { useCurrentNavigation } from '@/hooks/useNavigationSync.hook';
 
 interface BottomNavItemProps {
   section: 'dashboard' | 'upcoming' | 'table' | 'records' | 'admin';

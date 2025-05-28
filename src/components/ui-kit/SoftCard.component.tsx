@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface CardProps {
+interface SoftCardProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
@@ -11,7 +11,7 @@ interface CardProps {
 /**
  * Card component styled to match Soft UI Dashboard design
  */
-export const Card: React.FC<CardProps> = ({ 
+export const SoftCard: React.FC<SoftCardProps> = ({
   children, 
   title, 
   subtitle, 
@@ -33,4 +33,4 @@ export const Card: React.FC<CardProps> = ({
   );
 };
 
-export default Card; 
+export default SoftCard; 

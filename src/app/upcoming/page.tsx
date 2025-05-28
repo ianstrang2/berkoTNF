@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/layout';
+import MainLayout from '@/components/layout/MainLayout.layout';
 
 export default function UpcomingPage() {
   const [isClient, setIsClient] = useState(false);

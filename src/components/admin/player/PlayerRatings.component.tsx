@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AttributeTooltip, AttributeGuideModal } from './AttributeGuide.component';
-import { Table, TableHead, TableBody, TableRow, TableCell, Button } from '@/components/ui-kit';
-import { SoftUIConfirmationModal } from '@/components/ui-kit';
+import Button from '@/components/ui-kit/Button.component';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 
 type AttributeType = 'goalscoring' | 'defender' | 'stamina_pace' | 'control' | 'teamwork' | 'resilience';
 

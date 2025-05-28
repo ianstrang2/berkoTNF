@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MainLayout } from '@/components/layout';
-import { CurrentHalfSeason } from '@/components/tables';
-import { ErrorBoundary } from '@/components/ui-kit';
+import CurrentHalfSeason from '@/components/tables/CurrentHalfSeason.component';
+import MainLayout from '@/components/layout/MainLayout.layout';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 // Loading component
 const LoadingIndicator = () => (

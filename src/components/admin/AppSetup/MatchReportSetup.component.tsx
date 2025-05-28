@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Card, ConfirmationModal } from '@/components/ui-kit';
+import Button from '@/components/ui-kit/Button.component';
+import Card from '@/components/ui-kit/Card.component';
+import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
 
 interface MatchReportSetting {
   id: number;

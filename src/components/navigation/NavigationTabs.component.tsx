@@ -26,16 +26,10 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
               active: !searchParams?.get('section') || searchParams?.get('section') === 'general'
             },
             {
-              key: 'fantasy',
-              label: 'Fantasy',
-              href: '/admin/setup?section=fantasy',
-              active: searchParams?.get('section') === 'fantasy'
-            },
-            {
-              key: 'milestones',
-              label: 'Milestones',
-              href: '/admin/setup?section=milestones',
-              active: searchParams?.get('section') === 'milestones'
+              key: 'stats',
+              label: 'Stats',
+              href: '/admin/setup?section=stats',
+              active: searchParams?.get('section') === 'stats'
             },
             {
               key: 'templates',

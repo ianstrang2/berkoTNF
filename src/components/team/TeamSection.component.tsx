@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TeamSectionProps } from '@/types/team-algorithm.types';
 import DraggablePlayerSlot from './DraggablePlayerSlot.component';
-import { getPositionFromSlot, getPlayerStats } from '@/utils/team-algorithm.utils';
+import { getPositionFromSlot, getPlayerStats } from '@/utils/teamAlgorithm.util';
 
 const TeamSection: React.FC<TeamSectionProps> = ({
   teamType,

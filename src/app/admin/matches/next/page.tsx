@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/layout';
-import { ErrorBoundary } from '@/components/ui-kit';
-import { AdminLayout } from '@/components/layout';
+import MainLayout from '@/components/layout/MainLayout.layout';
+import AdminLayout from '@/components/layout/AdminLayout.layout';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import dynamic from 'next/dynamic';
 
 const TeamAlgorithm = dynamic(() => import('@/components/admin/team/TeamAlgorithmWrapper.component'), { ssr: false });

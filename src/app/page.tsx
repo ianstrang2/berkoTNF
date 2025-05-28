@@ -1,21 +1,28 @@
 'use client';
 import React from 'react';
-import { MainLayout } from '@/components/layout';
+import Head from 'next/head';
+import MainLayout from '@/components/layout/MainLayout.layout';
 import dynamic from 'next/dynamic';
+import Dashboard from '@/components/dashboard/Dashboard.component';
 
 // Dynamically import the Dashboard component
-const Dashboard = dynamic(() => import('@/components/dashboard/Dashboard.component'), {
+const DashboardComponent = dynamic(() => import('@/components/dashboard/Dashboard.component'), {
   loading: () => (
     <div className="flex justify-center items-center p-12">
-      <div className="w-12 h-12 border-4 border-neutral-300 border-t-primary-500 rounded-full animate-spin"></div>
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
     </div>
   ),
+  ssr: false, // Ensure it's client-side rendered if it uses client-specific hooks or state
 });
 
-export default function Home() {
+export default function HomePage() {
   return (
     <MainLayout>
-      <Dashboard />
+      <Head>
+        <title>Dashboard - BerkoTNF</title>
+        <meta name="description" content="Overview of your BerkoTNF stats and upcoming matches." />
+      </Head>
+      <DashboardComponent />
     </MainLayout>
   );
 } 

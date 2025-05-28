@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Card, ConfirmationModal } from '@/components/ui-kit';
+import Button from '@/components/ui-kit/Button.component';
+import Card from '@/components/ui-kit/Card.component';
+import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
 
 interface ConfigItem {
   config_key: string;
@@ -13,7 +15,7 @@ interface ConfigMap {
 interface Toast {
   show: boolean;
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning';
 }
 
 const MatchSettingsSetup: React.FC = () => {
@@ -21,7 +23,9 @@ const MatchSettingsSetup: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
   const [configs, setConfigs] = useState<ConfigMap>({
     days_between_matches: '7',
-    default_team_size: '9'
+    default_team_size: '9',
+    team_a_name: 'Team A', // Added Team A
+    team_b_name: 'Team B'  // Added Team B
   });
   const [originalConfigs, setOriginalConfigs] = useState<ConfigMap>({});
   const [isDirty, setIsDirty] = useState<boolean>(false);
@@ -52,8 +56,19 @@ const MatchSettingsSetup: React.FC = () => {
           configsObj[config.config_key] = config.config_value;
         });
         
-        setConfigs(configsObj);
-        setOriginalConfigs({...configsObj});
+        // Ensure all expected keys are present, providing defaults if not
+        setConfigs(prev => ({
+          days_between_matches: configsObj.days_between_matches || '7',
+          default_team_size: configsObj.default_team_size || '9',
+          team_a_name: configsObj.team_a_name || 'Team A',
+          team_b_name: configsObj.team_b_name || 'Team B',
+        }));
+        setOriginalConfigs({
+            days_between_matches: configsObj.days_between_matches || '7',
+            default_team_size: configsObj.default_team_size || '9',
+            team_a_name: configsObj.team_a_name || 'Team A',
+            team_b_name: configsObj.team_b_name || 'Team B',
+        });
       }
     } catch (error) {
       console.error('Error fetching match settings:', error);
@@ -63,7 +78,7 @@ const MatchSettingsSetup: React.FC = () => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>): void => {
     const { name, value } = e.target;
     setConfigs(prev => ({
       ...prev,
@@ -86,7 +101,8 @@ const MatchSettingsSetup: React.FC = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          configs: configsArray
+          configs: configsArray,
+          group: 'match_settings' // Specify the group for targeted update
         })
       });
       
@@ -97,6 +113,9 @@ const MatchSettingsSetup: React.FC = () => {
       if (data.success) {
         showToast('Match settings updated successfully');
         setOriginalConfigs({...configs});
+        setIsDirty(false); // Reflect that changes are saved
+      } else {
+        showToast(data.error || 'Failed to update match settings', 'error');
       }
     } catch (error) {
       console.error('Error updating match settings:', error);
@@ -111,7 +130,7 @@ const MatchSettingsSetup: React.FC = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch('/api/admin/app-config', {
+      const response = await fetch('/api/admin/app-config/reset', { // Changed endpoint
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -127,13 +146,27 @@ const MatchSettingsSetup: React.FC = () => {
       
       if (data.success) {
         const configsObj: ConfigMap = {};
-        data.data.forEach((config: ConfigItem) => {
+        data.data.forEach((config: ConfigItem) => { // Assuming data.data contains the reset configs
           configsObj[config.config_key] = config.config_value;
         });
         
-        setConfigs(configsObj);
-        setOriginalConfigs({...configsObj});
+        // Ensure all expected keys are present, providing defaults if not
+        setConfigs({
+          days_between_matches: configsObj.days_between_matches || '7',
+          default_team_size: configsObj.default_team_size || '9',
+          team_a_name: configsObj.team_a_name || 'Team A',
+          team_b_name: configsObj.team_b_name || 'Team B',
+        });
+        setOriginalConfigs({
+            days_between_matches: configsObj.days_between_matches || '7',
+            default_team_size: configsObj.default_team_size || '9',
+            team_a_name: configsObj.team_a_name || 'Team A',
+            team_b_name: configsObj.team_b_name || 'Team B',
+        });
+        setIsDirty(false); // Reflect that it's now at default state
         showToast('Match settings reset to defaults');
+      } else {
+         showToast(data.error || 'Failed to reset match settings', 'error');
       }
     } catch (error) {
       console.error('Error resetting match settings:', error);
@@ -172,7 +205,7 @@ const MatchSettingsSetup: React.FC = () => {
       </div>
 
       {toast.show && (
-        <div className={`mb-4 p-3 rounded-md ${toast.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+        <div className={`mb-4 p-3 rounded-md ${toast.type === 'error' ? 'bg-red-50 text-red-700' : toast.type === 'warning' ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'}`}>
           {toast.message}
         </div>
       )}
@@ -189,7 +222,7 @@ const MatchSettingsSetup: React.FC = () => {
             </label>
             <select
               name="days_between_matches"
-              value={configs.days_between_matches}
+              value={configs.days_between_matches || '7'}
               onChange={handleInputChange}
               className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
               disabled={isLoading}
@@ -209,7 +242,7 @@ const MatchSettingsSetup: React.FC = () => {
             </label>
             <select
               name="default_team_size"
-              value={configs.default_team_size}
+              value={configs.default_team_size || '9'}
               onChange={handleInputChange}
               className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
               disabled={isLoading}
@@ -223,6 +256,42 @@ const MatchSettingsSetup: React.FC = () => {
             </select>
             <p className="mt-1 text-xs text-neutral-500">
               Default team size for new matches
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Team A Name
+            </label>
+            <input
+              type="text"
+              name="team_a_name"
+              value={configs.team_a_name || 'Team A'}
+              onChange={handleInputChange}
+              className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+              disabled={isLoading}
+              maxLength={20}
+            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Default name for Team A (max 20 characters)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Team B Name
+            </label>
+            <input
+              type="text"
+              name="team_b_name"
+              value={configs.team_b_name || 'Team B'}
+              onChange={handleInputChange}
+              className="w-full rounded-md border-neutral-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+              disabled={isLoading}
+              maxLength={20}
+            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Default name for Team B (max 20 characters)
             </p>
           </div>
         </div>
@@ -246,9 +315,9 @@ const MatchSettingsSetup: React.FC = () => {
       {showResetConfirmation && (
         <ConfirmationModal
           isOpen={showResetConfirmation}
-          title="Reset to Defaults"
-          message="Are you sure you want to reset all match settings to their default values?"
-          confirmText="Reset to Defaults"
+          title="Reset Match Settings?"
+          message="Are you sure you want to reset match settings to their default values? This will only affect future matches."
+          confirmText="Reset Settings"
           cancelText="Cancel"
           onConfirm={handleResetToDefaults}
           onClose={() => setShowResetConfirmation(false)}

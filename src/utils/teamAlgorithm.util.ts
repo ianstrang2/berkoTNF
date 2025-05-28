@@ -250,89 +250,84 @@ export const determinePositionGroups = (teamSize: number, team: string): Positio
 };
 
 /**
- * Determines the position role from a slot number
+ * Gets the position string (Defenders, Midfielders, Attackers) from a slot number
  */
 export const getPositionFromSlot = (slotNumber: number): string => {
-  if (slotNumber <= 3 || (slotNumber >= 10 && slotNumber <= 12)) return 'defender';
-  if (slotNumber <= 7 || (slotNumber >= 13 && slotNumber <= 16)) return 'midfielder';
-  return 'attacker';
+  const { position } = getSlotInfo(slotNumber);
+  return position.charAt(0).toUpperCase() + position.slice(1);
 };
 
 /**
- * Gets the appropriate stats string for a player based on their position
+ * Gets player stats display string based on role
  */
 export const getPlayerStats = (player: Player | undefined, role: string): string => {
   if (!player) return '';
   
-  switch (role) {
-    case 'defender':
-      return `G:${player.goalscoring} | S&P:${player.stamina_pace} | C:${player.control}`;
-    case 'midfielder':
-      return `C:${player.control} | S&P:${player.stamina_pace} | G:${player.goalscoring}`;
-    case 'attacker':
-      return `G:${player.goalscoring} | S&P:${player.stamina_pace} | C:${player.control}`;
-    default:
-      return '';
+  let stats: (string | number | undefined)[] = [];
+  if (role === 'Defenders') {
+    stats = [player.defending, player.stamina_pace, player.control];
+  } else if (role === 'Midfielders') {
+    stats = [player.control, player.stamina_pace, player.goalscoring];
+  } else { // Attackers
+    stats = [player.goalscoring, player.stamina_pace, player.control];
   }
+  
+  return stats.filter(s => s !== undefined).join('/');
 };
 
 /**
- * Validates match data before submission
+ * Validates match data before creation
  */
 export const validateMatchData = (matchData: { date: string, team_size: number }): string | null => {
   if (!matchData.date) {
-    return 'Match date is required';
+    return "Match date cannot be empty.";
   }
   
-  const matchDateObj = new Date(matchData.date);
-  if (isNaN(matchDateObj.getTime())) {
-    return 'Invalid match date';
+  if (new Date(matchData.date) < new Date(new Date().setHours(0, 0, 0, 0))) {
+    return "Match date cannot be in the past.";
   }
   
-  if (!matchData.team_size || matchData.team_size < 5 || matchData.team_size > 11) {
-    return 'Team size must be between 5 and 11';
+  if (matchData.team_size < 5 || matchData.team_size > 11) {
+    return "Team size must be between 5 and 11.";
   }
   
   return null;
 };
 
 /**
- * Formats teams for copying/exporting
+ * Formats team assignments for copying to clipboard
  */
 export const formatTeamsForCopy = (
   slots: Slot[],
   players: Player[],
-  on_fire_player_id?: number | null,
-  grim_reaper_player_id?: number | null,
-  showOnFire?: boolean,
-  showGrimReaper?: boolean
+  on_fire_player_id?: number | null, // Optional: ID of player on fire
+  grim_reaper_player_id?: number | null, // Optional: ID of grim reaper player
+  showOnFire?: boolean, // Optional: Flag to show on fire icon
+  showGrimReaper?: boolean // Optional: Flag to show grim reaper icon
 ): string => {
+  const orangeTeam = slots.filter(s => s.team === 'A' && s.player_id);
+  const greenTeam = slots.filter(s => s.team === 'B' && s.player_id);
+
   const formatTeam = (teamSlots: Slot[]) => {
     return teamSlots
-      .filter(slot => slot.player_id)
       .map(slot => {
         const player = players.find(p => p.id === slot.player_id);
-        if (!player) return '';
-
-        let playerName = player.name;
-        // Ensure player.id is treated as a number for comparison
-        const playerIdAsNumber = typeof player.id === 'string' ? parseInt(player.id, 10) : player.id;
-
-        if (showOnFire && playerIdAsNumber === on_fire_player_id) {
-          playerName += ' 🔥';
+        let playerName = player ? player.name : 'Empty';
+        
+        // Append icons if applicable
+        if (player) {
+          if (showOnFire && player.id === on_fire_player_id?.toString()) {
+            playerName += ' 🔥'; // Add fire icon
+          }
+          if (showGrimReaper && player.id === grim_reaper_player_id?.toString()) {
+            playerName += ' 💀'; // Add grim reaper icon
+          }
         }
-        if (showGrimReaper && playerIdAsNumber === grim_reaper_player_id) {
-          playerName += ' 💀';
-        }
+        
         return playerName;
       })
-      .filter(name => name)
-      .sort()
       .join('\n');
   };
 
-  const teamASlots = slots.filter(s => s.slot_number <= 9); // Assuming 9 is max for Team A, adjust if dynamic
-  const teamBSlots = slots.filter(s => s.slot_number > 9); // Assuming 9 is max for Team A, adjust if dynamic
-
-  return `Orange\n${formatTeam(teamASlots)}\n\nGreen\n${formatTeam(teamBSlots)}`;
+  return `Orange Team:\n${formatTeam(orangeTeam)}\n\nGreen Team:\n${formatTeam(greenTeam)}`;
 }; 

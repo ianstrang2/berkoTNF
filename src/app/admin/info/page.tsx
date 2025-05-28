@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { MainLayout } from '@/components/layout';
-import { AdminLayout } from '@/components/layout';
-import { ErrorBoundary, Button } from '@/components/ui-kit'; 
+import Link from 'next/link';
+import MainLayout from '@/components/layout/MainLayout.layout';
+import AdminLayout from '@/components/layout/AdminLayout.layout';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
+import Button from '@/components/ui-kit/Button.component';
 // Removed Table components from ui-kit to use direct HTML with Tailwind for style consistency
 
 // import { triggerEdgeFunctions as triggerStatsUpdate } from '@/services/statsUpdate.service'; // No longer needed
@@ -32,7 +34,7 @@ interface ShowOnStatsPlayer {
   gamesPlayedThisYear: number;
 }
 
-export default function AdminInfoPage() {
+const AdminInfoPage = () => {
   const [cacheMetadata, setCacheMetadata] = useState<CacheMetadata[]>([]);
   const [absentees, setAbsentees] = useState<AbsenteePlayer[]>([]);
   const [ringersToConsider, setRingersToConsider] = useState<ShowOnStatsPlayer[]>([]);
@@ -250,4 +252,6 @@ export default function AdminInfoPage() {
       </AdminLayout>
     </MainLayout>
   );
-} 
+}
+
+export default AdminInfoPage; 

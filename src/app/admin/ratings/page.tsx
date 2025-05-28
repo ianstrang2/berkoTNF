@@ -1,20 +1,23 @@
 'use client';
 import React from 'react';
-import { MainLayout } from '@/components/layout';
-import { ErrorBoundary } from '@/components/ui-kit';
-import { AdminLayout } from '@/components/layout';
+import MainLayout from '@/components/layout/MainLayout.layout';
+import AdminLayout from '@/components/layout/AdminLayout.layout';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import dynamic from 'next/dynamic';
 
-const PlayerRatings = dynamic(() => import('@/components/admin/player/PlayerRatings.component'), { ssr: false });
+const PlayerRatings = dynamic(() => import('@/components/admin/player/PlayerRatings.component'), {
+  ssr: false,
+  loading: () => <p>Loading ratings...</p>
+});
 
-export default function PlayerRatingsPage() {
+export default function RatingsPage() {
   return (
     <MainLayout>
-      <ErrorBoundary>
-        <AdminLayout>
+      <AdminLayout>
+        <ErrorBoundary>
           <PlayerRatings />
-        </AdminLayout>
-      </ErrorBoundary>
+        </ErrorBoundary>
+      </AdminLayout>
     </MainLayout>
   );
 } 

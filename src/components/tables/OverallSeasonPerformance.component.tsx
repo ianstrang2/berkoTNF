@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import NavPills from '@/components/ui-kit/NavPills.component';
-import FireIcon from '@/components/icons/FireIcon';
-import GrimReaperIcon from '@/components/icons/GrimReaperIcon';
+import FireIcon from '@/components/icons/FireIcon.component';
+import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 
 interface PlayerStats {
   name: string;

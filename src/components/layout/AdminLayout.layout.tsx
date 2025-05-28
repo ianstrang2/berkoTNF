@@ -1,5 +1,6 @@
 import React, { useState, useEffect, ReactNode } from 'react';
-import { Card, Button } from '@/components/ui-kit';
+import Button from '@/components/ui-kit/Button.component';
+import SoftCard from '@/components/ui-kit/SoftCard.component';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -19,7 +20,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'poo') {
+    if (password === 'poo') { // Intentionally kept simple password for local dev
       localStorage.setItem('adminAuth', 'true');
       setIsAuthenticated(true);
       setError('');
@@ -31,7 +32,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   if (!isAuthenticated) {
     return (
       <div className="w-full">
-        <Card>
+        <SoftCard>
           <h2 className="text-xl font-bold mb-4 text-primary-600">Admin Access</h2>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
@@ -56,7 +57,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               Login
             </Button>
           </form>
-        </Card>
+        </SoftCard>
       </div>
     );
   }
@@ -64,4 +65,4 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   return <>{children}</>;
 };
 
-export default AdminLayout; 
+export default AdminLayout;

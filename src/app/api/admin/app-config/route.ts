@@ -19,25 +19,36 @@ export async function GET(request: Request) {
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const group = searchParams.get('group');
+    const groupsQueryParam = searchParams.get('groups');
 
-    // Build query based on parameters
     let configs;
-    if (group) {
-      configs = await prisma.app_config.findMany({
-        where: {
-          config_group: group
-        },
-        orderBy: {
-          config_key: 'asc'
-        }
-      });
+    const orderByClause = [
+      { config_group: 'asc' },
+      { display_group: 'asc' },
+      { sort_order: 'asc' },
+      { display_name: 'asc' },
+      { config_key: 'asc' }
+    ];
+
+    if (groupsQueryParam) {
+      const groupArray = groupsQueryParam.split(',').map(g => g.trim()).filter(g => g);
+      if (groupArray.length > 0) {
+        configs = await prisma.app_config.findMany({
+          where: {
+            config_group: {
+              in: groupArray
+            }
+          },
+          orderBy: orderByClause
+        });
+      } else {
+        configs = await prisma.app_config.findMany({
+          orderBy: orderByClause
+        });
+      }
     } else {
       configs = await prisma.app_config.findMany({
-        orderBy: [
-          { config_group: 'asc' },
-          { config_key: 'asc' }
-        ]
+        orderBy: orderByClause
       });
     }
 

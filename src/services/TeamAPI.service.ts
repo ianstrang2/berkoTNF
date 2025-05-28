@@ -6,7 +6,7 @@ import {
   RingerFormData, 
   ApiResponse 
 } from '@/types/team-algorithm.types';
-import { TeamBalanceService } from './TeamBalanceService';
+import { TeamBalanceService } from './TeamBalance.service';
 
 export const TeamAPIService = {
   // Player pool APIs

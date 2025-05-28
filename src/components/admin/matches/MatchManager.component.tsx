@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';  // Import date-fns for date formatting
-import { Card, Table, TableHead, TableBody, TableRow, TableCell, Button } from '@/components/ui-kit';
-import { SoftUIConfirmationModal } from '@/components/ui-kit';
+import Card from '@/components/ui-kit/Card.component';
+import Button from '@/components/ui-kit/Button.component';
+import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 
 interface Player {
   player_id: number;

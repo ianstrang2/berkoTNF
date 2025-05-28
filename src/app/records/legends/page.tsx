@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MainLayout } from '@/components/layout';
-import { Legends } from '@/components/records';
+import MainLayout from '@/components/layout/MainLayout.layout';
+import LegendsComponent from '@/components/records/Legends.component';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 // Loading component
@@ -47,7 +47,7 @@ function LegendsContent() {
 
   return (
     <ErrorBoundary>
-      <Legends initialView={view as 'winners' | 'scorers'} />
+      <LegendsComponent initialView={view as 'winners' | 'scorers'} />
     </ErrorBoundary>
   );
 }

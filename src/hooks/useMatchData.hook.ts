@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Match, NewMatchData } from '@/types/team-algorithm.types';
 import { API_ENDPOINTS } from '@/constants/team-algorithm.constants';
-import { getCurrentDateString, validateMatchData } from '@/utils/team-algorithm.utils';
+import { getCurrentDateString, validateMatchData } from '@/utils/teamAlgorithm.util';
 
 export const useMatchData = () => {
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);

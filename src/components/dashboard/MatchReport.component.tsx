@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
-import FireIcon from '@/components/icons/FireIcon';
-import GrimReaperIcon from '@/components/icons/GrimReaperIcon';
+import FireIcon from '@/components/icons/FireIcon.component';
+import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import { PersonalBestsAPIResponseData as PersonalBestsData } from '@/app/api/personal-bests/route';
 
 interface MatchInfo {

@@ -91,6 +91,9 @@ model app_config {
   config_group       String?   @db.VarChar(100)
   created_at         DateTime? @default(now()) @db.Timestamptz(6)
   updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  display_name       String?
+  display_group      String?
+  sort_order         Int?
 }
 
 /// This model represents app configuration default settings
@@ -424,12 +427,14 @@ model process_state {
 }
 
 model aggregated_player_power_ratings {
-  player_id       Int      @id
-  rating          Decimal  @db.Decimal
-  variance        Decimal  @db.Decimal
-  effective_games Decimal  @db.Decimal
-  updated_at      DateTime @default(now()) @db.Timestamptz(6)
-  players         players  @relation(fields: [player_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
+  player_id        Int      @id
+  rating           Decimal  @db.Decimal
+  variance         Decimal  @db.Decimal
+  effective_games  Decimal  @db.Decimal
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  goal_threat      Decimal? @db.Decimal
+  defensive_shield Decimal? @db.Decimal
+  players          players  @relation(fields: [player_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([rating(sort: Desc)], map: "idx_power_rating_desc")
 }

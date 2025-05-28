@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/layout';
-import { LeaderboardStats } from '@/components/records';
+import MainLayout from '@/components/layout/MainLayout.layout';
+import Leaderboard from '@/components/records/LeaderboardStats.component';
 
-export default function RecordsLeaderboardPage() {
+export default function LeaderboardPage() {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function RecordsLeaderboardPage() {
 
   return (
     <MainLayout>
-      <LeaderboardStats />
+      <Leaderboard />
     </MainLayout>
   );
 } 

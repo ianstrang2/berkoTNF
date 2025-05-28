@@ -1,14 +1,14 @@
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MainLayout } from '@/components/layout';
-import { ErrorBoundary } from '@/components/ui-kit';
-import { AdminLayout } from '@/components/layout';
-import dynamic from 'next/dynamic';
+import React from 'react';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
+import MainLayout from '@/components/layout/MainLayout.layout';
+import AdminLayout from '@/components/layout/AdminLayout.layout';
+import PlayerManagementPage from '@/components/admin/player/PlayerManager.component';
+import Link from 'next/link';
 
-const PlayerManager = dynamic(() => import('@/components/admin/player/PlayerManager.component'), { ssr: false });
-
-export default function AdminPlayersPage() {
+export default function PlayerAdminPage() {
   const router = useRouter();
   
   useEffect(() => {

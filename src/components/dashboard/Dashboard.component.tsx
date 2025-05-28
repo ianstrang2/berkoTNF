@@ -1,9 +1,10 @@
 'use client';
-import React from 'react';
-import { ErrorBoundary } from '@/components/ui-kit';
+import React, { useEffect, useState } from 'react';
+// import { ErrorBoundary } from '@/components/ui-kit';
+import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import { MatchReport } from '@/components/dashboard';
 import { Milestones } from '@/components/dashboard';
-import { PersonalBests } from '@/components/dashboard';
+import PersonalBests from './PersonalBests.component';
 
 const Dashboard: React.FC = () => {
   return (

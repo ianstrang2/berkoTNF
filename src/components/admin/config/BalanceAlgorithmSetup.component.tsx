@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
-import { SoftUIConfirmationModal } from '@/components/ui-kit';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import Swal from 'sweetalert2';
 
 // Define types
