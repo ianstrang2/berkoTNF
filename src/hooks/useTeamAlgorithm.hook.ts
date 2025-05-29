@@ -3,7 +3,7 @@ import { usePlayerData } from './usePlayerData.hook';
 import { useMatchData } from './useMatchData.hook';
 import { useTeamSlots } from './useTeamSlots.hook';
 import { useDragAndDrop } from './useDragAndDrop.hook';
-import { Player, NewMatchData, PlayerFormData } from '@/types/team-algorithm.types';
+import { Player, NewMatchData, PlayerFormData, TeamStats } from '@/types/team-algorithm.types';
 import { TeamBalanceService } from '@/services/TeamBalance.service';
 import { TeamAPIService } from '@/services/TeamAPI.service';
 import { determinePositionGroups, formatTeamsForCopy, createCopyModal } from '@/utils/teamAlgorithm.util';
@@ -22,6 +22,18 @@ interface AppConfig {
 
 export type BalanceMethod = 'ability' | 'random' | 'performance';
 
+// TODO: Define these types more specifically if available from your types/team-algorithm.types
+// interface TeamStatsData { 
+//   // Define expected properties, e.g., total_rating: number, player_count: number, etc.
+//   [key: string]: any; // Placeholder
+// }
+
+interface ComparativeStatsData {
+  balanceScore: number; 
+  // Define other expected properties
+  [key: string]: any; // Placeholder
+}
+
 export const useTeamAlgorithm = () => {
   // Local state
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +45,11 @@ export const useTeamAlgorithm = () => {
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const [pendingPlayerToggles, setPendingPlayerToggles] = useState<Set<string>>(new Set());
   const [lastSuccessfulBalanceMethod, setLastSuccessfulBalanceMethod] = useState<BalanceMethod | null>(null);
+  
+  // State for team analysis stats
+  const [orangeTeamStats, setOrangeTeamStats] = useState<TeamStats | null>(null);
+  const [greenTeamStats, setGreenTeamStats] = useState<TeamStats | null>(null);
+  const [comparativeStats, setComparativeStats] = useState<ComparativeStatsData | null>(null);
   
   // New state for player status and config
   const [onFirePlayerId, setOnFirePlayerId] = useState<number | null>(null);
@@ -75,6 +92,10 @@ export const useTeamAlgorithm = () => {
   useEffect(() => {
     if (!isBalanced) {
       setLastSuccessfulBalanceMethod(null);
+      // Reset stats when teams are no longer balanced
+      setOrangeTeamStats(null);
+      setGreenTeamStats(null);
+      setComparativeStats(null);
     }
   }, [isBalanced]);
   
@@ -185,61 +206,70 @@ export const useTeamAlgorithm = () => {
     try {
       setIsLoading(true);
       setError(null);
-      setBalanceProgress(0); // Reset progress first
+      setBalanceProgress(0);
+      setOrangeTeamStats(null);
+      setGreenTeamStats(null);
+      setComparativeStats(null);
       
-      // Short delay to ensure UI updates and shows the loading state
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Clear or hide current assignments during balancing to prevent flickering
-      const hiddenSlots = currentSlots.map(slot => ({
-        ...slot,
-        temp_hidden: true // Mark slots as temporarily hidden for UI
-      }));
+      const hiddenSlots = currentSlots.map(slot => ({ ...slot, temp_hidden: true }));
       setCurrentSlots(hiddenSlots);
+      setBalanceProgress(25);
       
-      // Progress indicator - using percentage values (0-100)
-      setBalanceProgress(25); // Starting
-      
-      // Get the correct match ID (prioritize upcoming_match_id)
       const matchId = activeMatch?.upcoming_match_id || activeMatch?.match_id;
+      if (!matchId) throw new Error('No active match selected');
+      if (selectedPoolPlayers.length < 2) throw new Error('Please select at least 2 players in the player pool before balancing');
       
-      if (!matchId) {
-        throw new Error('No active match selected');
-      }
-      
-      // Check if we have enough players selected in the pool
-      if (selectedPoolPlayers.length < 2) {
-        throw new Error('Please select at least 2 players in the player pool before balancing');
-      }
-      
-      setBalanceProgress(50); // Processing
-      
-      // Get player IDs from the selected pool for methods that require it
+      setBalanceProgress(50);
       const playerIds = selectedPoolPlayers.map(player => player.id.toString());
 
-      let result;
-      
+      // Perform the balancing operation via API
       if (method === 'random') {
-        result = await TeamAPIService.balanceTeamsRandomly(matchId, playerIds);
+        await TeamAPIService.balanceTeamsRandomly(matchId, playerIds);
       } else if (method === 'performance') {
-        result = await TeamAPIService.balanceTeamsByPastPerformance(matchId, playerIds);
-      } else {
-        // Default to ability-based balancing
-        // The server already knows to use players from the pool for ability balancing
-        // and doesn't require playerIds to be passed for that specific legacy endpoint.
-        result = await TeamBalanceService.balanceTeams(matchId);
+        await TeamAPIService.balanceTeamsByPastPerformance(matchId, playerIds);
+      } else { // ability (default)
+        await TeamBalanceService.balanceTeams(matchId); // This only returns a boolean
       }
       
-      setBalanceProgress(75); // Almost done
-        
-      // Mark as balanced and store the method used
+      setBalanceProgress(75);        
       setIsBalanced(true);
       setLastSuccessfulBalanceMethod(method);
       
-      // Refresh data to get updated team assignments
-      await refreshMatchData();
+      // After balancing, refresh match data to get the new slot assignments
+      await refreshMatchData(); // This will update currentSlots via underlying hook state changes
+
+      if (method === 'ability') {
+        // currentSlots should now be updated from the refreshMatchData call.
+        if (activeMatch && players.length > 0 && currentSlots.length > 0) {
+          const teamSize = activeMatch.team_size;
+          const teamASlots = currentSlots.filter(s => s.slot_number <= teamSize);
+          const teamBSlots = currentSlots.filter(s => s.slot_number > teamSize);
+
+          const calculatedOrangeStats = TeamBalanceService.calculateTeamStats(teamASlots, players);
+          const calculatedGreenStats = TeamBalanceService.calculateTeamStats(teamBSlots, players);
+          setOrangeTeamStats(calculatedOrangeStats);
+          setGreenTeamStats(calculatedGreenStats);
+
+          if (calculatedOrangeStats && calculatedGreenStats) {
+            const calculatedCompStats = TeamBalanceService.calculateComparativeStats(teamASlots, teamBSlots, players);
+            setComparativeStats(calculatedCompStats);
+          }
+        } else {
+          // Not enough data to calculate stats, ensure they are null
+          setOrangeTeamStats(null);
+          setGreenTeamStats(null);
+          setComparativeStats(null);
+        }
+      } else {
+        // For non-ability based balancing, ensure stats are cleared
+        setOrangeTeamStats(null);
+        setGreenTeamStats(null);
+        setComparativeStats(null);
+      }
       
-      setBalanceProgress(100); // Complete
+      setBalanceProgress(100);
       
     } catch (error) {
       console.error('Error balancing teams:', error);
@@ -339,7 +369,7 @@ export const useTeamAlgorithm = () => {
   };
   
   // Toggle player selection in the pool
-  const handleTogglePlayerInPool = async (playerId: string, isSelected: boolean) => {
+  const handleTogglePlayerInPool = useCallback(async (player: Player) => {
     if (!activeMatch) {
       setError("No active match to manage player pool.");
       return;
@@ -352,36 +382,39 @@ export const useTeamAlgorithm = () => {
     }
 
     // Add to pending toggles to manage UI state immediately
-    setPendingPlayerToggles(prev => new Set(prev).add(playerId));
+    const playerIdStr = player.id.toString();
+    if (pendingPlayerToggles.has(playerIdStr)) {
+      return; // Already processing
+    }
+    setPendingPlayerToggles(prev => new Set(prev).add(playerIdStr));
 
     try {
+      const isSelected = selectedPoolPlayers.some(p => p.id === player.id);
+
       if (isSelected) {
-        // Add player to pool
-        await TeamAPIService.addPlayerToPool(matchId.toString(), playerId);
-        const playerToAdd = players.find(p => p.id.toString() === playerId);
-        if (playerToAdd) {
-          setSelectedPoolPlayers(prev => [...prev, playerToAdd]);
-        }
-      } else {
         // Remove player from pool
-        await TeamAPIService.removePlayerFromPool(matchId.toString(), playerId);
-        setSelectedPoolPlayers(prev => prev.filter(p => p.id.toString() !== playerId));
+        await TeamAPIService.removePlayerFromPool(matchId.toString(), playerIdStr);
+        setSelectedPoolPlayers(prev => prev.filter(p => p.id !== player.id));
+      } else {
+        // Add player to pool - check again to prevent duplicates if rapidly called
+        if (!selectedPoolPlayers.some(p => p.id === player.id)) {
+          await TeamAPIService.addPlayerToPool(matchId.toString(), playerIdStr);
+          setSelectedPoolPlayers(prev => [...prev, player]); // Use the passed 'player' object directly
+        }
       }
       setError(null); // Clear any previous errors
     } catch (err) {
       console.error('Error toggling player in pool:', err);
       setError(`Failed to update player pool: ${err instanceof Error ? err.message : String(err)}`);
-      // Revert optimistic UI update if API call fails by re-fetching or specific logic
-      // For simplicity, we'll rely on a full refresh or user action to correct discrepancies here.
     } finally {
       // Remove from pending toggles
       setPendingPlayerToggles(prev => {
         const next = new Set(prev);
-        next.delete(playerId);
+        next.delete(playerIdStr);
         return next;
       });
     }
-  };
+  }, [activeMatch, selectedPoolPlayers, pendingPlayerToggles, setError]);
   
   // Calculate available players based on the current pool
   const availablePlayersForSelection = useMemo(() => {
@@ -546,20 +579,50 @@ export const useTeamAlgorithm = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Call API to clear assignments for the match
+      // Call API to clear assignments for the match (from current new hook)
       await TeamAPIService.clearTeamAssignments(matchId.toString());
       
-      // Clear local slots and unmark as balanced
+      // Clear local slots and unmark as balanced (from current new hook)
       clearSlots(); 
       setIsBalanced(false);
       setLastSuccessfulBalanceMethod(null);
+      // Also clear team stats when teams are cleared
+      setOrangeTeamStats(null);
+      setGreenTeamStats(null);
+      setComparativeStats(null);
+
+      // === Start of restored logic from old clearPlayerPool ===
+      if (selectedPoolPlayers.length === 0) {
+        setError('Failed to update player pool: player not found in pool'); // Exact error message from user query
+        // Do not return here if other cleanup (like refreshMatchData) should still run in finally
+        // However, the old logic did return. Let's stick to that.
+        setIsLoading(false); // Ensure loading is false before returning
+        return;
+      }
+
+      // Create a copy for iteration, as selectedPoolPlayers will be modified
+      const playersToRemoveFromPool = [...selectedPoolPlayers];
+      for (const player of playersToRemoveFromPool) {
+        try {
+          await TeamAPIService.removePlayerFromPool(matchId.toString(), player.id.toString());
+        } catch (loopError) {
+          // Log individual error but try to continue, or decide to bail out
+          console.error(`Error removing player ${player.id} from pool:`, loopError);
+          // Accumulate errors or throw a combined one if needed, for now, let the main catch handle it
+          // Or, rethrow to be caught by the outer try-catch
+          throw loopError; 
+        }
+      }
+      setSelectedPoolPlayers([]); // Clear local pool state
+      // === End of restored logic from old clearPlayerPool ===
       
-      // Refresh data to confirm clearance (optional, clearSlots might be enough)
+      // Refresh data to confirm clearance (optional, clearSlots might be enough) (from current new hook)
       await refreshMatchData(); 
       
     } catch (err) {
-      console.error('Error clearing team assignments:', err);
-      setError(`Failed to clear teams: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('Error during clear teams operation:', err); // Changed console log message slightly for clarity
+      // err is the actual error from the try block. Set it.
+      setError(`Failed to clear teams/pool: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -612,6 +675,9 @@ export const useTeamAlgorithm = () => {
     showOnFireIcon,
     showGrimReaperIcon,
     availablePlayersForSelection,
+    orangeTeamStats,
+    greenTeamStats,
+    comparativeStats,
 
     // Actions
     setCurrentSlots,

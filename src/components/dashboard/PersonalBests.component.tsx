@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PersonalBestsAPIResponseData as PersonalBestsData } from '@/app/api/personal-bests/route';
+import Link from 'next/link';
 
 // Interface for individual timeline items
 interface TimelineItem {
   type: 'personal_best_broken';
   player: string;
+  playerId: number;
   content: string;
   subtext?: string;
   icon: 'goals' | 'win_streak' | 'undefeated_streak' | 'loss_streak' | 'winless_streak' | 'attendance_streak'; // Icon keys
@@ -83,7 +85,10 @@ const PersonalBests: React.FC = () => {
     const items: TimelineItem[] = [];
     // const matchDate = data.match_date ? formatDateSafely(data.match_date) : ''; // Date no longer needed for individual items
 
-    Object.values(data.broken_pbs_data).forEach((playerData) => {
+    Object.entries(data.broken_pbs_data).forEach(([playerIdStr, playerData]) => {
+      const playerId = parseInt(playerIdStr, 10);
+      if (isNaN(playerId)) return; // Skip if playerId is not a number
+
       playerData.pbs.forEach(pb => {
         const metricDetail = PB_METRIC_DETAILS[pb.metric_type];
         if (metricDetail) {
@@ -96,6 +101,7 @@ const PersonalBests: React.FC = () => {
           items.push({
             type: 'personal_best_broken',
             player: playerData.name,
+            playerId: playerId,
             content: content, // "New PB: " prefix removed
             // subtext: `(Previous Best: ${pb.previous_best_value} ${metricDetail.unit})`, // Previous best removed
             icon: metricDetail.icon,
@@ -250,7 +256,16 @@ const PersonalBests: React.FC = () => {
                 </span>
 
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto"> {/* max-w-120 might be specific, adjust if needed */}
-                  <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700 dark:text-slate-200">{item.player}</h6>
+                  <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700 dark:text-slate-200">
+                    {/* Apply Link to item.player, preserving original h6 classes */}
+                    {item.playerId ? (
+                      <Link href={`/records/players/${item.playerId}`} className="hover:underline">
+                        {item.player}
+                      </Link>
+                    ) : (
+                      item.player
+                    )}
+                  </h6>
                   {/* <p className="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400 dark:text-slate-500">{item.date}</p> */}
                   <p className="mt-1 mb-2 leading-normal text-sm text-slate-700 dark:text-slate-400">{item.content}</p> {/* Adjusted margin top to mt-1 as date is removed */}
                   {/* {item.subtext && (

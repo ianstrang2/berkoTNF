@@ -29,6 +29,7 @@ export async function GET(request: Request) {
           SELECT 
             p.player_id,
             p.name,
+            p.selected_club,
             COUNT(pm.match_id) as games_played,
             SUM(
               CASE 
@@ -82,7 +83,7 @@ export async function GET(request: Request) {
           FROM players p
           LEFT JOIN player_matches pm ON p.player_id = pm.player_id
           WHERE p.player_id = ${numericId}
-          GROUP BY p.player_id, p.name
+          GROUP BY p.player_id, p.name, p.selected_club
         ),
         streaks AS (
           WITH numbered_matches AS (

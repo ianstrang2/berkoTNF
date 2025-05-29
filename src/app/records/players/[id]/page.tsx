@@ -6,15 +6,18 @@ import PlayerProfile from '@/components/player/PlayerProfile.component';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 export default function SpecificPlayerPage() {
-  const params = useParams() || {};
-  const playerId = Number(params.id) || 1;
+  const params = useParams();
+  const idFromParams = params?.id;
+  const playerId = idFromParams ? Number(idFromParams) : undefined;
+
+  const finalPlayerId = (playerId && !isNaN(playerId)) ? playerId : undefined;
 
   return (
     <MainLayout>
-      <div className="py-6">
+      <div className="py-6 max-w-screen-xl mx-auto">
         <div className="bg-white rounded-xl shadow-card p-6">
           <ErrorBoundary>
-            <PlayerProfile id={playerId} />
+            <PlayerProfile id={finalPlayerId} />
           </ErrorBoundary>
         </div>
       </div>

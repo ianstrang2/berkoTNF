@@ -49,6 +49,11 @@ const NewTeamAlgorithm: React.FC = () => {
     createMatchError,
     copySuccess,
     pendingPlayerToggles,
+    lastSuccessfulBalanceMethod,
+    // Destructure new stats
+    orangeTeamStats,
+    greenTeamStats,
+    comparativeStats,
     
     // Actions
     setIsRingerModalOpen,
@@ -68,7 +73,6 @@ const NewTeamAlgorithm: React.FC = () => {
     handleSlotTap,
     selectPlayer,
     getAvailablePlayersFn,
-    lastSuccessfulBalanceMethod
   } = useTeamAlgorithm();
 
   // Alias for convenience if needed, or use getAvailablePlayersFn directly
@@ -90,15 +94,14 @@ const NewTeamAlgorithm: React.FC = () => {
 
   // Method for getting comparative balance value
   const getComparativeBalanceValue = () => {
-    // if (!comparativeStats) return 0; // Commented out as comparativeStats is not available
-    // return Math.round((1 - comparativeStats.balanceScore) * 100);
-    return 0; // Return 0 temporarily
+    if (!comparativeStats || typeof comparativeStats.balanceScore === 'undefined') return 0;
+    return Math.round((1 - comparativeStats.balanceScore) * 100); // Use actual stats
   };
 
   // Wrapper for handleTogglePlayerInPool
   const togglePlayerWrapper = (player: Player) => {
-    const isCurrentlySelected = selectedPoolPlayers.some(p => p.id === player.id);
-    handleTogglePlayerInPool(player.id, !isCurrentlySelected);
+    // const isCurrentlySelected = selectedPoolPlayers.some(p => p.id === player.id); // This logic is now inside the hook
+    handleTogglePlayerInPool(player); // Pass the full player object
   };
 
   // Wrapper for getAvailablePlayersFn
@@ -248,7 +251,7 @@ const NewTeamAlgorithm: React.FC = () => {
           </Card>
           
           {/* Team Analysis Section - Conditionally render based on lastSuccessfulBalanceMethod */}
-          {/* {lastSuccessfulBalanceMethod === 'ability' && orangeTeamStats && greenTeamStats && (
+          {lastSuccessfulBalanceMethod === 'ability' && orangeTeamStats && greenTeamStats && comparativeStats && (
             <div className="w-full lg:max-w-sm">
               <div className="relative z-20 flex flex-col min-w-0 break-words bg-white border-0 border-solid border-black-125 shadow-soft-xl rounded-2xl bg-clip-border">
                 <div className="flex-auto p-4">
@@ -258,7 +261,7 @@ const NewTeamAlgorithm: React.FC = () => {
                       <TornadoChart 
                         teamAStats={orangeTeamStats} 
                         teamBStats={greenTeamStats} 
-                        weights={formattedWeights}
+                        weights={formattedWeights} // Ensure formattedWeights is available and correct
                       />
                     </div>
                   </div>
@@ -278,11 +281,7 @@ const NewTeamAlgorithm: React.FC = () => {
                         <h4 className="font-bold">{getComparativeBalanceValue()}%</h4>
                         <div className="text-xs h-0.75 flex w-60 overflow-visible rounded-lg bg-gray-200">
                           <div
-                            className={`duration-600 ease-soft -mt-0.4 -ml-px flex h-1.5 flex-col justify-center overflow-hidden whitespace-nowrap rounded-lg text-center text-white transition-all ${
-                              getComparativeBalanceValue() >= 80 ? 'w-4/5 bg-gradient-to-tl from-blue-600 to-cyan-400' :
-                              getComparativeBalanceValue() >= 60 ? 'w-3/5 bg-gradient-to-tl from-purple-700 to-pink-500' :
-                              'w-2/5 bg-gradient-to-tl from-red-600 to-rose-400'
-                            }`}
+                            className={`duration-600 ease-soft -mt-0.4 -ml-px flex h-1.5 flex-col justify-center overflow-hidden whitespace-nowrap rounded-lg text-center text-white transition-all ${getComparativeBalanceValue() >= 80 ? 'w-4/5 bg-gradient-to-tl from-blue-600 to-cyan-400' : getComparativeBalanceValue() >= 60 ? 'w-3/5 bg-gradient-to-tl from-purple-700 to-pink-500' : 'w-2/5 bg-gradient-to-tl from-red-600 to-rose-400'}`}
                             role="progressbar" 
                             aria-valuenow={getComparativeBalanceValue()} 
                             aria-valuemin={0} 
@@ -295,7 +294,7 @@ const NewTeamAlgorithm: React.FC = () => {
                 </div>
               </div>
             </div>
-          )} */}
+          )}
         </div>
       </div>
       

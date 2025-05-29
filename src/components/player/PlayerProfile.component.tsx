@@ -9,14 +9,17 @@ import Chart from '@/components/ui-kit/Chart.component';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import MatchPerformance from './MatchPerformance.component';
 
-interface PlayerProfileProps {
-  id?: number;
+interface ClubInfo {
+  id: string;
+  name: string;
+  league: string;
+  search: string;
+  country: string;
+  filename: string;
 }
 
-interface Player {
-  player_id: number;
-  name: string;
-  is_ringer: boolean;
+interface PlayerProfileProps {
+  id?: number;
 }
 
 interface YearlyStats {
@@ -42,6 +45,7 @@ interface ProfileData {
   undefeated_streak_dates: string;
   winless_streak: number;
   winless_streak_dates: string;
+  selected_club?: string;
   yearly_stats: YearlyStats[];
 }
 
@@ -60,59 +64,49 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedStat, setSelectedStat] = useState<string>('Games Played');
-  const [selectedPlayerId, setSelectedPlayerId] = useState<number | undefined>(id);
-  const [players, setPlayers] = useState<Player[]>([]);
-
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      try {
-        const response = await fetch('/api/admin/players');
-        const data = await response.json();
-        if (data.data) {
-          const filteredPlayers = data.data.filter((player: Player) => !player.is_ringer);
-          setPlayers(filteredPlayers);
-        }
-      } catch (error) {
-        setError('Failed to fetch players');
-      }
-    };
-
-    fetchPlayers();
-  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!id) {
+        setProfile(null);
+        setLoading(false);
+        setError("No player ID provided.");
+        return;
+      }
       try {
         setLoading(true);
-        const response = await fetch(`/api/playerprofile?id=${selectedPlayerId}`);
+        setError(null);
+        const response = await fetch(`/api/playerprofile?id=${id}`);
         if (!response.ok) {
-          throw new Error(`Failed to fetch profile: ${response.statusText}`);
+          throw new Error(`Failed to fetch profile: ${response.statusText} for player ID ${id}`);
         }
         const data = await response.json();
+        console.log("[PlayerProfile] API Response Data:", data); // DEBUG LOG
         if (data && data.profile) {
           const profileData: ProfileData = {
             ...data.profile,
             yearly_stats: data.profile.yearly_stats || [],
           };
+          console.log("[PlayerProfile] Processed Profile Data:", profileData); // DEBUG LOG
           setProfile(profileData);
           if (profileData.yearly_stats.length > 0) {
             setSelectedYear(profileData.yearly_stats[0].year);
           }
         } else {
+          setProfile(null);
           throw new Error('Invalid data structure: profile not found in response');
         }
       } catch (err) {
-        console.error('Error fetching profile:', err);
+        console.error('[PlayerProfile] Error fetching profile:', err);
         setError((err as Error).message);
+        setProfile(null);
       } finally {
         setLoading(false);
       }
     };
 
-    if (selectedPlayerId) {
-      fetchProfile();
-    }
-  }, [selectedPlayerId]);
+    fetchProfile();
+  }, [id]);
 
   const getStreakColor = (streak: number): string => {
     return 'text-neutral-900';
@@ -191,46 +185,64 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
     undefeated_streak_dates,
     winless_streak,
     winless_streak_dates,
-    yearly_stats
+    yearly_stats,
+    name,
+    selected_club
   } = profile;
+
+  // DEBUG LOG for profile in render phase
+  // console.log("[PlayerProfile] Profile object in render:", profile);
+  // console.log("[PlayerProfile] Selected Club String from profile:", selected_club);
+
+  // Parse clubInfo
+  let clubInfo: ClubInfo | null = null;
+  if (selected_club) {
+    if (typeof selected_club === 'object' && selected_club !== null) {
+      clubInfo = selected_club as ClubInfo;
+      console.log("[PlayerProfile] ClubInfo (already an object):", clubInfo);
+    } else if (typeof selected_club === 'string') {
+      // Fallback for safety, though logs indicate it's an object
+      try {
+        clubInfo = JSON.parse(selected_club);
+        console.log("[PlayerProfile] Parsed ClubInfo (from string fallback):", clubInfo);
+      } catch (e) {
+        console.error("[PlayerProfile] Failed to parse selected_club JSON (from string fallback):", e);
+      }
+    } else {
+      console.warn("[PlayerProfile] selected_club is not an object or a string:", selected_club);
+    }
+  } else {
+    console.log("[PlayerProfile] selected_club is undefined, null, or empty in profile object."); // DEBUG LOG
+  }
 
   // Extract years for the MatchPerformance component
   const availableYearsForMatchPerformance = yearly_stats.map(stat => stat.year).sort((a, b) => b - a);
 
   return (
     <div className="flex flex-wrap -mx-3">
-      {/* Player Selection */}
-      <div className="w-full max-w-full px-3 mb-6">
-        <div className="flex justify-end">
-          <div className="w-40 relative">
-            <select
-              id="player-select"
-              value={selectedPlayerId}
-              onChange={(e) => setSelectedPlayerId(Number(e.target.value))}
-              className="block w-full bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 text-sm shadow-soft-md rounded-lg font-medium py-2 px-3 text-gray-700 dark:text-white appearance-none focus:outline-none"
-            >
-              {Array.isArray(players) && players.length > 0 ? (
-                players.map((player) => (
-                  <option key={player.player_id} value={player.player_id}>
-                    {player.name}
-                  </option>
-                ))
-              ) : (
-                <option value="">No players available</option>
+      {/* Player Name and Club Logo */}
+      {name && (
+        <div className="w-full max-w-full px-3 mb-6">
+          <div className="max-w-[1000px] mx-auto">
+            <div className="flex items-center">
+              {clubInfo && clubInfo.filename && (
+                <img
+                  src={`/club-logos/${clubInfo.filename}`}
+                  alt={clubInfo.name ? `${clubInfo.name} logo` : 'Club logo'}
+                  className="h-10 w-10 mr-3"
+                  style={{ objectFit: 'contain' }}
+                />
               )}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-white">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-              </svg>
+              <h2 className="text-xl font-semibold text-slate-700 font-sans">
+                {name}
+              </h2>
             </div>
           </div>
         </div>
-      </div>
-
+      )}
       {/* Stats Cards */}
       <div className="w-full max-w-full px-3 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-[1000px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-[1000px] mx-auto">
           <div>
             <StatsCard
               title="Games"
@@ -330,7 +342,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
       {/* Performance Chart */}
       <div className="w-full max-w-full px-3">
-        <div className="relative z-20 flex flex-col min-w-0 max-w-[1000px] break-words bg-white border-0 border-solid dark:bg-gray-950 border-black-125 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border">
+        <div className="relative z-20 flex flex-col min-w-0 max-w-[1000px] break-words bg-white border-0 border-solid dark:bg-gray-950 border-black-125 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border mx-auto">
           <div className="p-6 pb-0">
             <h6 className="dark:text-white mb-4">Performance Overview</h6>
             <NavPills
@@ -374,10 +386,10 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       </div>
 
       {/* Add MatchPerformance component here */}
-      {selectedPlayerId && availableYearsForMatchPerformance.length > 0 && (
+      {id && availableYearsForMatchPerformance.length > 0 && (
         <div className="w-full max-w-full px-3 mt-6">
           <MatchPerformance 
-            playerId={selectedPlayerId} 
+            playerId={id} 
             availableYears={availableYearsForMatchPerformance} 
           />
         </div>
