@@ -125,25 +125,41 @@ const MatchManager: React.FC = () => {
     // Check if team scores match player goals
     if (teamAGoals !== parseInt(String(formData.team_a_score)) || 
         teamBGoals !== parseInt(String(formData.team_b_score))) {
-      // Flag the discrepancy and ask for confirmation
       const message = `The total goals scored by players do not match the team scores.\n\n` +
                       `Team A: Players scored ${teamAGoals} goals, but the team score is ${formData.team_a_score}.\n` +
                       `Team B: Players scored ${teamBGoals} goals, but the team score is ${formData.team_b_score}.\n\n` +
                       `Do you want to save anyway?`;
-      return window.confirm(message);  // Ask for confirmation
+      if (!window.confirm(message)) {
+        return false; // User chose not to save
+      }
     }
   
     // Check for duplicate players
-    const allPlayers = [
+    const allPlayerIdsInForm = [
       ...formData.team_a.map(p => p.player_id),
       ...formData.team_b.map(p => p.player_id)
-    ].filter(id => id); // Remove empty strings
+    ].filter(id => id && id !== ''); // Filter out empty or nullish IDs
   
-    if (new Set(allPlayers).size !== allPlayers.length) {
-      setError('A player cannot be in both teams');
+    if (new Set(allPlayerIdsInForm).size !== allPlayerIdsInForm.length) {
+      setError('A player cannot appear more than once in the match (either team or duplicate on the same team).');
+      return false;
+    }
+
+    // Check if all player slots are filled
+    const requiredPlayersPerTeam = 9; // Assuming 9 players per team as per defaultTeamState
+    const teamAPlayerCount = formData.team_a.filter(p => p.player_id && p.player_id !== '').length;
+    const teamBPlayerCount = formData.team_b.filter(p => p.player_id && p.player_id !== '').length;
+
+    if (teamAPlayerCount !== requiredPlayersPerTeam) {
+      setError(`Team A must have ${requiredPlayersPerTeam} players selected. Found ${teamAPlayerCount}.`);
+      return false;
+    }
+    if (teamBPlayerCount !== requiredPlayersPerTeam) {
+      setError(`Team B must have ${requiredPlayersPerTeam} players selected. Found ${teamBPlayerCount}.`);
       return false;
     }
   
+    setError(''); // Clear any previous validation errors if all checks pass
     return true;
   };
 
@@ -200,6 +216,31 @@ const MatchManager: React.FC = () => {
         throw new Error(errorData.error || 'Failed to save match');
       }
 
+      // Parse the successful response to get the new/updated match data
+      const savedMatchResponse = await response.json();
+      // Assuming the actual match object is nested under a 'data' key for POST, 
+      // or the response itself is the match object for PUT.
+      // Adjust .data access if your API returns it differently for POST.
+      const newlySavedMatchForUI = selectedMatch 
+        ? savedMatchResponse // Assuming PUT returns the full updated match object directly
+        : savedMatchResponse.data; // Assuming POST returns { success: true, data: { ...match... } }
+
+      // Optimistic update
+      if (newlySavedMatchForUI && newlySavedMatchForUI.match_id) {
+        if (selectedMatch) {
+          // Update existing match in the list
+          setMatches(prevMatches => prevMatches.map(m => 
+            m.match_id === newlySavedMatchForUI.match_id ? newlySavedMatchForUI : m
+          ));
+        } else {
+          // Add new match to the top of the list
+          setMatches(prevMatches => [newlySavedMatchForUI, ...prevMatches].sort((a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime()));
+        }
+      } else {
+        // If optimistic update data is not as expected, fall back to fetching everything
+        fetchMatches(); 
+      }
+
       // If match save is successful, trigger the stats update via the API route
       console.log('Match saved successfully. Triggering stats update...');
       const statsUpdateResponse = await fetch('/api/admin/trigger-stats-update', {
@@ -221,7 +262,6 @@ const MatchManager: React.FC = () => {
         }
       }
 
-      fetchMatches(); // Refresh matches list
       setSelectedMatch(null); // Reset form
       setFormData({
         match_date: new Date().toISOString().split('T')[0],

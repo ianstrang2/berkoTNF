@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import Button from '@/components/ui-kit/Button.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
@@ -342,15 +343,36 @@ const LatestMatch: React.FC = () => {
 
   const renderPlayerName = (playerName: string) => {
     const playerId = getPlayerIdByName(playerName);
-    return (
-      <span className="inline-flex items-center text-slate-700">
+
+    // Extract actual player name if it contains goal count, e.g., "Player Name (2)" -> "Player Name"
+    const cleanPlayerName = playerName.replace(/\s*\(\d+\)$/, '').trim();
+    const actualPlayerId = getPlayerIdByName(cleanPlayerName); // Use cleaned name to get ID
+
+    const content = (
+      <>
         {playerName}
-        {showOnFireConfig && playerId === matchData?.on_fire_player_id && (
+        {showOnFireConfig && actualPlayerId && actualPlayerId === matchData?.on_fire_player_id && (
           <FireIcon className="w-4 h-4 ml-1 text-green-500" />
         )}
-        {showGrimReaperConfig && playerId === matchData?.grim_reaper_player_id && (
+        {showGrimReaperConfig && actualPlayerId && actualPlayerId === matchData?.grim_reaper_player_id && (
           <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
         )}
+      </>
+    );
+
+    if (actualPlayerId) {
+      return (
+        <Link href={`/records/players/${actualPlayerId}`} className="hover:border-b hover:border-current">
+          <span className="inline-flex items-center text-slate-700">
+            {content}
+          </span>
+        </Link>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center text-slate-700">
+        {content}
       </span>
     );
   };

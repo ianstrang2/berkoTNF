@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
@@ -172,15 +173,17 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   }, [initialView]);
 
   const renderPlayerName = (playerId: number, name: string) => (
-    <div className="flex items-center">
-      <span>{name}</span>
-      {showOnFireConfig && playerId === onFirePlayerId && (
-        <FireIcon className="w-4 h-4 ml-1 text-green-500" />
-      )}
-      {showGrimReaperConfig && playerId === grimReaperPlayerId && (
-        <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
-      )}
-    </div>
+    <Link href={`/records/players/${playerId}`} className="hover:underline">
+      <div className="flex items-center">
+        <span>{name}</span>
+        {showOnFireConfig && playerId === onFirePlayerId && (
+          <FireIcon className="w-4 h-4 ml-1 text-green-500" />
+        )}
+        {showGrimReaperConfig && playerId === grimReaperPlayerId && (
+          <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
+        )}
+      </div>
+    </Link>
   );
 
   const renderMainStats = () => (

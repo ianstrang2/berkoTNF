@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
@@ -188,15 +189,17 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
     const isCurrentYear = selectedYear === currentYear;
 
     return (
-      <div className="flex items-center">
-        <span>{name}</span>
-        {isCurrentYear && showOnFireConfig && playerId === onFirePlayerId && (
-          <FireIcon className="w-4 h-4 ml-1 text-green-500" />
-        )}
-        {isCurrentYear && showGrimReaperConfig && playerId === grimReaperPlayerId && (
-          <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
-        )}
-      </div>
+      <Link href={`/records/players/${playerId}`} className="hover:underline">
+        <div className="flex items-center">
+          <span>{name}</span>
+          {isCurrentYear && showOnFireConfig && playerId === onFirePlayerId && (
+            <FireIcon className="w-4 h-4 ml-1 text-green-500" />
+          )}
+          {isCurrentYear && showGrimReaperConfig && playerId === grimReaperPlayerId && (
+            <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
+          )}
+        </div>
+      </Link>
     );
   };
 
@@ -267,7 +270,9 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
                      <td className="sticky left-18 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                       <div className="flex px-2 py-1">
                         <div className="flex flex-col justify-center">
-                          <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
+                          <h6 className="mb-0 leading-normal text-sm">
+                            {renderPlayerName(player.player_id, player.name)} 
+                          </h6>
                         </div>
                       </div>
                     </td>

@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 interface Runner {
   name: string;
@@ -86,6 +87,11 @@ interface LegendsData {
   topScorers: TopScorer[];
 }
 
+interface PlayerWithNameAndId {
+  id: number;
+  name: string;
+}
+
 interface LegendsProps {
   initialView?: 'winners' | 'scorers';
 }
@@ -97,6 +103,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
     seasonWinners: [],
     topScorers: []
   });
+  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
 
   // Update activeTab when initialView changes
   useEffect(() => {
@@ -106,8 +113,13 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('/api/honourroll');
-        const result = await response.json();
+        // Fetch honourroll and players in parallel
+        const [honourRollResponse, playersResponse] = await Promise.all([
+          fetch('/api/honourroll'),
+          fetch('/api/players')
+        ]);
+
+        const result = await honourRollResponse.json();
         
         if (result.data) {
           const modifiedData = {
@@ -116,6 +128,15 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
           };
           setData(modifiedData);
         }
+
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json();
+          setAllPlayers(playersData.data || []);
+        } else {
+          console.warn('Failed to fetch players for Legends component');
+          setAllPlayers([]);
+        }
+
         setLoading(false);
       } catch (error) {
         console.error('Error fetching legends:', error);
@@ -125,6 +146,25 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
   
     fetchData();
   }, []);
+
+  // Added getPlayerIdByName (copied from other components)
+  const getPlayerIdByName = (name: string): number | undefined => {
+    if (!name) return undefined; // Handle cases where name might be null or undefined
+    const player = allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase());
+    return player?.id;
+  };
+
+  const renderPlayerWithLink = (name: string) => {
+    const playerId = getPlayerIdByName(name);
+    if (playerId) {
+      return (
+        <Link href={`/records/players/${playerId}`} className="hover:underline">
+          {name}
+        </Link>
+      );
+    }
+    return <>{name}</>; // Render as plain text if no ID
+  };
 
   const renderSeasonWinners = () => (
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
@@ -177,7 +217,9 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
                 <td className="sticky left-18 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                   <div className="flex px-2 py-1">
                     <div className="flex flex-col justify-center">
-                      <h6 className="mb-0 leading-normal text-sm font-semibold">{season.winners.winner}</h6>
+                      <h6 className="mb-0 leading-normal text-sm font-semibold">
+                        {renderPlayerWithLink(season.winners.winner)}
+                      </h6>
                     </div>
                   </div>
                 </td>
@@ -187,12 +229,15 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
                 </td>
                 <td className="p-2 align-middle bg-transparent border-b min-w-[200px]">
                   <span className="font-normal leading-normal text-sm">
-                    {season.winners.runners_up?.map((runner, idx) => (
-                      <React.Fragment key={idx}>
-                        {`${runner.name} (${runner.points})`}
-                        {idx < (season.winners.runners_up?.length ?? 0) - 1 ? ', ' : ''}
-                      </React.Fragment>
-                    ))}
+                    {season.winners.runners_up?.map((runner, idx) => {
+                      const runnerContent = <>{renderPlayerWithLink(runner.name)} ({runner.points})</>;
+                      return (
+                        <React.Fragment key={idx}>
+                          {runnerContent}
+                          {idx < (season.winners.runners_up?.length ?? 0) - 1 ? ', ' : ''}
+                        </React.Fragment>
+                      );
+                    })}
                   </span>
                 </td>
               </tr>
@@ -254,7 +299,9 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
                 <td className="sticky left-18 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                   <div className="flex px-2 py-1">
                     <div className="flex flex-col justify-center">
-                      <h6 className="mb-0 leading-normal text-sm font-semibold">{season.scorers.winner}</h6>
+                      <h6 className="mb-0 leading-normal text-sm font-semibold">
+                        {renderPlayerWithLink(season.scorers.winner)}
+                      </h6>
                     </div>
                   </div>
                 </td>
@@ -264,12 +311,15 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
                 </td>
                 <td className="p-2 align-middle bg-transparent border-b min-w-[200px]">
                   <span className="font-normal leading-normal text-sm">
-                    {season.scorers.runners_up?.map((runner, idx) => (
-                      <React.Fragment key={idx}>
-                        {`${runner.name} (${runner.goals})`}
-                        {idx < (season.scorers.runners_up?.length ?? 0) - 1 ? ', ' : ''}
-                      </React.Fragment>
-                    ))}
+                    {season.scorers.runners_up?.map((runner, idx) => {
+                      const runnerContent = <>{renderPlayerWithLink(runner.name)} ({runner.goals})</>;
+                      return (
+                        <React.Fragment key={idx}>
+                          {runnerContent}
+                          {idx < (season.scorers.runners_up?.length ?? 0) - 1 ? ', ' : ''}
+                        </React.Fragment>
+                      );
+                    })}
                   </span>
                 </td>
               </tr>

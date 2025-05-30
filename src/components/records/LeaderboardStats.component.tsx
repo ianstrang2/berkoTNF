@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 interface PlayerStats {
   name: string;
@@ -30,8 +31,14 @@ interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
+interface PlayerWithNameAndId {
+  id: number;
+  name: string;
+}
+
 const LeaderboardStats: React.FC = () => {
   const [stats, setStats] = useState<PlayerStats[]>([]);
+  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: 'fantasy_points',
@@ -41,12 +48,24 @@ const LeaderboardStats: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('/api/allTimeStats');
-        const result = await response.json();
-        
+        const [statsResponse, playersResponse] = await Promise.all([
+          fetch('/api/allTimeStats'),
+          fetch('/api/players')
+        ]);
+
+        const result = await statsResponse.json();
         if (result.data) {
           setStats(result.data);
         }
+
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json();
+          setAllPlayers(playersData.data || []);
+        } else {
+          console.warn('Failed to fetch players for LeaderboardStats component');
+          setAllPlayers([]);
+        }
+
         setLoading(false);
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -113,6 +132,11 @@ const LeaderboardStats: React.FC = () => {
       );
     }
     return null;
+  };
+
+  const getPlayerIdByName = (name: string): number | undefined => {
+    const player = allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase());
+    return player?.id;
   };
 
   if (loading) {
@@ -248,6 +272,7 @@ const LeaderboardStats: React.FC = () => {
               const heavyWins = player.heavy_wins || 0;
               const heavyLosses = player.heavy_losses || 0;
               const cleanSheets = player.clean_sheets || 0;
+              const playerId = getPlayerIdByName(player.name);
 
               return (
                 <tr key={index} className={`${isRetired ? 'opacity-60' : ''} hover:bg-gray-50`}>
@@ -271,7 +296,15 @@ const LeaderboardStats: React.FC = () => {
                   <td className="sticky left-18 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                     <div className="flex px-2 py-1">
                       <div className="flex flex-col justify-center">
-                        <h6 className={`mb-0 leading-normal text-sm ${isRetired ? 'text-slate-400' : ''}`}>{player.name}</h6>
+                        <h6 className={`mb-0 leading-normal text-sm ${isRetired ? 'text-slate-400' : ''}`}>
+                          {playerId ? (
+                            <Link href={`/records/players/${playerId}`} className="hover:underline">
+                              {player.name}
+                            </Link>
+                          ) : (
+                            player.name
+                          )}
+                        </h6>
                       </div>
                     </div>
                   </td>

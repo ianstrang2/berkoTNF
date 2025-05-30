@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 interface Milestone {
   name: string;
@@ -36,6 +37,7 @@ interface LeaderData {
 interface TimelineItem {
   type: 'game_milestone' | 'goal_milestone' | 'form_streak' | 'goal_streak' | 'leader_change';
   player: string;
+  playerId?: number;
   content: string;
   subtext?: string;
   icon: 'trophy' | 'goal' | 'fire' | 'chart' | 'soccer' | 'crown';
@@ -57,9 +59,15 @@ interface MilestonesData {
   seasonFantasyLeaders?: LeaderData[];
 }
 
+interface PlayerWithNameAndId {
+  id: number;
+  name: string;
+}
+
 const Milestones: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [milestonesData, setMilestonesData] = useState<MilestonesData | null>(null);
+  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
 
@@ -176,20 +184,32 @@ const Milestones: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/matchReport');
+      // Fetch milestones and players in parallel
+      const [milestonesResponse, playersResponse] = await Promise.all([
+        fetch('/api/matchReport'), // This API seems to provide all milestone data
+        fetch('/api/players')
+      ]);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API error: ${response.status} - ${errorText || 'No details'}`);
+      if (!milestonesResponse.ok) {
+        const errorText = await milestonesResponse.text();
+        throw new Error(`Milestones API error: ${milestonesResponse.status} - ${errorText || 'No details'}`);
+      }
+      const milestonesResult = await milestonesResponse.json();
+      
+      if (playersResponse.ok) {
+        const playersData = await playersResponse.json();
+        setAllPlayers(playersData.data || []);
+      } else {
+        // Non-critical, milestones can still be shown without player links
+        console.warn('Failed to fetch players for Milestones component');
+        setAllPlayers([]);
       }
       
-      const result = await response.json();
-      
-      if (result.success) {
-        setMilestonesData(result.data);
-        processTimelineItems(result.data);
+      if (milestonesResult.success) {
+        setMilestonesData(milestonesResult.data);
+        processTimelineItems(milestonesResult.data);
       } else {
-        setError(new Error(result.error || 'Failed to fetch milestones data'));
+        setError(new Error(milestonesResult.error || 'Failed to fetch milestones data'));
       }
     } catch (error) {
       console.error('Error in fetchMilestonesData:', error);
@@ -199,6 +219,11 @@ const Milestones: React.FC = () => {
     }
   };
 
+  const getPlayerIdByName = (name: string): number | undefined => {
+    const player = allPlayers.find(p => p.name === name);
+    return player?.id;
+  };
+
   const processTimelineItems = (data: MilestonesData) => {
     const items: TimelineItem[] = [];
     const matchDate = data.matchInfo.match_date ? formatDateSafely(data.matchInfo.match_date) : '';
@@ -206,11 +231,12 @@ const Milestones: React.FC = () => {
     // Add game milestones to timeline
     if (data.gamesMilestones && data.gamesMilestones.length > 0) {
       data.gamesMilestones.forEach(milestone => {
-        // Ensure we have a valid milestone value
         const gameCount = milestone.total_games || milestone.value || 0;
+        const playerId = getPlayerIdByName(milestone.name);
         items.push({
           type: 'game_milestone',
           player: milestone.name,
+          playerId: playerId,
           content: `Played ${getOrdinalSuffix(gameCount)} game`,
           icon: 'trophy',
           date: matchDate,
@@ -222,11 +248,12 @@ const Milestones: React.FC = () => {
     // Add goal milestones to timeline
     if (data.goalsMilestones && data.goalsMilestones.length > 0) {
       data.goalsMilestones.forEach(milestone => {
-        // Ensure we have a valid milestone value
         const goalCount = milestone.total_goals || milestone.value || 0;
+        const playerId = getPlayerIdByName(milestone.name);
         items.push({
           type: 'goal_milestone',
           player: milestone.name,
+          playerId: playerId,
           content: `Scored ${getOrdinalSuffix(goalCount)} goal`,
           icon: 'goal',
           date: matchDate,
@@ -247,9 +274,11 @@ const Milestones: React.FC = () => {
         const streakColor = 
           streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'green' : 'red';
         
+        const playerId = getPlayerIdByName(streak.name);
         items.push({
           type: 'form_streak',
           player: streak.name,
+          playerId: playerId,
           content: `${streak.streak_count} game ${streakType} streak`,
           icon: streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'fire' : 'chart',
           date: matchDate,
@@ -261,9 +290,11 @@ const Milestones: React.FC = () => {
     // Add goal streaks to timeline
     if (data.goalStreaks && data.goalStreaks.length > 0) {
       data.goalStreaks.forEach(streak => {
+        const playerId = getPlayerIdByName(streak.name);
         items.push({
           type: 'goal_streak',
           player: streak.name,
+          playerId: playerId,
           content: `Scored in ${streak.matches_with_goals} consecutive matches`,
           subtext: `${streak.goals_in_streak} goals in those games`,
           icon: 'soccer',
@@ -280,26 +311,32 @@ const Milestones: React.FC = () => {
 
       if (leaders.length === 1) {
         // Single leader
+        const playerId = getPlayerIdByName(firstLeader.new_leader);
         items.push({
           type: 'leader_change',
           player: 'Half-Season Goals',
           content: formatLeaderText(firstLeader, 'goals', 'current Half-Season'),
           icon: 'crown',
           date: matchDate,
-          color: 'amber'
+          color: 'amber',
+          playerId: playerId
         });
       } else {
         // Co-leaders
         const leaderNames = leaders.map(l => l.new_leader).join(' and ');
         const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
+        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader));
         const content = `${leaderNames} lead with ${goals}.`;
-        items.push({
-          type: 'leader_change',
-          player: 'Half-Season Goals',
-          content: content,
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber'
+        playerIds.forEach(id => {
+          items.push({
+            type: 'leader_change',
+            player: 'Half-Season Goals',
+            content: content,
+            icon: 'crown',
+            date: matchDate,
+            color: 'amber',
+            playerId: id
+          });
         });
       }
     }
@@ -310,26 +347,32 @@ const Milestones: React.FC = () => {
 
       if (leaders.length === 1) {
         // Single leader
+        const playerId = getPlayerIdByName(firstLeader.new_leader);
         items.push({
           type: 'leader_change',
           player: 'Half-Season Points Leader',
           content: formatLeaderText(firstLeader, 'points', 'current Half-Season'),
           icon: 'crown',
           date: matchDate,
-          color: 'amber'
+          color: 'amber',
+          playerId: playerId
         });
       } else {
         // Co-leaders
         const leaderNames = leaders.map(l => l.new_leader).join(' and ');
         const points = firstLeader.new_leader_points || firstLeader.value || 0;
+        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader));
         const content = `${leaderNames} lead with ${points}.`;
-        items.push({
-          type: 'leader_change',
-          player: 'Half-Season Points',
-          content: content,
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber'
+        playerIds.forEach(id => {
+          items.push({
+            type: 'leader_change',
+            player: 'Half-Season Points',
+            content: content,
+            icon: 'crown',
+            date: matchDate,
+            color: 'amber',
+            playerId: id
+          });
         });
       }
     }
@@ -344,26 +387,32 @@ const Milestones: React.FC = () => {
 
       if (leaders.length === 1) {
         // Single leader
+        const playerId = getPlayerIdByName(firstLeader.new_leader);
         items.push({
           type: 'leader_change',
           player: 'Season Goals',
           content: formatLeaderText(firstLeader, 'goals', new Date().getFullYear() + ' Season'),
           icon: 'crown',
           date: matchDate,
-          color: 'amber'
+          color: 'amber',
+          playerId: playerId
         });
       } else {
         // Co-leaders
         const leaderNames = leaders.map(l => l.new_leader).join(' and ');
         const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
+        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader));
         const content = `${leaderNames} lead with ${goals}.`;
-        items.push({
-          type: 'leader_change',
-          player: 'Season Goals',
-          content: content,
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber'
+        playerIds.forEach(id => {
+          items.push({
+            type: 'leader_change',
+            player: 'Season Goals',
+            content: content,
+            icon: 'crown',
+            date: matchDate,
+            color: 'amber',
+            playerId: id
+          });
         });
       }
     }
@@ -374,26 +423,32 @@ const Milestones: React.FC = () => {
 
       if (leaders.length === 1) {
         // Single leader
+        const playerId = getPlayerIdByName(firstLeader.new_leader);
         items.push({
           type: 'leader_change',
           player: 'Season Points Leader',
           content: formatLeaderText(firstLeader, 'points', new Date().getFullYear() + ' Season'),
           icon: 'crown',
           date: matchDate,
-          color: 'amber'
+          color: 'amber',
+          playerId: playerId
         });
       } else {
         // Co-leaders
         const leaderNames = leaders.map(l => l.new_leader).join(' and ');
         const points = firstLeader.new_leader_points || firstLeader.value || 0;
+        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader));
         const content = `${leaderNames} lead with ${points}.`;
-        items.push({
-          type: 'leader_change',
-          player: 'Season Points',
-          content: content,
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber'
+        playerIds.forEach(id => {
+          items.push({
+            type: 'leader_change',
+            player: 'Season Points',
+            content: content,
+            icon: 'crown',
+            date: matchDate,
+            color: 'amber',
+            playerId: id
+          });
         });
       }
     }
@@ -404,6 +459,12 @@ const Milestones: React.FC = () => {
   useEffect(() => {
     fetchMilestonesData();
   }, []);
+
+  useEffect(() => {
+    if (milestonesData) {
+      processTimelineItems(milestonesData);
+    }
+  }, [milestonesData, allPlayers]);
 
   if (loading) {
     return (
@@ -501,9 +562,17 @@ const Milestones: React.FC = () => {
                 </span>
 
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto">
-                  <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700">{item.player}</h6>
-                  {/* <p className="mt-1 mb-0 font-semibold leading-tight text-xs text-slate-400">{item.date}</p> */}
-                  <p className="mt-3 mb-2 leading-normal text-sm text-slate-600">{item.content}</p>
+                  <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700">
+                    {item.playerId && (item.type === 'game_milestone' || item.type === 'goal_milestone' || item.type === 'form_streak' || item.type === 'goal_streak') ? (
+                      <Link href={`/records/players/${item.playerId}`} className="hover:underline">
+                        {item.player}
+                      </Link>
+                    ) : (
+                      item.player
+                    )}
+                    <span className="ml-2 text-xs font-normal text-slate-500">{item.date}</span>
+                  </h6>
+                  <p className="mt-1 mb-1 leading-normal text-sm text-slate-600">{item.content}</p>
                   {item.subtext && (
                     <p className="mb-2 leading-normal text-xs text-slate-500">{item.subtext}</p>
                   )}
