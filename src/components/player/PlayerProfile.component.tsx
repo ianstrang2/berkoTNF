@@ -223,7 +223,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       {/* Player Name and Club Logo */}
       {name && (
         <div className="w-full max-w-full px-3 mb-6">
-          <div className="max-w-[1000px] mx-auto">
+          <div className="mx-auto">
             <div className="flex items-center">
               {clubInfo && clubInfo.filename && (
                 <img
@@ -242,7 +242,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       )}
       {/* Stats Cards */}
       <div className="w-full max-w-full px-3 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-[1000px] mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mx-auto">
           <div>
             <StatsCard
               title="Games"
@@ -342,7 +342,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
       {/* Performance Chart */}
       <div className="w-full max-w-full px-3">
-        <div className="relative z-20 flex flex-col min-w-0 max-w-[1000px] break-words bg-white border-0 border-solid dark:bg-gray-950 border-black-125 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border mx-auto">
+        <div className="relative z-20 flex flex-col min-w-0 break-words bg-white border-0 border-solid dark:bg-gray-950 border-black-125 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border mx-auto">
           <div className="p-6 pb-0">
             <h6 className="dark:text-white mb-4">Performance Overview</h6>
             <NavPills
@@ -388,10 +388,12 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       {/* Add MatchPerformance component here */}
       {id && availableYearsForMatchPerformance.length > 0 && (
         <div className="w-full max-w-full px-3 mt-6">
-          <MatchPerformance 
-            playerId={id} 
-            availableYears={availableYearsForMatchPerformance} 
-          />
+          <div className="mx-auto">
+            <MatchPerformance 
+              playerId={id} 
+              availableYears={availableYearsForMatchPerformance} 
+            />
+          </div>
         </div>
       )}
 

@@ -173,7 +173,7 @@ const Feats: React.FC = () => {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border lg:w-fit">
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4 pb-0">
-          <h5 className="mb-0">Feats & Record Breakers</h5>
+          <h5 className="mb-0">All-Time Feats</h5>
         </div>
         {/* Container for horizontal scrolling only */}
         <div className="overflow-x-auto p-4">
@@ -203,7 +203,7 @@ const Feats: React.FC = () => {
                   {data.records.most_goals_in_game && (
                     <tr className="hover:bg-gray-50">
                       <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
-                        <span className="font-semibold leading-normal text-sm text-slate-700">Most Goals in a Game</span>
+                        <span className="font-semibold leading-normal text-sm text-slate-700">Goals in a Game</span>
                       </td>
                       <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
                         {data.records.most_goals_in_game[0]?.selected_club ? (
@@ -247,10 +247,7 @@ const Feats: React.FC = () => {
                       <tr key={streakType} className="hover:bg-gray-50">
                         <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                           <span className="font-semibold leading-normal text-sm text-slate-700">
-                            {streakType === 'Win Streak' ? 'Win Streak' :
-                            streakType === 'Loss Streak' ? 'Losing Streak' :
-                            streakType === 'Winless Streak' ? 'Winless Streak' :
-                            'Undefeated Streak'}
+                            {streakType}
                           </span>
                         </td>
                         <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
@@ -295,7 +292,7 @@ const Feats: React.FC = () => {
                   {data.records.consecutive_goals_streak && data.records.consecutive_goals_streak.length > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
-                        <span className="font-semibold leading-normal text-sm text-slate-700">Consecutive Games Scoring</span>
+                        <span className="font-semibold leading-normal text-sm text-slate-700">Games Scoring</span>
                       </td>
                       <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
                         {data.records.consecutive_goals_streak[0]?.selected_club ? (

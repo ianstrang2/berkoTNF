@@ -149,7 +149,7 @@ BEGIN
                    match_num - ROW_NUMBER() OVER (PARTITION BY name, result ORDER BY match_date) as gap_group
             FROM numbered_matches
         ), result_streak_groups AS ( -- Renamed to avoid conflict
-            SELECT CASE WHEN result = 'win' THEN 'Win Streak' WHEN result = 'loss' THEN 'Loss Streak' ELSE null END as type,
+            SELECT CASE WHEN result = 'win' THEN 'Win Streak' WHEN result = 'loss' THEN 'Losing Streak' ELSE null END as type,
                    name, match_date, match_num, gap_group
             FROM gaps WHERE result IN ('win', 'loss')
             UNION ALL
