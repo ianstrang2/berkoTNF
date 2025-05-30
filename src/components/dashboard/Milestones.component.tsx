@@ -564,7 +564,7 @@ const Milestones: React.FC = () => {
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto">
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700">
                     {item.playerId && (item.type === 'game_milestone' || item.type === 'goal_milestone' || item.type === 'form_streak' || item.type === 'goal_streak') ? (
-                      <Link href={`/records/players/${item.playerId}`} className="hover:underline">
+                      <Link href={`/players/${item.playerId}`} className="hover:underline">
                         {item.player}
                       </Link>
                     ) : (

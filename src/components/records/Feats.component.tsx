@@ -72,7 +72,10 @@ const Feats: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('/api/honourroll');
+        const [response, playersResponse] = await Promise.all([
+          fetch('/api/honourroll'),
+          fetch('/api/players')
+        ]);
         const result = await response.json();
         
         if (result.data) {
@@ -93,6 +96,15 @@ const Feats: React.FC = () => {
           };
           setData(modifiedData);
         }
+
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json();
+          setAllPlayers(playersData.data || []);
+        } else {
+          console.warn('Failed to fetch players for Feats component');
+          setAllPlayers([]); // Ensure it's an empty array on failure
+        }
+
         setLoading(false);
       } catch (error) {
         console.error('Error fetching feats:', error);
@@ -127,7 +139,7 @@ const Feats: React.FC = () => {
       const playerId = getPlayerIdByName(cleanNameForIdLookup);
 
       const content = playerId ? (
-        <Link href={`/records/players/${playerId}`} className="hover:underline">
+        <Link href={`/players/${playerId}`} className="hover:underline">
           {name}
         </Link>
       ) : (
@@ -149,7 +161,7 @@ const Feats: React.FC = () => {
 
     if (playerId) {
       return (
-        <Link href={`/records/players/${playerId}`} className="hover:underline">
+        <Link href={`/players/${playerId}`} className="hover:underline">
           {name}
         </Link>
       );

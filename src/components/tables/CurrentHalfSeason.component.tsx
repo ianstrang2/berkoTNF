@@ -173,7 +173,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   }, [initialView]);
 
   const renderPlayerName = (playerId: number, name: string) => (
-    <Link href={`/records/players/${playerId}`} className="hover:underline">
+    <Link href={`/players/${playerId}`} className="hover:underline">
       <div className="flex items-center">
         <span>{name}</span>
         {showOnFireConfig && playerId === onFirePlayerId && (
