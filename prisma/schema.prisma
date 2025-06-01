@@ -69,6 +69,7 @@ model players {
   player_matches                                                                                    player_matches[]
   team_slots                                                                                        team_slots[]
   upcoming_match_players                                                                            upcoming_match_players[]
+  aggregated_player_profile_stats                                                                   aggregated_player_profile_stats?
 }
 
 model team_slots {
@@ -437,4 +438,34 @@ model aggregated_player_power_ratings {
   players          players  @relation(fields: [player_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([rating(sort: Desc)], map: "idx_power_rating_desc")
+}
+
+model aggregated_player_profile_stats {
+  player_id                       Int      @id @map("player_id")
+  name                            String?
+  games_played                    Int?     @default(0)
+  fantasy_points                  Int?     @default(0)
+  most_game_goals                 Int?
+  most_game_goals_date            String?
+  most_season_goals               Int?
+  most_season_goals_year          String?
+  win_streak                      Int?     @default(0)
+  win_streak_dates                String?
+  losing_streak                   Int?     @default(0)
+  losing_streak_dates             String?
+  undefeated_streak               Int?     @default(0)
+  undefeated_streak_dates         String?
+  winless_streak                  Int?     @default(0)
+  winless_streak_dates            String?
+  attendance_streak               Int?     @default(0)
+  selected_club                   Json?    @db.JsonB
+  yearly_stats                    Json?    @default("[]") @db.JsonB
+  teammate_frequency_top5         Json?    @default("[]") @db.JsonB
+  teammate_performance_high_top5  Json?    @default("[]") @db.JsonB
+  teammate_performance_low_top5   Json?    @default("[]") @db.JsonB
+  last_updated                    DateTime @default(now()) @db.Timestamp(6)
+
+  player players @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+
+  @@map("aggregated_player_profile_stats")
 }

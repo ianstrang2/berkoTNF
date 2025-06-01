@@ -10,7 +10,8 @@ const EDGE_FUNCTIONS_TO_CALL = [
   'call-update-season-honours-and-records',
   'call-update-match-report-cache',
   'call-update-personal-bests',
-  'call-update-player-power-rating'
+  'call-update-player-power-rating',
+  'call-update-player-profile-stats'
 ];
 
 export async function POST() {

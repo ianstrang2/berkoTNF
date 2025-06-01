@@ -45,8 +45,20 @@ interface ProfileData {
   undefeated_streak_dates: string;
   winless_streak: number;
   winless_streak_dates: string;
-  selected_club?: string;
+  selected_club?: any;
   yearly_stats: YearlyStats[];
+  attendance_streak?: number;
+  teammate_frequency_top5?: TeammateStat[];
+  teammate_performance_high_top5?: TeammateStat[];
+  teammate_performance_low_top5?: TeammateStat[];
+  last_updated?: string;
+}
+
+interface TeammateStat {
+  player_id: number;
+  name: string;
+  games_played_with?: number;
+  average_fantasy_points_with?: number;
 }
 
 interface YearlyPerformanceData {
@@ -187,7 +199,11 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
     winless_streak_dates,
     yearly_stats,
     name,
-    selected_club
+    selected_club,
+    attendance_streak,
+    teammate_frequency_top5,
+    teammate_performance_high_top5,
+    teammate_performance_low_top5
   } = profile;
 
   // DEBUG LOG for profile in render phase
@@ -198,13 +214,27 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   let clubInfo: ClubInfo | null = null;
   if (selected_club) {
     if (typeof selected_club === 'object' && selected_club !== null) {
-      clubInfo = selected_club as ClubInfo;
-      console.log("[PlayerProfile] ClubInfo (already an object):", clubInfo);
+      clubInfo = {
+        id: selected_club.id || '',
+        name: selected_club.name || 'Unknown Club',
+        league: selected_club.league || '',
+        search: selected_club.search || '',
+        country: selected_club.country || '',
+        filename: selected_club.filename || ''
+      };
+      // console.log("[PlayerProfile] ClubInfo (already an object, mapped):", clubInfo);
     } else if (typeof selected_club === 'string') {
-      // Fallback for safety, though logs indicate it's an object
       try {
-        clubInfo = JSON.parse(selected_club);
-        console.log("[PlayerProfile] Parsed ClubInfo (from string fallback):", clubInfo);
+        const parsedClub = JSON.parse(selected_club);
+        clubInfo = {
+          id: parsedClub.id || '',
+          name: parsedClub.name || 'Unknown Club',
+          league: parsedClub.league || '',
+          search: parsedClub.search || '',
+          country: parsedClub.country || '',
+          filename: parsedClub.filename || ''
+        };
+        // console.log("[PlayerProfile] Parsed ClubInfo (from string fallback, mapped):", clubInfo);
       } catch (e) {
         console.error("[PlayerProfile] Failed to parse selected_club JSON (from string fallback):", e);
       }
@@ -337,6 +367,17 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               }
             />
           </div>
+          <div>
+            <StatsCard
+              title="Attendance Streak"
+              value={attendance_streak !== undefined && attendance_streak !== null ? attendance_streak : 'N/A'}
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                  <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 0 0 0-1.5h-3.75V6Z" clipRule="evenodd" />
+                </svg>
+              }
+            />
+          </div>
         </div>
       </div>
 
@@ -396,6 +437,104 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           </div>
         </div>
       )}
+
+      {/* Teammate Statistics */}
+      <div className="w-full max-w-full px-3 mt-6 mb-6 lg:mb-0 lg:w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Most Played With */}
+          <Card className="shadow-soft-xl">
+            <CardHeader>
+              <CardTitle>Most Played With</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {teammate_frequency_top5 && teammate_frequency_top5.length > 0 ? (
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell className="font-semibold text-slate-500">Player</TableCell>
+                      <TableCell className="font-semibold text-slate-500 text-right">Games</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {teammate_frequency_top5.map((tm, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{tm.name}</TableCell>
+                        <TableCell className="text-right">{tm.games_played_with}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-slate-500 text-center py-4">No teammate data available.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Best Chemistry */}
+          <Card className="shadow-soft-xl">
+            <CardHeader>
+              <div className="flex items-baseline">
+                <CardTitle>Best Chemistry</CardTitle>
+                <p className="text-xs text-slate-500 ml-2">(min 5 games played together)</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {teammate_performance_high_top5 && teammate_performance_high_top5.length > 0 ? (
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell className="font-semibold text-slate-500">Player</TableCell>
+                      <TableCell className="font-semibold text-slate-500 text-right">Avg. FP</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {teammate_performance_high_top5.map((tm, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{tm.name}</TableCell>
+                        <TableCell className="text-right">{tm.average_fantasy_points_with?.toFixed(1)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-slate-500 text-center py-4">No chemistry data available.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Worst Chemistry */}
+          <Card className="shadow-soft-xl">
+            <CardHeader>
+              <div className="flex items-baseline">
+                <CardTitle>Worst Chemistry</CardTitle>
+                <p className="text-xs text-slate-500 ml-2">(min 5 games played together)</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {teammate_performance_low_top5 && teammate_performance_low_top5.length > 0 ? (
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell className="font-semibold text-slate-500">Player</TableCell>
+                      <TableCell className="font-semibold text-slate-500 text-right">Avg. FP</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {teammate_performance_low_top5.map((tm, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{tm.name}</TableCell>
+                        <TableCell className="text-right">{tm.average_fantasy_points_with?.toFixed(1)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-slate-500 text-center py-4">No chemistry data available.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
     </div>
   );
