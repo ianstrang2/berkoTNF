@@ -56,6 +56,8 @@ export const useTeamAlgorithm = () => {
   const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<number | null>(null);
   const [showOnFireIcon, setShowOnFireIcon] = useState<boolean>(true);
   const [showGrimReaperIcon, setShowGrimReaperIcon] = useState<boolean>(true);
+  const [configTeamAName, setConfigTeamAName] = useState<string>('Orange'); // Default
+  const [configTeamBName, setConfigTeamBName] = useState<string>('Green');  // Default
   
   // Use our custom hooks
   const { 
@@ -113,22 +115,40 @@ export const useTeamAlgorithm = () => {
           console.warn('Failed to fetch latest player status');
         }
 
-        // Fetch admin config for icons
-        const configRes = await fetch('/api/admin/app-config?group=match_report'); // Assuming group is match_report or similar
-        if (configRes.ok) {
-          const configData: { success: boolean, data: AppConfig[] } = await configRes.json();
-          if (configData.success && configData.data) {
-            const onFireSetting = configData.data.find(c => c.config_key === 'show_on_fire');
-            const grimReaperSetting = configData.data.find(c => c.config_key === 'show_grim_reaper');
+        // Fetch admin config for icons (match_report group)
+        const reportConfigRes = await fetch('/api/admin/app-config?group=match_report');
+        if (reportConfigRes.ok) {
+          const reportConfigData: { success: boolean, data: AppConfig[] } = await reportConfigRes.json();
+          if (reportConfigData.success && reportConfigData.data) {
+            const onFireSetting = reportConfigData.data.find(c => c.config_key === 'show_on_fire');
+            const grimReaperSetting = reportConfigData.data.find(c => c.config_key === 'show_grim_reaper');
             setShowOnFireIcon(onFireSetting?.config_value !== 'false');
             setShowGrimReaperIcon(grimReaperSetting?.config_value !== 'false');
           }
         } else {
-          console.warn('Failed to fetch app config for icons');
+          console.warn('Failed to fetch app config for match_report group');
         }
+
+        // Fetch admin config for team names (match_settings group)
+        const settingsConfigRes = await fetch('/api/admin/app-config?group=match_settings');
+        if (settingsConfigRes.ok) {
+          const settingsConfigData: { success: boolean, data: AppConfig[] } = await settingsConfigRes.json();
+          if (settingsConfigData.success && settingsConfigData.data) {
+            const teamANameSetting = settingsConfigData.data.find(c => c.config_key === 'team_a_name');
+            const teamBNameSetting = settingsConfigData.data.find(c => c.config_key === 'team_b_name');
+            if (teamANameSetting?.config_value) {
+              setConfigTeamAName(teamANameSetting.config_value);
+            }
+            if (teamBNameSetting?.config_value) {
+              setConfigTeamBName(teamBNameSetting.config_value);
+            }
+          }
+        } else {
+          console.warn('Failed to fetch app config for match_settings group');
+        }
+
       } catch (err) {
         console.error('Error fetching player status or config:', err);
-        // Optionally set an error state for the UI
       }
     };
 
@@ -539,21 +559,31 @@ export const useTeamAlgorithm = () => {
   };
 
   const handleCopyTeams = () => {
-    if (!activeMatch || currentSlots.length === 0) {
-      setError("No active match or team data to copy.");
+    if (!activeMatch || !currentSlots.some(slot => slot.player_id !== null)) {
+      setError('No teams to copy.');
       return;
     }
 
-    const teamDataText = formatTeamsForCopy(
-      currentSlots, 
-      players, 
-      onFirePlayerId, 
+    const teamsText = formatTeamsForCopy(
+      currentSlots,
+      players,
+      configTeamAName,      // Use fetched team name
+      configTeamBName,      // Use fetched team name
+      onFirePlayerId,
       grimReaperPlayerId,
-      showOnFireIcon, 
+      showOnFireIcon,
       showGrimReaperIcon
     );
-    
-    createCopyModal(teamDataText);
+
+    navigator.clipboard.writeText(teamsText)
+      .then(() => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000); // Reset after 2 seconds
+      })
+      .catch(err => {
+        console.error('Failed to copy teams: ', err);
+        setError('Failed to copy teams. Please try again.');
+      });
   };
   
   // Function to clear team assignments
@@ -678,6 +708,8 @@ export const useTeamAlgorithm = () => {
     orangeTeamStats,
     greenTeamStats,
     comparativeStats,
+    configTeamAName,
+    configTeamBName,
 
     // Actions
     setCurrentSlots,

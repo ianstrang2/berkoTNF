@@ -300,13 +300,15 @@ export const validateMatchData = (matchData: { date: string, team_size: number }
 export const formatTeamsForCopy = (
   slots: Slot[],
   players: Player[],
-  on_fire_player_id?: number | null, // Optional: ID of player on fire
-  grim_reaper_player_id?: number | null, // Optional: ID of grim reaper player
-  showOnFire?: boolean, // Optional: Flag to show on fire icon
-  showGrimReaper?: boolean // Optional: Flag to show grim reaper icon
+  teamAName: string,
+  teamBName: string,
+  on_fire_player_id?: number | null,
+  grim_reaper_player_id?: number | null,
+  showOnFire?: boolean,
+  showGrimReaper?: boolean
 ): string => {
-  const orangeTeam = slots.filter(s => s.team === 'A' && s.player_id);
-  const greenTeam = slots.filter(s => s.team === 'B' && s.player_id);
+  const orangeTeamSlots = slots.filter(s => s.team === 'A' && s.player_id);
+  const greenTeamSlots = slots.filter(s => s.team === 'B' && s.player_id);
 
   const formatTeam = (teamSlots: Slot[]) => {
     return teamSlots
@@ -316,10 +318,14 @@ export const formatTeamsForCopy = (
         
         // Append icons if applicable
         if (player) {
-          if (showOnFire && player.id === on_fire_player_id?.toString()) {
+          // Ensure player.id is treated as a number for comparison, 
+          // as on_fire_player_id and grim_reaper_player_id are numbers.
+          const playerIdAsNumber = Number(player.id);
+
+          if (showOnFire && playerIdAsNumber === on_fire_player_id) {
             playerName += ' 🔥'; // Add fire icon
           }
-          if (showGrimReaper && player.id === grim_reaper_player_id?.toString()) {
+          if (showGrimReaper && playerIdAsNumber === grim_reaper_player_id) {
             playerName += ' 💀'; // Add grim reaper icon
           }
         }
@@ -329,5 +335,9 @@ export const formatTeamsForCopy = (
       .join('\n');
   };
 
-  return `Orange Team:\n${formatTeam(orangeTeam)}\n\nGreen Team:\n${formatTeam(greenTeam)}`;
+  // Use dynamic team names, with fallbacks if empty
+  const finalTeamAName = teamAName || 'Team A';
+  const finalTeamBName = teamBName || 'Team B';
+
+  return `${finalTeamAName}:\n${formatTeam(orangeTeamSlots)}\n\n${finalTeamBName}:\n${formatTeam(greenTeamSlots)}`;
 }; 
