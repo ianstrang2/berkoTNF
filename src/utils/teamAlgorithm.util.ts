@@ -332,12 +332,12 @@ export const formatTeamsForCopy = (
         
         return playerName;
       })
-      .join('\n');
+      .join('\r\n');
   };
 
   // Use dynamic team names, with fallbacks if empty
   const finalTeamAName = teamAName || 'Team A';
   const finalTeamBName = teamBName || 'Team B';
 
-  return `${finalTeamAName}:\n${formatTeam(orangeTeamSlots)}\n\n${finalTeamBName}:\n${formatTeam(greenTeamSlots)}`;
+  return `${finalTeamAName}:\r\n${formatTeam(orangeTeamSlots)}\r\n\r\n${finalTeamBName}:\r\n${formatTeam(greenTeamSlots)}`;
 }; 
