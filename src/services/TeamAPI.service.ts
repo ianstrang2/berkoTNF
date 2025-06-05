@@ -59,6 +59,27 @@ export const TeamAPIService = {
     }
   },
   
+  clearEntirePlayerPool: async (matchId: string): Promise<void> => {
+    try {
+      const response = await fetch(`/api/admin/match-player-pool?match_id=${matchId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        // Check if errorData exists and has an error property, otherwise provide a default message
+        const message = errorData && errorData.error ? errorData.error : `Failed to clear player pool: ${response.status}`;
+        throw new Error(message);
+      }
+      // Optionally, you can check response.json() for { success: true, count: N }
+      // const result = await response.json(); 
+      // console.log('Player pool cleared:', result);
+    } catch (error) {
+      console.error('Error clearing entire player pool:', error);
+      throw error;
+    }
+  },
+  
   // Team assignment APIs
   fetchTeamAssignments: async (matchId: string): Promise<Slot[]> => {
     try {

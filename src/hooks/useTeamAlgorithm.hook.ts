@@ -401,40 +401,43 @@ export const useTeamAlgorithm = () => {
       return;
     }
 
-    // Add to pending toggles to manage UI state immediately
     const playerIdStr = player.id.toString();
     if (pendingPlayerToggles.has(playerIdStr)) {
       return; // Already processing
     }
     setPendingPlayerToggles(prev => new Set(prev).add(playerIdStr));
 
+    const previousSelectedPoolPlayers = [...selectedPoolPlayers]; // Store previous state for rollback
+
     try {
       const isSelected = selectedPoolPlayers.some(p => p.id === player.id);
 
       if (isSelected) {
-        // Remove player from pool
-        await TeamAPIService.removePlayerFromPool(matchId.toString(), playerIdStr);
+        // Optimistically update UI
         setSelectedPoolPlayers(prev => prev.filter(p => p.id !== player.id));
+        await TeamAPIService.removePlayerFromPool(matchId.toString(), playerIdStr);
       } else {
-        // Add player to pool - check again to prevent duplicates if rapidly called
+        // Optimistically update UI
+        // Check again to prevent duplicates if rapidly called before state updates (though pendingPlayerToggles helps)
         if (!selectedPoolPlayers.some(p => p.id === player.id)) {
-          await TeamAPIService.addPlayerToPool(matchId.toString(), playerIdStr);
-          setSelectedPoolPlayers(prev => [...prev, player]); // Use the passed 'player' object directly
+          setSelectedPoolPlayers(prev => [...prev, player]); 
         }
+        await TeamAPIService.addPlayerToPool(matchId.toString(), playerIdStr);
       }
-      setError(null); // Clear any previous errors
+      setError(null); // Clear any previous errors on success
     } catch (err) {
       console.error('Error toggling player in pool:', err);
       setError(`Failed to update player pool: ${err instanceof Error ? err.message : String(err)}`);
+      // Rollback UI change on error
+      setSelectedPoolPlayers(previousSelectedPoolPlayers);
     } finally {
-      // Remove from pending toggles
       setPendingPlayerToggles(prev => {
         const next = new Set(prev);
         next.delete(playerIdStr);
         return next;
       });
     }
-  }, [activeMatch, selectedPoolPlayers, pendingPlayerToggles, setError]);
+  }, [activeMatch, selectedPoolPlayers, pendingPlayerToggles, setError]); // Added selectedPoolPlayers to dependencies due to its use in rollback
   
   // Calculate available players based on the current pool
   const availablePlayersForSelection = useMemo(() => {
@@ -610,6 +613,8 @@ export const useTeamAlgorithm = () => {
     setError(null);
     try {
       // Call API to clear assignments for the match (from current new hook)
+      // This might be redundant if clearing the pool also implies unassigning,
+      // or if assignments are managed separately. For now, keeping it.
       await TeamAPIService.clearTeamAssignments(matchId.toString());
       
       // Clear local slots and unmark as balanced (from current new hook)
@@ -621,37 +626,16 @@ export const useTeamAlgorithm = () => {
       setGreenTeamStats(null);
       setComparativeStats(null);
 
-      // === Start of restored logic from old clearPlayerPool ===
-      if (selectedPoolPlayers.length === 0) {
-        setError('Failed to update player pool: player not found in pool'); // Exact error message from user query
-        // Do not return here if other cleanup (like refreshMatchData) should still run in finally
-        // However, the old logic did return. Let's stick to that.
-        setIsLoading(false); // Ensure loading is false before returning
-        return;
-      }
-
-      // Create a copy for iteration, as selectedPoolPlayers will be modified
-      const playersToRemoveFromPool = [...selectedPoolPlayers];
-      for (const player of playersToRemoveFromPool) {
-        try {
-          await TeamAPIService.removePlayerFromPool(matchId.toString(), player.id.toString());
-        } catch (loopError) {
-          // Log individual error but try to continue, or decide to bail out
-          console.error(`Error removing player ${player.id} from pool:`, loopError);
-          // Accumulate errors or throw a combined one if needed, for now, let the main catch handle it
-          // Or, rethrow to be caught by the outer try-catch
-          throw loopError; 
-        }
-      }
+      // === New logic for clearing player pool ===
+      await TeamAPIService.clearEntirePlayerPool(matchId.toString());
       setSelectedPoolPlayers([]); // Clear local pool state
-      // === End of restored logic from old clearPlayerPool ===
+      // === End of new logic ===
       
-      // Refresh data to confirm clearance (optional, clearSlots might be enough) (from current new hook)
+      // Refresh data to confirm clearance (optional, clearSlots might be enough)
       await refreshMatchData(); 
       
     } catch (err) {
-      console.error('Error during clear teams operation:', err); // Changed console log message slightly for clarity
-      // err is the actual error from the try block. Set it.
+      console.error('Error during clear teams/pool operation:', err); 
       setError(`Failed to clear teams/pool: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);

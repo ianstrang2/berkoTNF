@@ -23,7 +23,7 @@ export const AdminModeToggle: React.FC<AdminModeToggleProps> = ({ className = ''
 
   const handleAuthenticate = () => {
     // Simple password check (in real app, this would be more secure)
-    if (password === 'admin123') {
+    if (password === 'poo') {
       setIsAdminAuthenticated(true);
       setShowAuthPrompt(false);
       setPassword('');

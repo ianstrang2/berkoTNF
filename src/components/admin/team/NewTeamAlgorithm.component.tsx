@@ -163,6 +163,7 @@ const NewTeamAlgorithm: React.FC = () => {
                 variant="secondary"
                 className="rounded-lg shadow-soft-sm"
                 onClick={handleClearTeams}
+                disabled={selectedPoolPlayers.length === 0 && !isLoading}
               >
                 Clear
               </Button>
