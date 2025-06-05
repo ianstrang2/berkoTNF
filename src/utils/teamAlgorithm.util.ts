@@ -316,28 +316,22 @@ export const formatTeamsForCopy = (
         const player = players.find(p => p.id === slot.player_id);
         let playerName = player ? player.name : 'Empty';
         
-        // Append icons if applicable
         if (player) {
-          // Ensure player.id is treated as a number for comparison, 
-          // as on_fire_player_id and grim_reaper_player_id are numbers.
           const playerIdAsNumber = Number(player.id);
-
           if (showOnFire && playerIdAsNumber === on_fire_player_id) {
-            playerName += ' 🔥'; // Add fire icon
+            playerName += ' 🔥';
           }
           if (showGrimReaper && playerIdAsNumber === grim_reaper_player_id) {
-            playerName += ' 💀'; // Add grim reaper icon
+            playerName += ' 💀';
           }
         }
-        
         return playerName;
       })
-      .join('\r\n');
+      .join('\n');
   };
 
-  // Use dynamic team names, with fallbacks if empty
   const finalTeamAName = teamAName || 'Team A';
   const finalTeamBName = teamBName || 'Team B';
 
-  return `${finalTeamAName}:\r\n${formatTeam(orangeTeamSlots)}\r\n\r\n${finalTeamBName}:\r\n${formatTeam(greenTeamSlots)}`;
+  return `--- ${finalTeamAName} ---\n${formatTeam(orangeTeamSlots)}\n\n--- ${finalTeamBName} ---\n${formatTeam(greenTeamSlots)}`;
 }; 
