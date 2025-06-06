@@ -40,7 +40,7 @@ interface Records {
     'Win Streak'?: {
       holders: StreakHolder[];
     };
-    'Loss Streak'?: {
+    'Losing Streak'?: {
       holders: StreakHolder[];
     };
     'Winless Streak'?: {
@@ -88,7 +88,7 @@ const Feats: React.FC = () => {
               biggest_victory: recordsData?.biggest_victory,
               streaks: {
                 'Win Streak': recordsData?.streaks?.['Win Streak'],
-                'Loss Streak': recordsData?.streaks?.['Loss Streak'],
+                'Losing Streak': recordsData?.streaks?.['Losing Streak'],
                 'Winless Streak': recordsData?.streaks?.['Winless Streak'],
                 'Undefeated Streak': recordsData?.streaks?.['Undefeated Streak']
               }
