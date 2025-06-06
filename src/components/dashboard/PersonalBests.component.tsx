@@ -11,7 +11,7 @@ interface TimelineItem {
   playerId: number;
   content: string;
   subtext?: string;
-  icon: 'goals' | 'win_streak' | 'undefeated_streak' | 'loss_streak' | 'winless_streak' | 'attendance_streak'; // Icon keys
+  icon: 'goals' | 'win_streak' | 'undefeated_streak' | 'loss_streak' | 'winless_streak' | 'attendance_streak' | 'scoring_streak'; // Icon keys
   date?: string;
   color?: 'green' | 'red' | 'blue' | 'amber' | 'purple'; // Tailwind color names
 }
@@ -31,6 +31,7 @@ const PB_METRIC_DETAILS: {
   'longest_losing_streak': { name: 'Longest Losing Streak', icon: 'loss_streak', color: 'red', unit: 'games' },
   'longest_winless_streak': { name: 'Longest Winless Streak', icon: 'winless_streak', color: 'red', unit: 'games' },
   'attendance_streak': { name: 'Attendance Streak', icon: 'attendance_streak', color: 'purple', unit: 'games' },
+  'longest_scoring_streak': { name: 'Longest Scoring Streak', icon: 'scoring_streak', color: 'green', unit: 'games' },
 };
 
 // Helper function to get the correct ordinal suffix for numbers
@@ -232,7 +233,7 @@ const PersonalBests: React.FC = () => {
                       <path fillRule="evenodd" clipRule="evenodd" d="M12 4.75C8.007 4.75 4.75 8.007 4.75 12S8.007 19.25 12 19.25 19.25 15.993 19.25 12 15.993 4.75 12 4.75zM12 6a6 6 0 100 12 6 6 0 000-12zm-.625 2.063l2.5 4.33-2.5 4.33h-5l-2.5-4.33 2.5-4.33h5zm1.25 0h2.75l1.25 2.165-1.25 2.165h-2.75l-1.25-2.165 1.25-2.165zm-5 0h2.75l1.25 2.165-1.25 2.165h-2.75l-1.25-2.165 1.25-2.165zm2.5 4.33l1.25 2.165h2.5l1.25-2.165-1.25-2.165h-2.5l-1.25 2.165z" fill="currentColor"/>
                     </svg>
                   )}
-                  {item.icon === 'win_streak' && ( // Fire icon from Milestones
+                  {(item.icon === 'win_streak' || item.icon === 'scoring_streak') && ( // Fire icon from Milestones
                      <svg className={`w-5 h-5 ${item.color === 'green' ? 'text-green-500' : 'text-green-500'} dark:text-green-400`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />

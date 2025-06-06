@@ -19,6 +19,8 @@ DECLARE
     v_previous_max_winless_streak INT;
     v_current_attendance_streak INT;
     v_previous_max_attendance_streak INT;
+    v_current_scoring_streak INT;
+    v_previous_max_scoring_streak INT;
     v_player_pb_array JSONB;
     v_final_json_payload JSONB;
     MIN_GOALS_FOR_PB CONSTANT INT := 2;
@@ -81,6 +83,7 @@ BEGIN
                 (pm.result = 'D') AS is_draw,
                 (pm.result = 'W' OR pm.result = 'D') AS is_undefeated,
                 (pm.result = 'L' OR pm.result = 'D') AS is_winless,
+                (COALESCE(pm.goals, 0) > 0) AS has_scored,
                 ROW_NUMBER() OVER (ORDER BY m.match_date, m.match_id) as played_match_seq_num
             FROM public.matches m
             JOIN public.player_matches pm ON m.match_id = pm.match_id
@@ -88,11 +91,12 @@ BEGIN
         ),
         played_game_streak_groups AS (
             SELECT
-                match_id, match_date, is_win, is_loss, is_draw, is_undefeated, is_winless, played_match_seq_num,
+                match_id, match_date, is_win, is_loss, is_draw, is_undefeated, is_winless, has_scored, played_match_seq_num,
                 played_match_seq_num - ROW_NUMBER() OVER (PARTITION BY is_win ORDER BY match_date, match_id) as win_streak_group,
                 played_match_seq_num - ROW_NUMBER() OVER (PARTITION BY is_undefeated ORDER BY match_date, match_id) as undefeated_streak_group,
                 played_match_seq_num - ROW_NUMBER() OVER (PARTITION BY is_loss ORDER BY match_date, match_id) as losing_streak_group,
-                played_match_seq_num - ROW_NUMBER() OVER (PARTITION BY is_winless ORDER BY match_date, match_id) as winless_streak_group
+                played_match_seq_num - ROW_NUMBER() OVER (PARTITION BY is_winless ORDER BY match_date, match_id) as winless_streak_group,
+                played_match_seq_num - ROW_NUMBER() OVER (PARTITION BY has_scored ORDER BY match_date, match_id) as scoring_streak_group
             FROM player_played_match_details
         ),
         result_streaks_by_played_match AS (
@@ -101,7 +105,8 @@ BEGIN
                 CASE WHEN is_win THEN COUNT(*) OVER (PARTITION BY is_win, win_streak_group ORDER BY match_date, match_id) ELSE 0 END as current_win_streak_val,
                 CASE WHEN is_undefeated THEN COUNT(*) OVER (PARTITION BY is_undefeated, undefeated_streak_group ORDER BY match_date, match_id) ELSE 0 END as current_undefeated_streak_val,
                 CASE WHEN is_loss THEN COUNT(*) OVER (PARTITION BY is_loss, losing_streak_group ORDER BY match_date, match_id) ELSE 0 END as current_losing_streak_val,
-                CASE WHEN is_winless THEN COUNT(*) OVER (PARTITION BY is_winless, winless_streak_group ORDER BY match_date, match_id) ELSE 0 END as current_winless_streak_val
+                CASE WHEN is_winless THEN COUNT(*) OVER (PARTITION BY is_winless, winless_streak_group ORDER BY match_date, match_id) ELSE 0 END as current_winless_streak_val,
+                CASE WHEN has_scored THEN COUNT(*) OVER (PARTITION BY has_scored, scoring_streak_group ORDER BY match_date, match_id) ELSE 0 END as current_scoring_streak_val
             FROM played_game_streak_groups
         ),
 
@@ -153,6 +158,7 @@ BEGIN
                 COALESCE(rsbpm.current_undefeated_streak_val, 0) as current_undefeated_streak_val,
                 COALESCE(rsbpm.current_losing_streak_val, 0) as current_losing_streak_val,
                 COALESCE(rsbpm.current_winless_streak_val, 0) as current_winless_streak_val,
+                COALESCE(rsbpm.current_scoring_streak_val, 0) as current_scoring_streak_val,
                 asbm.current_attendance_streak_val
             FROM public.matches m -- Base for all matches in context
             LEFT JOIN result_streaks_by_played_match rsbpm ON m.match_id = rsbpm.match_id
@@ -170,20 +176,23 @@ BEGIN
             COALESCE(s.current_winless_streak_val, 0),
             COALESCE(MAX(s_prev.current_winless_streak_val) FILTER (WHERE s_prev.match_id < v_latest_match_id AND s_prev.current_winless_streak_val > 0), 0),
             COALESCE(s.current_attendance_streak_val, 0),
-            COALESCE(MAX(s_prev.current_attendance_streak_val) FILTER (WHERE s_prev.match_id < v_latest_match_id AND s_prev.current_attendance_streak_val > 0), 0)
+            COALESCE(MAX(s_prev.current_attendance_streak_val) FILTER (WHERE s_prev.match_id < v_latest_match_id AND s_prev.current_attendance_streak_val > 0), 0),
+            COALESCE(s.current_scoring_streak_val, 0),
+            COALESCE(MAX(s_prev.current_scoring_streak_val) FILTER (WHERE s_prev.match_id < v_latest_match_id AND s_prev.current_scoring_streak_val > 0), 0)
         INTO
             v_current_win_streak, v_previous_max_win_streak,
             v_current_undefeated_streak, v_previous_max_undefeated_streak,
             v_current_losing_streak, v_previous_max_losing_streak,
             v_current_winless_streak, v_previous_max_winless_streak,
-            v_current_attendance_streak, v_previous_max_attendance_streak
+            v_current_attendance_streak, v_previous_max_attendance_streak,
+            v_current_scoring_streak, v_previous_max_scoring_streak
         FROM all_streaks_per_match_for_player s
         LEFT JOIN all_streaks_per_match_for_player s_prev ON s_prev.match_id < v_latest_match_id
         WHERE s.match_id = v_latest_match_id
         GROUP BY
             s.current_win_streak_val, s.current_undefeated_streak_val,
             s.current_losing_streak_val, s.current_winless_streak_val,
-            s.current_attendance_streak_val;
+            s.current_attendance_streak_val, s.current_scoring_streak_val;
 
         -- Metric 2: Longest Win Streak
         IF v_current_win_streak >= MIN_STREAK_FOR_PB AND v_current_win_streak > v_previous_max_win_streak THEN
@@ -204,6 +213,10 @@ BEGIN
         -- Metric 6: Attendance Streak
         IF v_current_attendance_streak >= MIN_STREAK_FOR_PB AND v_current_attendance_streak > v_previous_max_attendance_streak THEN
              v_player_pb_array := v_player_pb_array || jsonb_build_object('metric_type', 'attendance_streak', 'value', v_current_attendance_streak, 'previous_best_value', v_previous_max_attendance_streak);
+        END IF;
+        -- Metric 7: Longest Scoring Streak
+        IF v_current_scoring_streak >= MIN_STREAK_FOR_PB AND v_current_scoring_streak > v_previous_max_scoring_streak THEN
+             v_player_pb_array := v_player_pb_array || jsonb_build_object('metric_type', 'longest_scoring_streak', 'value', v_current_scoring_streak, 'previous_best_value', v_previous_max_scoring_streak);
         END IF;
 
         IF jsonb_array_length(v_player_pb_array) > 0 THEN

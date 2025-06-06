@@ -224,7 +224,7 @@ BEGIN
                     AND floor(pt.total_games / milestone_game_threshold) > floor((pt.total_games - 1) / milestone_game_threshold)
                  ), '[]'::jsonb),
         -- Goal milestones logic updated to check if threshold was crossed
-        COALESCE(jsonb_agg(jsonb_build_object('name', player_names_json->>pt.player_id::text, 'value', pt.total_goals))
+        COALESCE(jsonb_agg(jsonb_build_object('name', player_names_json->>pt.player_id::text, 'value', (floor(pt.total_goals / milestone_goal_threshold) * milestone_goal_threshold)))
                  FILTER (
                     WHERE pt.total_goals > 0 -- Must have scored goals overall
                     AND pt.goals_in_latest_match > 0 -- Must have scored in the latest match to cross threshold
