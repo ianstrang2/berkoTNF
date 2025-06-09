@@ -106,8 +106,15 @@ const AdminInfoPage = () => {
       });
 
       if (!response.ok) {
-        const errorResult = await response.json();
-        throw new Error(errorResult.error || `Failed to trigger stats update: ${response.statusText}`);
+        const errorText = await response.text();
+        try {
+          // Try to parse it as JSON, as some errors might be structured
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || `Failed to trigger stats update: ${response.statusText}`);
+        } catch (e) {
+          // If it's not JSON, use the raw text
+          throw new Error(errorText || `Failed to trigger stats update with status: ${response.statusText}`);
+        }
       }
 
       const result = await response.json();
