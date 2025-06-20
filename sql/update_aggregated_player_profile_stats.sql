@@ -11,9 +11,9 @@ BEGIN
     RAISE NOTICE 'Clearing existing data from aggregated_player_profile_stats...';
     TRUNCATE TABLE public.aggregated_player_profile_stats;
 
-    -- Loop through each active, non-ringer player
+    -- Loop through each non-ringer player (include retired)
     FOR v_player_record IN
-        SELECT player_id FROM public.players WHERE is_retired = FALSE AND is_ringer = FALSE
+        SELECT player_id FROM public.players WHERE is_ringer = FALSE
     LOOP
         v_numeric_id := v_player_record.player_id;
         RAISE NOTICE 'Processing player_id: %', v_numeric_id;

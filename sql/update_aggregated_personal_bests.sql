@@ -240,8 +240,12 @@ BEGIN
         SET broken_pbs_data = excluded.broken_pbs_data,
             updated_at = NOW();
     ELSE
-        RAISE NOTICE 'No new PBs found for match_id: %. Deleting if exists.', v_latest_match_id;
-        DELETE FROM public.aggregated_personal_bests WHERE match_id = v_latest_match_id;
+        RAISE NOTICE 'No new PBs found for match_id: %. Upserting empty record.', v_latest_match_id;
+        INSERT INTO public.aggregated_personal_bests (match_id, broken_pbs_data, created_at, updated_at)
+        VALUES (v_latest_match_id, '{}'::jsonb, NOW(), NOW())
+        ON CONFLICT (match_id) DO UPDATE
+        SET broken_pbs_data = '{}'::jsonb,
+            updated_at = NOW();
     END IF;
 
     -- Update cache_metadata
