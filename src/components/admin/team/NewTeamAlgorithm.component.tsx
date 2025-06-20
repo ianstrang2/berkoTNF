@@ -16,7 +16,7 @@ import { NewMatchData as NewMatchDataType, Player, Slot } from '@/types/team-alg
 const NewTeamAlgorithm: React.FC = () => {
   // State for balance options modal
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
-  const [balanceMethod, setBalanceMethod] = useState<'ability' | 'random' | 'performance'>('performance');
+  const [balanceMethod, setBalanceMethod] = useState<'ability' | 'random' | 'performance'>('ability');
   
   // Local state for NewMatchData
   const [newMatchData, setNewMatchData] = useState<NewMatchDataType>({
@@ -356,19 +356,6 @@ const NewTeamAlgorithm: React.FC = () => {
             
             <div className="space-y-2">
               <div 
-                className={`p-2 border rounded-lg cursor-pointer ${balanceMethod === 'performance' ? 'border-purple-500 bg-purple-50' : 'border-gray-300'}`}
-                onClick={() => setBalanceMethod('performance')}
-              >
-                <div className="flex items-center">
-                  <div className={`w-3.5 h-3.5 rounded-full mr-2 ${balanceMethod === 'performance' ? 'bg-gradient-to-tl from-purple-700 to-pink-500' : 'border border-gray-400'}`}></div>
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-700 font-sans">Balance by Performance</h3>
-                    <p className="text-xs text-slate-500">Balance players based on their actual performance</p>
-                  </div>
-                </div>
-              </div>
-
-              <div 
                 className={`p-2 border rounded-lg cursor-pointer ${balanceMethod === 'ability' ? 'border-purple-500 bg-purple-50' : 'border-gray-300'}`}
                 onClick={() => setBalanceMethod('ability')}
               >
@@ -377,6 +364,19 @@ const NewTeamAlgorithm: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-medium text-slate-700 font-sans">Balance by Ratings</h3>
                     <p className="text-xs text-slate-500">Balance players based on the ratings you've entered</p>
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                className={`p-2 border rounded-lg cursor-pointer ${balanceMethod === 'performance' ? 'border-purple-500 bg-purple-50' : 'border-gray-300'}`}
+                onClick={() => setBalanceMethod('performance')}
+              >
+                <div className="flex items-center">
+                  <div className={`w-3.5 h-3.5 rounded-full mr-2 ${balanceMethod === 'performance' ? 'bg-gradient-to-tl from-purple-700 to-pink-500' : 'border border-gray-400'}`}></div>
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-700 font-sans">Balance by Performance</h3>
+                    <p className="text-xs text-slate-500">Balance players based on their actual performance</p>
                   </div>
                 </div>
               </div>
