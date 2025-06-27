@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PersonalBestsAPIResponseData as PersonalBestsData } from '@/app/api/personal-bests/route';
+import { PersonalBestsAPIResponseData as PersonalBestsData } from '@/types/personal-bests.types';
 import Link from 'next/link';
 
 // Interface for individual timeline items

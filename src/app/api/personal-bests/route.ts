@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
+import { PersonalBestsAPIResponseData } from '@/types/personal-bests.types';
 
 const getPersonalBestsData = unstable_cache(
-  async () => {
+  async (): Promise<PersonalBestsAPIResponseData | null> => {
     console.log('Fetching fresh personal bests data from DB.');
     
     const latestPb = await prisma.aggregated_personal_bests.findFirst({
@@ -25,10 +26,10 @@ const getPersonalBestsData = unstable_cache(
     }
 
     // Restore the correct data structure expected by the frontend
-    const responseData = {
+    const responseData: PersonalBestsAPIResponseData = {
       match_id: latestPb.match_id,
       match_date: latestPb.matches.match_date,
-      broken_pbs_data: latestPb.broken_pbs_data,
+      broken_pbs_data: latestPb.broken_pbs_data as unknown as PersonalBestsAPIResponseData['broken_pbs_data'],
     };
 
     return responseData;
