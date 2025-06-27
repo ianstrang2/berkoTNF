@@ -36,12 +36,18 @@ BEGIN
             SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END) as heavy_losses,
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END) as clean_sheets,
             -- Call the centralized helper function (no config needed)
-            SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet)) as fantasy_points
+            SUM(calculate_match_fantasy_points(
+                pm.result, 
+                COALESCE(pm.heavy_win, false), 
+                COALESCE(pm.heavy_loss, false), 
+                COALESCE(pm.clean_sheet, false)
+            )) as fantasy_points
         FROM player_matches pm
         JOIN players p ON pm.player_id = p.player_id
         WHERE p.is_ringer = false
         GROUP BY pm.player_id
-        HAVING COUNT(*) >= min_games_for_hof -- Add this condition
+        HAVING SUM(calculate_match_fantasy_points(pm.result, COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))) IS NOT NULL
+           AND COUNT(*) >= min_games_for_hof -- Add this condition
     )
     INSERT INTO aggregated_all_time_stats (
         player_id, games_played, wins, draws, losses, goals,

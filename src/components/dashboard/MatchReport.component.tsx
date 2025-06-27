@@ -4,7 +4,19 @@ import Link from 'next/link';
 import Button from '@/components/ui-kit/Button.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
-import { PersonalBestsAPIResponseData as PersonalBestsData } from '@/app/api/personal-bests/route';
+import { LeaderData, formatLeaderText } from '@/utils/timeline.util';
+
+interface PersonalBestsData {
+  broken_pbs_data: {
+    [playerId: string]: {
+      name: string;
+      pbs: {
+        metric_type: string;
+        value: number;
+      }[];
+    };
+  };
+}
 
 interface MatchInfo {
   match_date: string;
@@ -34,17 +46,6 @@ interface GoalStreak {
   name: string;
   matches_with_goals: number;
   goals_in_streak: number;
-}
-
-interface LeaderData {
-  change_type: 'new_leader' | 'tied' | 'remains' | 'overtake';
-  new_leader: string;
-  previous_leader?: string;
-  new_leader_goals?: number;
-  new_leader_points?: number;
-  previous_leader_goals?: number;
-  previous_leader_points?: number;
-  value?: number;
 }
 
 interface FullMatchReportData {
@@ -240,7 +241,7 @@ const LatestMatch: React.FC = () => {
 
     if (pbsData && pbsData.broken_pbs_data && Object.keys(pbsData.broken_pbs_data).length > 0) {
       report += `\n--- PERSONAL BESTS ACHIEVED ---\n`;
-      Object.values(pbsData.broken_pbs_data).forEach(playerPbData => {
+      Object.values(pbsData.broken_pbs_data).forEach((playerPbData: { name: string; pbs: { metric_type: string; value: number }[] }) => {
         playerPbData.pbs.forEach(pb => {
           const metricDetail = PB_METRIC_DETAILS_FOR_COPY[pb.metric_type];
           if (metricDetail) {
@@ -252,53 +253,42 @@ const LatestMatch: React.FC = () => {
       });
     }
 
+    let leaderHeaderAdded = false;
+    const ensureLeaderHeader = () => {
+      if (!leaderHeaderAdded) {
+        report += `\n--- LEADERBOARD UPDATES ---\n`;
+        leaderHeaderAdded = true;
+      }
+    };
+
     const formatList = (title: string, items: any[] | undefined, formatter: (item: any) => string) => {
       if (items && items.length > 0) {
-        report += `\n--- ${title.toUpperCase()} ---\n`;
+        ensureLeaderHeader();
         items.forEach(item => {
           report += `- ${formatter(item)}\n`;
         });
       }
     };
 
-    formatList('Game Milestones', data.gamesMilestones, item => `${item.name}: Played ${getOrdinalSuffix(item.total_games || item.value || 0)} game`);
-    formatList('Goal Milestones', data.goalsMilestones, item => `${item.name}: Scored ${getOrdinalSuffix(item.total_goals || item.value || 0)} goal`);
-    formatList('Form Streaks', data.streaks, item => `${item.name}: ${item.streak_count} game ${item.streak_type === 'win' ? 'winning' : item.streak_type === 'loss' ? 'losing' : item.streak_type === 'unbeaten' ? 'unbeaten' : 'winless'} streak`);
-    formatList('Goal Scoring Streaks', data.goalStreaks, item => `${item.name}: Scored in ${item.matches_with_goals} consecutive matches (${item.goals_in_streak} goals)`);
-    
-    const formatLeaderSimple = (leaderData: LeaderData, metric: 'goals' | 'points', period: string): string => {
-       if (!leaderData || !leaderData.new_leader) return `Unknown leader in ${metric}`;
-       const value = metric === 'goals' ? (leaderData.new_leader_goals || leaderData.value || 0) : (leaderData.new_leader_points || leaderData.value || 0);
-       return `${leaderData.new_leader} leads ${period} ${metric} with ${value}`;
-    };
+    formatList('Half-Season Goal Leaders', data.halfSeasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Half-Season'));
+    formatList('Half-Season Fantasy Leaders', data.halfSeasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Half-Season'));
+    formatList('Season Goal Leaders', data.seasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Season'));
+    formatList('Season Fantasy Leaders', data.seasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Season'));
 
-    let leaderHeaderAdded = false;
-    const ensureLeaderHeader = () => {
-      if (!leaderHeaderAdded) {
-        report += `\n--- LEADERBOARDS ---\n`;
-        leaderHeaderAdded = true;
-      }
-    };
-
-    if (data.halfSeasonGoalLeaders && data.halfSeasonGoalLeaders.length > 0) {
-        ensureLeaderHeader();
-        if (data.halfSeasonGoalLeaders.length === 1) {
-            report += `- ${formatLeaderSimple(data.halfSeasonGoalLeaders[0], 'goals', 'Half-Season')}\n`;
-        } else {
-            const leaderNames = data.halfSeasonGoalLeaders.map(l => l.new_leader).join(' and ');
-            const goals = data.halfSeasonGoalLeaders[0].new_leader_goals || data.halfSeasonGoalLeaders[0].value || 0;
-            report += `- ${leaderNames} lead Half-Season goals with ${goals}\n`;
-        }
+    if (data.gamesMilestones && data.gamesMilestones.length > 0) {
+      report += `\n--- MILESTONES ---\n`;
+      data.gamesMilestones.forEach(m => {
+        const gameCount = m.total_games || m.value || 0;
+        report += `- ${m.name}: Played ${getOrdinalSuffix(gameCount)} game\n`;
+      });
     }
-    if (data.halfSeasonFantasyLeaders && data.halfSeasonFantasyLeaders.length > 0) {
-        ensureLeaderHeader();
-        if (data.halfSeasonFantasyLeaders.length === 1) {
-            report += `- ${formatLeaderSimple(data.halfSeasonFantasyLeaders[0], 'points', 'Half-Season')}\n`;
-        } else {
-            const leaderNames = data.halfSeasonFantasyLeaders.map(l => l.new_leader).join(' and ');
-            const points = data.halfSeasonFantasyLeaders[0].new_leader_points || data.halfSeasonFantasyLeaders[0].value || 0;
-            report += `- ${leaderNames} lead Half-Season points with ${points}\n`;
-        }
+
+    if (data.goalsMilestones && data.goalsMilestones.length > 0) {
+      report += `\n--- GOAL MILESTONES ---\n`;
+      data.goalsMilestones.forEach(m => {
+        const goalCount = m.total_goals || m.value || 0;
+        report += `- ${m.name}: Scored ${getOrdinalSuffix(goalCount)} goal\n`;
+      });
     }
 
     const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
@@ -307,21 +297,21 @@ const LatestMatch: React.FC = () => {
     if (isSecondHalf && data.seasonGoalLeaders && data.seasonGoalLeaders.length > 0) {
         ensureLeaderHeader();
         if (data.seasonGoalLeaders.length === 1) {
-            report += `- ${formatLeaderSimple(data.seasonGoalLeaders[0], 'goals', 'Season')}\n`;
+            report += `- ${formatLeaderText(data.seasonGoalLeaders[0], 'goals', 'Season')}\n`;
         } else {
             const leaderNames = data.seasonGoalLeaders.map(l => l.new_leader).join(' and ');
             const goals = data.seasonGoalLeaders[0].new_leader_goals || data.seasonGoalLeaders[0].value || 0;
-            report += `- ${leaderNames} lead Season goals with ${goals}\n`;
+            report += `- ${leaderNames} are tied for the Season goals lead with ${goals}\n`;
         }
     }
     if (isSecondHalf && data.seasonFantasyLeaders && data.seasonFantasyLeaders.length > 0) {
         ensureLeaderHeader();
         if (data.seasonFantasyLeaders.length === 1) {
-            report += `- ${formatLeaderSimple(data.seasonFantasyLeaders[0], 'points', 'Season')}\n`;
+            report += `- ${formatLeaderText(data.seasonFantasyLeaders[0], 'points', 'Season')}\n`;
         } else {
             const leaderNames = data.seasonFantasyLeaders.map(l => l.new_leader).join(' and ');
             const points = data.seasonFantasyLeaders[0].new_leader_points || data.seasonFantasyLeaders[0].value || 0;
-            report += `- ${leaderNames} lead Season points with ${points}\n`;
+            report += `- ${leaderNames} are tied for the Season points lead with ${points}\n`;
         }
     }
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS } from '@/lib/cache/constants';
 
 // Add dynamic configuration to prevent static generation
 export const dynamic = 'force-dynamic';
@@ -275,14 +277,13 @@ const validateMilestones = (milestones: any): Milestone[] => {
   }
 };
 
-export async function GET() {
-  try {
-    console.log('------ START: Match Report API ------');
+const getMatchReportData = unstable_cache(
+  async () => {
+    // All of the original GET logic will be moved here
+    console.log('------ START: Match Report API (cached) ------');
     
     // Emergency fallback data
     const emergencyResponse = {
-      success: true,
-      data: {
         matchInfo: {
           match_date: new Date().toISOString(),
           team_a_score: 0,
@@ -296,505 +297,220 @@ export async function GET() {
         goalsMilestones: [],
         streaks: [],
         goalStreaks: []
-      }
     };
 
     try {
-      console.log('Fetching match report from cache...');
+      console.log('Fetching match report from DB...');
       
-      // Get the raw database record first to inspect its structure
       const rawMatchReport = await prisma.aggregated_match_report.findFirst({
         orderBy: {
           match_date: 'desc'
         }
       });
       
-      console.log('RAW DB RECORD:', JSON.stringify(rawMatchReport));
-      
-      const matchReportCache = rawMatchReport as unknown as MatchReportCache;
-
-      if (!matchReportCache) {
-        console.log('No match data found in cache');
-        return NextResponse.json({
-          success: false,
-          error: 'No match data found'
-        } as ApiResponse, { status: 404 });
+      if (!rawMatchReport) {
+        console.log('No match data found in DB');
+        return null;
       }
 
-      console.log('Match report cache found, ID:', matchReportCache.match_id);
+      const matchReportCache = rawMatchReport as unknown as MatchReportCache;
+
+      console.log('Match report found, ID:', matchReportCache.match_id);
       
       try {
-        // Deep debugging for each field
-        console.log('DEBUG team_a_players type:', typeof matchReportCache.team_a_players);
-        console.log('DEBUG team_a_players raw:', matchReportCache.team_a_players);
+        const validatedTeamAPlayers = validateStringArray(matchReportCache.team_a_players);
+        const validatedTeamBPlayers = validateStringArray(matchReportCache.team_b_players);
+        const validatedTeamAScorers = typeof matchReportCache.team_a_scorers === 'string' ? matchReportCache.team_a_scorers : '';
+        const validatedTeamBScorers = typeof matchReportCache.team_b_scorers === 'string' ? matchReportCache.team_b_scorers : '';
         
-        console.log('DEBUG team_b_players type:', typeof matchReportCache.team_b_players);
-        console.log('DEBUG team_b_players raw:', matchReportCache.team_b_players);
+        const matchInfo: MatchInfo = {
+          match_date: matchReportCache.match_date.toISOString(),
+          team_a_score: Number(matchReportCache.team_a_score) || 0,
+          team_b_score: Number(matchReportCache.team_b_score) || 0,
+          team_a_players: validatedTeamAPlayers,
+          team_b_players: validatedTeamBPlayers,
+          team_a_scorers: validatedTeamAScorers,
+          team_b_scorers: validatedTeamBScorers
+        };
         
-        console.log('DEBUG config_values type:', typeof matchReportCache.config_values);
-        console.log('DEBUG config_values raw:', matchReportCache.config_values);
+        const defaultConfig = {
+          win_streak_threshold: 4,
+          unbeaten_streak_threshold: 6,
+          loss_streak_threshold: 4,
+          winless_streak_threshold: 6,
+          goal_streak_threshold: 3
+        };
         
-        console.log('DEBUG game_milestones type:', typeof matchReportCache.game_milestones);
-        console.log('DEBUG goal_milestones type:', typeof matchReportCache.goal_milestones);
+        const thresholds = matchReportCache.config_values 
+          ? validateConfigValues(matchReportCache.config_values)
+          : defaultConfig;
         
-        console.log('DEBUG team_a_scorers type:', typeof matchReportCache.team_a_scorers);
-        console.log('DEBUG team_a_scorers raw:', matchReportCache.team_a_scorers);
-        console.log('DEBUG team_b_scorers type:', typeof matchReportCache.team_b_scorers);
-        console.log('DEBUG team_b_scorers raw:', matchReportCache.team_b_scorers);
+        const gamesMilestones = validateMilestones(matchReportCache.game_milestones);
+        const goalsMilestones = validateMilestones(matchReportCache.goal_milestones);
         
-        // Validate and transform data
-        console.log('Validating match data...');
+        let streaksCache: any[] = [];
+        let goalStreaksCache: any[] = [];
         
-        try {
-          const validatedTeamAPlayers = validateStringArray(matchReportCache.team_a_players);
-          console.log('Team A players validated:', validatedTeamAPlayers);
-          
-          const validatedTeamBPlayers = validateStringArray(matchReportCache.team_b_players);
-          console.log('Team B players validated:', validatedTeamBPlayers);
-          
-          const validatedTeamAScorers = typeof matchReportCache.team_a_scorers === 'string' ? matchReportCache.team_a_scorers : '';
-          console.log('Team A scorers validated:', validatedTeamAScorers);
-          
-          const validatedTeamBScorers = typeof matchReportCache.team_b_scorers === 'string' ? matchReportCache.team_b_scorers : '';
-          console.log('Team B scorers validated:', validatedTeamBScorers);
-          
-          const matchInfo: MatchInfo = {
-            match_date: matchReportCache.match_date.toISOString(),
-            team_a_score: Number(matchReportCache.team_a_score) || 0,
-            team_b_score: Number(matchReportCache.team_b_score) || 0,
-            team_a_players: validatedTeamAPlayers,
-            team_b_players: validatedTeamBPlayers,
-            team_a_scorers: validatedTeamAScorers,
-            team_b_scorers: validatedTeamBScorers
-          };
-          console.log('Match info created successfully');
-          
-          // Default config values if missing
-          const defaultConfig = {
-            win_streak_threshold: 4,
-            unbeaten_streak_threshold: 6,
-            loss_streak_threshold: 4,
-            winless_streak_threshold: 6,
-            goal_streak_threshold: 3
-          };
-          
-          // Validate config values
-          const thresholds = matchReportCache.config_values 
-            ? validateConfigValues(matchReportCache.config_values)
-            : defaultConfig;
-          console.log('Config thresholds validated:', thresholds);
-          
-          console.log('Validating milestones...');
-          try {
-            const gamesMilestones = validateMilestones(matchReportCache.game_milestones);
-            console.log('Game milestones validated:', gamesMilestones);
-            
-            const goalsMilestones = validateMilestones(matchReportCache.goal_milestones);
-            console.log('Goal milestones validated:', goalsMilestones);
-          } catch (milestoneError) {
-            console.error('Error validating milestones:', milestoneError);
-          }
-          
-          console.log('Fetching player data from DB...');
-          // Safely get data from database with error handling for each query
-          let streaksCache: any[] = [];
-          let goalStreaksCache: any[] = [];
-          
-          // Initialize arrays for leader data
-          let extractedHalfSeasonGoalLeaders: LeaderData[] = [];
-          let extractedHalfSeasonFantasyLeaders: LeaderData[] = [];
-          let extractedSeasonGoalLeaders: LeaderData[] = [];
-          let extractedSeasonFantasyLeaders: LeaderData[] = [];
+        streaksCache = await prisma.aggregated_match_streaks.findMany({
+          where: {
+            OR: [
+              { current_unbeaten_streak: { gte: Number(thresholds.unbeaten_streak_threshold) } },
+              { current_winless_streak: { gte: Number(thresholds.winless_streak_threshold) } },
+              { current_win_streak: { gte: Number(thresholds.win_streak_threshold) } },
+              { current_loss_streak: { gte: Number(thresholds.loss_streak_threshold) } }
+            ]
+          },
+          select: {
+            player_id: true,
+            name: true,
+            current_unbeaten_streak: true,
+            current_winless_streak: true,
+            current_win_streak: true,
+            current_loss_streak: true
+          },
+          orderBy: [
+            { current_win_streak: 'desc' },
+            { current_unbeaten_streak: 'desc' }
+          ]
+        });
 
-          try {
-            // Get data from aggregated_match_streaks cache
-            streaksCache = await prisma.aggregated_match_streaks.findMany({
-              where: {
-                OR: [
-                  { current_unbeaten_streak: { gte: Number(thresholds.unbeaten_streak_threshold) } },
-                  { current_winless_streak: { gte: Number(thresholds.winless_streak_threshold) } },
-                  { current_win_streak: { gte: Number(thresholds.win_streak_threshold) } },
-                  { current_loss_streak: { gte: Number(thresholds.loss_streak_threshold) } }
-                ]
-              },
-              select: { // Explicitly select player_id and other needed fields
-                player_id: true,
-                name: true, // Keep for fallback, but prioritize joined name
-                current_unbeaten_streak: true,
-                current_winless_streak: true,
-                current_win_streak: true,
-                current_loss_streak: true
-              },
-              orderBy: [
-                { current_win_streak: 'desc' },
-                { current_unbeaten_streak: 'desc' }
-              ]
-            });
-            console.log('Streaks cache fetched:', streaksCache.length, 'items');
-          } catch (error) {
-            console.error('Error fetching streaks cache:', error);
-          }
+        goalStreaksCache = await prisma.aggregated_match_streaks.findMany({
+          where: {
+            current_scoring_streak: { gte: Number(thresholds.goal_streak_threshold) }
+          },
+          select: {
+            player_id: true,
+            name: true,
+            current_scoring_streak: true,
+            goals_in_scoring_streak: true
+          },
+          orderBy: [
+            { current_scoring_streak: 'desc' },
+            { goals_in_scoring_streak: 'desc' }
+          ]
+        });
 
-          try {
-            // Get goal streak data
-            goalStreaksCache = await prisma.aggregated_match_streaks.findMany({
-              where: {
-                current_scoring_streak: { gte: Number(thresholds.goal_streak_threshold) }
-              },
-              select: { // Explicitly select player_id and other needed fields
-                player_id: true,
-                name: true, // Keep for fallback, but prioritize joined name
-                current_scoring_streak: true,
-                goals_in_scoring_streak: true
-              },
-              orderBy: [
-                { current_scoring_streak: 'desc' },
-                { goals_in_scoring_streak: 'desc' }
-              ]
-            });
-            console.log('Goal streaks cache fetched:', goalStreaksCache.length, 'items');
-          } catch (error) {
-            console.error('Error fetching goal streaks cache:', error);
-          }
+        const playerIdsFromAllStreaks = [
+          ...streaksCache.map(s => s.player_id),
+          ...goalStreaksCache.map(s => s.player_id)
+        ];
+        const uniquePlayerIdsFromStreaks = [...new Set(playerIdsFromAllStreaks.filter(id => id != null))];
 
-          // Fetch player names for all relevant streaks
-          const playerIdsFromAllStreaks = [
-            ...streaksCache.map(s => s.player_id),
-            ...goalStreaksCache.map(s => s.player_id)
-          ];
-          const uniquePlayerIdsFromStreaks = [...new Set(playerIdsFromAllStreaks.filter(id => id != null))];
-
-          let playerNamesMap: Record<number, string> = {};
-          if (uniquePlayerIdsFromStreaks.length > 0) {
-            try {
-              const playersData = await prisma.players.findMany({
-                where: { player_id: { in: uniquePlayerIdsFromStreaks } },
-                select: { player_id: true, name: true }
-              });
-              playersData.forEach(p => {
-                if (p.name) { // Ensure name is not null
-                  playerNamesMap[p.player_id] = p.name;
-                }
-              });
-              console.log('Player names map created for streaks:', Object.keys(playerNamesMap).length, 'players found');
-            } catch (error) {
-              console.error('Error fetching player names for streaks:', error);
-            }
-          }
-
-          // Extract leader data directly from the match report cache
-          try {
-            console.log('Extracting leader data from match report cache...');
-            console.log('KEYS in matchReportCache:', Object.keys(matchReportCache));
-            console.log('KEYS in rawMatchReport:', rawMatchReport ? Object.keys(rawMatchReport) : 'null');
-            
-            // Important: Check if these fields are stored as JSON in the database
-            // In Postgres with Prisma, sometimes JSON fields come back already parsed
-            const processJsonField = (field: any): any[] => {
-              if (!field) return [];
-              
-              // If it's a string, try to parse it
-              if (typeof field === 'string') {
-                try {
-                  return JSON.parse(field);
-                } catch (e) {
-                  console.error('Error parsing JSON string:', e);
-                  return [];
-                }
-              }
-              
-              // If it's already an array, return it
-              if (Array.isArray(field)) {
-                return field;
-              }
-              
-              // If it's an object with a type property that indicates it's Json, handle special
-              if (field && typeof field === 'object' && 'type' in field && field.type === 'Json') {
-                try {
-                  if (typeof field.value === 'string') {
-                    return JSON.parse(field.value);
-                  } else {
-                    return field.value || [];
-                  }
-                } catch (e) {
-                  console.error('Error parsing Json field:', e);
-                  return [];
-                }
-              }
-              
-              return [];
-            };
-            
-            // Use the helper function to process each field
-            if (rawMatchReport) {
-              extractedHalfSeasonGoalLeaders = processJsonField((rawMatchReport as any).half_season_goal_leaders) || 
-                processJsonField((rawMatchReport as any).halfSeasonGoalLeaders);
-              
-              extractedHalfSeasonFantasyLeaders = processJsonField((rawMatchReport as any).half_season_fantasy_leaders) || 
-                processJsonField((rawMatchReport as any).halfSeasonFantasyLeaders);
-              
-              extractedSeasonGoalLeaders = processJsonField((rawMatchReport as any).season_goal_leaders) || 
-                processJsonField((rawMatchReport as any).seasonGoalLeaders);
-              
-              extractedSeasonFantasyLeaders = processJsonField((rawMatchReport as any).season_fantasy_leaders) || 
-                processJsonField((rawMatchReport as any).seasonFantasyLeaders);
-              
-              console.log('Extracted leader data:', {
-                halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders,
-                halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders,
-                seasonGoalLeaders: extractedSeasonGoalLeaders,
-                seasonFantasyLeaders: extractedSeasonFantasyLeaders
-              });
-            }
-              
-            // Log the exact raw values
-            console.log('RAW half_season_goal_leaders:', matchReportCache.half_season_goal_leaders);
-            console.log('TYPE of half_season_goal_leaders:', typeof matchReportCache.half_season_goal_leaders);
-            
-            console.log('RAW half_season_fantasy_leaders:', matchReportCache.half_season_fantasy_leaders);
-            console.log('RAW season_goal_leaders:', matchReportCache.season_goal_leaders);
-            console.log('RAW season_fantasy_leaders:', matchReportCache.season_fantasy_leaders);
-            
-            // Try alternate property names based on Prisma schema
-            console.log('Trying alternate property names:');
-            if (rawMatchReport) {
-              console.log('halfSeasonGoalLeaders:', (rawMatchReport as any).halfSeasonGoalLeaders);
-              console.log('half_season_goal_leaders:', (rawMatchReport as any).half_season_goal_leaders);
-              
-              // Determine which property names are actually in the database
-              const hasSnakeCase = 'half_season_goal_leaders' in rawMatchReport;
-              const hasCamelCase = 'halfSeasonGoalLeaders' in rawMatchReport;
-              console.log('Property name format check:', { hasSnakeCase, hasCamelCase });
-            } else {
-              console.log('rawMatchReport is null');
-            }
-            
-            // Validate half-season goal leaders
-            // Try both snake_case and camelCase property names
-            const halfSeasonGoalLeadersData = 
-              matchReportCache.half_season_goal_leaders || 
-              (rawMatchReport as any).halfSeasonGoalLeaders || 
-              (rawMatchReport as any).half_season_goal_leaders;
-              
-            if (halfSeasonGoalLeadersData) {
-              try {
-                if (typeof halfSeasonGoalLeadersData === 'string') {
-                  extractedHalfSeasonGoalLeaders = JSON.parse(halfSeasonGoalLeadersData);
-                } else {
-                  extractedHalfSeasonGoalLeaders = halfSeasonGoalLeadersData as LeaderData[];
-                }
-                console.log('Half-season goal leaders extracted:', extractedHalfSeasonGoalLeaders.length, 'items');
-                console.log('Extracted data:', JSON.stringify(extractedHalfSeasonGoalLeaders));
-              } catch (error) {
-                console.error('Error parsing half-season goal leaders:', error);
-              }
-            }
-            
-            // Validate half-season fantasy leaders
-            const halfSeasonFantasyLeadersData = 
-              matchReportCache.half_season_fantasy_leaders || 
-              (rawMatchReport as any).halfSeasonFantasyLeaders || 
-              (rawMatchReport as any).half_season_fantasy_leaders;
-              
-            if (halfSeasonFantasyLeadersData) {
-              try {
-                if (typeof halfSeasonFantasyLeadersData === 'string') {
-                  extractedHalfSeasonFantasyLeaders = JSON.parse(halfSeasonFantasyLeadersData);
-                } else {
-                  extractedHalfSeasonFantasyLeaders = halfSeasonFantasyLeadersData as LeaderData[];
-                }
-                console.log('Half-season fantasy leaders extracted:', extractedHalfSeasonFantasyLeaders.length, 'items');
-              } catch (error) {
-                console.error('Error parsing half-season fantasy leaders:', error);
-              }
-            }
-            
-            // Validate season goal leaders
-            const seasonGoalLeadersData = 
-              matchReportCache.season_goal_leaders || 
-              (rawMatchReport as any).seasonGoalLeaders || 
-              (rawMatchReport as any).season_goal_leaders;
-              
-            if (seasonGoalLeadersData) {
-              try {
-                if (typeof seasonGoalLeadersData === 'string') {
-                  extractedSeasonGoalLeaders = JSON.parse(seasonGoalLeadersData);
-                } else {
-                  extractedSeasonGoalLeaders = seasonGoalLeadersData as LeaderData[];
-                }
-                console.log('Season goal leaders extracted:', extractedSeasonGoalLeaders.length, 'items');
-              } catch (error) {
-                console.error('Error parsing season goal leaders:', error);
-              }
-            }
-            
-            // Validate season fantasy leaders
-            const seasonFantasyLeadersData = 
-              matchReportCache.season_fantasy_leaders || 
-              (rawMatchReport as any).seasonFantasyLeaders || 
-              (rawMatchReport as any).season_fantasy_leaders;
-              
-            if (seasonFantasyLeadersData) {
-              try {
-                if (typeof seasonFantasyLeadersData === 'string') {
-                  extractedSeasonFantasyLeaders = JSON.parse(seasonFantasyLeadersData);
-                } else {
-                  extractedSeasonFantasyLeaders = seasonFantasyLeadersData as LeaderData[];
-                }
-                console.log('Season fantasy leaders extracted:', extractedSeasonFantasyLeaders.length, 'items');
-              } catch (error) {
-                console.error('Error parsing season fantasy leaders:', error);
-              }
-            }
-          } catch (error) {
-            console.error('Error extracting leader data from match report cache:', error);
-          }
-
-          console.log('Formatting streaks data...');
-          // Format streaks data to match expected format
-          const formattedStreaks = streaksCache.map(streak => {
-            let streakType = '';
-            let streakCount = 0;
-
-            if ((streak.current_unbeaten_streak ?? 0) >= Number(thresholds.unbeaten_streak_threshold)) {
-              streakType = 'unbeaten';
-              streakCount = streak.current_unbeaten_streak ?? 0;
-            } else if ((streak.current_winless_streak ?? 0) >= Number(thresholds.winless_streak_threshold)) {
-              streakType = 'winless';
-              streakCount = streak.current_winless_streak ?? 0;
-            } else if ((streak.current_loss_streak ?? 0) >= Number(thresholds.loss_streak_threshold)) {
-              streakType = 'loss';
-              streakCount = streak.current_loss_streak ?? 0;
-            } else if ((streak.current_win_streak ?? 0) >= Number(thresholds.win_streak_threshold)) {
-              streakType = 'win';
-              streakCount = streak.current_win_streak ?? 0;
-            }
-            
-            const playerName = playerNamesMap[streak.player_id] || streak.name || 'Unknown Player';
-
-            return {
-              name: playerName,
-              streak_type: streakType as Streak['streak_type'],
-              streak_count: streakCount
-            };
-          }).filter(streak => streak.streak_count > 0);
-          console.log('Formatted streaks:', formattedStreaks.length, 'items');
-
-          // Format goal streaks
-          const formattedGoalStreaks = goalStreaksCache.map(streak => {
-            const playerName = playerNamesMap[streak.player_id] || streak.name || 'Unknown Player';
-            return {
-                name: playerName,
-                matches_with_goals: streak.current_scoring_streak,
-                goals_in_streak: streak.goals_in_scoring_streak
-            };
+        let playerNamesMap: Record<number, string> = {};
+        if (uniquePlayerIdsFromStreaks.length > 0) {
+          const playersData = await prisma.players.findMany({
+            where: { player_id: { in: uniquePlayerIdsFromStreaks } },
+            select: { player_id: true, name: true }
           });
-          console.log('Formatted goal streaks:', formattedGoalStreaks.length, 'items');
-
-          console.log('Formatting leader data...');
-          
-          // Directly use the extracted leader data, with no filtering
-          // All data was formatted correctly in SQL when aggregated_match_report was populated
-          console.log('Using extracted leader data directly');
-          
-          const responseData = {
-            success: true,
-            data: {
-              matchInfo: matchInfo,
-              gamesMilestones: validateMilestones(matchReportCache.game_milestones) || [],
-              goalsMilestones: validateMilestones(matchReportCache.goal_milestones) || [],
-              streaks: formattedStreaks || [],
-              goalStreaks: formattedGoalStreaks || [],
-              halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders || [],
-              halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders || [],
-              seasonGoalLeaders: extractedSeasonGoalLeaders || [],
-              seasonFantasyLeaders: extractedSeasonFantasyLeaders || [],
-              on_fire_player_id: matchReportCache.on_fire_player_id,
-              grim_reaper_player_id: matchReportCache.grim_reaper_player_id
+          playersData.forEach(p => {
+            if (p.name) {
+              playerNamesMap[p.player_id] = p.name;
             }
-          } as ApiResponse;
-          
-          console.log('Final API response:', JSON.stringify(responseData));
-          
-          return NextResponse.json(responseData);
-          
-        } catch (validationError) {
-          console.error('Error during validation step:', validationError);
-          if (validationError instanceof Error) {
-            console.error('Validation error stack:', validationError.stack);
-          }
-          throw validationError;
+          });
         }
+        
+        const processJsonField = (field: any): any[] => {
+          if (!field) return [];
+          if (typeof field === 'string') {
+            try { return JSON.parse(field); } catch (e) { return []; }
+          }
+          if (Array.isArray(field)) { return field; }
+          return [];
+        };
+        
+        const extractedHalfSeasonGoalLeaders = processJsonField((rawMatchReport as any).half_season_goal_leaders);
+        const extractedHalfSeasonFantasyLeaders = processJsonField((rawMatchReport as any).half_season_fantasy_leaders);
+        const extractedSeasonGoalLeaders = processJsonField((rawMatchReport as any).season_goal_leaders);
+        const extractedSeasonFantasyLeaders = processJsonField((rawMatchReport as any).season_fantasy_leaders);
+
+        const formattedStreaks = streaksCache.map(streak => {
+          let streakType = '';
+          let streakCount = 0;
+
+          if ((streak.current_unbeaten_streak ?? 0) >= Number(thresholds.unbeaten_streak_threshold)) {
+            streakType = 'unbeaten';
+            streakCount = streak.current_unbeaten_streak ?? 0;
+          } else if ((streak.current_winless_streak ?? 0) >= Number(thresholds.winless_streak_threshold)) {
+            streakType = 'winless';
+            streakCount = streak.current_winless_streak ?? 0;
+          } else if ((streak.current_loss_streak ?? 0) >= Number(thresholds.loss_streak_threshold)) {
+            streakType = 'loss';
+            streakCount = streak.current_loss_streak ?? 0;
+          } else if ((streak.current_win_streak ?? 0) >= Number(thresholds.win_streak_threshold)) {
+            streakType = 'win';
+            streakCount = streak.current_win_streak ?? 0;
+          }
+          
+          const playerName = playerNamesMap[streak.player_id] || streak.name || 'Unknown Player';
+
+          return { name: playerName, streak_type: streakType as Streak['streak_type'], streak_count: streakCount };
+        }).filter(streak => streak.streak_count > 0);
+
+        const formattedGoalStreaks = goalStreaksCache.map(streak => {
+          const playerName = playerNamesMap[streak.player_id] || streak.name || 'Unknown Player';
+          return {
+              name: playerName,
+              matches_with_goals: streak.current_scoring_streak,
+              goals_in_streak: streak.goals_in_scoring_streak
+          };
+        });
+        
+        return {
+          matchInfo: matchInfo,
+          gamesMilestones: gamesMilestones || [],
+          goalsMilestones: goalsMilestones || [],
+          streaks: formattedStreaks || [],
+          goalStreaks: formattedGoalStreaks || [],
+          halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders || [],
+          halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders || [],
+          seasonGoalLeaders: extractedSeasonGoalLeaders || [],
+          seasonFantasyLeaders: extractedSeasonFantasyLeaders || [],
+          on_fire_player_id: matchReportCache.on_fire_player_id,
+          grim_reaper_player_id: matchReportCache.grim_reaper_player_id
+        };
         
       } catch (processingError) {
         console.error('Error processing match report data:', processingError);
-        if (processingError instanceof Error) {
-          console.error('Processing error stack:', processingError.stack);
-        }
-        
-        // Return a simplified response with just the match info to avoid a 500 error
-        return NextResponse.json({
-          success: true,
-          data: {
-            matchInfo: {
-              match_date: matchReportCache.match_date.toISOString(),
-              team_a_score: Number(matchReportCache.team_a_score) || 0,
-              team_b_score: Number(matchReportCache.team_b_score) || 0,
-              team_a_players: [],
-              team_b_players: [],
-              team_a_scorers: '',
-              team_b_scorers: '',
-            },
-            gamesMilestones: [],
-            goalsMilestones: [],
-            streaks: [],
-            goalStreaks: [],
-            halfSeasonGoalLeaders: [],
-            halfSeasonFantasyLeaders: [],
-            seasonGoalLeaders: [],
-            seasonFantasyLeaders: [],
-            on_fire_player_id: null,
-            grim_reaper_player_id: null
-          }
-        } as ApiResponse);
+        return {
+          matchInfo: {
+            match_date: matchReportCache.match_date.toISOString(),
+            team_a_score: Number(matchReportCache.team_a_score) || 0,
+            team_b_score: Number(matchReportCache.team_b_score) || 0,
+            team_a_players: [], team_b_players: [], team_a_scorers: '', team_b_scorers: '',
+          },
+          gamesMilestones: [], goalsMilestones: [], streaks: [], goalStreaks: [],
+          halfSeasonGoalLeaders: [], halfSeasonFantasyLeaders: [],
+          seasonGoalLeaders: [], seasonFantasyLeaders: [],
+          on_fire_player_id: null, grim_reaper_player_id: null
+        };
       }
     } catch (error) {
-      console.error('Unhandled error in match report API:', error);
-      if (error instanceof Error) {
-        console.error('Error stack:', error.stack);
-      }
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to retrieve match report'
-      } as ApiResponse, { status: 500 });
+      console.error('CRITICAL ERROR fetching match report:', error);
+      return null;
     }
-  } catch (error) {
-    console.error('CRITICAL ERROR: Returning emergency fallback data', error);
-    if (error instanceof Error) {
-      console.error('Critical error stack:', error.stack);
+  },
+  ['match-report-data'],
+  {
+    tags: [CACHE_TAGS.MATCH_REPORT],
+    revalidate: 3600,
+  }
+);
+
+export async function GET() {
+  try {
+    const data = await getMatchReportData();
+
+    if (!data) {
+      return NextResponse.json({ success: false, error: 'No match data available' }, { status: 404 });
     }
-    
-    // Define emergency fallback data here
-    const emergencyResponse = {
-      success: true,
-      data: {
-        matchInfo: {
-          match_date: new Date().toISOString(),
-          team_a_score: 0,
-          team_b_score: 0,
-          team_a_players: [],
-          team_b_players: [],
-          team_a_scorers: '',
-          team_b_scorers: ''
-        },
-        gamesMilestones: [],
-        goalsMilestones: [],
-        streaks: [],
-        goalStreaks: []
-      }
-    };
-    
-    // Return emergency fallback data to prevent 500 error
-    return NextResponse.json(emergencyResponse as ApiResponse);
+
+    return NextResponse.json({ success: true, data });
+
+  } catch (error: any) {
+    console.error('Failed to fetch match report:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch match report', details: error.message },
+      { status: 500 }
+    );
   }
 } 

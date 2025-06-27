@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { serializeData } from '@/lib/utils';
-import apiCache from '@/lib/apiCache';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS } from '@/lib/cache/constants';
 
 interface RecentGame {
   goals: number;
@@ -30,62 +31,32 @@ interface HalfSeasonStats {
   } | null;
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    // Initialize cache and ensure metadata exists
-    await prisma.cache_metadata.upsert({
-      where: { cache_key: 'season_stats' },
-      update: {},
-      create: {
-        cache_key: 'season_stats',
-        dependency_type: 'match_result',
-        last_invalidated: new Date()
-      }
-    });
-    
-    // Initialize cache
-    await apiCache.initialize();
-    
-    // Check cache first
-    const cachedData = await apiCache.get('season_stats', 'current_half');
-    if (cachedData) {
-      console.log('Returning cached data for half-season');
-      return NextResponse.json({ data: cachedData });
-    }
-
+const getHalfSeasonStats = unstable_cache(
+  async () => {
     console.log('Cache miss, fetching fresh half-season data');
     
-    // Use a raw query to get half-season stats with a timeout
     const queryPromise = prisma.$queryRaw<HalfSeasonStats[]>`
       SELECT hs.*, p.name as player_name, p.selected_club
       FROM aggregated_half_season_stats hs
       JOIN players p ON hs.player_id = p.player_id
     `;
     
-    // Create a timeout for the query
     const timeoutPromise = new Promise<null>((_, reject) => {
       setTimeout(() => reject(new Error('Query timed out after 5 seconds')), 5000);
     });
     
-    // Wait for either the query to complete or timeout
     const preAggregatedData = await Promise.race([queryPromise, timeoutPromise]) as HalfSeasonStats[];
     console.log('Half-season pre-aggregated data count:', preAggregatedData.length);
 
-    // Get recent performance data from pre-aggregated table
-    console.log('Fetching pre-aggregated recent performance');
     const recentPerformance = await prisma.aggregated_recent_performance.findMany({
       include: {
         player: {
-          select: {
-            name: true,
-            selected_club: true
-          }
+          select: { name: true, selected_club: true }
         }
       }
     });
     console.log('Recent performance data count:', recentPerformance.length);
 
-    // Format season stats
     const seasonStats = preAggregatedData.map(stat => ({
       name: stat.player_name,
       player_id: stat.player_id,
@@ -104,7 +75,6 @@ export async function POST(request: NextRequest) {
     })).sort((a, b) => b.fantasy_points - a.fantasy_points);
     console.log('Formatted half-season stats count:', seasonStats.length);
 
-    // Format goal stats using season stats and recent performance
     const goalStats = recentPerformance.map(perf => {
       const seasonStat = seasonStats.find(s => s.name === perf.player.name);
       const last5Goals = perf.last_5_games 
@@ -122,7 +92,6 @@ export async function POST(request: NextRequest) {
       };
     }).sort((a, b) => b.total_goals - a.total_goals || a.minutes_per_goal - b.minutes_per_goal);
 
-    // Format form data using recent performance
     const formData = recentPerformance.map(perf => ({
       name: perf.player.name,
       last_5_games: perf.last_5_games ? (perf.last_5_games as RecentGame[]).map(g => {
@@ -132,35 +101,25 @@ export async function POST(request: NextRequest) {
       }).reverse().join(', ') : ''
     })).sort((a, b) => a.name.localeCompare(b.name));
 
-    const responseData = {
+    return {
       seasonStats: serializeData(seasonStats),
       goalStats: serializeData(goalStats),
       formData: serializeData(formData)
     };
+  },
+  ['half_season_stats'],
+  {
+    tags: [CACHE_TAGS.HALF_SEASON_STATS],
+    revalidate: 3600,
+  }
+);
 
-    // Store in cache for future requests
-    apiCache.set('season_stats', responseData, 'current_half');
-
+export async function POST(request: NextRequest) {
+  try {
+    const responseData = await getHalfSeasonStats();
     return NextResponse.json({ data: responseData });
-
   } catch (error) {
     console.error('Error in half-season stats API:', error);
-    
-    // Try to return cached data even if it's stale in case of an error
-    try {
-      const cachedData = await apiCache.get('season_stats', 'current_half', true); // true = ignore validation
-      if (cachedData) {
-        console.log('Returning stale cached data due to error');
-        return NextResponse.json({ 
-          data: cachedData,
-          stale: true,
-          error: 'Using cached data due to server error'
-        });
-      }
-    } catch (cacheError) {
-      console.error('Cache fallback also failed:', cacheError);
-    }
-    
     return NextResponse.json(
       { 
         success: false, 
@@ -170,4 +129,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

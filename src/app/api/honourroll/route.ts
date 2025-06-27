@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS } from '@/lib/cache/constants';
 
-const serializeData = (data) => {
+const serializeData = (data: any) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
     typeof value === 'bigint' ? Number(value) : value
   ));
 };
 
-export async function GET() {
-  try {
-    console.log('Starting honour roll data fetch...');
-
-    // Fetch from pre-aggregated tables
+const getHonourRollData = unstable_cache(
+  async () => {
+    console.log('Fetching fresh honour roll data from DB.');
+    
     const seasonHonours: { year: number; season_winners: any; top_scorers: any; }[] = await prisma.$queryRaw`
       SELECT year, season_winners, top_scorers 
       FROM aggregated_season_honours
@@ -21,7 +22,6 @@ export async function GET() {
       SELECT records FROM aggregated_records
       LIMIT 1`;
 
-    // Collect all player names
     let playerNames = new Set<string>();
     seasonHonours.forEach(row => {
       (row.season_winners.winners || []).forEach(p => playerNames.add(p.name));
@@ -32,7 +32,6 @@ export async function GET() {
       (row.top_scorers.third_place || []).forEach(p => playerNames.add(p.name));
     });
 
-    // Collect all player names from records
     if (records.length > 0 && records[0].records) {
       const rec = records[0].records;
       (rec.most_goals_in_game || []).forEach(p => playerNames.add(p.name));
@@ -49,24 +48,16 @@ export async function GET() {
 
     if (uniquePlayerNames.length > 0) {
       const playersData = await prisma.players.findMany({
-        where: {
-          name: { in: uniquePlayerNames }
-        },
-        select: {
-          name: true,
-          selected_club: true
-        }
+        where: { name: { in: uniquePlayerNames } },
+        select: { name: true, selected_club: true }
       });
       playersData.forEach(p => playerClubMap.set(p.name, p.selected_club));
     }
 
-    // Transform the data to match the expected format
     const seasonWinners = seasonHonours.map(row => {
       const winners = row.season_winners.winners || [];
       const runnersUp = row.season_winners.runners_up || [];
       const thirdPlace = row.season_winners.third_place || [];
-      
-      // Combine runners_up and third_place into a single array
       const allRunnersUp = [...runnersUp, ...thirdPlace];
       
       return {
@@ -88,10 +79,8 @@ export async function GET() {
       const winners = row.top_scorers.winners || [];
       const runnersUp = row.top_scorers.runners_up || [];
       const thirdPlace = row.top_scorers.third_place || [];
-      
-      // Combine runners_up and third_place into a single array
       const allRunnersUp = [...runnersUp, ...thirdPlace];
-      
+
       return {
         year: row.year,
         scorers: {
@@ -107,53 +96,44 @@ export async function GET() {
       };
     });
 
-    // Add selected_club to records
-    let finalRecords = records; // Initialize with original records
+    let finalRecords = records;
     if (records.length > 0 && records[0].records) {
       const originalRecordObject = records[0].records;
-      // Create a deep copy to avoid modifying the original cache
       const processedRecordObject = JSON.parse(JSON.stringify(originalRecordObject));
 
       if (processedRecordObject.most_goals_in_game) {
-        processedRecordObject.most_goals_in_game = processedRecordObject.most_goals_in_game.map(p => ({
-          ...p,
-          selected_club: playerClubMap.get(p.name) || null // Ensure selected_club is null if not found
-        }));
+        processedRecordObject.most_goals_in_game = processedRecordObject.most_goals_in_game.map(p => ({ ...p, selected_club: playerClubMap.get(p.name) || null }));
       }
       if (processedRecordObject.consecutive_goals_streak) {
-        processedRecordObject.consecutive_goals_streak = processedRecordObject.consecutive_goals_streak.map(p => ({
-          ...p,
-          selected_club: playerClubMap.get(p.name) || null // Ensure selected_club is null if not found
-        }));
+        processedRecordObject.consecutive_goals_streak = processedRecordObject.consecutive_goals_streak.map(p => ({ ...p, selected_club: playerClubMap.get(p.name) || null }));
       }
       if (processedRecordObject.streaks) {
         Object.keys(processedRecordObject.streaks).forEach(streakType => {
           if (processedRecordObject.streaks[streakType] && processedRecordObject.streaks[streakType].holders) {
-            processedRecordObject.streaks[streakType].holders = processedRecordObject.streaks[streakType].holders.map(h => ({
-              ...h,
-              selected_club: playerClubMap.get(h.name) || null // Ensure selected_club is null if not found
-            }));
+            processedRecordObject.streaks[streakType].holders = processedRecordObject.streaks[streakType].holders.map(h => ({ ...h, selected_club: playerClubMap.get(h.name) || null }));
           }
         });
       }
-      // For biggest_victory, icons are not applicable as it's team-based
       finalRecords = [{ records: processedRecordObject }];
     }
 
-    const response = { 
-      data: {
-        seasonWinners: serializeData(seasonWinners),
-        topScorers: serializeData(topScorers),
-        records: serializeData(finalRecords) // Use finalRecords which is correctly structured
-      }
+    return {
+      seasonWinners: serializeData(seasonWinners),
+      topScorers: serializeData(topScorers),
+      records: serializeData(finalRecords)
     };
+  },
+  ['honour_roll'],
+  {
+    tags: [CACHE_TAGS.HONOUR_ROLL],
+    revalidate: 3600,
+  }
+);
 
-    return NextResponse.json(response, {
-      headers: {
-        'Cache-Control': 'max-age=60, must-revalidate'
-      }
-    });
-
+export async function GET() {
+  try {
+    const data = await getHonourRollData();
+    return NextResponse.json({ data });
   } catch (error) {
     console.error('Database Error:', error);
     return NextResponse.json(

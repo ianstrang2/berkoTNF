@@ -61,6 +61,23 @@ try {
   console.log('Building Next.js application...');
   execSync('npm run build', { stdio: 'inherit' });
   
+  console.log('Starting post-deploy script...');
+  const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+  
+  console.log(`Using base URL: ${baseUrl}`);
+  
+  try {
+    console.log('Calling the stats update endpoint...');
+    execSync(`curl -s -X POST ${baseUrl}/api/admin/trigger-stats-update`, {
+      stdio: 'inherit',
+      timeout: 120000 // 2 minute timeout
+    });
+    console.log('Successfully called the stats update endpoint.');
+  } catch (error) {
+    console.warn('Warning: Failed to call the stats update endpoint.');
+    console.warn('Error:', error.message);
+  }
+  
   console.log('Deployment process completed successfully!');
 } catch (error) {
   console.error('Deployment failed:', error.message);

@@ -1,55 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import apiCache from '@/lib/apiCache';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS } from '@/lib/cache/constants';
 
-const serializeData = (data) => {
+const serializeData = (data: any) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
     typeof value === 'bigint' ? Number(value) : value
   ));
 };
 
-export async function GET(request: NextRequest) {
-  try {
-    // Try to get data from cache first
-    const cachedData = await apiCache.get('all_time_stats');
-    
-    if (cachedData) {
-      console.log('Returning cached all-time stats data');
-      return NextResponse.json({
-        data: cachedData,
-        fromCache: true
-      },
-      {
-        headers: {
-          'Cache-Control': 'max-age=60, must-revalidate'
-        }
-      });
-    }
-
-    console.log('Cache miss. Fetching all-time stats data...');
-
-    // Check if we have pre-aggregated data
+// Define a function to fetch and cache the data
+const getAllTimeStats = unstable_cache(
+  async () => {
+    console.log('Fetching fresh all-time stats data from DB.');
     const preAggregatedData = await prisma.aggregated_all_time_stats.findMany({
       include: {
         player: {
           select: {
             name: true,
             is_retired: true,
-            selected_club: true
-          }
-        }
+            selected_club: true,
+          },
+        },
       },
       orderBy: {
-        fantasy_points: 'desc'
-      }
+        fantasy_points: 'desc',
+      },
     });
-    
-    let responseData;
 
     if (preAggregatedData.length > 0) {
-      console.log('Using pre-aggregated all-time stats data');
-      
-      // Format the data to match expected structure
       const allTimeStats = preAggregatedData.map(stat => ({
         name: stat.player.name,
         is_retired: stat.player.is_retired,
@@ -68,24 +47,23 @@ export async function GET(request: NextRequest) {
         clean_sheets: stat.clean_sheets,
         clean_sheet_percentage: stat.clean_sheet_percentage,
         fantasy_points: stat.fantasy_points,
-        points_per_game: stat.points_per_game
+        points_per_game: stat.points_per_game,
       }));
-      
-      responseData = serializeData(allTimeStats);
-    } else {
-      console.log('No pre-aggregated all-time stats data available. Returning empty set.');
-      responseData = serializeData([]); // Return empty array if no pre-aggregated data
+      return serializeData(allTimeStats);
     }
-      
-    // Store in cache for future requests
-    apiCache.set('all_time_stats', responseData);
-      
-    return NextResponse.json({ data: responseData }, {
-      headers: {
-        'Cache-Control': 'max-age=60, must-revalidate'
-      }
-    });
+    return [];
+  },
+  ['all_time_stats'], // Unique key for this cache entry
+  {
+    tags: [CACHE_TAGS.ALL_TIME_STATS], // Tag for revalidation
+    revalidate: 3600, // Optional: revalidate every hour
+  }
+);
 
+export async function GET() {
+  try {
+    const data = await getAllTimeStats();
+    return NextResponse.json({ data });
   } catch (error) {
     console.error('Database Error:', error);
     return NextResponse.json(

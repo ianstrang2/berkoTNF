@@ -1,5 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { revalidateTag } from 'next/cache';
+import { ALL_MATCH_RELATED_TAGS } from '@/lib/cache/constants';
+
+async function revalidateMatchCaches() {
+  console.log('Revalidating all match-related cache tags...');
+  for (const tag of ALL_MATCH_RELATED_TAGS) {
+    revalidateTag(tag);
+  }
+  console.log('Finished revalidating match-related tags.');
+}
 
 // Get matches with player details
 export async function GET() {
@@ -128,6 +138,9 @@ export async function POST(request: Request) {
       throw transactionError;
     }
 
+    // Revalidate caches after successful creation
+    await revalidateMatchCaches();
+
     return NextResponse.json({ data: newMatch });
   } catch (error: any) {
     console.error('Error creating match:', error);
@@ -219,6 +232,9 @@ export async function PUT(request: Request) {
       throw error;
     }
 
+    // Revalidate caches after successful update
+    await revalidateMatchCaches();
+
     return NextResponse.json({ data: updatedMatch });
   } catch (error: any) {
     console.error('Error updating match:', error);
@@ -265,6 +281,9 @@ export async function DELETE(request: Request) {
     await prisma.$executeRaw`DELETE FROM matches WHERE match_id = ${parsedMatchId}`;
     console.log('4. Match deleted');
     
+    // Revalidate caches after successful deletion
+    await revalidateMatchCaches();
+
     return NextResponse.json({ 
       success: true, 
       message: 'Match successfully deleted'
