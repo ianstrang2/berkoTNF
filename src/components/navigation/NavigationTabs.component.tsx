@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useSearchParams } from 'next/navigation';
 
@@ -9,47 +10,16 @@ interface NavigationTabsProps {
 }
 
 export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }) => {
-  const { primarySection, secondarySection, isAdminMode, isAdminAuthenticated } = useNavigation();
+  const pathname = usePathname();
+  const { isAdminMode, primarySection, secondarySection } = useNavigation();
   const searchParams = useSearchParams();
+
+  if (isAdminMode) {
+    return null;
+  }
 
   // Get secondary navigation options based on primary section
   const getSecondaryOptions = () => {
-    if (isAdminMode && isAdminAuthenticated) {
-      // Admin mode secondary navigation
-      switch (secondarySection) {
-        case 'setup':
-          return [
-            {
-              key: 'general',
-              label: 'General',
-              href: '/admin/setup?section=general',
-              active: !searchParams?.get('section') || searchParams?.get('section') === 'general'
-            },
-            {
-              key: 'stats',
-              label: 'Stats',
-              href: '/admin/setup?section=stats',
-              active: searchParams?.get('section') === 'stats'
-            },
-            {
-              key: 'templates',
-              label: 'Templates',
-              href: '/admin/setup?section=templates',
-              active: searchParams?.get('section') === 'templates'
-            },
-            {
-              key: 'balancing',
-              label: 'Balancing',
-              href: '/admin/setup?section=balancing',
-              active: searchParams?.get('section') === 'balancing'
-            }
-          ];
-        
-        default:
-          return [];
-      }
-    }
-
     // User mode secondary navigation
     switch (primarySection) {
       case 'table':

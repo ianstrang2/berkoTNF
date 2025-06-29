@@ -24,16 +24,16 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
         case 'matches':
           return [
             {
-              key: 'next',
-              label: 'Next Match',
-              href: '/admin/matches/next',
-              active: pathname === '/admin/matches/next'
+              key: 'upcoming',
+              label: 'Upcoming',
+              href: '/admin/matches?view=upcoming',
+              active: !currentView || currentView === 'upcoming'
             },
             {
-              key: 'results',
-              label: 'Results',
-              href: '/admin/matches/results',
-              active: pathname === '/admin/matches/results'
+              key: 'history',
+              label: 'History',
+              href: '/admin/matches?view=history',
+              active: currentView === 'history'
             }
           ];
         
@@ -53,6 +53,34 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
             }
           ];
         
+        case 'setup':
+          return [
+              {
+                  key: 'general',
+                  label: 'General',
+                  href: '/admin/setup?section=general',
+                  active: !currentView || currentView === 'general'
+              },
+              {
+                  key: 'stats',
+                  label: 'Stats',
+                  href: '/admin/setup?section=stats',
+                  active: currentView === 'stats'
+              },
+              {
+                  key: 'templates',
+                  label: 'Templates',
+                  href: '/admin/setup?section=templates',
+                  active: currentView === 'templates'
+              },
+              {
+                  key: 'balancing',
+                  label: 'Balancing',
+                  href: '/admin/setup?section=balancing',
+                  active: currentView === 'balancing'
+              }
+          ]
+
         default:
           return [];
       }

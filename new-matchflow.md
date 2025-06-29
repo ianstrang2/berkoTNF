@@ -1,6 +1,6 @@
 # **Unified Match Lifecycle – Specification**
 
-_Last updated: {{DATE}}_
+_Last updated: October 26, 2023_
 
 ---
 
@@ -11,7 +11,7 @@ Admins currently juggle two separate screens when running a weekly game:
 * **`/admin/matches/next`** – choose players & balance teams.
 * **`/admin/matches/results`** – re-enter the same players & final score.
 
-This spec merges those flows into one **Match Control Centre (MCC)** and introduces an explicit **match lifecycle** (Draft → Pool Locked → Teams Balanced → In-Progress → Completed).  
+This spec merges those flows into one **Match Control Centre (MCC)** and introduces an explicit **match lifecycle** (Draft → Pool Locked → TeamsBalanced → Completed).  
 It covers **React/Next.js, API routes, Prisma models, UI/UX, and migration strategy**.  Actual Supabase migration SQL will be executed manually but is noted here.
 
 ---
@@ -32,11 +32,16 @@ It covers **React/Next.js, API routes, Prisma models, UI/UX, and migration strat
 | Change | Rationale |
 |--------|-----------|
 | Add `upcoming_match_id Int? @unique` to `matches` | Links historical match back to its planning record. |
-| Add `state Enum("Draft", "PoolLocked", "TeamsBalanced", "InProgress", "Completed", "Cancelled")` _or_ keep existing booleans but mark in code | Explicit lifecycle clarifies permitted actions. |
+| Add `state Enum("Draft", "PoolLocked", "TeamsBalanced", "Completed", "Cancelled")` _or_ keep existing booleans but mark in code | Explicit lifecycle clarifies permitted actions. |
 | (Optional) unique partial index ensuring ≤ 1 active match if desired | Current design allows many; keep flexible but document policy. |
 | Add `state_version Int @default(0)` to `upcoming_matches` | Optimistic concurrency for multi-admin edits. |
 
 _No other tables are modified.  Index names must follow existing conventions (`idx_*`)._
+
+> ⚠️ **Important**: Do **not** run Prisma CLI commands (`prisma migrate`, `db push`, etc.).  
+> All database changes must be generated as SQL and saved in `/sql/` using filenames like:  
+> `2024-07-01-add-match-lifecycle.sql`.  
+> Owner will apply manually via Supabase. You may output SQL scripts in full — just don't execute them automatically.
 
 ---
 
@@ -46,8 +51,10 @@ _No other tables are modified.  Index names must follow existing conventions (`i
 |----------|--------|-------------|
 | `/api/admin/upcoming-matches/:id/lock-pool` | PATCH | Transition **Draft → PoolLocked**; persists selected player pool. |
 | `/api/admin/upcoming-matches/:id/confirm-teams` | PATCH | Transition **PoolLocked → TeamsBalanced**; writes `upcoming_match_players`. |
-| `/api/admin/upcoming-matches/:id/start` | PATCH | Sets state to **InProgress** (implicit when first goal logged). |
-| `/api/admin/upcoming-matches/:id/complete` | POST  | Accepts score, per-player goals.  1) inserts into `matches` / `player_matches`; 2) updates upcoming row: `state=Completed`, `is_active=false`, `is_completed=true`; 3) bumps `state_version`. |
+| `/api/admin/upcoming-matches/:id/complete` | POST  | Accepts score, per-player goals.  1) inserts into `matches` / `player_matches`; 2) updates upcoming row: `state=Completed`. |
+| `/api/admin/upcoming-matches/:id/unlock-pool` | PATCH | Reverts **PoolLocked → Draft**; deletes `upcoming_match_players`. |
+| `/api/admin/upcoming-matches/:id/unlock-teams` | PATCH | Reverts **TeamsBalanced → PoolLocked**; resets `is_balanced` flag. |
+| `/api/admin/upcoming-matches/:id/undo` | PATCH | Reverts **Completed → TeamsBalanced**; deletes associated `matches` record. |
 
 All endpoints verify `state_version` to prevent stampedes.  Expose identical helpers via **React Server Actions** for fast happy-path.
 
@@ -65,21 +72,39 @@ All endpoints verify `state_version` to prevent stampedes.  Expose identical hel
 
 ### 4.2 Global Match Context
 
-`useMatchState(matchId)` returns `{ state, stateVersion, actions: { lockPool, confirmTeams, ... } }`.  All panes subscribe; Stepper & CTA derive UI from it.
+`useMatchState(matchId)` returns `{ state, stateVersion, actions: { lockPool, confirmTeams, ... } }`.  All panes subscribe; `StepperBar` & `GlobalCtaBar` derive their UI from it.
 
 ### 4.3 Component Breakdown
 
-| Component | Responsibility |
-|-----------|---------------|
-| `MatchControlLayout` | Two-pane desktop / stacked mobile layout. Provides header, Stepper, sticky CTA slot. |
-| `StepperBar` | Shows progress (Pool → Teams → Live → Finish); completed steps clickable. |
-| `PlayerPoolPane` | Re-uses `PlayerPool.component`; plus **Lock Pool** logic. |
-| `BalanceTeamsPane` | Hosts existing `TeamSection`, `TornadoChart`, `ComparativeStats`; plus **Confirm Teams**. |
-| `LiveMatchPane` | New: scoreboard, goal quick-add, timer. Local state first; autosave debounce. |
-| `CompleteMatchForm` | Re-uses validation from `MatchManager.component`; appears as modal or inline accordion. |
-| `ResultsSummaryPane` | Read-only recap + Share button. |
+---
 
-Historic editing keeps a simplified `MatchManager.component` (no creation logic).
+#### Core Components
+
+The UI is driven by a main page that conditionally renders panes based on the match state.
+
+- `StepperBar` → `/components/admin/matches/StepperBar.component.tsx`
+- `GlobalCtaBar` → `/components/admin/matches/GlobalCtaBar.component.tsx`
+- `PlayerPoolPane` → `/components/admin/matches/PlayerPoolPane.component.tsx`
+- `BalanceTeamsPane` → `/components/admin/matches/BalanceTeamsPane.component.tsx`
+- `CompleteMatchForm` → `/components/admin/matches/CompleteMatchForm.component.tsx`
+  - *Note: This component is used for both the `TeamsBalanced` state (for data entry) and the `Completed` state (in a read-only capacity).*
+
+> Use `.component.tsx` suffix as per naming convention. Do not place logic in `/app` routes — pages should only import and render the appropriate component.
+
+---
+
+### 4.4 UI Style Constraints
+
+All new UI must conform to the existing design system:
+
+- Use current `Button`, `Modal`, `Dialog`, and `Toast` components — no new custom variants.
+- Match existing Tailwind class names for spacing, font sizes, border radius, and gradients (e.g. `rounded-xl`, `bg-gradient-to-r from-orange-400`).
+- CTA buttons must look and behave exactly like the existing "Build Teams" or "Add Match" buttons.
+- Validation and alerts use the existing `useToast()` pattern with consistent colors 
+- Modals should follow existing animation and layering conventions.
+- Do not introduce new color tokens, drop shadows, or typography styles unless explicitly approved.
+
+> Purpose: all additions should feel native to the current admin UI and blend seamlessly with existing pages.
 
 ---
 
@@ -87,15 +112,14 @@ Historic editing keeps a simplified `MatchManager.component` (no creation logic)
 
 ### 5.1 Stepper & CTA table
 
-| Lifecycle State | Stepper Highlight | Primary CTA | Notes |
+| Lifecycle State | Stepper Highlight | Primary CTA (Global) | Notes |
 |-----------------|-------------------|-------------|-------|
 | Draft           | Pool              | Lock Pool   | disabled until `selected = size×2` |
-| PoolLocked      | Teams             | Confirm Teams | disabled until algorithm run at least once |
-| TeamsBalanced   | Live              | Finish Match | switches to LiveMatchPane first |
-| InProgress      | Finish            | Save Result  | validates + calls `/complete` |
-| Completed       | –                 | Share        | uses Web Share API on mobile |
+| PoolLocked      | Teams             | Confirm Teams | disabled until `isBalanced === true` |
+| TeamsBalanced   | Complete          | Save Result  | validates + calls `/complete` |
+| Completed       | Done              | (disabled) Completed | — |
 
-Secondary menu (⋮) offers **Unlock Pool**, **Re-balance**, **Cancel Match**, etc., conditional on state.
+A secondary menu (⋮) offers **Unlock Pool**, **Unlock Teams**, and **Undo Completion** conditional on state.
 
 ### 5.2 Lean Results Input
 
@@ -112,11 +136,20 @@ Totals auto-sync with big score inputs at top; red highlight if mismatch.
 
 ## 6. Mobile UX
 
-* Sticky CTA at bottom (< 600 px).  
+* **Global CTA is sticky:** On screens `< 768px`, the primary action button bar is 56px tall and fixes to the bottom of the viewport (`bottom-16` to clear main nav).
+* Tablet landscape (768 – 1023 px): stepper beneath header; controller opens with slide-in drawer for extra width.
 * Swipe left/right on team cards to switch A⇄B in Balance pane.  
 * Pull-to-refresh in Player Pool.  
 * Goal counter buttons 48×48 px for tap accuracy.  
 * `window.navigator.share` after completion to push lineup & score to WhatsApp.
+
+### Solution
+
+1. **CTA Height** – 56 px tall bar rendered with `bottom-16` so it docks just above the nav for **< 768 px** views.
+   ```html
+   <div class="fixed inset-x-0 bottom-16 z-40 ..."> ...CTA... </div>
+   ```
+2. **Safe Area** – Keep `<div class="pb-safe">` wrapper inside nav as is; CTA honours it automatically.
 
 ---
 
@@ -133,6 +166,7 @@ Totals auto-sync with big score inputs at top; red highlight if mismatch.
 1. **Sprint 1 – DB & Services**  
     • Add `upcoming_match_id`, `state`, `state_version`.  
     • Implement `/complete` service + unit tests.
+> Generate raw SQL migration script(s) and save to `/sql/2024-07-01-add-match-lifecycle.sql`.
 2. **Sprint 2 – Routing & Context**  
     • New list page & dynamic `[id]` route.  
     • `useMatchState` hook stubs.
@@ -232,7 +266,7 @@ Admin types **Team Score** + per-player goals.  App warns if totals differ but a
 
 **Recommendation** – ship Option A first (zero schema change) for clarity, then evaluate if explicit own-goal data is worth Option B down the road.
 
-Implementation note: scoreboard in Live pane increments a local `teamScores` state; CompleteMatchForm just shows that number.
+Implementation note: scoreboard in `CompleteMatchForm` increments a local `teamScores` state.
 
 ---
 
@@ -254,8 +288,8 @@ Implementation note: scoreboard in Live pane increments a local `teamScores` sta
 and vice-versa.
 
 ### UI Flow
-* In **CompleteMatchForm** each team block gets an "Own Goals" spinner ( − / + ).  
-* Live pane increments it via ⚽️🔥 button when unclear who scored.  
+* In **CompleteMatchForm** each team block gets an "Own Goals" spinner ( − / + ).
+* A ⚽️🔥 button increments it when unclear who scored.
 * Score labels remain auto-calculated; admin can override if still off.
 
 ### Reporting Impact
@@ -355,14 +389,13 @@ _No outstanding blockers._
 |---------------|------------------|-----------------------|-------------------|-----------------|------------|
 | **Draft** | PlayerPoolPane | Lock Pool | • Edit match metadata<br>• Clear pool | `PATCH /lock-pool` | PoolLocked |
 | **PoolLocked** | BalanceTeamsPane | Confirm Teams | • Unlock Pool (revert)<br>• Transfer<br>• Clear teams | `PATCH /confirm-teams` | TeamsBalanced |
-| **TeamsBalanced** | LiveMatchPane (timer 0:00) | Finish Match | • Re-balance (if still even)<br>• Unlock Teams (revert to PoolLocked) | none (local state) | InProgress |
-| **InProgress** | LiveMatchPane | Save Result | • Adjust goals / own goals<br>• Cancel Match (goes to Cancelled) | `POST /complete` | Completed |
-| **Completed** | ResultsSummaryPane | Share | • Undo Complete (hard-warn) | `PATCH /upcoming-matches/:id/undo` | TeamsBalanced |
+| **TeamsBalanced** | CompleteMatchForm | Save Result | • Re-balance<br>• Unlock Teams (revert to PoolLocked)<br>• Cancel Match | `POST /complete` | Completed |
+| **Completed** | CompleteMatchForm (Read-only) | (disabled) | • Undo Complete | `PATCH /upcoming-matches/:id/undo` | TeamsBalanced |
 | **Cancelled** | – | – | • Delete planning row | `DELETE /upcoming-matches/:id` | – |
 
 **Rules**
 1. Transitions not listed above are forbidden; server returns `409`.
-2. Undo Complete only works if no subsequent match shares the same `match_date` (safety-net for stats consistency).
+2. Undo Complete is always available from the `Completed` state.
 3. Cancelled matches are not included in public stats; rows remain for audit.
 
 UI components derive button enable/disable strictly from this table via `useMatchState().can(action)` helper to avoid drift.
@@ -371,9 +404,9 @@ UI components derive button enable/disable strictly from this table via `useMatc
 
 | Backward Transition | Allowed When | Data Impact | UI Trigger | Endpoint |
 |---------------------|--------------|-------------|------------|----------|
-| PoolLocked → Draft | No teams confirmed yet **OR** admin explicitly "Unlock Pool" | • Deletes `upcoming_match_players` rows (if any)<br>• Sets `state='Draft'`, `is_balanced=false` | "Unlock Pool" button (3-dot menu) | `PATCH /unlock-pool` |
-| TeamsBalanced → PoolLocked | • Match timer **not started** (score still 0-0)<br>• Or admin has `force_unlock` perm | • Clears `upcoming_match_players` but retains snapshot in `team_history` table (new) for audit | "Unlock Teams" button | `PATCH /unlock-teams` |
-| Completed → TeamsBalanced | • Within **48 h** of completion<br>• No downstream analytics locks (e.g., season closed) | • Deletes `matches` & `player_matches` rows (soft-delete flag) so they can be re-created | "Re-open Match" button | `PATCH /upcoming-matches/:id/reopen` |
+| PoolLocked → Draft | No teams confirmed yet **OR** admin explicitly "Unlock Pool" | • Deletes `upcoming_match_players` rows<br>• Sets `state='Draft'`, `is_balanced=false` | "Unlock Pool" button (3-dot menu) | `PATCH /unlock-pool` |
+| TeamsBalanced → PoolLocked | • Match **not yet completed** | • Sets `state='PoolLocked'`, `is_balanced=false` | "Unlock Teams" button | `PATCH /unlock-teams` |
+| Completed → TeamsBalanced | • Always, from `Completed` state | • Deletes `matches` & `player_matches` rows so they can be re-created | "Undo Completion" button (3-dot menu or toast) | `PATCH /upcoming-matches/:id/undo` |
 
 _Going backward beyond Draft is impossible; you can instead cancel & create a fresh match._
 
@@ -394,7 +427,7 @@ Safeguards:
 * Stats: absent players never create `player_matches` rows.
 
 ### 17.2 Late Arrival / New Player
-* **Add Player** button appears in Live pane → opens PlayerPool bottom sheet filtered to _Not in match_.
+* **Add Player** button appears in `CompleteMatchForm` → opens PlayerPool bottom sheet filtered to _Not in match_.
 * Selecting a player adds them to a new **Bench** area (below Team B). Drag onto a team slot to field them.
 
 ### 17.3 Quick Swap
@@ -428,7 +461,7 @@ Backend impact: `upcoming_match_players` is updated in-place; `state_version` in
 | Concurrent save conflict (`409`) | "Page is stale, refresh" | "Another admin updated this match a moment ago. Tap **Reload** to see their changes, then try again." | **Reload** button in toast |
 | Network failure (`fetch` throws) | "Failed" | "Can't connect right now. Your changes are kept locally – retry when you're back online." | **Retry** + **Dismiss** |
 | Validation error (goals ≠ score) | JS alert | Inline red text: "Team A's goals add to 5 but score is 4. Fix the number or adjust player goals." | Focus first offending field |
-| Forbidden transition | "409" | "You can't unlock teams after the first goal. Re-open the match from Results if you need bigger changes." | OK |
+| Forbidden transition | "409" | "You can't unlock teams once a match is complete. Re-open the match from Results if you need bigger changes." | OK |
 
 Patterns:
 * All errors surfaced via `useToast()` with consistent colour (red-600) and icon (⚠️).

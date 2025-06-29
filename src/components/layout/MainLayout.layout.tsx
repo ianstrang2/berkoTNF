@@ -37,11 +37,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   if (isMobile) {
     return (
       <ResponsiveNavigation>
-        <div className={`min-h-screen transition-all duration-200 ${
-          isAdminMode 
-            ? 'bg-slate-50 dark:bg-slate-950' 
-            : 'bg-gray-50 dark:bg-slate-950'
-        } m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white`}>
+        <div className={`min-h-screen transition-all duration-200 bg-gray-50 dark:bg-slate-950 m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white`}>
           <header className="sticky top-0 z-40 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
             <div className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center">
@@ -73,11 +69,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <ResponsiveNavigation>
-      <div className={`min-h-screen transition-all duration-200 ${
-        isAdminMode 
-          ? 'bg-slate-50 dark:bg-slate-950' 
-          : 'bg-slate-50 dark:bg-slate-950'
-      } m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white`}>
+      <div className={`min-h-screen transition-all duration-200 bg-slate-50 dark:bg-slate-950 m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white`}>
         <DesktopSidebar />
         <main className={`transition-all duration-300 ${
           sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'

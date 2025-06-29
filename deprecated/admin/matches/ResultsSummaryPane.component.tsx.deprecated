@@ -1,0 +1,52 @@
+'use client';
+
+import React from 'react';
+import Button from '@/components/ui-kit/Button.component';
+
+// Assuming a similar player type definition is needed here
+interface MatchPlayer {
+  player_id: number;
+  name: string;
+}
+
+interface MatchData {
+  players: MatchPlayer[];
+  // Other potential fields like score, date, etc.
+}
+
+interface ResultsSummaryPaneProps {
+  matchId: string;
+  matchData: MatchData;
+  undoAction: () => Promise<void>;
+  canUndo: boolean;
+}
+
+const ResultsSummaryPane = ({ matchId, matchData, undoAction, canUndo }: ResultsSummaryPaneProps) => {
+  return (
+    <div>
+      <h2 className="text-xl font-semibold">Match Results</h2>
+      <p className="text-gray-400">Match is COMPLETED. Here is the summary for match (ID: {matchId}).</p>
+      {/* Read-only results display will go here */}
+      <div className="mt-4 p-2 border border-dashed border-gray-600 rounded-lg min-h-[100px]">
+        <h3 className="font-bold">Final Score</h3>
+        {/* Placeholder */}
+        <p>Team A: X - Y :Team B</p>
+        <h3 className="font-bold mt-2">Players</h3>
+        <ul className="list-disc pl-5">
+          {matchData.players.map(p => <li key={p.player_id}>{p.name}</li>)}
+        </ul>
+      </div>
+
+      {canUndo && (
+        <div className="mt-6 border-t border-gray-700 pt-4">
+            <p className="text-sm text-yellow-400 mb-2">You can undo this match completion for a limited time.</p>
+            <Button onClick={undoAction} variant="danger">
+                Undo Completion
+            </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ResultsSummaryPane; 
