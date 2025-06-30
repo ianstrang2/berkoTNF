@@ -26,7 +26,7 @@ type CompleteFormHandle = {
 
 const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) => {
   const { id: matchId } = params;
-  const { error, toast, can, matchData, actions } = useMatchState(matchId);
+  const { error, toast, can, matchData, showToast, actions } = useMatchState(matchId);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [playerPoolIds, setPlayerPoolIds] = useState<string[]>([]);
   const completeFormRef = useRef<CompleteFormHandle>(null);
@@ -124,7 +124,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
       case 'Draft':
         return <PlayerPoolPane matchId={matchId} teamSize={matchData.teamSize} initialPlayers={matchData.players} onSelectionChange={setPlayerPoolIds} />;
       case 'PoolLocked':
-        return <BalanceTeamsPane matchId={matchId} teamSize={matchData.teamSize} players={matchData.players} isBalanced={matchData.isBalanced} balanceTeamsAction={actions.balanceTeams} confirmTeamsAction={actions.confirmTeams} />;
+        return <BalanceTeamsPane matchId={matchId} teamSize={matchData.teamSize} players={matchData.players} isBalanced={matchData.isBalanced} balanceTeamsAction={actions.balanceTeams} clearTeamsAction={actions.clearAssignments} onShowToast={showToast} markAsUnbalanced={actions.markAsUnbalanced} />;
       case 'TeamsBalanced':
       case 'Completed':
         return <CompleteMatchForm ref={completeFormRef} matchId={matchId} players={matchData.players} completeMatchAction={actions.completeMatch} isCompleted={matchData.state === 'Completed'} />;

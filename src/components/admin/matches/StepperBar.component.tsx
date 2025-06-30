@@ -27,13 +27,13 @@ const StepperBar: React.FC<StepperBarProps> = ({ currentStep }) => {
                 <div
                   className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold transition-all duration-300 ${
                     isCompleted
-                      ? 'bg-green-600 text-white'
+                      ? 'bg-transparent border-2 border-gray-300'
                       : isActive
                       ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white ring-4 ring-purple-500/30'
                       : 'bg-transparent border-2 border-gray-300'
                   }`}
                 >
-                  {isCompleted ? <Check size={16} /> : 
+                  {isCompleted ? <Check size={16} className="text-purple-700" /> : 
                     <span className={`${isActive ? 'text-white' : 'text-transparent bg-clip-text bg-gradient-to-tl from-purple-700 to-pink-500'}`}>
                       {index + 1}
                     </span>

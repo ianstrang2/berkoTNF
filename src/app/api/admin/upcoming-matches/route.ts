@@ -97,7 +97,13 @@ export async function GET(request: NextRequest) {
         players: players.map(p => toPlayerInPool(p))
       };
 
-      return NextResponse.json({ success: true, data: formattedMatch });
+      return NextResponse.json({ success: true, data: formattedMatch }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
     } else {
       // Fetch all upcoming matches
       const matches = await prisma.upcoming_matches.findMany({

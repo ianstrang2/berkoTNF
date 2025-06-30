@@ -43,7 +43,10 @@ export async function PATCH(
     
     const requiredPlayerCount = match.team_size * 2;
     if (playerIds.length !== requiredPlayerCount) {
-        return NextResponse.json({ success: false, error: `This match requires exactly ${requiredPlayerCount} players, but ${playerIds.length} were provided.`}, { status: 400 });
+        return NextResponse.json({ 
+          success: false, 
+          error: `Player count mismatch. Expected ${requiredPlayerCount}, got ${playerIds.length}.`
+        }, { status: 409 });
     }
 
     const updatedMatch = await prisma.$transaction(async (tx) => {

@@ -33,7 +33,7 @@ const Button: React.FC<ButtonProps> = ({
   const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 uppercase text-xs';
   
   const variantClasses = {
-    primary: 'text-white bg-primary-500 hover:bg-primary-600 focus:ring-primary-500 border border-transparent',
+    primary: 'text-white bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md hover:shadow-soft-lg border border-transparent',
     secondary: 'text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 focus:ring-primary-500',
     outline: 'text-primary-600 bg-transparent border border-primary-500 hover:bg-primary-50 focus:ring-primary-500',
     danger: 'text-white bg-error-500 hover:bg-error-600 focus:ring-error-500 border border-transparent',

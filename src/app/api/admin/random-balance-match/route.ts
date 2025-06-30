@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import type { players } from '@prisma/client';
 
 // Define interface for player pool entries
 interface PoolPlayer {
@@ -61,48 +62,34 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get players from the pool with response_status 'IN'
-    const playerPool = await prisma.match_player_pool.findMany({
-      where: { 
+    // Correctly fetch only the players assigned to this upcoming match
+    const playersInPool = await prisma.upcoming_match_players.findMany({
+      where: {
         upcoming_match_id: matchIdInt,
-        response_status: 'IN'
       },
       include: {
-        player: {
-          select: {
-            name: true
-          }
-        }
-      }
+        player: true
+      },
     });
-    
-    // Check if there are enough players
-    const teamSize = match.team_size;
-    const totalPlayersNeeded = teamSize * 2;
-    
-    if (playerPool.length < totalPlayersNeeded) {
+
+    const players = playersInPool.map(p => p.player).filter(p => p !== null) as players[];
+
+    if (players.length < match.team_size * 2) {
       return NextResponse.json(
         { 
           success: false, 
-          error: `Not enough players in pool. Need ${totalPlayersNeeded}, have ${playerPool.length}.` 
+          error: `Not enough players in pool. Need ${match.team_size * 2}, have ${players.length}.` 
         },
         { status: 400 }
       );
     }
-
-    // If we have more players than needed, use exactly the needed amount
-    const playersToUse = playerPool.length > totalPlayersNeeded
-      ? playerPool.slice(0, totalPlayersNeeded)
-      : playerPool;
     
-    // Randomly shuffle the players
-    const shuffledPlayers = shuffleArray(playersToUse);
-    
-    // Split into two teams
+    const shuffledPlayers = players.sort(() => 0.5 - Math.random());
+    const teamSize = match.team_size;
     const teamA = shuffledPlayers.slice(0, teamSize);
-    const teamB = shuffledPlayers.slice(teamSize);
+    const teamB = shuffledPlayers.slice(teamSize, teamSize * 2);
     
-    // Delete existing slot assignments
+    // Delete existing slot assignments for this match
     await prisma.upcoming_match_players.deleteMany({
       where: { upcoming_match_id: matchIdInt }
     });
@@ -110,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Create new slot assignments for Team A
     const teamAAssignments = teamA.map((player, index) => ({
       upcoming_match_id: matchIdInt,
-      player_id: (player as PoolPlayer).player_id,
+      player_id: player.player_id,
       team: 'A',
       slot_number: index + 1 // Slots 1 to teamSize
     }));
@@ -118,7 +105,7 @@ export async function POST(request: NextRequest) {
     // Create new slot assignments for Team B
     const teamBAssignments = teamB.map((player, index) => ({
       upcoming_match_id: matchIdInt,
-      player_id: (player as PoolPlayer).player_id,
+      player_id: player.player_id,
       team: 'B',
       slot_number: teamSize + index + 1 // Slots teamSize+1 to teamSize*2
     }));

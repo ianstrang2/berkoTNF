@@ -234,110 +234,53 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT: Update a player's team or position in an upcoming match
+// PUT: Update a player's assignment in an upcoming match
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    let { player_id, match_id, upcoming_match_id, team, position, slot_number } = body;
+    const { upcoming_match_id, player_id, team, slot_number } = body;
 
-    // Convert numeric parameters to integers
-    player_id = player_id ? parseInt(player_id, 10) : null;
-    match_id = match_id ? parseInt(match_id, 10) : null;
-    upcoming_match_id = upcoming_match_id ? parseInt(upcoming_match_id, 10) : null;
-    slot_number = slot_number ? parseInt(slot_number, 10) : null;
-
-    if (!player_id) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Player ID is required' 
-      }, { status: 400 });
+    if (!upcoming_match_id || !player_id) {
+      return NextResponse.json(
+        { success: false, error: 'Match ID and Player ID are required' },
+        { status: 400 }
+      );
     }
 
-    // Determine which match to use
-    let targetMatchId = upcoming_match_id || match_id;
-    if (!targetMatchId) {
-      // Try to find the active match
-      const activeMatch = await prisma.upcoming_matches.findFirst({
-        where: { is_active: true },
-        select: { upcoming_match_id: true }
-      });
-      
-      if (!activeMatch) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'No active match found and no match ID provided' 
-        }, { status: 404 });
-      }
-      
-      targetMatchId = activeMatch.upcoming_match_id;
-    }
-
-    // Check if the player assignment exists
-    const existingAssignment = await prisma.upcoming_match_players.findFirst({
+    // Find the specific upcoming_match_player record
+    const assignment = await prisma.upcoming_match_players.findFirst({
       where: {
-        upcoming_match_id: targetMatchId,
-        player_id: player_id
-      }
+        upcoming_match_id: upcoming_match_id,
+        player_id: player_id,
+      },
     });
 
-    if (!existingAssignment) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Player is not assigned to this match' 
-      }, { status: 404 });
+    if (!assignment) {
+      return NextResponse.json(
+        { success: false, error: 'Player assignment not found for this match' },
+        { status: 404 }
+      );
     }
 
-    // Prepare update data
-    const updateData: any = {};
-    
-    if (team !== undefined) {
-      updateData.team = team;
-    }
-    
-    if (slot_number !== undefined) {
-      updateData.slot_number = slot_number;
-    }
-    
-    // Update the player's team/slot
+    // Update the record
     const updatedAssignment = await prisma.upcoming_match_players.update({
       where: {
-        upcoming_player_id: existingAssignment.upcoming_player_id
+        upcoming_player_id: assignment.upcoming_player_id,
       },
-      data: updateData,
-      include: {
-        player: {
-          select: {
-            name: true,
-            goalscoring: true,
-            defender: true,
-            stamina_pace: true,
-            control: true,
-            teamwork: true,
-            resilience: true
-          }
-        }
-      }
+      data: {
+        team: team,
+        slot_number: slot_number,
+      },
     });
 
-    // Format response
-    const formattedPlayer = {
-      id: updatedAssignment.player_id.toString(),
-      pool_id: updatedAssignment.upcoming_player_id,
-      responseStatus: 'PENDING',
-      team: updatedAssignment.team,
-      ...updatedAssignment.player
-    };
+    return NextResponse.json({ success: true, data: updatedAssignment });
 
-    return NextResponse.json({ 
-      success: true, 
-      data: formattedPlayer 
-    });
   } catch (error: any) {
-    console.error('Error updating player in match:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 });
+    console.error('Error updating player assignment:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 

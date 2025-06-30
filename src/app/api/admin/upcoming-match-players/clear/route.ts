@@ -32,9 +32,13 @@ export async function POST(request: NextRequest) {
       targetMatchId = activeMatch.upcoming_match_id;
     }
 
-    // Delete all player assignments for this match
-    await prisma.upcoming_match_players.deleteMany({
-      where: { upcoming_match_id: targetMatchId }
+    // Instead of deleting, update the records to move players back to the pool
+    await prisma.upcoming_match_players.updateMany({
+      where: { upcoming_match_id: targetMatchId },
+      data: {
+        team: 'Unassigned',
+        slot_number: null,
+      },
     });
 
     // Set is_balanced to false for the match
