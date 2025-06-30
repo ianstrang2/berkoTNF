@@ -5,6 +5,7 @@ import Button from '@/components/ui-kit/Button.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import { LeaderData, formatLeaderText } from '@/utils/timeline.util';
+import { PlayerProfile } from '@/types/player.types';
 
 interface PersonalBestsData {
   broken_pbs_data: {
@@ -60,14 +61,9 @@ interface FullMatchReportData {
   seasonFantasyLeaders?: LeaderData[];
 }
 
-interface PlayerWithNameAndId {
-  id: number;
-  name: string;
-}
-
 interface FullMatchReportDataWithSpecialPlayers extends FullMatchReportData {
-  on_fire_player_id?: number | null;
-  grim_reaper_player_id?: number | null;
+  on_fire_player_id?: string | null;
+  grim_reaper_player_id?: string | null;
 }
 
 const PB_METRIC_DETAILS_FOR_COPY: { [key: string]: { name: string; unit: string } } = {
@@ -87,7 +83,7 @@ const LatestMatch: React.FC = () => {
   const [teamAName, setTeamAName] = useState<string>('Team A');
   const [teamBName, setTeamBName] = useState<string>('Team B');
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
-  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
+  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
   const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
   const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
 
@@ -192,7 +188,7 @@ const LatestMatch: React.FC = () => {
     fetchData();
   }, []);
 
-  const getPlayerIdByName = (name: string): number | undefined => {
+  const getPlayerIdByName = (name: string): string | undefined => {
     const player = allPlayers.find(p => p.name === name);
     return player?.id;
   };

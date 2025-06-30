@@ -22,11 +22,6 @@ export async function PATCH(
       if ((match as any).state !== 'PoolLocked') throw new Error(`Cannot unlock pool for match with state ${(match as any).state}.`);
       if ((match as any).state_version !== state_version) throw new Error('Conflict');
 
-      // Delete the player pool
-      await tx.upcoming_match_players.deleteMany({
-        where: { upcoming_match_id: matchId },
-      });
-
       // Update the match state
       return await tx.upcoming_matches.update({
         where: {

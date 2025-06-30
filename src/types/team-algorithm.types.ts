@@ -1,24 +1,6 @@
 // team-algorithm.types.ts
 
-// Player-related types
-export interface Player {
-  id: string;
-  name: string;
-  goalscoring?: number;
-  defending?: number;
-  stamina_pace?: number;
-  control?: number;
-  teamwork?: number;
-  resilience?: number;
-  is_ringer?: boolean;
-  is_retired?: boolean;
-  [key: string]: any;
-}
-
-export interface PoolPlayer extends Player {
-  response_status?: 'IN' | 'OUT' | 'MAYBE' | 'PENDING';
-  pool_id?: number; // ID in the match_player_pool table
-}
+import { PlayerProfile, Club } from '@/types/player.types';
 
 // Slot-related types
 export interface Slot {
@@ -30,8 +12,8 @@ export interface Slot {
 
 export interface PlayerSlotProps {
   slotNumber: number;
-  player: Player | undefined;
-  players: Player[];
+  player: PlayerProfile | undefined;
+  players: PlayerProfile[];
   onSelect: (slotIndex: number, playerId: string) => Promise<boolean>;
   disabled: boolean;
   stats: string;
@@ -73,7 +55,7 @@ export interface Stats {
     defense: {
       goalscoring: number;
       defending: number;
-      stamina_pace: number;
+      staminaPace: number;
       control: number;
       teamwork: number;
       resilience: number;
@@ -81,7 +63,7 @@ export interface Stats {
     midfield: {
       goalscoring: number;
       defending: number;
-      stamina_pace: number;
+      staminaPace: number;
       control: number;
       teamwork: number;
       resilience: number;
@@ -89,7 +71,7 @@ export interface Stats {
     attack: {
       goalscoring: number;
       defending: number;
-      stamina_pace: number;
+      staminaPace: number;
       control: number;
       teamwork: number;
       resilience: number;
@@ -124,7 +106,7 @@ export interface Match {
   team_a_name?: string;
   team_b_name?: string;
   players?: Array<{
-    player_id: string;
+    id: string;
     team?: string;
     slot_number?: number;
     position?: string;
@@ -138,65 +120,47 @@ export interface NewMatchData {
 }
 
 // Form-related types
-export interface RingerForm {
-  name: string;
-  goalscoring: number;
-  defending: number;
-  stamina_pace: number;
-  control: number;
-  teamwork: number;
-  resilience: number;
-}
-
-export interface RingerFormData {
-  name: string;
-  goalscoring: number;
-  defending: number;
-  stamina_pace: number;
-  control: number;
-  teamwork: number;
-  resilience: number;
-}
-
 export interface PlayerFormData {
   name: string;
-  is_ringer: boolean;
-  is_retired: boolean;
+  isRinger: boolean;
+  isRetired: boolean;
   goalscoring: number;
   defending: number;
-  stamina_pace: number;
+  staminaPace: number;
   control: number;
   teamwork: number;
   resilience: number;
-  selected_club?: { id: string; name: string; filename: string; search: string; league: string; country: string; } | null;
+  club?: Club | null;
 }
 
 export interface MatchFormData {
   match_date: string;
   team_size: number;
+  maxPlayers?: number;
+  pendingPlayers?: Set<number>;
 }
 
 // Drag and drop types
 export interface DragItem {
   slotNumber: number;
-  player: Player;
+  player: PlayerProfile;
 }
 
 // Component Props types
 export interface TeamSectionProps {
   teamType: 'a' | 'b';
   slots: Slot[];
-  players: Player[];
+  players: PlayerProfile[];
   positionGroups: PositionGroup[];
   onSelect: (slotIndex: number, playerId: string) => Promise<boolean>;
-  onDragStart: (slotNumber: number, player: Player) => void;
+  onDragStart: (slotNumber: number, player: PlayerProfile) => void;
   onDragOver: (e: React.DragEvent, slotNumber: number) => void;
   onDrop: (e: React.DragEvent, slotNumber: number) => void;
   onTap: (slotNumber: number) => void;
   isLoading: boolean;
   highlightedSlot: number | null;
   selectedSlot: number | null;
-  getAvailablePlayers: (slot: Slot) => Player[];
+  getAvailablePlayers: (slot: Slot) => PlayerProfile[];
   isReadOnly?: boolean;
 }
 
@@ -210,18 +174,18 @@ export interface ComparativeStatsProps {
 }
 
 export interface PlayerPoolProps {
-  allPlayers: Player[];
-  selectedPlayers: Player[];
-  onTogglePlayer: (player: Player) => void;
+  allPlayers: PlayerProfile[];
+  selectedPlayers: PlayerProfile[];
+  onTogglePlayer: (player: PlayerProfile) => void;
   teamSize: number;
   onBalanceTeams: () => void;
   isBalancing: boolean;
   maxPlayers?: number;
-  pendingPlayers?: Set<string>; // Players currently being toggled (add/remove in progress)
+  pendingPlayers?: Set<number>;
 }
 
 export interface DraggablePlayerSlotProps extends PlayerSlotProps {
-  onDragStart: (slotNumber: number, player: Player) => void;
+  onDragStart: (slotNumber: number, player: PlayerProfile) => void;
   onDragOver: (e: React.DragEvent, slotNumber: number) => void;
   onDrop: (e: React.DragEvent, slotNumber: number) => void;
   onTap: (slotNumber: number) => void;
@@ -234,7 +198,7 @@ export interface TeamStats {
   defense: {
     goalscoring: number;
     defending: number;
-    stamina_pace: number;
+    staminaPace: number;
     control: number;
     teamwork: number;
     resilience: number;
@@ -242,7 +206,7 @@ export interface TeamStats {
   midfield: {
     goalscoring: number;
     defending: number;
-    stamina_pace: number;
+    staminaPace: number;
     control: number;
     teamwork: number;
     resilience: number;
@@ -250,7 +214,7 @@ export interface TeamStats {
   attack: {
     goalscoring: number;
     defending: number;
-    stamina_pace: number;
+    staminaPace: number;
     control: number;
     teamwork: number;
     resilience: number;

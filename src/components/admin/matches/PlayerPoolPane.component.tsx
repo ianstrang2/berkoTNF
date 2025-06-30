@@ -1,20 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Player } from '@/types/team-algorithm.types';
+import { PlayerInPool } from '@/types/player.types';
 import PlayerPool from '@/components/team/PlayerPool.component';
 
 interface PlayerPoolPaneProps {
   matchId: string;
   teamSize: number;
-  initialPlayers: Player[];
-  onSelectionChange: (playerIds: number[]) => void;
-  lockPoolAction?: (args: { playerIds: number[] }) => Promise<void>;
+  initialPlayers: PlayerInPool[];
+  onSelectionChange: (playerIds: string[]) => void;
 }
 
 const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }: PlayerPoolPaneProps) => {
-  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
-  const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([]);
+  const [allPlayers, setAllPlayers] = useState<PlayerInPool[]>([]);
+  const [selectedPlayers, setSelectedPlayers] = useState<PlayerInPool[]>([]);
   const [pendingPlayerToggles, setPendingPlayerToggles] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +29,7 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
         } else {
           throw new Error('No player data returned from API.');
         }
-      } catch (err: any) {
+      } catch (err) {
         setError("Failed to fetch the list of available players.");
       } finally {
         setIsLoading(false);
@@ -44,14 +43,13 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
   }, [matchId, initialPlayers]);
 
   useEffect(() => {
-    onSelectionChange(selectedPlayers.map(p => Number(p.id)));
+    onSelectionChange(selectedPlayers.map(p => p.id));
   }, [selectedPlayers, onSelectionChange]);
 
-  const handleTogglePlayer = async (player: Player) => {
-    const playerIdStr = player.id.toString();
-    if (pendingPlayerToggles.has(playerIdStr)) return;
+  const handleTogglePlayer = async (player: PlayerInPool) => {
+    if (pendingPlayerToggles.has(player.id)) return;
 
-    setPendingPlayerToggles(prev => new Set(prev).add(playerIdStr));
+    setPendingPlayerToggles(prev => new Set(prev).add(player.id));
     const isSelected = selectedPlayers.some(p => p.id === player.id);
     
     setSelectedPlayers(prev => 
@@ -76,7 +74,7 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
     } finally {
       setPendingPlayerToggles(prev => {
         const next = new Set(prev);
-        next.delete(playerIdStr);
+        next.delete(player.id);
         return next;
       });
     }
@@ -94,7 +92,7 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
         teamSize={teamSize}
         maxPlayers={teamSize * 2}
         pendingPlayers={pendingPlayerToggles}
-        onBalanceTeams={() => {}}
+        onBalanceTeams={() => {}} 
         isBalancing={false}
       />
     </div>

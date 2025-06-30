@@ -31,7 +31,7 @@ model player_matches {
   player_match_id Int       @id @default(autoincrement())
   player_id       Int?
   match_id        Int?
-  team            String?   @db.Char(1)
+  team            String?   @db.VarChar(20)
   goals           Int?      @default(0)
   clean_sheet     Boolean?  @default(false)
   heavy_win       Boolean?  @default(false)
@@ -185,7 +185,7 @@ model upcoming_match_players {
   upcoming_player_id Int              @id @default(autoincrement())
   upcoming_match_id  Int
   player_id          Int
-  team               String           @db.Char(1)
+  team               String           @db.VarChar(20)
   created_at         DateTime?        @default(now()) @db.Timestamptz(6)
   updated_at         DateTime?        @default(now()) @db.Timestamptz(6)
   slot_number        Int?

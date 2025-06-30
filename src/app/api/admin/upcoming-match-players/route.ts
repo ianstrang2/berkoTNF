@@ -64,13 +64,10 @@ export async function GET(request: NextRequest) {
 
     // Format the response for easier consumption by the frontend
     const formattedPlayers = players.map(p => ({
-      player_id: p.player_id,
-      match_id: p.upcoming_match_id,
-      upcoming_match_id: p.upcoming_match_id,
-      team: p.team,
-      position: p.position,
-      slot_number: p.slot_number,
-      player_match_id: p.upcoming_player_id, // Include this for updates
+      id: p.player_id.toString(),
+      pool_id: p.upcoming_player_id,
+      responseStatus: 'PENDING',
+      team: p.team || 'Unassigned',
       ...p.player
     }));
 
@@ -217,11 +214,10 @@ export async function POST(request: NextRequest) {
 
     // Format response
     const formattedPlayer = {
-      player_id: newAssignment.player_id,
-      match_id: newAssignment.upcoming_match_id,
-      upcoming_match_id: newAssignment.upcoming_match_id,
+      id: newAssignment.player_id.toString(),
+      pool_id: newAssignment.upcoming_player_id,
+      responseStatus: 'PENDING',
       team: newAssignment.team,
-      slot_number: newAssignment.slot_number,
       ...newAssignment.player
     };
 
@@ -325,11 +321,10 @@ export async function PUT(request: NextRequest) {
 
     // Format response
     const formattedPlayer = {
-      player_id: updatedAssignment.player_id,
-      match_id: updatedAssignment.upcoming_match_id,
-      upcoming_match_id: updatedAssignment.upcoming_match_id, 
+      id: updatedAssignment.player_id.toString(),
+      pool_id: updatedAssignment.upcoming_player_id,
+      responseStatus: 'PENDING',
       team: updatedAssignment.team,
-      slot_number: updatedAssignment.slot_number,
       ...updatedAssignment.player
     };
 

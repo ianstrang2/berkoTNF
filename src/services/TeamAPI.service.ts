@@ -1,23 +1,22 @@
 import { 
-  Player, 
-  PoolPlayer, 
   Slot, 
   MatchFormData, 
-  RingerFormData, 
+  PlayerFormData,
   ApiResponse 
 } from '@/types/team-algorithm.types';
+import { PlayerProfile, PlayerInPool } from '@/types/player.types';
 import { TeamBalanceService } from './TeamBalance.service';
 
 export const TeamAPIService = {
   // Player pool APIs
-  fetchPlayerPool: async (matchId: string): Promise<PoolPlayer[]> => {
+  fetchPlayerPool: async (matchId: string): Promise<PlayerInPool[]> => {
     try {
       const response = await fetch(`/api/admin/match-player-pool?match_id=${matchId}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch player pool: ${response.status} ${errorText}`);
       }
-      const data = await response.json() as ApiResponse<PoolPlayer[]>;
+      const data = await response.json() as ApiResponse<PlayerInPool[]>;
       return data.success ? data.data || [] : [];
     } catch (error) {
       console.error('Error fetching player pool:', error);
@@ -381,7 +380,7 @@ export const TeamAPIService = {
   },
   
   // Add a ringer player
-  addRinger: async (ringerData: RingerFormData): Promise<Player> => {
+  addRinger: async (ringerData: PlayerFormData): Promise<PlayerProfile> => {
     try {
       const response = await fetch('/api/admin/add-ringer', {
         method: 'POST',
@@ -390,7 +389,7 @@ export const TeamAPIService = {
           name: ringerData.name,
           goalscoring: parseFloat(ringerData.goalscoring.toString()),
           defending: parseFloat(ringerData.defending.toString()),
-          stamina_pace: parseFloat(ringerData.stamina_pace.toString()),
+          stamina_pace: parseFloat(ringerData.staminaPace.toString()),
           control: parseFloat(ringerData.control.toString()),
           teamwork: parseFloat(ringerData.teamwork.toString()),
           resilience: parseFloat(ringerData.resilience.toString())

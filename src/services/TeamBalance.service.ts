@@ -1,26 +1,8 @@
 // TeamBalanceService.ts
 // Service to handle team balancing logic
 
-interface Player {
-  id: string;
-  name: string;
-  goalscoring?: number;
-  defending?: number;
-  stamina_pace?: number;
-  control?: number;
-  teamwork?: number;
-  resilience?: number;
-  is_ringer?: boolean;
-  is_retired?: boolean;
-  [key: string]: any;
-}
-
-interface Slot {
-  slot_number: number;
-  player_id: string | null;
-  team?: string;
-  position?: string | null;
-}
+import { PlayerProfile } from '@/types/player.types';
+import { Slot } from '@/types/team-algorithm.types';
 
 export class TeamBalanceService {
   /**
@@ -68,7 +50,7 @@ export class TeamBalanceService {
    * @param players All available players
    * @returns Team statistics
    */
-  public static calculateTeamStats(teamSlots: Slot[], players: Player[]) {
+  public static calculateTeamStats(teamSlots: Slot[], players: PlayerProfile[]) {
     // Filter out slots without player assignments
     const slotsWithPlayers = teamSlots.filter(slot => slot.player_id);
     if (slotsWithPlayers.length === 0) return null;
@@ -76,14 +58,14 @@ export class TeamBalanceService {
     // Get player objects for all assigned slots
     const teamPlayers = slotsWithPlayers
       .map(slot => {
-        const player = players.find(p => p.id === slot.player_id);
+        const player = players.find(p => p.id === String(slot.player_id));
         if (player) {
           // Add slot info to player for position grouping
           return { ...player, slot_number: slot.slot_number };
         }
         return null;
       })
-      .filter(Boolean) as (Player & { slot_number: number })[];
+      .filter(Boolean) as (PlayerProfile & { slot_number: number })[];
     
     if (teamPlayers.length === 0) return null;
     
@@ -102,7 +84,7 @@ export class TeamBalanceService {
       p.slot_number === 17 || p.slot_number === 18
     );
     
-    const calculateAvg = (players: Player[], field: keyof Player) => {
+    const calculateAvg = (players: PlayerProfile[], field: keyof PlayerProfile) => {
       const sum = players.reduce((total, player) => total + (Number(player[field]) || 0), 0);
       return players.length > 0 ? sum / players.length : 0;
     };
@@ -111,7 +93,7 @@ export class TeamBalanceService {
       defense: {
         goalscoring: calculateAvg(defenders, 'goalscoring'),
         defending: calculateAvg(defenders, 'defending'),
-        stamina_pace: calculateAvg(defenders, 'stamina_pace'),
+        staminaPace: calculateAvg(defenders, 'staminaPace'),
         control: calculateAvg(defenders, 'control'),
         teamwork: calculateAvg(defenders, 'teamwork'),
         resilience: calculateAvg(defenders, 'resilience')
@@ -119,7 +101,7 @@ export class TeamBalanceService {
       midfield: {
         goalscoring: calculateAvg(midfielders, 'goalscoring'),
         defending: calculateAvg(midfielders, 'defending'),
-        stamina_pace: calculateAvg(midfielders, 'stamina_pace'),
+        staminaPace: calculateAvg(midfielders, 'staminaPace'),
         control: calculateAvg(midfielders, 'control'),
         teamwork: calculateAvg(midfielders, 'teamwork'),
         resilience: calculateAvg(midfielders, 'resilience')
@@ -127,7 +109,7 @@ export class TeamBalanceService {
       attack: {
         goalscoring: calculateAvg(attackers, 'goalscoring'),
         defending: calculateAvg(attackers, 'defending'),
-        stamina_pace: calculateAvg(attackers, 'stamina_pace'),
+        staminaPace: calculateAvg(attackers, 'staminaPace'),
         control: calculateAvg(attackers, 'control'),
         teamwork: calculateAvg(attackers, 'teamwork'),
         resilience: calculateAvg(attackers, 'resilience')
@@ -143,7 +125,7 @@ export class TeamBalanceService {
    * @param players All available players
    * @returns Comparative statistics
    */
-  public static calculateComparativeStats(teamASlots: Slot[], teamBSlots: Slot[], players: Player[]) {
+  public static calculateComparativeStats(teamASlots: Slot[], teamBSlots: Slot[], players: PlayerProfile[]) {
     const statsA = this.calculateTeamStats(teamASlots, players);
     const statsB = this.calculateTeamStats(teamBSlots, players);
     
@@ -154,7 +136,7 @@ export class TeamBalanceService {
       return {
         goalscoring: Math.abs(posA.goalscoring - posB.goalscoring),
         defending: Math.abs(posA.defending - posB.defending),
-        stamina_pace: Math.abs(posA.stamina_pace - posB.stamina_pace),
+        staminaPace: Math.abs(posA.staminaPace - posB.staminaPace),
         control: Math.abs(posA.control - posB.control),
         teamwork: Math.abs(posA.teamwork - posB.teamwork),
         resilience: Math.abs(posA.resilience - posB.resilience)

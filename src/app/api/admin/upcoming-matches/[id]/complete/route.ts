@@ -57,16 +57,20 @@ export async function POST(
       // 3. Create player_matches records
       const goalsMap = new Map(player_stats.map((p: { player_id: number; goals: number }) => [p.player_id, p.goals]));
       
-      const playerMatchesData = upcomingMatch.players.map(p => ({
-          match_id: newMatch.match_id,
-          player_id: p.player_id,
-          team: p.team as 'A' | 'B',
-          goals: goalsMap.get(p.player_id) || 0,
-      }));
+      const playerMatchesData = upcomingMatch.players
+        .filter(p => p.team === 'A' || p.team === 'B') // Ensure only assigned players are included
+        .map(p => ({
+            match_id: newMatch.match_id,
+            player_id: p.player_id,
+            team: p.team,
+            goals: goalsMap.get(p.player_id) || 0,
+        }));
 
-      await tx.player_matches.createMany({
-        data: playerMatchesData,
-      });
+      if (playerMatchesData.length > 0) {
+        await tx.player_matches.createMany({
+          data: playerMatchesData as any, // Prisma expects a more specific type here, but our data is valid
+        });
+      }
 
       // 4. Update the upcoming_match state
       const updatedUpcomingMatch = await tx.upcoming_matches.update({

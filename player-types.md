@@ -202,39 +202,39 @@ A few other player-related types exist on the backend, further confirming the so
 
 The audit reveals there are **at least 5 unique shapes** for player data being used across the application, with numerous redundancies. The core problems are:
 
-1.  **ID Type Conflict:** Player IDs are treated as `string` in some parts of the app (the "main" `Player` type) and `number` in others (most components and API responses). This is the most critical issue.
-2.  **Naming Convention Conflict:** Property names flip between `camelCase` (e.g., `is_ringer`) and `snake_case` (e.g., `player_id`, `games_played`).
+1.  **ID Type Conflict:** Player IDs are treated as `string` in some parts of the app (the canonical `Player` type) and `number` in others (most components and API responses). This is the most critical issue, stemming from a failure to consistently transform database-style types into frontend-style types.
+2.  **Naming Convention Conflict:** Property names flip between `camelCase` (e.g., `isRinger`) and `snake_case` (e.g., `player_id`, `games_played`), another symptom of leaking database conventions into the frontend.
 3.  **Redundant Definitions:** The same types (especially `PlayerStats` and `PlayerWithNameAndId`) are re-declared in multiple files instead of being shared.
-4.  **Loose Typing:** The primary `Player` interface includes a `[key: string]: any;` index signature, which severely weakens type safety and hides potential bugs, such as the `Player` vs. `MatchPlayer` mismatch in the `BalanceTeamsPane`.
+4.  **Loose Typing:** The primary `Player` interface includes a `[key: string]: any;` index signature, which severely weakens type safety and hides potential bugs, such as the `Player` vs. `MatchPlayer` mismatch in `BalanceTeamsPane`.
 5.  **Missing Properties:** The base `Player` type lacks a `club` property, which is then added in different shapes in `PlayerFormData` and `PlayerStats`.
 
 ### Unification Plan
 
-A refactor is recommended to unify these types. This will improve code quality, reduce bugs, and make future development easier.
+To resolve these inconsistencies, a single source of truth for player types will be enforced. This plan aligns with the established `BerkoTNF Project Rules`.
 
 #### Step 1: Define Canonical Player Types
 
-Create a new file, `src/types/player.types.ts`, to be the single source of truth for all player-related interfaces.
+The file `src/types/player.types.ts` is the single source of truth for all player-related interfaces.
 
 ```typescript
 // src/types/player.types.ts
 
 // The shape of a club, consistent across the app
 export interface Club {
-  id: number; // Or string, must be consistent
+  id: string; // Club IDs are strings in the frontend
   name: string;
   filename: string;
 }
 
-// The absolute base representation of a player
-// Corresponds to the `players` table in the database
+// The absolute base representation of a player.
+// This is the canonical type for all frontend components.
 export interface PlayerProfile {
-  id: number; // <-- Decision: Unify on `number` as it matches the DB.
+  id: string;
   name: string;
   isRinger: boolean;
   isRetired: boolean;
   club?: Club | null;
-  // Core attributes should be camelCase
+  // Core attributes are always camelCase
   goalscoring: number;
   defending: number;
   staminaPace: number;
@@ -246,7 +246,6 @@ export interface PlayerProfile {
 // A player in the context of a match pool
 export interface PlayerInPool extends PlayerProfile {
   responseStatus: 'IN' | 'OUT' | 'MAYBE' | 'PENDING';
-  // Note: player_id is now just `id` from the extended type
 }
 
 // A player with their calculated stats for a given season/period
@@ -256,40 +255,39 @@ export interface PlayerWithStats extends PlayerProfile {
   draws: number;
   losses: number;
   goals: number;
-  // ... other stats, all converted to camelCase
   fantasyPoints: number;
   pointsPerGame: number;
 }
 ```
 
-**Key Decisions in this structure:**
-- **ID is `number`:** We will standardize on `number` for all player IDs to match the database, eliminating the string/number conflict.
-- **Strictly `camelCase`:** All properties are `camelCase`. API data will be transformed on receipt to match this.
-- **No More `any`:** The dangerous `[key: string]: any;` is removed.
-- **Clear Hierarchy:** Specific types (`PlayerInPool`, `PlayerWithStats`) extend the base `PlayerProfile`, promoting reuse.
-- **Shared `Club` type:** A single `Club` interface is defined.
+**Key Principles of this Structure:**
+- **`id` is `string`:** The canonical frontend type `PlayerProfile` uses `id: string`. This is for consistency with component keys, browser APIs, and general JavaScript best practices.
+- **Database `id` is `number`:** The database uses `player_id: number` as its primary key.
+- **Transformation at the Boundary:** The API layer is the designated boundary for data transformation. It is responsible for converting raw `snake_case` database results (with numeric IDs) into the clean, `camelCase` canonical types (with string IDs) before sending data to the frontend. This is handled by helpers in `src/lib/transform/player.transform.ts`.
+- **Strictly `camelCase`:** All frontend properties are `camelCase`.
+- **No More `any`:** The dangerous `[key: string]: any;` is removed to enforce strict typing.
+- **Clear Hierarchy:** Context-specific types like `PlayerInPool` and `PlayerWithStats` extend the base `PlayerProfile`, promoting code reuse and clarity.
 
 #### Step 2: Impact Analysis & Refactoring Path
 
-Adopting these types will require changes across the codebase.
+Adopting these types requires changes across the codebase to ensure all parts adhere to the standard.
 
-1.  **API Layer:**
-    - All API routes that return player data (`/api/players`, `/api/stats`, etc.) must be updated. They should fetch data using `snake_case` from Supabase but then transform the keys to `camelCase` and ensure `id` is a `number` before sending the JSON response. This provides a clean, consistent API contract for the frontend.
+1.  **API & Transformation Layer:**
+    - All API routes that return player data (`/api/players`, `/api/stats`, etc.) **must** use the transformation helpers in `src/lib/transform/player.transform.ts`.
+    - These helpers are responsible for mapping `snake_case` to `camelCase` and, most importantly, converting the numeric `player_id` from the database into the `id: string` required by the frontend `PlayerProfile` type.
 
 2.  **Type Consumption Layer (`team-algorithm.types.ts`):**
-    - The old `Player` interface in `src/types/team-algorithm.types.ts` should be deleted.
-    - Other types in that file (`PlayerSlotProps`, `PlayerPoolProps`, etc.) should be updated to import and use the new `PlayerProfile` or `PlayerInPool` from `src/types/player.types.ts`.
-    - Any logic that relied on `id` being a `string` must be updated (e.g., `id.toString()`).
+    - Any remaining `Player` interfaces in `src/types/team-algorithm.types.ts` must be deleted.
+    - Other types in that file (`PlayerSlotProps`, `PlayerPoolProps`, etc.) must be updated to import and use the new canonical types from `src/types/player.types.ts`.
+    - All logic that previously relied on `id` being a `number` must be updated to handle a `string`.
 
 3.  **Component Layer:**
-    - **`BalanceTeamsPane.component.tsx`**: The local `MatchPlayer` type will be removed. The props will be updated to use the new `PlayerInPool[]`, and any internal logic using `player_id` will be changed to `id`. This will fix the hidden bug.
-    - **`CurrentHalfSeason.component.tsx` & `OverallSeasonPerformance.component.tsx`**: Remove the local `PlayerStats` definition and import `PlayerWithStats`. Update the rendering logic to use the new `camelCase` property names.
-    - **All components using `PlayerWithNameAndId`**: Remove the local definition and import `PlayerProfile`. The necessary properties (`id`, `name`) are already on it.
-    - **`useMatchState.hook.ts`**: The unused `MatchPlayer` type will be deleted. The hook's state will use `PlayerInPool[]`.
+    - **`BalanceTeamsPane.component.tsx`**: The local `MatchPlayer` type must be removed. Props should be updated to use the canonical `PlayerInPool[]`, and any internal logic using `player_id` must be changed to `id`.
+    - **`CurrentHalfSeason.component.tsx` & `OverallSeasonPerformance.component.tsx`**: Local `PlayerStats` definitions must be removed and replaced with an import for `PlayerWithStats`. The rendering logic must be updated to use the `camelCase` property names.
+    - **All components using `PlayerWithNameAndId`**: Local definitions must be removed and replaced by importing `PlayerProfile`.
 
-#### Step 3: Execution (To be done after approval)
-- Create `src/types/player.types.ts`.
-- Systematically work through the files listed above, replacing old types with the new canonical ones and fixing any resulting errors (e.g., property name changes, ID type changes).
-- This can be done incrementally, starting with the API layer to ensure the data source is correct.
+#### Step 3: Execution
+- The process involves systematically working through the files listed above, replacing old/local types with the new canonical ones, and fixing any resulting errors from property name or ID type changes.
+- This refactoring ensures the codebase is more robust, predictable, and easier to maintain.
 
 This plan will resolve all identified inconsistencies and make the codebase significantly more robust and maintainable. 

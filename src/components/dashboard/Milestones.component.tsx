@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { PlayerProfile } from '@/types/player.types';
 
 interface Milestone {
   name: string;
@@ -37,7 +38,7 @@ interface LeaderData {
 interface TimelineItem {
   type: 'game_milestone' | 'goal_milestone' | 'form_streak' | 'goal_streak' | 'leader_change';
   player: string;
-  playerId?: number;
+  playerId?: string;
   content: string;
   subtext?: string;
   icon: 'trophy' | 'goal' | 'fire' | 'chart' | 'soccer' | 'crown';
@@ -59,15 +60,10 @@ interface MilestonesData {
   seasonFantasyLeaders?: LeaderData[];
 }
 
-interface PlayerWithNameAndId {
-  id: number;
-  name: string;
-}
-
 const Milestones: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [milestonesData, setMilestonesData] = useState<MilestonesData | null>(null);
-  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
+  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
 
@@ -198,6 +194,7 @@ const Milestones: React.FC = () => {
       
       if (playersResponse.ok) {
         const playersData = await playersResponse.json();
+        // No transformation needed, API provides canonical PlayerProfile objects.
         setAllPlayers(playersData.data || []);
       } else {
         // Non-critical, milestones can still be shown without player links
@@ -219,7 +216,7 @@ const Milestones: React.FC = () => {
     }
   };
 
-  const getPlayerIdByName = (name: string): number | undefined => {
+  const getPlayerIdByName = (name: string): string | undefined => {
     const player = allPlayers.find(p => p.name === name);
     return player?.id;
   };
@@ -325,7 +322,7 @@ const Milestones: React.FC = () => {
         // Co-leaders
         const leaderNames = leaders.map(l => l.new_leader).join(' and ');
         const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
-        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader));
+        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader)).filter((id): id is string => id !== undefined);
         const content = `${leaderNames} lead with ${goals}.`;
         playerIds.forEach(id => {
           items.push({
@@ -361,7 +358,7 @@ const Milestones: React.FC = () => {
         // Co-leaders
         const leaderNames = leaders.map(l => l.new_leader).join(' and ');
         const points = firstLeader.new_leader_points || firstLeader.value || 0;
-        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader));
+        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader)).filter((id): id is string => id !== undefined);
         const content = `${leaderNames} lead with ${points}.`;
         playerIds.forEach(id => {
           items.push({
@@ -401,7 +398,7 @@ const Milestones: React.FC = () => {
         // Co-leaders
         const leaderNames = leaders.map(l => l.new_leader).join(' and ');
         const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
-        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader));
+        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader)).filter((id): id is string => id !== undefined);
         const content = `${leaderNames} lead with ${goals}.`;
         playerIds.forEach(id => {
           items.push({
@@ -437,7 +434,7 @@ const Milestones: React.FC = () => {
         // Co-leaders
         const leaderNames = leaders.map(l => l.new_leader).join(' and ');
         const points = firstLeader.new_leader_points || firstLeader.value || 0;
-        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader));
+        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader)).filter((id): id is string => id !== undefined);
         const content = `${leaderNames} lead with ${points}.`;
         playerIds.forEach(id => {
           items.push({

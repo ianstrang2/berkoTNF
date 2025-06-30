@@ -1,25 +1,12 @@
 import React, { useState } from 'react';
-
-interface Player {
-  id: string;
-  name: string;
-  goalscoring?: number;
-  defending?: number;
-  stamina_pace?: number;
-  control?: number;
-  teamwork?: number;
-  resilience?: number;
-  is_ringer?: boolean;
-  is_retired?: boolean;
-  [key: string]: any;
-}
+import { PlayerProfile } from '@/types/player.types';
 
 interface DraggablePlayerSlotProps {
   slotNumber: number;
-  player: Player | undefined;
-  players: Player[];
+  player: PlayerProfile | undefined;
+  players: PlayerProfile[];
   onSelect: (slotIndex: number, playerId: string) => Promise<void>;
-  onDragStart: (slotNumber: number, player: Player) => void;
+  onDragStart: (slotNumber: number, player: PlayerProfile) => void;
   onDragOver: (e: React.DragEvent, slotNumber: number) => void;
   onDrop: (e: React.DragEvent, slotNumber: number) => void;
   onTap: (slotNumber: number) => void;

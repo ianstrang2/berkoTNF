@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Slot, Player, Match } from '@/types/team-algorithm.types';
+import { Slot, Match } from '@/types/team-algorithm.types';
+import { PlayerProfile } from '@/types/player.types';
 import { API_ENDPOINTS } from '@/constants/team-algorithm.constants';
 import { INITIAL_SLOTS } from '@/constants/team-algorithm.constants';
 
@@ -44,7 +45,7 @@ export const useTeamSlots = (
       // Fill in existing players if any
       if (activeMatch.players && activeMatch.players.length > 0) {
         // Map players to their respective slots
-        activeMatch.players.forEach((player: { slot_number?: number; player_id: string; team?: string; position?: string }) => {
+        activeMatch.players.forEach((player) => {
           // Handle case where slot_number might be missing
           const slotNumber = player.slot_number || 
             (player.team === 'A' ? 
@@ -55,7 +56,7 @@ export const useTeamSlots = (
           if (slotNumber > 0 && slotNumber <= matchPlayerSlots.length) {
             matchPlayerSlots[slotNumber - 1] = {
               ...matchPlayerSlots[slotNumber - 1],
-              player_id: player.player_id,
+              player_id: player.id,
               team: player.team || matchPlayerSlots[slotNumber - 1].team, // Use existing team if player.team is missing
               position: player.position
             };
@@ -259,7 +260,7 @@ export const useTeamSlots = (
   }, [activeMatch, currentSlots, onError]);
   
   // Get available players for a slot
-  const getAvailablePlayers = useCallback((currentSlot: Slot, allPlayers: Player[]): Player[] => {
+  const getAvailablePlayers = useCallback((currentSlot: Slot, allPlayers: PlayerProfile[]): PlayerProfile[] => {
     if (!allPlayers.length) return [];
     
     // Get IDs of players assigned to other slots

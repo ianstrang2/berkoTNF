@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import { CheckCircle } from 'lucide-react';
-import { Player } from '@/types/team-algorithm.types';
+import { PlayerInPool } from '@/types/player.types';
 
 interface PlayerGoalStat {
   player_id: number;
@@ -12,7 +12,7 @@ interface PlayerGoalStat {
 
 interface CompleteMatchFormProps {
   matchId: string;
-  balancedPlayers: Player[];
+  players: PlayerInPool[];
   completeMatchAction: (payload: { score: { team_a: number; team_b: number }, player_stats: PlayerGoalStat[] }) => Promise<void>;
   isCompleted: boolean;
 }
@@ -22,24 +22,29 @@ export type CompleteFormHandle = {
 };
 
 const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>(
-  ({ matchId, balancedPlayers, completeMatchAction, isCompleted }, ref) => {
+  ({ matchId, players, completeMatchAction, isCompleted }, ref) => {
   const [teamAScore, setTeamAScore] = useState(0);
   const [teamBScore, setTeamBScore] = useState(0);
-  const [playerGoals, setPlayerGoals] = useState<Map<number, number>>(new Map());
+  const [playerGoals, setPlayerGoals] = useState<Map<string, number>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { teamA, teamB } = useMemo(() => {
-    const a: Player[] = [];
-    const b: Player[] = [];
-    balancedPlayers.forEach(p => {
-      if (p.team === 'A') a.push(p);
-      else if (p.team === 'B') b.push(p);
+    const a: PlayerInPool[] = [];
+    const b: PlayerInPool[] = [];
+    players.forEach(p => {
+      if (p.team === 'A') {
+        a.push(p);
+      } else if (p.team === 'B') {
+        b.push(p);
+      } else if (p.team) {
+        console.warn(`Player with unexpected team found in CompleteMatchForm: ${p.id} - ${p.team}`);
+      }
     });
     return { teamA: a, teamB: b };
-  }, [balancedPlayers]);
+  }, [players]);
 
-  const handleGoalChange = (playerId: number, delta: number) => {
+  const handleGoalChange = (playerId: string, delta: number) => {
     setPlayerGoals(prev => {
       const newGoals = new Map(prev);
       const currentGoals = newGoals.get(playerId) || 0;
@@ -50,8 +55,8 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
   
   const validateAndSubmit = async () => {
     setError(null);
-    const teamAGoalsTotal = teamA.reduce((sum, p) => sum + (playerGoals.get(p.player_id) || 0), 0);
-    const teamBGoalsTotal = teamB.reduce((sum, p) => sum + (playerGoals.get(p.player_id) || 0), 0);
+    const teamAGoalsTotal = teamA.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
+    const teamBGoalsTotal = teamB.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
 
     if (teamAGoalsTotal !== teamAScore || teamBGoalsTotal !== teamBScore) {
       const message = `The player goal totals do not match the final scores.\n\n` +
@@ -66,7 +71,7 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     setIsSubmitting(true);
     try {
       const player_stats = Array.from(playerGoals.entries())
-        .map(([player_id, goals]) => ({ player_id, goals }))
+        .map(([id, goals]) => ({ player_id: Number(id), goals }))
         .filter(p => p.goals > 0);
         
       const payload = {
@@ -74,7 +79,7 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
         player_stats: player_stats,
       };
       
-      await completeMatchAction(payload);
+      await completeMatchAction(payload as any);
       // On success, the parent component will switch the view.
     } catch (err: any) {
         setError(err.message || 'Failed to submit results.');
@@ -87,18 +92,18 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     submit: validateAndSubmit,
   }));
 
-  const renderPlayerRow = (player: Player) => (
-    <div key={player.player_id} className="flex items-center justify-between bg-gray-700 p-2 rounded-md">
+  const renderPlayerRow = (player: PlayerInPool) => (
+    <div key={player.id} className="flex items-center justify-between bg-gray-700 p-2 rounded-md">
       <span className="text-gray-200">{player.name}</span>
       <div className="flex items-center gap-2">
-        <Button onClick={() => handleGoalChange(player.player_id, -1)} size="sm" variant="secondary" disabled={isSubmitting || isCompleted}>-</Button>
-        <span className="font-bold w-6 text-center">{playerGoals.get(player.player_id) || 0}</span>
-        <Button onClick={() => handleGoalChange(player.player_id, 1)} size="sm" variant="secondary" disabled={isSubmitting || isCompleted}>+</Button>
+        <Button onClick={() => handleGoalChange(player.id, -1)} size="sm" variant="secondary" disabled={isSubmitting || isCompleted}>-</Button>
+        <span className="font-bold w-6 text-center">{playerGoals.get(player.id) || 0}</span>
+        <Button onClick={() => handleGoalChange(player.id, 1)} size="sm" variant="secondary" disabled={isSubmitting || isCompleted}>+</Button>
       </div>
     </div>
   );
 
-  const renderTeamColumn = (team: Player[], teamName: string, score: number, setScore: (s: number) => void) => (
+  const renderTeamColumn = (team: PlayerInPool[], teamName: string, score: number, setScore: (s: number) => void) => (
     <div className="flex-1 bg-gray-800/50 p-4 rounded-lg flex flex-col">
       <h3 className="text-lg font-bold text-white mb-3 border-b border-gray-700 pb-2">{teamName}</h3>
       <div className="flex-grow space-y-2 mb-4">

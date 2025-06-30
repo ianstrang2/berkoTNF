@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import clubsData from '../../../../data/clubs.json'; // Adjust path as necessary
-
-export interface Club {
-  id: string;
-  name: string;
-  filename: string;
-  search: string;
-  league: string;
-  country: string;
-}
+import { Club } from '@/types/player.types';
 
 interface ClubSelectorProps {
   value: Club | null;
@@ -21,13 +13,16 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // In a real app, you might fetch this data, but for now, we'll use the imported JSON
-    setClubs(clubsData);
+    // Transform the raw data to match the canonical Club type
+    const transformedClubs = clubsData.map(club => ({
+      ...club,
+      id: Number(club.id)
+    }));
+    setClubs(transformedClubs);
   }, []);
 
   const filteredClubs = clubs.filter(club =>
-    club.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    club.search.toLowerCase().includes(searchTerm.toLowerCase())
+    club.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSelectClub = (club: Club) => {

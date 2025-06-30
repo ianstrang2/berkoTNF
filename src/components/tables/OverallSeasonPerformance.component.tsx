@@ -4,39 +4,7 @@ import Link from 'next/link';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
-
-interface PlayerStats {
-  name: string;
-  player_id: number;
-  games_played: number;
-  wins: number;
-  draws: number;
-  losses: number;
-  goals: number;
-  heavy_wins: number;
-  heavy_losses: number;
-  clean_sheets: number;
-  win_percentage: number;
-  fantasy_points: number;
-  points_per_game: number;
-  selected_club?: {
-    name: string;
-    filename: string;
-  } | null;
-}
-
-interface GoalStats {
-  name: string;
-  player_id: number;
-  total_goals: number;
-  minutes_per_goal: number;
-  last_five_games: string;
-  max_goals_in_game: number;
-  selected_club?: {
-    name: string;
-    filename: string;
-  } | null;
-}
+import { PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
 
 interface FormData {
   name: string;
@@ -44,8 +12,8 @@ interface FormData {
 }
 
 interface StatsData {
-  seasonStats: PlayerStats[];
-  goalStats: GoalStats[];
+  seasonStats: PlayerWithStats[];
+  goalStats: PlayerWithGoalStats[];
   formData: FormData[];
 }
 
@@ -68,8 +36,8 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
   const [isClient, setIsClient] = useState(false);
 
   // NEW: State for special player IDs and config
-  const [onFirePlayerId, setOnFirePlayerId] = useState<number | null>(null);
-  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<number | null>(null);
+  const [onFirePlayerId, setOnFirePlayerId] = useState<string | null>(null);
+  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
   const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
   const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
 
@@ -115,8 +83,8 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
         const result = await statsResponse.json();
         console.log('API Response:', result);
         
-        if (result.data && result.data.seasonStats && result.data.seasonStats.length > 0) {
-          // Only update state if component is still mounted
+        if (result.data) {
+          // No longer need to transform API data. The API now returns canonical types.
           if (isMounted.current && !isCancelled) {
             setStats({
               seasonStats: result.data.seasonStats || [],
@@ -184,7 +152,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
     setActiveTab(initialView === 'goals' ? 'goals' : 'stats');
   }, [initialView]);
 
-  const renderPlayerName = (playerId: number, name: string) => {
+  const renderPlayerName = (playerId: string, name: string) => {
     const currentYear = new Date().getFullYear();
     const isCurrentYear = selectedYear === currentYear;
 
@@ -246,7 +214,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
             </thead>
             <tbody>
               {data.map((player: any, index: number) => {
-                 const losses = player.games_played - player.wins - player.draws; // Calculate losses if needed
+                 const losses = player.gamesPlayed - player.wins - player.draws; // Calculate losses if needed
                  return (
                   <tr key={index} className="hover:bg-gray-50">
                     {/* Sticky Data */}
@@ -255,10 +223,10 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
                     </td>
                     <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
                       {/* Placeholder Icon */}
-                      {player.selected_club ? (
+                      {player.club ? (
                         <img
-                          src={`/club-logos-40px/${player.selected_club.filename}`}
-                          alt={player.selected_club.name}
+                          src={`/club-logos-40px/${player.club.filename}`}
+                          alt={player.club.name}
                           className="w-8 h-8"
                         />
                       ) : (
@@ -271,7 +239,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
                       <div className="flex px-2 py-1">
                         <div className="flex flex-col justify-center">
                           <h6 className="mb-0 leading-normal text-sm">
-                            {renderPlayerName(player.player_id, player.name)} 
+                            {renderPlayerName(player.id, player.name)} 
                           </h6>
                         </div>
                       </div>
@@ -280,10 +248,10 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
                     {statsType === 'points' ? (
                       <>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                          <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasy_points}</p>
+                          <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasyPoints}</p>
                         </td>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                          <span className="font-normal leading-normal text-sm">{player.games_played}</span>
+                          <span className="font-normal leading-normal text-sm">{player.gamesPlayed}</span>
                         </td>
                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                            <span className="font-normal leading-normal text-sm">{player.wins}</span>
@@ -298,26 +266,26 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
                            <span className="font-normal leading-normal text-sm">{player.goals}</span>
                          </td>
                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                           <span className="font-normal leading-normal text-sm">{player.heavy_wins}</span>
+                           <span className="font-normal leading-normal text-sm">{player.heavyWins}</span>
                          </td>
                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                           <span className="font-normal leading-normal text-sm">{player.heavy_losses}</span>
+                           <span className="font-normal leading-normal text-sm">{player.heavyLosses}</span>
                          </td>
                          <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                           <span className="font-normal leading-normal text-sm">{player.clean_sheets}</span>
+                           <span className="font-normal leading-normal text-sm">{player.cleanSheets}</span>
                          </td>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                          <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
+                          <span className="font-normal leading-normal text-sm">{Math.round(player.winPercentage)}%</span>
                         </td>
                       </>
                     ) : (
                       <>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                          <span className="font-semibold leading-normal text-sm">{player.total_goals}</span>
+                          <span className="font-semibold leading-normal text-sm">{player.totalGoals}</span>
                         </td>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                           <span className={`leading-normal text-sm ${player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
-                            {player.minutes_per_goal}
+                           <span className={`leading-normal text-sm ${player.totalGoals > 0 && player.minutesPerGoal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
+                            {player.minutesPerGoal}
                           </span>
                         </td>
                       </>

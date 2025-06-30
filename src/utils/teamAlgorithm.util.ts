@@ -1,12 +1,12 @@
 // team-algorithm.utils.ts
 import {
-  Player,
   Slot,
   SlotInfo,
   WarningMessage,
   TeamCharacteristics,
   PositionGroup
 } from '../types/team-algorithm.types';
+import { PlayerProfile } from '../types/player.types';
 import { TEAM_STRUCTURE } from '../constants/team-algorithm.constants';
 
 /**
@@ -72,7 +72,7 @@ export const getWarningMessage = (
 /**
  * Calculates team resilience metric
  */
-export const calculateTeamResilience = (players: Player[]): number => {
+export const calculateTeamResilience = (players: PlayerProfile[]): number => {
   if (!players || players.length === 0) return 0;
   const totalResilience = players.reduce((sum, player) => sum + (player.resilience || 3), 0);
   return totalResilience / players.length;
@@ -81,7 +81,7 @@ export const calculateTeamResilience = (players: Player[]): number => {
 /**
  * Calculates multiple team characteristic metrics
  */
-export const calculateTeamCharacteristics = (players: Player[]): TeamCharacteristics => {
+export const calculateTeamCharacteristics = (players: PlayerProfile[]): TeamCharacteristics => {
   if (!players || players.length === 0) return { resilience: 0, teamwork: 0 };
   const totalResilience = players.reduce((sum, player) => sum + (player.resilience || 3), 0);
   const totalTeamwork = players.reduce((sum, player) => sum + (player.teamwork || 3), 0);
@@ -260,16 +260,16 @@ export const getPositionFromSlot = (slotNumber: number): string => {
 /**
  * Gets player stats display string based on role
  */
-export const getPlayerStats = (player: Player | undefined, role: string): string => {
+export const getPlayerStats = (player: PlayerProfile | undefined, role: string): string => {
   if (!player) return '';
   
   let stats: (string | number | undefined)[] = [];
   if (role === 'Defenders') {
-    stats = [player.defending, player.stamina_pace, player.control];
+    stats = [player.defending, player.staminaPace, player.control];
   } else if (role === 'Midfielders') {
-    stats = [player.control, player.stamina_pace, player.goalscoring];
+    stats = [player.control, player.staminaPace, player.goalscoring];
   } else { // Attackers
-    stats = [player.goalscoring, player.stamina_pace, player.control];
+    stats = [player.goalscoring, player.staminaPace, player.control];
   }
   
   return stats.filter(s => s !== undefined).join('/');
@@ -299,16 +299,25 @@ export const validateMatchData = (matchData: { date: string, team_size: number }
  */
 export const formatTeamsForCopy = (
   slots: Slot[],
-  players: Player[],
+  players: PlayerProfile[],
   teamAName: string,
   teamBName: string,
-  on_fire_player_id?: number | null,
-  grim_reaper_player_id?: number | null,
+  on_fire_player_id?: string | null,
+  grim_reaper_player_id?: string | null,
   showOnFire?: boolean,
   showGrimReaper?: boolean
 ): string => {
-  const orangeTeamSlots = slots.filter(s => s.team === 'A' && s.player_id);
-  const greenTeamSlots = slots.filter(s => s.team === 'B' && s.player_id);
+  const orangeTeamSlots: Slot[] = [];
+  const greenTeamSlots: Slot[] = [];
+
+  slots.forEach(slot => {
+    if (slot.team === 'A' && slot.player_id) {
+      orangeTeamSlots.push(slot);
+    } else if (slot.team === 'B' && slot.player_id) {
+      greenTeamSlots.push(slot);
+    }
+    // Any other team value (e.g., 'Unassigned' or null) is implicitly ignored.
+  });
 
   const formatTeam = (teamSlots: Slot[]) => {
     return teamSlots
@@ -317,11 +326,10 @@ export const formatTeamsForCopy = (
         let playerName = player ? player.name : 'Empty';
         
         if (player) {
-          const playerIdAsNumber = Number(player.id);
-          if (showOnFire && playerIdAsNumber === on_fire_player_id) {
+          if (showOnFire && player.id === on_fire_player_id) {
             playerName += ' 🔥';
           }
-          if (showGrimReaper && playerIdAsNumber === grim_reaper_player_id) {
+          if (showGrimReaper && player.id === grim_reaper_player_id) {
             playerName += ' 💀';
           }
         }

@@ -41,22 +41,39 @@ export async function POST(request: Request) {
       // Filter players to ensure player_id is not null for TypeScript
       const validPlayerMatchData = players
         .filter(player => player.player_id !== null) // This will satisfy TypeScript
-        .map(player => ({
-          match_id: newMatch.match_id,
-          player_id: player.player_id as number, // Asserting here since we filtered
-          team: player.team,
-          goals: player.goals, // player.goals is 0 from the 'players' array mapping
-          clean_sheet: player.team === 'A' ? team_b_score === 0 : team_a_score === 0,
-          heavy_win: player.team === 'A' 
-            ? team_a_score > team_b_score && (team_a_score - team_b_score) >= 4
-            : team_b_score > team_a_score && (team_b_score - team_a_score) >= 4,
-          heavy_loss: player.team === 'A'
-            ? team_b_score > team_a_score && (team_b_score - team_a_score) >= 4
-            : team_a_score > team_b_score && (team_a_score - team_b_score) >= 4,
-          result: player.team === 'A'
-            ? team_a_score > team_b_score ? 'win' : (team_a_score < team_b_score ? 'loss' : 'draw')
-            : team_b_score > team_a_score ? 'win' : (team_b_score < team_a_score ? 'loss' : 'draw')
-        }));
+        .map(player => {
+          let clean_sheet = false;
+          let heavy_win = false;
+          let heavy_loss = false;
+          let result = 'draw';
+
+          if (player.team === 'A') {
+            clean_sheet = team_b_score === 0;
+            heavy_win = team_a_score > team_b_score && (team_a_score - team_b_score) >= 4;
+            heavy_loss = team_b_score > team_a_score && (team_b_score - team_a_score) >= 4;
+            if (team_a_score > team_b_score) result = 'win';
+            if (team_a_score < team_b_score) result = 'loss';
+          } else if (player.team === 'B') {
+            clean_sheet = team_a_score === 0;
+            heavy_win = team_b_score > team_a_score && (team_b_score - team_a_score) >= 4;
+            heavy_loss = team_a_score > team_b_score && (team_a_score - team_b_score) >= 4;
+            if (team_b_score > team_a_score) result = 'win';
+            if (team_b_score < team_a_score) result = 'loss';
+          }
+
+          return {
+            match_id: newMatch.match_id,
+            player_id: player.player_id as number, // Asserting here since we filtered
+            team: player.team,
+            goals: player.goals, // player.goals is 0 from the 'players' array mapping
+            clean_sheet,
+            heavy_win,
+            heavy_loss,
+            result,
+          };
+        })
+        // Final filter to exclude players who were not on team A or B
+        .filter(data => data.team === 'A' || data.team === 'B');
 
       if (validPlayerMatchData.length > 0) { // Only call createMany if there's valid data
         await prisma.player_matches.createMany({

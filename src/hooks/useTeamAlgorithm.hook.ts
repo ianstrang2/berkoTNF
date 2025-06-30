@@ -3,7 +3,8 @@ import { usePlayerData } from './usePlayerData.hook';
 import { useMatchData } from './useMatchData.hook';
 import { useTeamSlots } from './useTeamSlots.hook';
 import { useDragAndDrop } from './useDragAndDrop.hook';
-import { Player, NewMatchData, PlayerFormData, TeamStats } from '@/types/team-algorithm.types';
+import { NewMatchData, PlayerFormData, TeamStats } from '@/types/team-algorithm.types';
+import { PlayerProfile, PlayerInPool } from '@/types/player.types';
 import { TeamBalanceService } from '@/services/TeamBalance.service';
 import { TeamAPIService } from '@/services/TeamAPI.service';
 import { determinePositionGroups, formatTeamsForCopy, createCopyModal } from '@/utils/teamAlgorithm.util';
@@ -41,7 +42,7 @@ export const useTeamAlgorithm = () => {
   const [isRingerModalOpen, setIsRingerModalOpen] = useState<boolean>(false);
   const [isMatchModalOpen, setIsMatchModalOpen] = useState<boolean>(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
-  const [selectedPoolPlayers, setSelectedPoolPlayers] = useState<Player[]>([]);
+  const [selectedPoolPlayers, setSelectedPoolPlayers] = useState<PlayerInPool[]>([]);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const [pendingPlayerToggles, setPendingPlayerToggles] = useState<Set<string>>(new Set());
   const [lastSuccessfulBalanceMethod, setLastSuccessfulBalanceMethod] = useState<BalanceMethod | null>(null);
@@ -52,8 +53,8 @@ export const useTeamAlgorithm = () => {
   const [comparativeStats, setComparativeStats] = useState<ComparativeStatsData | null>(null);
   
   // New state for player status and config
-  const [onFirePlayerId, setOnFirePlayerId] = useState<number | null>(null);
-  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<number | null>(null);
+  const [onFirePlayerId, setOnFirePlayerId] = useState<string | null>(null);
+  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
   const [showOnFireIcon, setShowOnFireIcon] = useState<boolean>(true);
   const [showGrimReaperIcon, setShowGrimReaperIcon] = useState<boolean>(true);
   const [configTeamAName, setConfigTeamAName] = useState<string>('Orange'); // Default
@@ -109,8 +110,8 @@ export const useTeamAlgorithm = () => {
         const playerStatusRes = await fetch('/api/latest-player-status');
         if (playerStatusRes.ok) {
           const statusData: PlayerStatusResponse = await playerStatusRes.json();
-          setOnFirePlayerId(statusData.on_fire_player_id);
-          setGrimReaperPlayerId(statusData.grim_reaper_player_id);
+          setOnFirePlayerId(statusData.on_fire_player_id ? String(statusData.on_fire_player_id) : null);
+          setGrimReaperPlayerId(statusData.grim_reaper_player_id ? String(statusData.grim_reaper_player_id) : null);
         } else {
           console.warn('Failed to fetch latest player status');
         }
@@ -169,14 +170,14 @@ export const useTeamAlgorithm = () => {
         // Map pool players to Player format
         const poolPlayers = poolPlayersData.map(pp => {
           // Find full player data from the players array
-          const playerData = players.find(p => p.id.toString() === pp.id.toString());
+          const playerData = players.find(p => p.id === pp.id);
           if (!playerData) return null;
           
           return {
             ...playerData,
-            response_status: pp.response_status
+            responseStatus: pp.responseStatus || 'PENDING'
           };
-        }).filter(Boolean) as Player[];
+        }).filter(Boolean) as PlayerInPool[];
         
         // Update state
         setSelectedPoolPlayers(poolPlayers);
@@ -242,7 +243,7 @@ export const useTeamAlgorithm = () => {
       if (selectedPoolPlayers.length < 2) throw new Error('Please select at least 2 players in the player pool before balancing');
       
       setBalanceProgress(50);
-      const playerIds = selectedPoolPlayers.map(player => player.id.toString());
+      const playerIds = selectedPoolPlayers.map(player => player.id);
 
       // Perform the balancing operation via API
       if (method === 'random') {
@@ -267,13 +268,17 @@ export const useTeamAlgorithm = () => {
           const teamASlots = currentSlots.filter(s => s.slot_number <= teamSize);
           const teamBSlots = currentSlots.filter(s => s.slot_number > teamSize);
 
-          const calculatedOrangeStats = TeamBalanceService.calculateTeamStats(teamASlots, players);
-          const calculatedGreenStats = TeamBalanceService.calculateTeamStats(teamBSlots, players);
+          const allPlayersInSlots = players.filter(p => 
+            currentSlots.some(s => String(s.player_id) === p.id)
+          );
+
+          const calculatedOrangeStats = TeamBalanceService.calculateTeamStats(teamASlots, allPlayersInSlots);
+          const calculatedGreenStats = TeamBalanceService.calculateTeamStats(teamBSlots, allPlayersInSlots);
           setOrangeTeamStats(calculatedOrangeStats);
           setGreenTeamStats(calculatedGreenStats);
 
           if (calculatedOrangeStats && calculatedGreenStats) {
-            const calculatedCompStats = TeamBalanceService.calculateComparativeStats(teamASlots, teamBSlots, players);
+            const calculatedCompStats = TeamBalanceService.calculateComparativeStats(teamASlots, teamBSlots, allPlayersInSlots);
             setComparativeStats(calculatedCompStats);
           }
         } else {
@@ -322,10 +327,10 @@ export const useTeamAlgorithm = () => {
         const matchId = activeMatch.upcoming_match_id || activeMatch.match_id;
         if (matchId) {
           // Add to the match's player pool in the database
-          await TeamAPIService.addPlayerToPool(matchId.toString(), newRinger.id.toString());
+          await TeamAPIService.addPlayerToPool(matchId.toString(), newRinger.id);
           
           // Add to the local selectedPoolPlayers state
-          setSelectedPoolPlayers(prev => [...prev, newRinger]);
+          setSelectedPoolPlayers(prev => [...prev, { ...newRinger, responseStatus: 'PENDING' }]);
         }
       }
       
@@ -389,7 +394,7 @@ export const useTeamAlgorithm = () => {
   };
   
   // Toggle player selection in the pool
-  const handleTogglePlayerInPool = useCallback(async (player: Player) => {
+  const handleTogglePlayerInPool = useCallback(async (player: PlayerProfile) => {
     if (!activeMatch) {
       setError("No active match to manage player pool.");
       return;
@@ -401,7 +406,7 @@ export const useTeamAlgorithm = () => {
       return;
     }
 
-    const playerIdStr = player.id.toString();
+    const playerIdStr = player.id;
     if (pendingPlayerToggles.has(playerIdStr)) {
       return; // Already processing
     }
@@ -420,7 +425,7 @@ export const useTeamAlgorithm = () => {
         // Optimistically update UI
         // Check again to prevent duplicates if rapidly called before state updates (though pendingPlayerToggles helps)
         if (!selectedPoolPlayers.some(p => p.id === player.id)) {
-          setSelectedPoolPlayers(prev => [...prev, player]); 
+          setSelectedPoolPlayers(prev => [...prev, { ...player, responseStatus: 'PENDING' }]); 
         }
         await TeamAPIService.addPlayerToPool(matchId.toString(), playerIdStr);
       }
@@ -443,8 +448,8 @@ export const useTeamAlgorithm = () => {
   const availablePlayersForSelection = useMemo(() => {
     if (!activeMatch || !selectedPoolPlayers.length) return [];
     // Filter selectedPoolPlayers to exclude those already in currentSlots
-    const assignedPlayerIds = new Set(currentSlots.map(s => s.player_id).filter(Boolean));
-    return selectedPoolPlayers.filter(p => !assignedPlayerIds.has(p.id.toString()));
+    const assignedPlayerIds = new Set(currentSlots.map(s => String(s.player_id)).filter(Boolean));
+    return selectedPoolPlayers.filter(p => !assignedPlayerIds.has(p.id));
   }, [selectedPoolPlayers, currentSlots, activeMatch]);
 
   // Function to save current team assignments to the database
@@ -527,7 +532,7 @@ export const useTeamAlgorithm = () => {
 
     setIsLoading(true);
     try {
-      const playerIdsToAssign = selectedPoolPlayers.map(p => p.id.toString());
+      const playerIdsToAssign = selectedPoolPlayers.map(p => p.id);
       if (playerIdsToAssign.length === 0) {
         setError("No players in the pool to assign.");
         return;
@@ -567,9 +572,11 @@ export const useTeamAlgorithm = () => {
       return;
     }
 
+    const playersInSlots = players.filter(p => currentSlots.some(s => String(s.player_id) === p.id));
+
     const teamsText = formatTeamsForCopy(
       currentSlots,
-      players,
+      playersInSlots,
       configTeamAName,      // Use fetched team name
       configTeamBName,      // Use fetched team name
       onFirePlayerId,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Player, PlayerSlotProps } from '@/types/team-algorithm.types';
+import { PlayerSlotProps } from '@/types/team-algorithm.types';
 
 const PlayerSlot: React.FC<PlayerSlotProps> = ({ 
   slotNumber, 

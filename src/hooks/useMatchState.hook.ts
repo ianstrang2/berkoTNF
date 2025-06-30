@@ -2,15 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { differenceInHours } from 'date-fns';
-import { Player } from '@/types/team-algorithm.types';
-
-// Define the shape of the match data based on API response
-interface MatchPlayer {
-  player_id: number;
-  name: string;
-  team?: 'A' | 'B' | 'Unassigned';
-  // ... other player attributes
-}
+import { PlayerInPool } from '@/types/player.types';
 
 interface ToastState {
   message: string;
@@ -21,14 +13,14 @@ interface ToastState {
   };
 }
 
-interface MatchState {
-  state: 'Draft' | 'PoolLocked' | 'TeamsBalanced' | 'Completed' | 'Cancelled' | 'Loading';
+interface MatchData {
+  state: 'Draft' | 'PoolLocked' | 'TeamsBalanced' | 'Completed' | 'Cancelled';
   stateVersion: number;
-  team_size: number;
-  players: Player[];
+  teamSize: number;
+  players: PlayerInPool[];
   isBalanced: boolean;
-  updated_at: string; // For checking "Undo" eligibility
-  match_date: string;
+  updatedAt: string;
+  matchDate: string;
 }
 
 /**
@@ -36,15 +28,8 @@ interface MatchState {
  * @param matchId The ID of the match being managed.
  */
 export const useMatchState = (matchId: number | string) => {
-  const [matchData, setMatchData] = useState<MatchState>({ 
-    state: 'Loading', 
-    stateVersion: 0, 
-    team_size: 0, 
-    players: [],
-    isBalanced: false,
-    updated_at: new Date().toISOString(),
-    match_date: '',
-  });
+  const [matchData, setMatchData] = useState<MatchData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
 
@@ -54,29 +39,31 @@ export const useMatchState = (matchId: number | string) => {
   };
 
   const fetchMatchState = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      setError(null);
       const response = await fetch(`/api/admin/upcoming-matches?matchId=${matchId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch match data');
-      }
       const result = await response.json();
-      if (result.success) {
-        setMatchData({
+
+      if (result.success && result.data) {
+        const transformedData: MatchData = {
           state: result.data.state,
           stateVersion: result.data.state_version,
-          team_size: result.data.team_size,
+          teamSize: result.data.team_size,
           players: result.data.players || [],
-          isBalanced: result.data.is_balanced || false,
-          updated_at: result.data.updated_at,
-          match_date: result.data.match_date,
-        });
+          isBalanced: result.data.is_balanced,
+          updatedAt: result.data.updated_at,
+          matchDate: result.data.match_date,
+        };
+        setMatchData(transformedData);
       } else {
         throw new Error(result.error || 'Unknown error fetching match data');
       }
     } catch (err: any) {
       setError(err.message);
-      setMatchData(prev => ({ ...prev, state: 'Draft' })); // Fallback state
+      setMatchData(null);
+    } finally {
+      setIsLoading(false);
     }
   }, [matchId]);
 
@@ -93,7 +80,7 @@ export const useMatchState = (matchId: number | string) => {
       if (method === 'ability') {
         response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, { method: 'POST' });
       } else if (method === 'performance') {
-        const playerIds = matchData.players.map(p => p.player_id);
+        const playerIds = matchData?.players.map(p => p.id) || [];
         response = await fetch(`/api/admin/balance-by-past-performance`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -114,11 +101,11 @@ export const useMatchState = (matchId: number | string) => {
       setError(err.message);
       throw err; // Re-throw to allow component to handle loading state
     }
-  }, [matchId, matchData.players, fetchMatchState]);
+  }, [matchId, matchData?.players, fetchMatchState]);
 
   const createApiAction = (url: string, method: 'PATCH' | 'POST') => async (actionBody?: Record<string, any>) => {
     try {
-      const finalBody = { ...actionBody, state_version: matchData.stateVersion };
+      const finalBody = { ...actionBody, state_version: matchData?.stateVersion || 0 };
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -140,8 +127,6 @@ export const useMatchState = (matchId: number | string) => {
           onClick: () => createApiAction(`/api/admin/upcoming-matches/${matchId}/undo`, 'PATCH')()
         });
         await fetch('/api/admin/trigger-stats-update', { method: 'POST' });
-      } else {
-        showToast(responseData.message || 'Action successful!', 'success');
       }
 
       await fetchMatchState();
@@ -152,6 +137,7 @@ export const useMatchState = (matchId: number | string) => {
   };
 
   const can = useCallback((action: 'unlockPool' | 'unlockTeams' | 'undoComplete') => {
+    if (!matchData) return false;
     const { state } = matchData;
     switch (action) {
       case 'unlockPool':
@@ -159,22 +145,18 @@ export const useMatchState = (matchId: number | string) => {
       case 'unlockTeams':
         return state === 'TeamsBalanced';
       case 'undoComplete':
-        return state === 'Completed'; // Removed 48h check
+        return state === 'Completed';
       default:
         return false;
     }
   }, [matchData]);
 
   return {
-    state: matchData.state,
-    stateVersion: matchData.stateVersion,
-    teamSize: matchData.team_size,
-    players: matchData.players,
-    isBalanced: matchData.isBalanced,
-    matchDate: matchData.match_date,
+    isLoading,
     error,
     toast,
     can,
+    matchData,
     actions: {
       lockPool: createApiAction(`/api/admin/upcoming-matches/${matchId}/lock-pool`, 'PATCH'),
       confirmTeams: createApiAction(`/api/admin/upcoming-matches/${matchId}/confirm-teams`, 'PATCH'),

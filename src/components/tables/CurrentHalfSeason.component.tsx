@@ -4,39 +4,7 @@ import Link from 'next/link';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
-
-interface PlayerStats {
-  name: string;
-  player_id: number;
-  games_played: number;
-  wins: number;
-  draws: number;
-  losses: number;
-  goals: number;
-  heavy_wins: number;
-  heavy_losses: number;
-  clean_sheets: number;
-  win_percentage: number;
-  fantasy_points: number;
-  points_per_game: number;
-  selected_club?: {
-    name: string;
-    filename: string;
-  } | null;
-}
-
-interface GoalStats {
-  name: string;
-  player_id: number;
-  total_goals: number;
-  minutes_per_goal: number;
-  last_five_games: string;
-  max_goals_in_game: number;
-  selected_club?: {
-    name: string;
-    filename: string;
-  } | null;
-}
+import { PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
 
 interface FormData {
   name: string;
@@ -44,8 +12,8 @@ interface FormData {
 }
 
 interface StatsData {
-  seasonStats: PlayerStats[];
-  goalStats: GoalStats[];
+  seasonStats: PlayerWithStats[];
+  goalStats: PlayerWithGoalStats[];
   formData: FormData[];
 }
 
@@ -74,8 +42,8 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   const tableRef = useRef<HTMLDivElement>(null);
 
   // NEW: State for special player IDs and config
-  const [onFirePlayerId, setOnFirePlayerId] = useState<number | null>(null);
-  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<number | null>(null);
+  const [onFirePlayerId, setOnFirePlayerId] = useState<string | null>(null);
+  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
   const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
   const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
 
@@ -124,7 +92,8 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
 
       if (!statsResponse.ok) throw new Error('Failed to fetch stats');
       const statsData = await statsResponse.json();
-      // Ensure we have valid data structure even if the API returns unexpected format
+
+      // No longer need to transform API data. The API now returns canonical types.
       setStats({
         seasonStats: statsData?.data?.seasonStats || [],
         goalStats: statsData?.data?.goalStats || [],
@@ -172,7 +141,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
     setActiveTab(initialView === 'goals' ? 'goals' : 'stats');
   }, [initialView]);
 
-  const renderPlayerName = (playerId: number, name: string) => (
+  const renderPlayerName = (playerId: string, name: string) => (
     <Link href={`/players/${playerId}`} className="hover:underline">
       <div className="flex items-center">
         <span>{name}</span>
@@ -217,7 +186,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
           <tbody>
             {stats.seasonStats.map((player, index) => {
               const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
-              const losses = player.games_played - player.wins - player.draws;
+              const losses = player.gamesPlayed - player.wins - player.draws;
               return (
                 <tr key={index} className="hover:bg-gray-50">
                   {/* Sticky Data */}
@@ -226,10 +195,10 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
                   </td>
                   <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
                     {/* Placeholder Icon */}
-                    {player.selected_club ? (
+                    {player.club ? (
                       <img
-                        src={`/club-logos-40px/${player.selected_club.filename}`}
-                        alt={player.selected_club.name}
+                        src={`/club-logos-40px/${player.club.filename}`}
+                        alt={player.club.name}
                         className="w-8 h-8"
                       />
                     ) : (
@@ -242,16 +211,16 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
                     <div className="flex px-2 py-1">
                       <div className="flex flex-col justify-center">
                         <h6 className="mb-0 leading-normal text-sm">
-                          {renderPlayerName(player.player_id, player.name)}
+                          {renderPlayerName(player.id, player.name)}
                         </h6>
                       </div>
                     </div>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasy_points}</p>
+                    <p className="mb-0 font-semibold leading-normal text-sm">{player.fantasyPoints}</p>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.games_played}</span>
+                    <span className="font-normal leading-normal text-sm">{player.gamesPlayed}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{player.wins}</span>
@@ -266,16 +235,16 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
                     <span className="font-normal leading-normal text-sm">{player.goals}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.heavy_wins}</span>
+                    <span className="font-normal leading-normal text-sm">{player.heavyWins}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.heavy_losses}</span>
+                    <span className="font-normal leading-normal text-sm">{player.heavyLosses}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.clean_sheets}</span>
+                    <span className="font-normal leading-normal text-sm">{player.cleanSheets}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.winPercentage)}%</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <div className="flex justify-center gap-2">
@@ -326,7 +295,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
           </thead>
           <tbody>
             {stats.goalStats
-              .filter(player => player.total_goals > 0)
+              .filter(player => player.totalGoals > 0)
               .map((player, index) => (
               <tr key={index} className="hover:bg-gray-50">
                 {/* Sticky Data */}
@@ -335,10 +304,10 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
                 </td>
                 <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
                   {/* Placeholder Icon */}
-                  {player.selected_club ? (
+                  {player.club ? (
                     <img
-                      src={`/club-logos-40px/${player.selected_club.filename}`}
-                      alt={player.selected_club.name}
+                      src={`/club-logos-40px/${player.club.filename}`}
+                      alt={player.club.name}
                       className="w-8 h-8"
                     />
                   ) : (
@@ -351,22 +320,22 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
                   <div className="flex px-2 py-1">
                     <div className="flex flex-col justify-center">
                       <h6 className="mb-0 leading-normal text-sm">
-                        {renderPlayerName(player.player_id, player.name)}
+                        {renderPlayerName(player.id, player.name)}
                       </h6>
                     </div>
                   </div>
                 </td>
                 <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <span className="font-semibold leading-normal text-sm">{player.total_goals}</span>
+                  <span className="font-semibold leading-normal text-sm">{player.totalGoals}</span>
                 </td>
                 <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                  <span className={`leading-normal text-sm ${player.total_goals > 0 && player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
-                    {player.minutes_per_goal}
+                  <span className={`leading-normal text-sm ${player.totalGoals > 0 && player.minutesPerGoal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
+                    {player.minutesPerGoal}
                   </span>
                 </td>
                 <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                   <div className="flex justify-center gap-2">
-                    {player.last_five_games?.split(',').map((goals, i) => {
+                    {player.lastFiveGames?.split(',').map((goals, i) => {
                       const goalCount = parseInt(goals);
                       return (
                         <span 

@@ -3,45 +3,16 @@ import Card from '@/components/ui-kit/Card.component';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 import Button from '@/components/ui-kit/Button.component';
 import PlayerFormModal from './PlayerFormModal.component';
-import ClubSelector, { Club } from './ClubSelector.component';
+import ClubSelector from './ClubSelector.component';
+import { Club, PlayerProfile } from '@/types/player.types';
+import { PlayerFormData } from '@/types/team-algorithm.types';
 
-// Import the AttributeKey type
-type AttributeKey = 'goalscoring' | 'defender' | 'stamina_pace' | 'control' | 'teamwork' | 'resilience';
-
-interface Player {
-  player_id: string;
-  name: string;
-  is_ringer: boolean;
-  is_retired: boolean;
-  goalscoring: number;
-  defender: number;
-  stamina_pace: number;
-  control: number;
-  teamwork: number;
-  resilience: number;
+// Extend PlayerProfile to include matches_played for this component's context
+type PlayerWithMatchCount = PlayerProfile & {
   matches_played: number;
-  selected_club?: Club | null;
-}
+};
 
-interface FormData {
-  name: string;
-  is_ringer: boolean;
-  is_retired: boolean;
-  goalscoring: number;
-  defender: number;
-  stamina_pace: number;
-  control: number;
-  teamwork: number;
-  resilience: number;
-  selected_club?: Club | null;
-}
-
-interface EditableRowData {
-  name: string;
-  is_ringer: boolean;
-  is_retired: boolean;
-  selected_club?: Club | null;
-}
+type EditableRowData = Pick<PlayerProfile, 'name' | 'isRinger' | 'isRetired' | 'club'>;
 
 interface SortConfig {
   key: string;
@@ -56,7 +27,7 @@ const DefaultPlayerIcon = () => (
 );
 
 const PlayerManager: React.FC = () => {
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<PlayerWithMatchCount[]>([]);
   const [showRetired, setShowRetired] = useState<boolean>(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: 'status',
@@ -66,7 +37,7 @@ const PlayerManager: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [showPlayerModal, setShowPlayerModal] = useState<boolean>(false);
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithMatchCount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<EditableRowData | null>(null);
@@ -82,7 +53,12 @@ const PlayerManager: React.FC = () => {
       const response = await fetch('/api/admin/players?include_match_counts=true');
       const data = await response.json();
       if (data.data) {
-        setPlayers(data.data);
+        // The transform should handle this, but as a fallback, ensure IDs are strings
+        const transformedData = data.data.map((p: any) => ({
+          ...p,
+          id: String(p.id || p.player_id),
+        }));
+        setPlayers(transformedData);
       }
     } catch (error) {
       setError('Failed to fetch players');
@@ -100,11 +76,14 @@ const PlayerManager: React.FC = () => {
       const url = '/api/admin/players';
       const method = isEditing ? 'PUT' : 'POST';
       
+      // The form gives us camelCase, the API expects snake_case for some fields
       const apiFormData = {
         ...formData,
-        defender: formData.defending,
-        player_id: isEditing ? selectedPlayer.player_id : undefined,
-        selected_club: formData.selected_club,
+        player_id: isEditing ? selectedPlayer.id : undefined,
+        is_ringer: formData.isRinger,
+        is_retired: formData.isRetired,
+        stamina_pace: formData.staminaPace,
+        selected_club: formData.club,
       };
 
       const response = await fetch(url, {
@@ -144,16 +123,16 @@ const PlayerManager: React.FC = () => {
     setSortConfig({ key, direction });
   };
 
-  const sortPlayers = (playersToSort: Player[]): Player[] => {
+  const sortPlayers = (playersToSort: PlayerWithMatchCount[]): PlayerWithMatchCount[] => {
     return [...playersToSort].sort((a, b) => {
       if (sortConfig.key === 'status') {
         // Sort by status (active first) then by name
-        if (a.is_retired === b.is_retired) {
+        if (a.isRetired === b.isRetired) {
           return a.name.localeCompare(b.name);
         }
         return sortConfig.direction === 'asc' 
-          ? (a.is_retired === true ? 1 : -1)
-          : (a.is_retired === true ? -1 : 1);
+          ? (a.isRetired === true ? 1 : -1)
+          : (a.isRetired === true ? -1 : 1);
       }
       
       if (sortConfig.key === 'name') {
@@ -164,12 +143,12 @@ const PlayerManager: React.FC = () => {
       
       if (sortConfig.key === 'ringer') {
         // Sort by ringer status
-        if (a.is_ringer === b.is_ringer) {
+        if (a.isRinger === b.isRinger) {
           return a.name.localeCompare(b.name);
         }
         return sortConfig.direction === 'asc'
-          ? (a.is_ringer === true ? 1 : -1)
-          : (a.is_ringer === true ? -1 : 1);
+          ? (a.isRinger === true ? 1 : -1)
+          : (a.isRinger === true ? -1 : 1);
       }
       
       if (sortConfig.key === 'played') {
@@ -199,18 +178,18 @@ const PlayerManager: React.FC = () => {
 
   const filteredPlayers = sortPlayers(players).filter(player => {
     const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRetiredFilter = showRetired ? true : !player.is_retired;
+    const matchesRetiredFilter = showRetired ? true : !player.isRetired;
     return matchesSearch && matchesRetiredFilter;
   });
 
   // Handlers for inline editing
-  const handleEditStart = (player: Player): void => {
-    setEditingId(player.player_id);
+  const handleEditStart = (player: PlayerWithMatchCount): void => {
+    setEditingId(player.id);
     setEditData({
       name: player.name,
-      is_ringer: player.is_ringer,
-      is_retired: player.is_retired,
-      selected_club: player.selected_club || null,
+      isRinger: player.isRinger,
+      isRetired: player.isRetired,
+      club: player.club || null,
     });
     setInlineEditError(null); // Clear previous inline edit errors
     setError(''); // Clear general component errors too
@@ -237,7 +216,7 @@ const PlayerManager: React.FC = () => {
       return;
     }
     
-    const originalPlayer = players.find(p => p.player_id === editingId);
+    const originalPlayer = players.find(p => p.id === editingId);
     if (!originalPlayer) {
         setInlineEditError("Original player data not found. Cannot save.");
         return;
@@ -248,20 +227,18 @@ const PlayerManager: React.FC = () => {
       
       // Construct payload, ensuring all required fields for the API are present
       const payload = {
-        player_id: editingId,
+        player_id: editingId, // API expects player_id as a string for identification
         name: editData.name,
-        is_ringer: editData.is_ringer,
-        is_retired: editData.is_retired,
-        selected_club: editData.selected_club, // This will be object or null
+        is_ringer: editData.isRinger,
+        is_retired: editData.isRetired,
+        selected_club: editData.club,
         // Preserve existing rating attributes from the original player data
         goalscoring: originalPlayer.goalscoring,
-        defender: originalPlayer.defender, // API expects 'defender'
-        stamina_pace: originalPlayer.stamina_pace,
+        defender: originalPlayer.defending, 
+        stamina_pace: originalPlayer.staminaPace,
         control: originalPlayer.control,
         teamwork: originalPlayer.teamwork,
         resilience: originalPlayer.resilience,
-        // Ensure any other fields expected by the API but not in editData are included from originalPlayer
-        // For example, if join_date was mutable or important: join_date: originalPlayer.join_date 
       };
 
       const response = await fetch('/api/admin/players', {
@@ -281,19 +258,14 @@ const PlayerManager: React.FC = () => {
       const updatedPlayerFromAPI = responseData.data;
 
       setPlayers(players.map(p => 
-        p.player_id === editingId ? 
+        p.id === editingId ? 
         {
-          ...originalPlayer, // Spread original player to retain any non-API returned fields (e.g., matches_played if not returned by this PUT)
-          ...updatedPlayerFromAPI, // Overlay with what the API returned (should be the most up-to-date)
-          selected_club: updatedPlayerFromAPI.selected_club ? { 
-            // Ensure selected_club is an object with the correct structure, or null
-            id: updatedPlayerFromAPI.selected_club.id,
-            name: updatedPlayerFromAPI.selected_club.name,
-            filename: updatedPlayerFromAPI.selected_club.filename,
-            search: updatedPlayerFromAPI.selected_club.search,
-            league: updatedPlayerFromAPI.selected_club.league,
-            country: updatedPlayerFromAPI.selected_club.country,
-          } : null,
+          ...originalPlayer,
+          ...updatedPlayerFromAPI,
+          id: String(updatedPlayerFromAPI.id || updatedPlayerFromAPI.player_id),
+          isRinger: updatedPlayerFromAPI.is_ringer,
+          isRetired: updatedPlayerFromAPI.is_retired,
+          club: updatedPlayerFromAPI.selected_club || null,
         } 
         : p
       ));
@@ -315,13 +287,13 @@ const PlayerManager: React.FC = () => {
     }
   };
 
-  const renderEditableRow = (player: Player): JSX.Element => {
+  const renderEditableRow = (player: PlayerWithMatchCount): JSX.Element => {
     if (!editData) return <></>;
     
     const isSaveDisabled = isLoading || !editData.name.trim() || editData.name.length > 14 || !!inlineEditError;
 
     return (
-      <tr key={player.player_id} className="bg-gradient-to-r from-fuchsia-50 to-slate-50">
+      <tr key={player.id} className="bg-gradient-to-r from-fuchsia-50 to-slate-50">
         <td className="p-2 align-middle bg-transparent border-b">
           <div className="flex flex-col px-2 py-1">
             <input
@@ -348,24 +320,24 @@ const PlayerManager: React.FC = () => {
         </td>
         <td className="p-2 align-middle bg-transparent border-b">
            <ClubSelector
-                value={editData.selected_club || null}
+                value={editData.club || null}
                 onChange={(club) => {
-                  setEditData({ ...editData, selected_club: club });
+                  setEditData({ ...editData, club: club });
                 }}
             />
         </td>
         <td className="p-2 text-center align-middle bg-transparent border-b">
           <button
-            onClick={() => setEditData({ ...editData, is_retired: !editData.is_retired })}
-            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.is_retired ? 'bg-gradient-to-tl from-red-600 to-rose-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
-            {editData.is_retired ? 'Retired' : 'Active'}
+            onClick={() => setEditData({ ...editData, isRetired: !editData.isRetired })}
+            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.isRetired ? 'bg-gradient-to-tl from-red-600 to-rose-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            {editData.isRetired ? 'Retired' : 'Active'}
           </button>
         </td>
         <td className="p-2 text-center align-middle bg-transparent border-b">
           <button
-            onClick={() => setEditData({ ...editData, is_ringer: !editData.is_ringer })}
-            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.is_ringer ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
-            {editData.is_ringer ? 'YES' : 'NO'}
+            onClick={() => setEditData({ ...editData, isRinger: !editData.isRinger })}
+            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.isRinger ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            {editData.isRinger ? 'YES' : 'NO'}
           </button>
         </td>
         <td className="p-2 text-center align-middle bg-transparent border-b">
@@ -496,10 +468,10 @@ const PlayerManager: React.FC = () => {
               </tr>
             ) : (
               filteredPlayers.map(player => (
-                editingId === player.player_id 
+                editingId === player.id 
                   ? renderEditableRow(player)
                   : (
-                    <tr key={player.player_id}>
+                    <tr key={player.id}>
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                         <div className="flex px-2 py-1">
                           <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
@@ -507,12 +479,12 @@ const PlayerManager: React.FC = () => {
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b text-center">
                         <div className="flex justify-center items-center">
-                          {player.selected_club ? (
+                          {player.club ? (
                             <img 
-                              src={`/club-logos-40px/${player.selected_club.filename}`} 
-                              alt={player.selected_club.name} 
+                              src={`/club-logos-40px/${player.club.filename}`} 
+                              alt={player.club.name} 
                               className="h-6 w-6" 
-                              title={player.selected_club.name}
+                              title={player.club.name}
                             />
                           ) : (
                             <DefaultPlayerIcon />
@@ -520,13 +492,13 @@ const PlayerManager: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.is_retired ? 'bg-slate-300 text-slate-700' : 'bg-gradient-to-tl from-green-600 to-lime-400 text-white'}`}>
-                          {player.is_retired ? 'RETIRED' : 'ACTIVE'}
+                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRetired ? 'bg-slate-300 text-slate-700' : 'bg-gradient-to-tl from-green-600 to-lime-400 text-white'}`}>
+                          {player.isRetired ? 'RETIRED' : 'ACTIVE'}
                         </span>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.is_ringer ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                          {player.is_ringer ? 'YES' : 'NO'}
+                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRinger ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                          {player.isRinger ? 'YES' : 'NO'}
                         </span>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
@@ -561,16 +533,16 @@ const PlayerManager: React.FC = () => {
         isProcessing={isSubmitting}
         initialData={selectedPlayer ? {
           name: selectedPlayer.name,
-          is_ringer: selectedPlayer.is_ringer,
-          is_retired: selectedPlayer.is_retired,
+          isRinger: selectedPlayer.isRinger,
+          isRetired: selectedPlayer.isRetired,
           goalscoring: selectedPlayer.goalscoring,
-          defending: selectedPlayer.defender,
-          stamina_pace: selectedPlayer.stamina_pace,
+          defending: selectedPlayer.defending,
+          staminaPace: selectedPlayer.staminaPace,
           control: selectedPlayer.control,
           teamwork: selectedPlayer.teamwork,
           resilience: selectedPlayer.resilience,
-          selected_club: selectedPlayer.selected_club,
-        } : {is_ringer: true, goalscoring: 3, defending: 3, stamina_pace: 3, control: 3, teamwork: 3, resilience: 3, selected_club: null}}
+          club: selectedPlayer.club,
+        } : {isRinger: true, goalscoring: 3, defending: 3, staminaPace: 3, control: 3, teamwork: 3, resilience: 3, club: null}}
         title={selectedPlayer ? "Edit Player" : "Add New Player"}
         submitButtonText={selectedPlayer ? "Save Changes" : "Create Player"}
       />

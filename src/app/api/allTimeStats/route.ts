@@ -2,12 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
-
-const serializeData = (data: any) => {
-  return JSON.parse(JSON.stringify(data, (_, value) =>
-    typeof value === 'bigint' ? Number(value) : value
-  ));
-};
+import { toPlayerWithStats } from '@/lib/transform/player.transform';
 
 // Define a function to fetch and cache the data
 const getAllTimeStats = unstable_cache(
@@ -28,30 +23,12 @@ const getAllTimeStats = unstable_cache(
       },
     });
 
-    if (preAggregatedData.length > 0) {
-      const allTimeStats = preAggregatedData.map(stat => ({
-        name: stat.player.name,
-        is_retired: stat.player.is_retired,
-        selected_club: stat.player.selected_club,
-        games_played: stat.games_played,
-        wins: stat.wins,
-        draws: stat.draws,
-        losses: stat.losses,
-        goals: stat.goals,
-        win_percentage: stat.win_percentage,
-        minutes_per_goal: stat.minutes_per_goal,
-        heavy_wins: stat.heavy_wins,
-        heavy_win_percentage: stat.heavy_win_percentage,
-        heavy_losses: stat.heavy_losses,
-        heavy_loss_percentage: stat.heavy_loss_percentage,
-        clean_sheets: stat.clean_sheets,
-        clean_sheet_percentage: stat.clean_sheet_percentage,
-        fantasy_points: stat.fantasy_points,
-        points_per_game: stat.points_per_game,
-      }));
-      return serializeData(allTimeStats);
-    }
-    return [];
+    const allTimeStats = preAggregatedData.map(stat => {
+      const dbPlayer = { ...stat, ...stat.player };
+      return toPlayerWithStats(dbPlayer);
+    });
+
+    return allTimeStats;
   },
   ['all_time_stats'], // Unique key for this cache entry
   {

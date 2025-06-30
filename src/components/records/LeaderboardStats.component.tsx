@@ -1,47 +1,19 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-interface PlayerStats {
-  name: string;
-  games_played: number;
-  wins: number;
-  draws: number;
-  losses: number;
-  goals: number;
-  win_percentage: number;
-  minutes_per_goal: number;
-  heavy_wins: number;
-  heavy_win_percentage: number;
-  heavy_losses: number;
-  heavy_loss_percentage: number;
-  clean_sheets: number;
-  clean_sheet_percentage: number;
-  fantasy_points: number;
-  points_per_game: number;
-  is_retired?: boolean;
-  selected_club?: {
-    name: string;
-    filename: string;
-  } | null;
-}
+import { PlayerWithStats, PlayerProfile, Club } from '@/types/player.types';
 
 interface SortConfig {
-  key: keyof PlayerStats;
+  key: keyof PlayerWithStats;
   direction: 'asc' | 'desc';
 }
 
-interface PlayerWithNameAndId {
-  id: number;
-  name: string;
-}
-
 const LeaderboardStats: React.FC = () => {
-  const [stats, setStats] = useState<PlayerStats[]>([]);
-  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
+  const [stats, setStats] = useState<PlayerWithStats[]>([]);
+  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [sortConfig, setSortConfig] = useState<SortConfig>({
-    key: 'fantasy_points',
+    key: 'fantasyPoints',
     direction: 'desc'
   });
 
@@ -55,11 +27,13 @@ const LeaderboardStats: React.FC = () => {
 
         const result = await statsResponse.json();
         if (result.data) {
+          // No transformation needed, API provides canonical PlayerWithStats
           setStats(result.data);
         }
 
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
+          // No transformation needed, API provides canonical PlayerProfile
           setAllPlayers(playersData.data || []);
         } else {
           console.warn('Failed to fetch players for LeaderboardStats component');
@@ -76,7 +50,7 @@ const LeaderboardStats: React.FC = () => {
     fetchData();
   }, []);
 
-  const sortData = (key: keyof PlayerStats) => {
+  const sortData = (key: keyof PlayerWithStats) => {
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfig.key === key && sortConfig.direction === 'desc') {
       direction = 'asc';
@@ -84,16 +58,14 @@ const LeaderboardStats: React.FC = () => {
     setSortConfig({ key, direction });
 
     const sortedData = [...stats].sort((a, b) => {
-      // Handle null or undefined values
       if (a[key] === null || a[key] === undefined) return 1;
       if (b[key] === null || b[key] === undefined) return -1;
 
-      // Numerical fields: always convert to numbers for comparison
-      const numericFields: (keyof PlayerStats)[] = [
-        'fantasy_points', 'games_played', 'wins', 'draws', 'losses', 
-        'goals', 'win_percentage', 'minutes_per_goal', 'heavy_wins', 
-        'heavy_win_percentage', 'heavy_losses', 'heavy_loss_percentage', 
-        'clean_sheets', 'clean_sheet_percentage', 'points_per_game'
+      const numericFields: (keyof PlayerWithStats)[] = [
+        'fantasyPoints', 'gamesPlayed', 'wins', 'draws', 'losses', 
+        'goals', 'winPercentage', 'minutesPerGoal', 'heavyWins', 
+        'heavyWinPercentage', 'heavyLosses', 'heavyLossPercentage', 
+        'cleanSheets', 'cleanSheetPercentage', 'pointsPerGame'
       ];
       
       if (numericFields.includes(key)) {
@@ -102,7 +74,6 @@ const LeaderboardStats: React.FC = () => {
         return direction === 'asc' ? valueA - valueB : valueB - valueA;
       }
       
-      // String fields
       if (typeof a[key] === 'string' && typeof b[key] === 'string') {
         const valueA = (a[key] as string).toLowerCase();
         const valueB = (b[key] as string).toLowerCase();
@@ -113,17 +84,16 @@ const LeaderboardStats: React.FC = () => {
         return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
       }
       
-      // Boolean and other types
       if (direction === 'asc') {
-        return a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0;
+        return (a[key] as any) > (b[key] as any) ? 1 : (a[key] as any) < (b[key] as any) ? -1 : 0;
       }
-      return a[key] < b[key] ? 1 : a[key] > b[key] ? -1 : 0;
+      return (a[key] as any) < (b[key] as any) ? 1 : (a[key] as any) > (b[key] as any) ? -1 : 0;
     });
     
     setStats(sortedData);
   };
 
-  const getSortIndicator = (key: keyof PlayerStats) => {
+  const getSortIndicator = (key: keyof PlayerWithStats) => {
     if (sortConfig.key === key) {
       return (
         <span className="ml-1 text-slate-700">
@@ -134,7 +104,7 @@ const LeaderboardStats: React.FC = () => {
     return null;
   };
 
-  const getPlayerIdByName = (name: string): number | undefined => {
+  const getPlayerIdByName = (name: string): string | undefined => {
     const player = allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase());
     return player?.id;
   };
@@ -173,16 +143,16 @@ const LeaderboardStats: React.FC = () => {
               </th>
               {/* Scrollable Headers */}
               <th 
-                onClick={() => sortData('fantasy_points')}
+                onClick={() => sortData('fantasyPoints')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
               >
-                Pts {getSortIndicator('fantasy_points')}
+                Pts {getSortIndicator('fantasyPoints')}
               </th>
               <th 
-                onClick={() => sortData('games_played')}
+                onClick={() => sortData('gamesPlayed')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
               >
-                P {getSortIndicator('games_played')}
+                P {getSortIndicator('gamesPlayed')}
               </th>
               <th 
                 onClick={() => sortData('wins')}
@@ -209,69 +179,69 @@ const LeaderboardStats: React.FC = () => {
                 G {getSortIndicator('goals')}
               </th>
               <th 
-                onClick={() => sortData('win_percentage')}
+                onClick={() => sortData('winPercentage')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
               >
-                Win% {getSortIndicator('win_percentage')}
+                Win% {getSortIndicator('winPercentage')}
               </th>
               <th 
-                onClick={() => sortData('minutes_per_goal')}
+                onClick={() => sortData('minutesPerGoal')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
               >
-                MPG {getSortIndicator('minutes_per_goal')}
+                MPG {getSortIndicator('minutesPerGoal')}
               </th>
               <th 
-                onClick={() => sortData('heavy_wins')}
+                onClick={() => sortData('heavyWins')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
               >
-                HW {getSortIndicator('heavy_wins')}
+                HW {getSortIndicator('heavyWins')}
               </th>
               <th 
-                onClick={() => sortData('heavy_win_percentage')}
+                onClick={() => sortData('heavyWinPercentage')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
               >
-                HW% {getSortIndicator('heavy_win_percentage')}
+                HW% {getSortIndicator('heavyWinPercentage')}
               </th>
               <th 
-                onClick={() => sortData('heavy_losses')}
+                onClick={() => sortData('heavyLosses')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
               >
-                HL {getSortIndicator('heavy_losses')}
+                HL {getSortIndicator('heavyLosses')}
               </th>
               <th 
-                onClick={() => sortData('heavy_loss_percentage')}
+                onClick={() => sortData('heavyLossPercentage')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
               >
-                HL% {getSortIndicator('heavy_loss_percentage')}
+                HL% {getSortIndicator('heavyLossPercentage')}
               </th>
               <th 
-                onClick={() => sortData('clean_sheets')}
+                onClick={() => sortData('cleanSheets')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[40px]"
               >
-                CS {getSortIndicator('clean_sheets')}
+                CS {getSortIndicator('cleanSheets')}
               </th>
               <th 
-                onClick={() => sortData('clean_sheet_percentage')}
+                onClick={() => sortData('cleanSheetPercentage')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
               >
-                CS% {getSortIndicator('clean_sheet_percentage')}
+                CS% {getSortIndicator('cleanSheetPercentage')}
               </th>
               <th 
-                onClick={() => sortData('points_per_game')}
+                onClick={() => sortData('pointsPerGame')}
                 className="px-6 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-pointer hover:text-slate-700 min-w-[50px]"
               >
-                PPG {getSortIndicator('points_per_game')}
+                PPG {getSortIndicator('pointsPerGame')}
               </th>
             </tr>
           </thead>
           <tbody>
             {stats.map((player, index) => {
-              const isRetired = player.is_retired;
+              const isRetired = player.isRetired;
               const wins = player.wins || 0;
-              const losses = (player.games_played || 0) - (player.wins || 0) - (player.draws || 0);
-              const heavyWins = player.heavy_wins || 0;
-              const heavyLosses = player.heavy_losses || 0;
-              const cleanSheets = player.clean_sheets || 0;
+              const losses = (player.gamesPlayed || 0) - (player.wins || 0) - (player.draws || 0);
+              const heavyWins = player.heavyWins || 0;
+              const heavyLosses = player.heavyLosses || 0;
+              const cleanSheets = player.cleanSheets || 0;
               const playerId = getPlayerIdByName(player.name);
 
               return (
@@ -281,10 +251,10 @@ const LeaderboardStats: React.FC = () => {
                     <span className="font-normal leading-normal text-sm">{index + 1}</span>
                   </td>
                   <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
-                    {player.selected_club ? (
+                    {player.club ? (
                       <img
-                        src={`/club-logos-40px/${player.selected_club.filename}`}
-                        alt={player.selected_club.name}
+                        src={`/club-logos-40px/${player.club.filename}`}
+                        alt={player.club.name}
                         className="w-8 h-8"
                       />
                     ) : (
@@ -309,10 +279,10 @@ const LeaderboardStats: React.FC = () => {
                     </div>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-semibold leading-normal text-sm">{player.fantasy_points}</span>
+                    <span className="font-semibold leading-normal text-sm">{player.fantasyPoints}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{player.games_played}</span>
+                    <span className="font-normal leading-normal text-sm">{player.gamesPlayed}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{wins}</span>
@@ -327,33 +297,33 @@ const LeaderboardStats: React.FC = () => {
                     <span className="font-normal leading-normal text-sm">{player.goals}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{Math.round(player.win_percentage)}%</span>
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.winPercentage)}%</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className={`leading-normal text-sm ${player.minutes_per_goal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
-                      {Math.round(player.minutes_per_goal)}
+                    <span className={`leading-normal text-sm ${player.minutesPerGoal <= 90 ? 'text-green-500 font-semibold' : ''}`}>
+                      {Math.round(player.minutesPerGoal)}
                     </span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{heavyWins}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{Math.round(player.heavy_win_percentage)}%</span>
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.heavyWinPercentage)}%</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{heavyLosses}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{Math.round(player.heavy_loss_percentage)}%</span>
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.heavyLossPercentage)}%</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">{cleanSheets}</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{Math.round(player.clean_sheet_percentage)}%</span>
+                    <span className="font-normal leading-normal text-sm">{Math.round(player.cleanSheetPercentage)}%</span>
                   </td>
                   <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
-                    <span className="font-normal leading-normal text-sm">{parseFloat(String(player.points_per_game)).toFixed(1)}</span>
+                    <span className="font-normal leading-normal text-sm">{parseFloat(String(player.pointsPerGame)).toFixed(1)}</span>
                   </td>
                 </tr>
               );

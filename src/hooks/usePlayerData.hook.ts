@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Player } from '@/types/team-algorithm.types';
+import { PlayerProfile } from '@/types/player.types';
+import { PlayerFormData } from '@/types/team-algorithm.types';
 import { API_ENDPOINTS } from '@/constants/team-algorithm.constants';
+import { toPlayerProfile } from '@/lib/transform/player.transform';
 
 export const usePlayerData = () => {
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [isLoadingPlayers, setIsLoadingPlayers] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -19,14 +21,12 @@ export const usePlayerData = () => {
       const data = await response.json();
       if (!data.success) throw new Error(data.error || 'Failed to fetch players');
       
-      // Process players into the format we need
-      const sortedPlayers = data.data
-        .filter((p: any) => !p.is_retired)
-        .map((p: any) => ({
-          id: p.player_id,
-          ...p
-        }))
-        .sort((a: Player, b: Player) => a.name.localeCompare(b.name));
+      // Process players into the canonical format
+      const transformedPlayers = data.data.map(toPlayerProfile);
+      
+      const sortedPlayers = transformedPlayers
+        .filter((p: PlayerProfile) => !p.isRetired)
+        .sort((a: PlayerProfile, b: PlayerProfile) => a.name.localeCompare(b.name));
       
       setPlayers(sortedPlayers);
       return sortedPlayers;
@@ -40,7 +40,7 @@ export const usePlayerData = () => {
   }, []);
   
   // Add a ringer player
-  const addRinger = useCallback(async (ringerData: Omit<Player, 'id'>) => {
+  const addRinger = useCallback(async (ringerData: PlayerFormData) => {
     try {
       setError(null);
       
@@ -60,11 +60,13 @@ export const usePlayerData = () => {
         throw new Error(errorMessage);
       }
       
+      const newPlayer = toPlayerProfile(data.data);
+
       setPlayers(prevPlayers => 
-        [...prevPlayers, data.data].sort((a, b) => a.name.localeCompare(b.name))
+        [...prevPlayers, newPlayer].sort((a, b) => a.name.localeCompare(b.name))
       );
       
-      return data.data;
+      return newPlayer;
     } catch (error) {
       console.error('Error in addRinger (usePlayerData):', error);
       const message = error instanceof Error ? error.message : 'An unexpected error occurred while adding ringer.';

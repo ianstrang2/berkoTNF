@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Player, Slot, Match } from '@/types/team-algorithm.types';
+import { Slot, Match } from '@/types/team-algorithm.types';
+import { PlayerProfile } from '@/types/player.types';
 import { API_ENDPOINTS } from '@/constants/team-algorithm.constants';
 
 export const useDragAndDrop = (
@@ -11,12 +12,12 @@ export const useDragAndDrop = (
   onError: (error: string) => void,
   onSuccess: () => Promise<void>
 ) => {
-  const [draggedItem, setDraggedItem] = useState<{ slotNumber: number; player: Player } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ slotNumber: number; player: PlayerProfile } | null>(null);
   const [highlightedSlot, setHighlightedSlot] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   
   // Handle drag start
-  const handleDragStart = useCallback((slotNumber: number, player: Player) => {
+  const handleDragStart = useCallback((slotNumber: number, player: PlayerProfile) => {
     setDraggedItem({ slotNumber, player });
   }, []);
   

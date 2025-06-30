@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { toPlayerInPool } from '@/lib/transform/player.transform';
 
 // GET: Fetch upcoming matches
 export async function GET(request: NextRequest) {
@@ -16,16 +17,7 @@ export async function GET(request: NextRequest) {
       include: {
         players: {
           include: {
-            player: {
-              select: {
-                name: true,
-                goalscoring: true,
-                stamina_pace: true,
-                control: true,
-                teamwork: true,
-                resilience: true
-              }
-            }
+            player: true
           },
           orderBy: [
             { slot_number: 'asc' },
@@ -43,16 +35,7 @@ export async function GET(request: NextRequest) {
         include: {
           players: {
             include: {
-              player: {
-                select: {
-                  name: true,
-                  goalscoring: true,
-                  stamina_pace: true,
-                  control: true,
-                  teamwork: true,
-                  resilience: true
-                }
-              }
+              player: true
             },
             orderBy: [
               { slot_number: 'asc' },
@@ -66,18 +49,10 @@ export async function GET(request: NextRequest) {
 
       if (activeMatch) {
         // Format the response
+        const { players, ...matchData } = activeMatch;
         formattedMatch = {
-          ...activeMatch,
-          players: activeMatch.players.map(p => ({
-            player_id: p.player_id,
-            match_id: p.upcoming_match_id,
-            upcoming_match_id: p.upcoming_match_id,
-            player_match_id: p.upcoming_player_id,
-            team: p.team,
-            position: p.position,
-            slot_number: p.slot_number,
-            ...p.player
-          }))
+          ...matchData,
+          players: players.map(p => toPlayerInPool(p))
         };
         return new NextResponse(JSON.stringify({ success: true, data: formattedMatch }), {
           headers: {
@@ -101,16 +76,7 @@ export async function GET(request: NextRequest) {
         include: {
           players: {
             include: {
-              player: {
-                select: {
-                  name: true,
-                  goalscoring: true,
-                  stamina_pace: true,
-                  control: true,
-                  teamwork: true,
-                  resilience: true
-                }
-              }
+              player: true
             },
             orderBy: [
               { slot_number: 'asc' },
@@ -125,18 +91,10 @@ export async function GET(request: NextRequest) {
       }
 
       // Format the response
+      const { players, ...matchData } = match;
       formattedMatch = {
-        ...match,
-        players: match.players.map(p => ({
-          player_id: p.player_id,
-          match_id: p.upcoming_match_id,
-          upcoming_match_id: p.upcoming_match_id,
-          player_match_id: p.upcoming_player_id,
-          team: p.team,
-          position: p.position,
-          slot_number: p.slot_number,
-          ...p.player
-        }))
+        ...matchData,
+        players: players.map(p => toPlayerInPool(p))
       };
 
       return NextResponse.json({ success: true, data: formattedMatch });

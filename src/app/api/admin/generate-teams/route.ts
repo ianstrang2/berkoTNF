@@ -1,34 +1,24 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { PlayerProfile } from '@/types/player.types';
+import { toPlayerProfile } from '@/lib/transform/player.transform';
 
-interface Player {
-  player_id: number;
-  name: string;
-  join_date: Date | null;
-  is_ringer: boolean;
-  is_retired: boolean | null;
-  stamina_pace: number | null;
-  control: number | null;
-  goalscoring: number | null;
-  teamwork: number | null;
-  resilience: number | null;
-  slot_number?: number;
-}
+type PlayerWithSlot = PlayerProfile & { slot_number?: number };
 
 interface TeamStats {
   defense: {
-    stamina_pace: number;
+    staminaPace: number;
     control: number;
   };
   midfield: {
     control: number;
     teamwork: number;
-    stamina_pace: number;
+    staminaPace: number;
     goalscoring: number;
   };
   attack: {
     goalscoring: number;
-    stamina_pace: number;
+    staminaPace: number;
     control: number;
   };
   resilience: number;
@@ -36,23 +26,23 @@ interface TeamStats {
 }
 
 // Calculate defender balance score (equal weight between Stamina & Pace, Control, and Resilience)
-const calculateDefenderScore = (player: Player) => ({
-  total: ((player.stamina_pace || 0) + (player.control || 0) + (player.resilience || 0)) / 3,
-  balance: ((player.stamina_pace || 0) + (player.control || 0)) / 2
+const calculateDefenderScore = (player: PlayerProfile) => ({
+  total: (player.staminaPace + player.control + player.resilience) / 3,
+  balance: (player.staminaPace + player.control) / 2
 });
 
 // Calculate attacker balance score (50% Goalscoring, 30% Stamina & Pace, 20% Teamwork)
-const calculateAttackerScore = (player: Player) => ({
-  total: player.goalscoring || 0,
-  balance: (player.goalscoring || 0) * 0.5 + (player.stamina_pace || 0) * 0.3 + (player.teamwork || 0) * 0.2
+const calculateAttackerScore = (player: PlayerProfile) => ({
+  total: player.goalscoring,
+  balance: player.goalscoring * 0.5 + player.staminaPace * 0.3 + player.teamwork * 0.2
 });
 
 // Calculate midfielder balance score (equal weight between Control, Teamwork, and Stamina & Pace)
-const calculateMidfielderScore = (player: Player) => 
-  ((player.control || 0) + (player.teamwork || 0) + (player.stamina_pace || 0)) / 3;
+const calculateMidfielderScore = (player: PlayerProfile) => 
+  (player.control + player.teamwork + player.staminaPace) / 3;
 
 // Calculate position-specific team stats
-const calculateTeamStats = (team: Player[]): TeamStats => {
+const calculateTeamStats = (team: PlayerWithSlot[]): TeamStats => {
   const defenders = team.filter(p => {
     const isDefender = p.slot_number && (p.slot_number <= 3 || (p.slot_number >= 10 && p.slot_number <= 12));
     return isDefender;
@@ -67,7 +57,7 @@ const calculateTeamStats = (team: Player[]): TeamStats => {
   });
 
   // Safely calculate average with fallback to 0
-  const safeAverage = (players: Player[], field: keyof Player) => {
+  const safeAverage = (players: PlayerProfile[], field: keyof PlayerProfile) => {
     if (!players.length) return 0;
     const values = players.map(p => {
       const value = p[field];
@@ -78,18 +68,18 @@ const calculateTeamStats = (team: Player[]): TeamStats => {
 
   return {
     defense: {
-      stamina_pace: safeAverage(defenders, 'stamina_pace'),
+      staminaPace: safeAverage(defenders, 'staminaPace'),
       control: safeAverage(defenders, 'control')
     },
     midfield: {
       control: safeAverage(midfielders, 'control'),
       teamwork: safeAverage(midfielders, 'teamwork'),
-      stamina_pace: safeAverage(midfielders, 'stamina_pace'),
+      staminaPace: safeAverage(midfielders, 'staminaPace'),
       goalscoring: safeAverage(midfielders, 'goalscoring')
     },
     attack: {
       goalscoring: safeAverage(attackers, 'goalscoring'),
-      stamina_pace: safeAverage(attackers, 'stamina_pace'),
+      staminaPace: safeAverage(attackers, 'staminaPace'),
       control: safeAverage(attackers, 'control')
     },
     resilience: safeAverage([...defenders, ...midfielders, ...attackers], 'resilience'),
@@ -98,26 +88,26 @@ const calculateTeamStats = (team: Player[]): TeamStats => {
 };
 
 // Calculate balance score between two teams
-const calculateBalanceScore = (teamA: (Player | null)[], teamB: (Player | null)[]): number => {
-  const statsA = calculateTeamStats(teamA.filter((p): p is Player => p !== null));
-  const statsB = calculateTeamStats(teamB.filter((p): p is Player => p !== null));
+const calculateBalanceScore = (teamA: (PlayerProfile | null)[], teamB: (PlayerProfile | null)[]): number => {
+  const statsA = calculateTeamStats(teamA.filter((p): p is PlayerProfile => p !== null) as PlayerWithSlot[]);
+  const statsB = calculateTeamStats(teamB.filter((p): p is PlayerProfile => p !== null) as PlayerWithSlot[]);
 
   // Calculate differences for each position group
   // Defense: 50% Stamina & Pace, 50% Control
   const defenseDiff = 
-    Math.abs(statsA.defense.stamina_pace - statsB.defense.stamina_pace) * 0.5 +
+    Math.abs(statsA.defense.staminaPace - statsB.defense.staminaPace) * 0.5 +
     Math.abs(statsA.defense.control - statsB.defense.control) * 0.5;
 
   // Midfield: 33.33% each for Control, Stamina & Pace, and Goalscoring
   const midfieldDiff = 
     Math.abs(statsA.midfield.control - statsB.midfield.control) * 0.333 +
-    Math.abs(statsA.midfield.stamina_pace - statsB.midfield.stamina_pace) * 0.333 +
+    Math.abs(statsA.midfield.staminaPace - statsB.midfield.staminaPace) * 0.333 +
     Math.abs(statsA.midfield.goalscoring - statsB.midfield.goalscoring) * 0.334;
 
   // Attack: 50% Goalscoring, 25% Stamina & Pace, 25% Control
   const attackDiff = 
     Math.abs(statsA.attack.goalscoring - statsB.attack.goalscoring) * 0.5 +
-    Math.abs(statsA.attack.stamina_pace - statsB.attack.stamina_pace) * 0.25 +
+    Math.abs(statsA.attack.staminaPace - statsB.attack.staminaPace) * 0.25 +
     Math.abs(statsA.attack.control - statsB.attack.control) * 0.25;
 
   // Team Resilience: 20% weight (since it's a team-wide attribute)
@@ -164,14 +154,15 @@ export async function POST(request: Request) {
     }
 
     // Fetch player details
-    const players = await prisma.players.findMany({
+    const playersFromDb = await prisma.players.findMany({
       where: {
         player_id: { in: playerIds }
       }
-    }) as unknown as Player[];  // Cast to our Player interface since we know the shape matches
+    });
+    const players = playersFromDb.map(toPlayerProfile);
 
     console.log('Players found:', players.map(p => ({ 
-      player_id: p.player_id, 
+      id: p.id, 
       name: p.name 
     })));
 
@@ -183,7 +174,7 @@ export async function POST(request: Request) {
     }
 
     // Sort players by their defensive attributes (stamina_pace, control, resilience)
-    const defenderScore = (p: Player) => ((p.stamina_pace || 0) + (p.control || 0) + (p.resilience || 0)) / 3;
+    const defenderScore = (p: PlayerProfile) => (p.staminaPace + p.control + p.resilience) / 3;
     const sortedDefenders = players.sort((a, b) => defenderScore(b) - defenderScore(a));
 
     // First, identify defenders (highest defender scores)
@@ -191,7 +182,7 @@ export async function POST(request: Request) {
 
     // Identify attackers from remaining players (highest goalscoring)
     const remainingAfterDefenders = players.filter(p => 
-      !potentialDefenders.find(d => d.player_id === p.player_id));
+      !potentialDefenders.find(d => d.id === p.id));
     
     const potentialAttackers = remainingAfterDefenders
       .sort((a, b) => (b.goalscoring || 0) - (a.goalscoring || 0))
@@ -199,7 +190,7 @@ export async function POST(request: Request) {
 
     // Rest are midfielders
     const midfielders = remainingAfterDefenders
-      .filter(p => !potentialAttackers.find(a => a.player_id === p.player_id));
+      .filter(p => !potentialAttackers.find(a => a.id === p.id));
 
     let bestSlots: { slot_number: number; player_id: number | null }[] | null = null;
     let bestScore = Infinity;
@@ -213,7 +204,7 @@ export async function POST(request: Request) {
         console.log(`Progress: ${progress}%`);
       }
 
-      const slots: (Player | null)[] = Array(18).fill(null);
+      const slots: (PlayerWithSlot | null)[] = Array(18).fill(null);
       
       // Distribute defenders to slots 1-3 and 10-12
       const shuffledDefenders = shuffleArray([...potentialDefenders]);
@@ -243,8 +234,8 @@ export async function POST(request: Request) {
       });
 
       // Calculate balance score for this combination
-      const teamA = slots.slice(0, 9).filter(Boolean);
-      const teamB = slots.slice(9).filter(Boolean);
+      const teamA = slots.slice(0, 9).filter(Boolean) as PlayerProfile[];
+      const teamB = slots.slice(9).filter(Boolean) as PlayerProfile[];
       const score = calculateBalanceScore(teamA, teamB);
 
       // Update best slots if this combination is better
@@ -252,7 +243,7 @@ export async function POST(request: Request) {
         bestScore = score;
         bestSlots = slots.map((player, index) => ({
           slot_number: index + 1,
-          player_id: player?.player_id || null
+          player_id: player ? Number(player.id) : null
         }));
       }
 

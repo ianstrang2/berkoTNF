@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { PlayerProfile } from '@/types/player.types';
 
 interface StreakHolder {
   name: string;
@@ -56,17 +57,12 @@ interface FeatsData {
   records: Records | null;
 }
 
-interface PlayerWithNameAndId {
-  id: number;
-  name: string;
-}
-
 const Feats: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<FeatsData>({
     records: null
   });
-  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
+  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
   const [playerClubMap, setPlayerClubMap] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
@@ -99,6 +95,7 @@ const Feats: React.FC = () => {
 
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
+          // No transformation needed, API provides canonical PlayerProfile objects.
           setAllPlayers(playersData.data || []);
         } else {
           console.warn('Failed to fetch players for Feats component');
@@ -115,7 +112,7 @@ const Feats: React.FC = () => {
     fetchData();
   }, []);
 
-  const getPlayerIdByName = (name: string): number | undefined => {
+  const getPlayerIdByName = (name: string): string | undefined => {
     if (!name) return undefined;
     const player = allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase().trim());
     return player?.id;

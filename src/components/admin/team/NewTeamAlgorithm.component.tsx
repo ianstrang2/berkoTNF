@@ -11,7 +11,8 @@ import MatchModal from '@/components/team/modals/MatchModal.component';
 import Card from '@/components/ui-kit/Card.component';
 import Button from '@/components/ui-kit/Button.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
-import { NewMatchData as NewMatchDataType, Player, Slot } from '@/types/team-algorithm.types';
+import { NewMatchData as NewMatchDataType, Slot } from '@/types/team-algorithm.types';
+import { PlayerProfile } from '@/types/player.types';
 
 const NewTeamAlgorithm: React.FC = () => {
   // State for balance options modal
@@ -99,13 +100,13 @@ const NewTeamAlgorithm: React.FC = () => {
   };
 
   // Wrapper for handleTogglePlayerInPool
-  const togglePlayerWrapper = (player: Player) => {
+  const togglePlayerWrapper = (player: PlayerProfile) => {
     // const isCurrentlySelected = selectedPoolPlayers.some(p => p.id === player.id); // This logic is now inside the hook
     handleTogglePlayerInPool(player); // Pass the full player object
   };
 
   // Wrapper for getAvailablePlayersFn
-  const getAvailablePlayersWrapper = (slot: Slot): Player[] => {
+  const getAvailablePlayersWrapper = (slot: Slot): PlayerProfile[] => {
     return getAvailablePlayersFn(slot, players); // players is from useTeamAlgorithm hook
   };
   

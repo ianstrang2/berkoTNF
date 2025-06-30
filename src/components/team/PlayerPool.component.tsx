@@ -1,5 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { PlayerPoolProps, Player } from '@/types/team-algorithm.types';
+import { PlayerProfile, PlayerInPool } from '@/types/player.types';
+
+interface PlayerPoolProps {
+  allPlayers: PlayerProfile[];
+  selectedPlayers: PlayerInPool[];
+  onTogglePlayer: (player: PlayerProfile | PlayerInPool) => void;
+  teamSize: number;
+  onBalanceTeams: () => void;
+  isBalancing: boolean;
+  maxPlayers?: number;
+  pendingPlayers?: Set<string>;
+}
 
 const PlayerPool: React.FC<PlayerPoolProps> = ({
   allPlayers,
@@ -21,7 +32,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
     return allPlayers
       .filter(player => 
         // Not retired, matches search term, and not already selected
-        !player.is_retired && 
+        !player.isRetired && 
         player.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
         !selectedPlayers.some(p => p.id === player.id)
       )

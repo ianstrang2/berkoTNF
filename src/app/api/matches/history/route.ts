@@ -71,9 +71,19 @@ export async function POST(request: Request) {
 
     // Calculate win/loss/clean sheet for each player
     const processedPlayers = players.map(player => {
-      const isTeamA = player.team === 'A';
-      const teamScore = isTeamA ? team_a_score : team_b_score;
-      const opposingScore = isTeamA ? team_b_score : team_a_score;
+      let teamScore, opposingScore;
+      
+      if (player.team === 'A') {
+        teamScore = team_a_score;
+        opposingScore = team_b_score;
+      } else if (player.team === 'B') {
+        teamScore = team_b_score;
+        opposingScore = team_a_score;
+      } else {
+        // Ignore players who are not on team A or B
+        return null;
+      }
+
       const scoreDiff = Math.abs(team_a_score - team_b_score);
 
       // Skip retired players
@@ -170,9 +180,19 @@ export async function PUT(request: Request) {
 
     // Calculate win/loss/clean sheet for each player
     const processedPlayers = players.map(player => {
-      const isTeamA = player.team === 'A';
-      const teamScore = isTeamA ? team_a_score : team_b_score;
-      const opposingScore = isTeamA ? team_b_score : team_a_score;
+      let teamScore, opposingScore;
+      
+      if (player.team === 'A') {
+        teamScore = team_a_score;
+        opposingScore = team_b_score;
+      } else if (player.team === 'B') {
+        teamScore = team_b_score;
+        opposingScore = team_a_score;
+      } else {
+        // Ignore players who are not on team A or B
+        return null;
+      }
+      
       const scoreDiff = Math.abs(team_a_score - team_b_score);
 
       // Skip retired players
@@ -295,4 +315,4 @@ export async function DELETE(request: Request) {
       { status: 500 }
     );
   }
-}
+} 

@@ -38,7 +38,7 @@ const MatchListPageContent = () => {
       try {
         const [upcomingRes, historyRes] = await Promise.all([
           fetch('/api/admin/upcoming-matches'),
-          fetch('/api/admin/matches')
+          fetch('/api/matches/history')
         ]);
 
         if (!upcomingRes.ok || !historyRes.ok) {

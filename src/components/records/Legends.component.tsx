@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { PlayerProfile } from '@/types/player.types';
 
 interface Runner {
   name: string;
@@ -87,11 +88,6 @@ interface LegendsData {
   topScorers: TopScorer[];
 }
 
-interface PlayerWithNameAndId {
-  id: number;
-  name: string;
-}
-
 interface LegendsProps {
   initialView?: 'winners' | 'scorers';
 }
@@ -103,7 +99,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
     seasonWinners: [],
     topScorers: []
   });
-  const [allPlayers, setAllPlayers] = useState<PlayerWithNameAndId[]>([]);
+  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
 
   // Update activeTab when initialView changes
   useEffect(() => {
@@ -131,6 +127,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
 
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
+          // The API now returns full PlayerProfile objects, so no transformation is needed.
           setAllPlayers(playersData.data || []);
         } else {
           console.warn('Failed to fetch players for Legends component');
@@ -148,7 +145,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
   }, []);
 
   // Added getPlayerIdByName (copied from other components)
-  const getPlayerIdByName = (name: string): number | undefined => {
+  const getPlayerIdByName = (name: string): string | undefined => {
     if (!name) return undefined; // Handle cases where name might be null or undefined
     const player = allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase());
     return player?.id;

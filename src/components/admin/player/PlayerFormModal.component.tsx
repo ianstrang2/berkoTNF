@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { PlayerFormData } from '@/types/team-algorithm.types';
-import ClubSelector, { Club } from './ClubSelector.component';
+import ClubSelector from './ClubSelector.component';
+import { Club } from '@/types/player.types';
 
 // Define attribute descriptions for tooltips
 const attributeDescriptions: Record<string, string> = {
-  is_ringer: 'Player who is not a regular team member but joins for occasional matches.',
+  isRinger: 'Player who is not a regular team member but joins for occasional matches.',
   goalscoring: 'Ability to score goals and convert chances.',
   defending: 'Willingness to be a defender.',
-  stamina_pace: 'Physical attributes like running speed and stamina over 90 minutes.',
+  staminaPace: 'Physical attributes like running speed and stamina over 90 minutes.',
   control: 'Technical ability to control and pass the ball.',
   teamwork: 'How well the player works with teammates and supports the team.',
   resilience: 'Mental strength and consistency when under pressure.'
@@ -60,15 +61,15 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   
   const [formData, setFormData] = useState<PlayerFormData>({
     name: initialData?.name || '',
-    is_ringer: initialData?.is_ringer !== undefined ? initialData.is_ringer : true,
-    is_retired: initialData?.is_retired || false,
+    isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : true,
+    isRetired: initialData?.isRetired || false,
     goalscoring: initialData?.goalscoring || 3,
     defending: initialData?.defending || 3,
-    stamina_pace: initialData?.stamina_pace || 3,
+    staminaPace: initialData?.staminaPace || 3,
     control: initialData?.control || 3,
     teamwork: initialData?.teamwork || 3,
     resilience: initialData?.resilience || 3,
-    selected_club: initialData?.selected_club || null
+    club: initialData?.club || null
   });
 
   // Effect to clear nameError when formData.name changes
@@ -94,15 +95,15 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
       // Reset form after submission only on success
       setFormData({
         name: '',
-        is_ringer: true,
-        is_retired: false,
+        isRinger: true,
+        isRetired: false,
         goalscoring: 3,
         defending: 3,
-        stamina_pace: 3,
+        staminaPace: 3,
         control: 3,
         teamwork: 3,
         resilience: 3,
-        selected_club: null
+        club: null
       });
       // On successful submission, onClose should be called by the parent component if needed.
     } catch (error: any) {
@@ -121,7 +122,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   const attributeFields = [
     { key: 'goalscoring', label: 'GOL' },
     { key: 'defending', label: 'DEF' },
-    { key: 'stamina_pace', label: 'S&P' },
+    { key: 'staminaPace', label: 'S&P' },
     { key: 'control', label: 'CTL' },
     { key: 'teamwork', label: 'TMW' },
     { key: 'resilience', label: 'RES' }
@@ -171,11 +172,11 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
             
             <div className="mb-4">
               <div className="flex items-center">
-                <label htmlFor="is_ringer" className="text-slate-700 text-sm font-medium mr-2">Ringer</label>
+                <label htmlFor="isRinger" className="text-slate-700 text-sm font-medium mr-2">Ringer</label>
                 <button
                   type="button"
                   className="text-slate-400 hover:text-slate-600 mr-3"
-                  onClick={() => toggleTooltip('is_ringer')}
+                  onClick={() => toggleTooltip('isRinger')}
                 >
                   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
@@ -184,15 +185,15 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 <div className="relative">
                   <input
                     type="checkbox"
-                    checked={formData.is_ringer}
-                    onChange={(e) => setFormData({ ...formData, is_ringer: e.target.checked })}
+                    checked={formData.isRinger}
+                    onChange={(e) => setFormData({ ...formData, isRinger: e.target.checked })}
                     className="mt-0.5 rounded-10 duration-250 ease-soft-in-out after:rounded-circle after:shadow-soft-2xl after:duration-250 checked:after:translate-x-5.3 h-5 relative float-left w-10 cursor-pointer appearance-none border border-solid border-gray-200 bg-slate-800/10 bg-none bg-contain bg-left bg-no-repeat align-top transition-all after:absolute after:top-px after:h-4 after:w-4 after:translate-x-px after:bg-white after:content-[''] checked:border-slate-800/95 checked:bg-slate-800/95 checked:bg-none checked:bg-right"
-                    id="is_ringer"
+                    id="isRinger"
                   />
-                  {activeTooltip === 'is_ringer' && (
+                  {activeTooltip === 'isRinger' && (
                     <AttributeTooltip 
                       attribute="Ringer" 
-                      description={attributeDescriptions.is_ringer}
+                      description={attributeDescriptions.isRinger}
                       onClose={() => setActiveTooltip(null)}
                     />
                   )}
@@ -259,8 +260,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
             <div className="mb-4">
               <label className="block text-slate-700 text-sm font-medium mb-2">Club (Optional)</label>
               <ClubSelector 
-                value={formData.selected_club as Club | null}
-                onChange={(club) => setFormData({ ...formData, selected_club: club })}
+                value={formData.club as Club | null}
+                onChange={(club) => setFormData({ ...formData, club: club })}
               />
             </div>
             

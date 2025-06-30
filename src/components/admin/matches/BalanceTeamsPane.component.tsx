@@ -2,43 +2,41 @@
 
 import React, { useState, useMemo } from 'react';
 import Button from '@/components/ui-kit/Button.component';
+import { PlayerInPool } from '@/types/player.types';
 
 type BalanceMethod = 'ability' | 'performance' | 'random';
-
-interface MatchPlayer {
-  player_id: number;
-  name: string;
-  team?: 'A' | 'B' | 'Unassigned';
-}
 
 interface BalanceTeamsPaneProps {
   matchId: string;
   teamSize: number;
-  lockedPlayers: MatchPlayer[];
+  players: PlayerInPool[];
   isBalanced: boolean;
   balanceTeamsAction: (method: BalanceMethod) => Promise<void>;
   confirmTeamsAction: () => Promise<void>;
 }
 
-const BalanceTeamsPane = ({ matchId, teamSize, lockedPlayers, isBalanced, balanceTeamsAction, confirmTeamsAction }: BalanceTeamsPaneProps) => {
+const BalanceTeamsPane = ({ matchId, teamSize, players, isBalanced, balanceTeamsAction, confirmTeamsAction }: BalanceTeamsPaneProps) => {
   const [balanceMethod, setBalanceMethod] = useState<BalanceMethod>('ability');
   const [isBalancing, setIsBalancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { teamA, teamB } = useMemo(() => {
-    const a: MatchPlayer[] = [];
-    const b: MatchPlayer[] = [];
-    if (isBalanced) {
-      lockedPlayers.forEach(p => {
-        if (p.team === 'A') a.push(p);
-        else if (p.team === 'B') b.push(p);
-      });
-    } else {
-      const half = Math.ceil(lockedPlayers.length / 2);
-      return { teamA: lockedPlayers.slice(0, half), teamB: lockedPlayers.slice(half) };
-    }
-    return { teamA: a, teamB: b };
-  }, [lockedPlayers, isBalanced]);
+  const { teamA, teamB, unassigned } = useMemo(() => {
+    const a: PlayerInPool[] = [];
+    const b: PlayerInPool[] = [];
+    const u: PlayerInPool[] = [];
+    
+    players.forEach(p => {
+      if (p.team === 'A') {
+        a.push(p);
+      } else if (p.team === 'B') {
+        b.push(p);
+      } else {
+        u.push(p);
+      }
+    });
+    
+    return { teamA: a, teamB: b, unassigned: u };
+  }, [players]);
 
   const handleBalance = async () => {
     setIsBalancing(true);
@@ -63,12 +61,12 @@ const BalanceTeamsPane = ({ matchId, teamSize, lockedPlayers, isBalanced, balanc
       }
   }
 
-  const renderTeamColumn = (team: MatchPlayer[], teamName: string) => (
+  const renderTeamColumn = (team: PlayerInPool[], teamName: string) => (
     <div className="flex-1 bg-gray-800/50 p-4 rounded-lg">
       <h3 className="text-lg font-bold text-white mb-3 border-b border-gray-700 pb-2">{teamName} ({team.length} Players)</h3>
       <ul className="space-y-2">
         {team.map(player => (
-          <li key={player.player_id} className="bg-gray-700 p-2 rounded-md text-gray-200">
+          <li key={player.id} className="bg-gray-700 p-2 rounded-md text-gray-200">
             {player.name}
           </li>
         ))}
@@ -89,6 +87,7 @@ const BalanceTeamsPane = ({ matchId, teamSize, lockedPlayers, isBalanced, balanc
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         {renderTeamColumn(teamA, 'Team A')}
         {renderTeamColumn(teamB, 'Team B')}
+        {unassigned.length > 0 && renderTeamColumn(unassigned, 'Unassigned')}
       </div>
 
       <div className="bg-gray-800 p-4 rounded-lg">
