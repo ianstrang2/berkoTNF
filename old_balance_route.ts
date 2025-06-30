@@ -48,29 +48,29 @@ const shuffleArray = <T>(array: T[]): T[] => {
 };
 
 // Calculate position-specific team stats
-const calculateTeamStats = (
-  team: Player[],
-  team_size: number,
-  template: { defenders: number; midfielders: number; attackers: number }
-): TeamStats => {
-  const { defenders: defendersPerTeam, midfielders: midfieldersPerTeam } = template;
-
+const calculateTeamStats = (team: Player[]): TeamStats => {
+  // Identify positions based on slot numbers
+  const isTeamA = (slot?: number) => slot !== undefined && slot <= 9;
+  
   const defenders = team.filter(p => {
     if (!p.slot_number) return false;
-    const teamSlot = p.slot_number > team_size ? p.slot_number - team_size : p.slot_number;
-    return teamSlot <= defendersPerTeam;
+    return isTeamA(p.slot_number) 
+      ? p.slot_number <= 3 
+      : (p.slot_number >= 10 && p.slot_number <= 12);
   });
-
+  
   const midfielders = team.filter(p => {
     if (!p.slot_number) return false;
-    const teamSlot = p.slot_number > team_size ? p.slot_number - team_size : p.slot_number;
-    return teamSlot > defendersPerTeam && teamSlot <= defendersPerTeam + midfieldersPerTeam;
+    return isTeamA(p.slot_number)
+      ? (p.slot_number >= 4 && p.slot_number <= 7)
+      : (p.slot_number >= 13 && p.slot_number <= 16);
   });
-
+  
   const attackers = team.filter(p => {
     if (!p.slot_number) return false;
-    const teamSlot = p.slot_number > team_size ? p.slot_number - team_size : p.slot_number;
-    return teamSlot > defendersPerTeam + midfieldersPerTeam;
+    return isTeamA(p.slot_number)
+      ? (p.slot_number === 8 || p.slot_number === 9)
+      : (p.slot_number === 17 || p.slot_number === 18);
   });
 
   // Calculate average stat with fallback to default value
@@ -105,15 +105,9 @@ const calculateTeamStats = (
 };
 
 // Calculate balance score between teams (lower is better)
-const calculateBalanceScore = (
-  teamA: Player[],
-  teamB: Player[],
-  team_size: number,
-  template: { defenders: number; midfielders: number; attackers: number },
-  weights: any[] = []
-): number => {
-  const statsA = calculateTeamStats(teamA, team_size, template);
-  const statsB = calculateTeamStats(teamB, team_size, template);
+const calculateBalanceScore = (teamA: Player[], teamB: Player[], weights: any[] = []): number => {
+  const statsA = calculateTeamStats(teamA);
+  const statsB = calculateTeamStats(teamB);
   
   // Group weights by position group
   const weightsByGroup: Record<string, Record<string, number>> = {};
@@ -311,22 +305,20 @@ export async function POST(request: Request) {
       };
     });
     
-    // Use the players from the pool, not a fresh query
+    // Prepare players for each position group - all players are used, no leftovers
     const defenderPlayers = playerScores
-      .filter(p => poolPlayers.some(poolPlayer => poolPlayer.player_id === p.player.player_id))
       .sort((a, b) => (b.player.defender || 3) - (a.player.defender || 3))
       .slice(0, defendersPerTeam * 2);
 
-    const remainingFromPool = playerScores.filter(p => 
-      !defenderPlayers.some(d => d.player.player_id === p.player.player_id) &&
-      poolPlayers.some(poolPlayer => poolPlayer.player_id === p.player.player_id)
+    const remainingPlayers = playerScores.filter(p => 
+      !defenderPlayers.some(d => d.player.player_id === p.player.player_id)
     );
 
-    const attackerPlayers = remainingFromPool
+    const attackerPlayers = remainingPlayers
       .sort((a, b) => (b.player.goalscoring || 3) - (a.player.goalscoring || 3))
       .slice(0, attackersPerTeam * 2);
 
-    const midfielderPlayers = remainingFromPool
+    const midfielderPlayers = remainingPlayers
       .filter(p => !attackerPlayers.some(a => a.player.player_id === p.player.player_id))
       .sort((a, b) => (b.player.control || 3) - (a.player.control || 3))
       .slice(0, midfieldersPerTeam * 2);
@@ -438,11 +430,7 @@ export async function POST(request: Request) {
               return { ...player, slot_number: a.slot_number } as Player;
             });
           
-          const score = calculateBalanceScore(teamAPlayers, teamBPlayers, match.team_size, {
-            defenders: defendersPerTeam,
-            midfielders: midfieldersPerTeam,
-            attackers: attackersPerTeam,
-          }, balanceWeights);
+          const score = calculateBalanceScore(teamAPlayers, teamBPlayers, balanceWeights);
           
           // Update best score and slots if this is better
           if (score < bestScore) {
@@ -505,11 +493,7 @@ export async function POST(request: Request) {
               return { ...player, slot_number: s.slot_number };
             });
             
-          const testScore = calculateBalanceScore(testTeamA, testTeamB, match.team_size, {
-            defenders: defendersPerTeam,
-            midfielders: midfieldersPerTeam,
-            attackers: attackersPerTeam,
-          }, balanceWeights);
+          const testScore = calculateBalanceScore(testTeamA, testTeamB, balanceWeights);
           
           // If this swap improves the score, keep it
           if (testScore < bestScore) {

@@ -182,10 +182,16 @@ export async function PUT(request: NextRequest) {
     const { match_id, upcoming_match_id, match_date, team_size, is_balanced, is_active } = body;
     
     // Use upcoming_match_id if provided, fallback to match_id for compatibility
-    const targetMatchId = upcoming_match_id || match_id;
+    let targetMatchId = upcoming_match_id || match_id;
 
     if (!targetMatchId) {
       return NextResponse.json({ success: false, error: 'Match ID is required' }, { status: 400 });
+    }
+
+    // Ensure the ID is an integer
+    targetMatchId = parseInt(targetMatchId, 10);
+    if (isNaN(targetMatchId)) {
+      return NextResponse.json({ success: false, error: 'Invalid Match ID' }, { status: 400 });
     }
 
     // Get current match to check current team size

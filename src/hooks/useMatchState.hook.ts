@@ -80,14 +80,13 @@ export const useMatchState = (matchId: number | string) => {
       // Per user request: Refetch state right before balancing to ensure data is not stale.
       await fetchMatchState();
 
-      if (method === 'ability') {
-        response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, { method: 'POST' });
-      } else if (method === 'performance') {
+      if (method === 'ability' || method === 'performance') {
         const playerIds = matchData?.players.map(p => p.id) || [];
-        response = await fetch(`/api/admin/balance-by-past-performance`, {
+        const apiMethod = method === 'ability' ? 'balanceByRating' : 'balanceByPerformance';
+        response = await fetch(`/api/admin/balance-teams`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ matchId, playerIds })
+          body: JSON.stringify({ matchId, playerIds, method: apiMethod })
         });
       } else { // random
         response = await fetch(`/api/admin/random-balance-match?matchId=${matchId}`, { method: 'POST' });
