@@ -31,6 +31,20 @@ const MatchListPageContent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to format state display text
+  const formatStateDisplay = (state: string) => {
+    switch (state) {
+      case 'PoolLocked':
+      case 'POOLLOCKED':
+        return 'POOL LOCKED';
+      case 'TeamsBalanced':
+      case 'TEAMSBALANCED':
+        return 'TEAMS BALANCED';
+      default:
+        return state.toUpperCase();
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -69,7 +83,7 @@ const MatchListPageContent = () => {
               <p className="font-semibold text-slate-700">{format(new Date(match.match_date), 'EEEE, MMMM d, yyyy')}</p>
               <p className="text-sm text-slate-500">Players in pool: {match._count.players}</p>
             </div>
-            <span className="text-xs font-bold uppercase py-1 px-3 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md">{match.state}</span>
+            <span className="text-xs font-bold uppercase py-1 px-3 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md">{formatStateDisplay(match.state)}</span>
           </div>
         </Link>
       ))}

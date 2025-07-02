@@ -174,6 +174,15 @@ const BalanceTeamsPane = ({
   const [balanceMethod, setBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(null);
   const [isTeamsModified, setIsTeamsModified] = useState<boolean>(false);
 
+  // Copy functionality states
+  const [copySuccess, setCopySuccess] = useState<boolean>(false);
+  const [teamAName, setTeamAName] = useState<string>('Team A');
+  const [teamBName, setTeamBName] = useState<string>('Team B');
+  const [onFirePlayerId, setOnFirePlayerId] = useState<string | null>(null);
+  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
+  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
+  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
+
   useEffect(() => {
     setPlayers(initialPlayers);
   }, [initialPlayers]);
@@ -195,6 +204,44 @@ const BalanceTeamsPane = ({
     };
     fetchTemplate();
   }, [teamSize]);
+
+  // Fetch team names and special player data
+  useEffect(() => {
+    const fetchConfigData = async () => {
+      try {
+        const [configResponse, statusResponse] = await Promise.all([
+          fetch('/api/admin/app-config?group=match_settings'),
+          fetch('/api/latest-player-status')
+        ]);
+
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          if (configData.success) {
+            const teamAConfig = configData.data.find((config: any) => config.config_key === 'team_a_name');
+            const teamBConfig = configData.data.find((config: any) => config.config_key === 'team_b_name');
+            const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
+            const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
+            
+            if (teamAConfig?.config_value) setTeamAName(teamAConfig.config_value);
+            if (teamBConfig?.config_value) setTeamBName(teamBConfig.config_value);
+            setShowOnFireConfig(showOnFire?.config_value !== 'false');
+            setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
+          }
+        }
+
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          // API returns data directly, not wrapped in success/data structure
+          setOnFirePlayerId(statusData.on_fire_player_id ? String(statusData.on_fire_player_id) : null);
+          setGrimReaperPlayerId(statusData.grim_reaper_player_id ? String(statusData.grim_reaper_player_id) : null);
+        }
+      } catch (error) {
+        console.error('Error fetching config data:', error);
+      }
+    };
+
+    fetchConfigData();
+  }, []);
 
   // Fetch balance weights for TornadoChart
   useEffect(() => {
@@ -296,11 +343,42 @@ const BalanceTeamsPane = ({
     }
   };
 
-  const handleCopyTeams = () => {
-    const formatTeam = (team: PlayerInPool[], name: string) => `${name}\n${team.map(p => p.name).join('\n')}`;
-    const textToCopy = `${formatTeam(teamA, 'Team Orange')}\n\n${formatTeam(teamB, 'Team Green')}`;
-    navigator.clipboard.writeText(textToCopy);
-    onShowToast("Teams copied to clipboard!", 'success');
+  const handleCopyTeams = async () => {
+    if (teamA.length === 0 && teamB.length === 0) {
+      onShowToast('No teams to copy.', 'error');
+      return;
+    }
+
+    const formatTeam = (team: PlayerInPool[]) => {
+      return team
+        .map(player => {
+          let playerName = player.name;
+          
+          if (showOnFireConfig && player.id === onFirePlayerId) {
+            playerName += ' 🔥';
+          }
+          if (showGrimReaperConfig && player.id === grimReaperPlayerId) {
+            playerName += ' 💀';
+          }
+          
+          return playerName;
+        })
+        .join('\n');
+    };
+
+    const finalTeamAName = teamAName || 'Team A';
+    const finalTeamBName = teamBName || 'Team B';
+
+    const textToCopy = `--- ${finalTeamAName.toUpperCase()} ---\n${formatTeam(teamA)}\n\n--- ${finalTeamBName.toUpperCase()} ---\n${formatTeam(teamB)}`;
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy teams: ', err);
+      onShowToast('Failed to copy teams. Please try again.', 'error');
+    }
   };
 
   const renderPlayer = (player: PlayerInPool) => {
@@ -443,7 +521,14 @@ const BalanceTeamsPane = ({
                 </div>
                 <div className="p-3 border-t border-gray-200 flex justify-start gap-2">
                     <Button variant="secondary" onClick={() => setIsClearConfirmOpen(true)} className="shadow-soft-sm">Clear</Button>
-                    <Button variant="secondary" onClick={handleCopyTeams} disabled={unassigned.length > 0} className="shadow-soft-sm">Copy</Button>
+                    <Button 
+                      variant={copySuccess ? "primary" : "secondary"}
+                      className={copySuccess ? "bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md" : "shadow-soft-sm"}
+                      onClick={handleCopyTeams} 
+                      disabled={unassigned.length > 0}
+                    >
+                      {copySuccess ? 'Copied!' : 'Copy'}
+                    </Button>
                 </div>
             </Card>
         </div>

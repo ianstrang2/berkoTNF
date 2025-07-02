@@ -35,11 +35,13 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   const formatStateDisplay = (state: string) => {
     switch (state) {
       case 'PoolLocked':
+      case 'POOLLOCKED':
         return 'POOL LOCKED';
       case 'TeamsBalanced':
+      case 'TEAMSBALANCED':
         return 'TEAMS BALANCED';
       default:
-        return state;
+        return state.toUpperCase();
     }
   };
   
