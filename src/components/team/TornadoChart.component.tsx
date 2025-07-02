@@ -10,30 +10,39 @@ interface TornadoChartProps {
     midfield?: Record<string, number>;
     attack?: Record<string, number>;
   };
+  teamSize?: number;           // Add for dynamic sizing
+  isModified?: boolean;        // Add for status indication
+  showComparison?: {
+    original: {
+      teamA: TeamStats;
+      teamB: TeamStats;
+    };
+    label: string;
+  };
 }
 
-const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, weights }) => {
+const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, weights, teamSize, isModified, showComparison }) => {
   if (!teamAStats || !teamBStats) return null;
   
   // Default weights (as fallback)
   const defaultWeights = {
     defense: { 
-      defending: 0.5, 
-      stamina_pace: 0.2, 
+      defending: 0.4,        // ✅ Correct: 'defending' from PlayerProfile
+      staminaPace: 0.3,      // ✅ Correct: 'staminaPace' from PlayerProfile  
       control: 0.1, 
       teamwork: 0.1, 
       resilience: 0.1 
     },
     midfield: { 
       control: 0.3, 
-      stamina_pace: 0.2, 
+      staminaPace: 0.2, 
       goalscoring: 0.3, 
       teamwork: 0.1, 
       resilience: 0.1 
     },
     attack: { 
       goalscoring: 0.5, 
-      stamina_pace: 0.2, 
+      staminaPace: 0.2, 
       control: 0.1, 
       teamwork: 0.1, 
       resilience: 0.1 
@@ -83,6 +92,39 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   const teamAResilienceAvg = getAttributeAvg(teamAStats, 'resilience');
   const teamBResilienceAvg = getAttributeAvg(teamBStats, 'resilience');
   const resilienceDiff = teamBResilienceAvg - teamAResilienceAvg;
+
+  // Calculate original differences for comparison if available
+  let originalDiffs: {
+    defense: number;
+    midfield: number;
+    attacking: number;
+    teamwork: number;
+    resilience: number;
+  } | null = null;
+  if (showComparison) {
+    const { original } = showComparison;
+    
+    const originalTeamADefense = calculatePositionScore(original.teamA, 'defense');
+    const originalTeamAMidfield = calculatePositionScore(original.teamA, 'midfield');
+    const originalTeamAAttacking = calculatePositionScore(original.teamA, 'attack');
+    
+    const originalTeamBDefense = calculatePositionScore(original.teamB, 'defense');
+    const originalTeamBMidfield = calculatePositionScore(original.teamB, 'midfield');
+    const originalTeamBAttacking = calculatePositionScore(original.teamB, 'attack');
+    
+    const originalTeamATeamworkAvg = getAttributeAvg(original.teamA, 'teamwork');
+    const originalTeamBTeamworkAvg = getAttributeAvg(original.teamB, 'teamwork');
+    const originalTeamAResilienceAvg = getAttributeAvg(original.teamA, 'resilience');
+    const originalTeamBResilienceAvg = getAttributeAvg(original.teamB, 'resilience');
+    
+    originalDiffs = {
+      defense: originalTeamBDefense - originalTeamADefense,
+      midfield: originalTeamBMidfield - originalTeamAMidfield,
+      attacking: originalTeamBAttacking - originalTeamAAttacking,
+      teamwork: originalTeamBTeamworkAvg - originalTeamATeamworkAvg,
+      resilience: originalTeamBResilienceAvg - originalTeamAResilienceAvg
+    };
+  }
   
   // Helper function to calculate bar width percentage (scale differences for visualization)
   const getBarWidth = (diff: number) => {
@@ -107,11 +149,11 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   
   // Categories to display
   const categories = [
-    { label: 'Defense', diff: defenseDiff },
-    { label: 'Midfield', diff: midfieldDiff },
-    { label: 'Attacking', diff: attackingDiff },
-    { label: 'Teamwork', diff: teamworkDiff },
-    { label: 'Resilience', diff: resilienceDiff }
+    { label: 'Defense', diff: defenseDiff, originalDiff: originalDiffs?.defense },
+    { label: 'Midfield', diff: midfieldDiff, originalDiff: originalDiffs?.midfield },
+    { label: 'Attacking', diff: attackingDiff, originalDiff: originalDiffs?.attacking },
+    { label: 'Teamwork', diff: teamworkDiff, originalDiff: originalDiffs?.teamwork },
+    { label: 'Resilience', diff: resilienceDiff, originalDiff: originalDiffs?.resilience }
   ];
   
   return (
@@ -123,6 +165,11 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
               {/* Category label */}
               <div className="flex items-center mb-1">
                 <span className="text-xs font-medium text-slate-400">{category.label}</span>
+                {showComparison && category.originalDiff !== undefined && (
+                  <span className="text-xs text-slate-500 ml-2">
+                    (vs {showComparison.label})
+                  </span>
+                )}
               </div>
               
               {/* Bar container with center line */}
@@ -130,7 +177,20 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
                 {/* Center line */}
                 <div className="absolute top-0 bottom-0 left-1/2 w-px bg-slate-600"></div>
                 
-                {/* Bar for the difference */}
+                {/* Original/Comparison bar (background) */}
+                {showComparison && category.originalDiff !== undefined && (
+                  <div 
+                    className={`absolute top-0 bottom-0 ${getBarPosition(category.originalDiff)} border-2 rounded-full opacity-40`}
+                    style={{ 
+                      width: getBarWidth(category.originalDiff),
+                      borderColor: category.originalDiff > 0 ? '#a855f7' : '#d946ef',
+                      backgroundColor: 'transparent',
+                      ...(category.originalDiff < 0 ? { right: '50%' } : { left: '50%' })
+                    }}
+                  ></div>
+                )}
+                
+                {/* Current bar (foreground) */}
                 <div 
                   className={`absolute top-0 bottom-0 ${getBarPosition(category.diff)} ${getBarColor(category.diff)} rounded-full shadow-soft-md`}
                   style={{ 

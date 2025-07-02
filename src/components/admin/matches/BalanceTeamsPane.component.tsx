@@ -7,6 +7,8 @@ import Card from '@/components/ui-kit/Card.component';
 import { GripVertical, Copy, Trash2 } from 'lucide-react';
 import BalanceOptionsModal from './BalanceOptionsModal.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+import TornadoChart from '@/components/team/TornadoChart.component';
+import { calculateTeamStatsFromPlayers } from '@/utils/teamStatsCalculation.util';
 
 type Team = 'A' | 'B' | 'Unassigned';
 
@@ -30,28 +32,68 @@ interface BalanceTeamsPaneProps {
 const useTeamDragAndDrop = (
   setPlayers: React.Dispatch<React.SetStateAction<PlayerInPool[]>>,
   markAsUnbalanced: () => Promise<void>,
-  matchId: string
+  matchId: string,
+  onTeamModified?: () => void,
+  currentPlayers?: PlayerInPool[]
 ) => {
   const [draggedPlayer, setDraggedPlayer] = useState<PlayerInPool | null>(null);
 
   const updatePlayerAssignment = async (player: PlayerInPool, targetTeam: Team, targetSlot?: number) => {
+    // Store original state for potential reversion
+    const originalPlayers = currentPlayers ? [...currentPlayers] : [];
+    
+    // Check for slot conflicts BEFORE optimistic update
+    let conflictPlayer: PlayerInPool | null = null;
+    let originalPlayerTeam: Team | undefined = undefined;
+    let originalPlayerSlot: number | undefined = undefined;
+    
+    if (targetTeam !== 'Unassigned' && targetSlot) {
+      // Find the dragged player's current position
+      const draggedPlayer = originalPlayers.find(p => p.id === player.id);
+      if (draggedPlayer) {
+        originalPlayerTeam = draggedPlayer.team;
+        originalPlayerSlot = draggedPlayer.slot_number;
+      }
+      
+      // Find any player currently in the target slot
+      conflictPlayer = originalPlayers.find(p => 
+        p.team === targetTeam && p.slot_number === targetSlot && p.id !== player.id
+      ) || null;
+    }
+    
     // Optimistically update the UI
     setPlayers(currentPlayers => {
       const newPlayers = [...currentPlayers];
-      const idx = newPlayers.findIndex(p => p.id === player.id);
-      if (idx > -1) {
-        newPlayers[idx] = {
-          ...newPlayers[idx],
-          team: targetTeam,
-          slot_number: targetTeam !== 'Unassigned' ? targetSlot : undefined,
-        };
+      const draggedPlayerIdx = newPlayers.findIndex(p => p.id === player.id);
+      
+      if (draggedPlayerIdx === -1) return currentPlayers; // Player not found
+      
+      // If there's a conflict, move that player to the dragged player's old position
+      if (conflictPlayer && originalPlayerTeam && originalPlayerSlot) {
+        const conflictPlayerIdx = newPlayers.findIndex(p => p.id === conflictPlayer!.id);
+        if (conflictPlayerIdx > -1) {
+          newPlayers[conflictPlayerIdx] = {
+            ...newPlayers[conflictPlayerIdx],
+            team: originalPlayerTeam,
+            slot_number: originalPlayerSlot,
+          };
+        }
       }
+      
+      // Update the dragged player
+      newPlayers[draggedPlayerIdx] = {
+        ...newPlayers[draggedPlayerIdx],
+        team: targetTeam,
+        slot_number: targetTeam !== 'Unassigned' ? targetSlot : undefined,
+      };
+      
       return newPlayers;
     });
 
-    // Then, send the update to the server
+    // Send updates to the server
     try {
-      await fetch('/api/admin/upcoming-match-players', {
+      // First, update the dragged player
+      const response1 = await fetch('/api/admin/upcoming-match-players', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,11 +103,38 @@ const useTeamDragAndDrop = (
           slot_number: targetTeam !== 'Unassigned' ? targetSlot : null,
         }),
       });
-      // After successfully updating the player, mark the match as unbalanced
+      
+      if (!response1.ok) {
+        throw new Error(`Server responded with ${response1.status} for main player`);
+      }
+      
+      // If there was a conflict, update the displaced player
+      if (conflictPlayer && originalPlayerTeam && originalPlayerSlot) {
+        const response2 = await fetch('/api/admin/upcoming-match-players', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            upcoming_match_id: parseInt(matchId, 10),
+            player_id: parseInt(conflictPlayer.id, 10),
+            team: originalPlayerTeam,
+            slot_number: originalPlayerTeam !== 'Unassigned' ? originalPlayerSlot : null,
+          }),
+        });
+        
+        if (!response2.ok) {
+          throw new Error(`Server responded with ${response2.status} for conflict player`);
+        }
+      }
+      
+      // After successfully updating all players, mark the match as unbalanced
       await markAsUnbalanced();
+      // Track team modification
+      onTeamModified?.();
     } catch (error) {
       console.error("Failed to update player assignment:", error);
-      // Optional: Add logic to revert the optimistic UI update on failure
+      // Revert the optimistic UI update on failure
+      setPlayers(originalPlayers);
+      // You could also show a toast notification here if available
     }
   };
 
@@ -99,6 +168,12 @@ const BalanceTeamsPane = ({
   const [teamTemplate, setTeamTemplate] = useState<TeamTemplate | null>(null);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  
+  // New state for TornadoChart integration
+  const [balanceWeights, setBalanceWeights] = useState<any>(null);
+  const [balanceMethod, setBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(null);
+  const [isTeamsModified, setIsTeamsModified] = useState<boolean>(false);
+  const [originalTeamStats, setOriginalTeamStats] = useState<{ teamA: any; teamB: any } | null>(null);
 
   useEffect(() => {
     setPlayers(initialPlayers);
@@ -116,10 +191,45 @@ const BalanceTeamsPane = ({
     fetchTemplate();
   }, [teamSize]);
 
+  // Fetch balance weights for TornadoChart
+  useEffect(() => {
+    const fetchBalanceWeights = async () => {
+      try {
+        const response = await fetch('/api/admin/balance-algorithm');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          // Transform to TornadoChart format
+          const formattedWeights = {
+            defense: {},
+            midfield: {},
+            attack: {}
+          };
+          
+          result.data.forEach((weight: any) => {
+            const group = weight.position_group;
+            const attribute = weight.attribute;
+            if (group && attribute && formattedWeights[group as keyof typeof formattedWeights]) {
+              formattedWeights[group as keyof typeof formattedWeights][attribute] = weight.weight;
+            }
+          });
+          
+          setBalanceWeights(formattedWeights);
+        }
+      } catch (error) {
+        console.error('Error fetching balance weights:', error);
+      }
+    };
+    
+    fetchBalanceWeights();
+  }, []);
+
   const { handleDragStart, handleDragOver, handleDrop } = useTeamDragAndDrop(
     setPlayers,
     markAsUnbalanced,
-    matchId
+    matchId,
+    () => setIsTeamsModified(true),
+    players
   );
 
   const { teamA, teamB, unassigned } = useMemo(() => {
@@ -132,9 +242,40 @@ const BalanceTeamsPane = ({
     return { teamA: a, teamB: b, unassigned: u };
   }, [players]);
 
+  // Calculate team stats for TornadoChart - keep calculating even after teams are modified
+  const teamStatsData = useMemo(() => {
+    if (!teamTemplate || teamA.length === 0 || teamB.length === 0) {
+      return null;
+    }
+    
+    // Show stats if originally balanced with ability method OR currently balanced
+    const shouldCalculate = (balanceMethod === 'ability' && originalTeamStats) || isBalanced;
+    if (!shouldCalculate) return null;
+    
+    const teamAStats = calculateTeamStatsFromPlayers(teamA, teamTemplate, teamSize);
+    const teamBStats = calculateTeamStatsFromPlayers(teamB, teamTemplate, teamSize);
+    
+    return { teamAStats, teamBStats };
+  }, [isBalanced, balanceMethod, originalTeamStats, teamA, teamB, teamTemplate, teamSize]);
+
+  // Capture original team stats after balancing with "ability" method
+  useEffect(() => {
+    if (isBalanced && balanceMethod === 'ability' && !isTeamsModified && teamTemplate && teamA.length > 0 && teamB.length > 0) {
+      const originalTeamAStats = calculateTeamStatsFromPlayers(teamA, teamTemplate, teamSize);
+      const originalTeamBStats = calculateTeamStatsFromPlayers(teamB, teamTemplate, teamSize);
+      
+      setOriginalTeamStats({
+        teamA: originalTeamAStats,
+        teamB: originalTeamBStats
+      });
+    }
+  }, [isBalanced, balanceMethod, isTeamsModified, teamA, teamB, teamTemplate, teamSize]);
+
   const handleBalanceConfirm = async (method: 'ability' | 'performance' | 'random') => {
     setIsBalanceModalOpen(false);
     setIsBalancing(true);
+    setBalanceMethod(method);  // ✅ Track method used
+    setIsTeamsModified(false); // ✅ Reset modification state
     try {
       await balanceTeamsAction(method);
     } catch(e: any) { onShowToast(e.message || "Balancing failed", "error"); }
@@ -145,6 +286,10 @@ const BalanceTeamsPane = ({
     setIsClearConfirmOpen(false);
     try {
       await clearTeamsAction();
+      // Reset TornadoChart state when teams are cleared
+      setBalanceMethod(null);
+      setOriginalTeamStats(null);
+      setIsTeamsModified(false);
     } catch (error: any) {
       onShowToast(error.message || "Failed to clear teams", 'error');
     }
@@ -201,8 +346,9 @@ const BalanceTeamsPane = ({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-        {/* Left Card: Player Pool */}
-        <div className="w-full">
+        {/* Left Column: Player Pool + TornadoChart (Desktop) */}
+        <div className="w-full space-y-6">
+          {/* Player Pool Card */}
           <Card>
             <div className="p-3 border-b border-gray-200">
                 <h2 className="font-bold text-slate-700 text-lg">Player Pool</h2>
@@ -220,9 +366,42 @@ const BalanceTeamsPane = ({
                 </Button>
             </div>
           </Card>
+
+          {/* TornadoChart - Desktop Only (Below Player Pool) */}
+          {balanceMethod === 'ability' && teamStatsData && balanceWeights && (
+            <div className="hidden md:block">
+              <Card>
+                <div className="p-3 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="font-bold text-slate-700 text-lg">Team Balance Analysis</h2>
+                    {isTeamsModified && (
+                      <span className="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded-full">
+                        ⚠️ Teams Modified
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
+                    <TornadoChart 
+                      teamAStats={teamStatsData.teamAStats} 
+                      teamBStats={teamStatsData.teamBStats} 
+                      weights={balanceWeights}
+                      teamSize={teamSize}
+                      isModified={isTeamsModified}
+                      showComparison={originalTeamStats && isTeamsModified ? {
+                        original: originalTeamStats,
+                        label: 'Original Balance'
+                      } : undefined}
+                    />
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
         </div>
 
-        {/* Right Card: Teams */}
+        {/* Right Column: Teams */}
         <div className="w-full">
             <Card>
                 <div className="flex justify-between items-center p-3 border-b border-gray-200">
@@ -239,6 +418,39 @@ const BalanceTeamsPane = ({
             </Card>
         </div>
       </div>
+
+      {/* TornadoChart Analysis - Mobile Only (Full Width at Bottom) */}
+      {balanceMethod === 'ability' && teamStatsData && balanceWeights && (
+        <div className="md:hidden w-full mt-6">
+          <Card>
+            <div className="p-3 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h2 className="font-bold text-slate-700 text-lg">Team Balance Analysis</h2>
+                {isTeamsModified && (
+                  <span className="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded-full">
+                    ⚠️ Teams Modified
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
+                <TornadoChart 
+                  teamAStats={teamStatsData.teamAStats} 
+                  teamBStats={teamStatsData.teamBStats} 
+                  weights={balanceWeights}
+                  teamSize={teamSize}
+                  isModified={isTeamsModified}
+                  showComparison={originalTeamStats && isTeamsModified ? {
+                    original: originalTeamStats,
+                    label: 'Original Balance'
+                  } : undefined}
+                />
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       <BalanceOptionsModal isOpen={isBalanceModalOpen} onClose={() => setIsBalanceModalOpen(false)} onConfirm={handleBalanceConfirm} isLoading={isBalancing} />
       <SoftUIConfirmationModal 
