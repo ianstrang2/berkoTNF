@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import Button from '@/components/ui-kit/Button.component';
-import { CheckCircle } from 'lucide-react';
+import Card from '@/components/ui-kit/Card.component';
+import { CheckCircle, Plus, Minus } from 'lucide-react';
 import { PlayerInPool } from '@/types/player.types';
 
 interface PlayerGoalStat {
@@ -60,8 +61,8 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
 
     if (teamAGoalsTotal !== teamAScore || teamBGoalsTotal !== teamBScore) {
       const message = `The player goal totals do not match the final scores.\n\n` +
-                      `Team A: Players scored ${teamAGoalsTotal}, but final score is ${teamAScore}.\n` +
-                      `Team B: Players scored ${teamBGoalsTotal}, but final score is ${teamBScore}.\n\n` +
+                      `Team Orange: Players scored ${teamAGoalsTotal}, but final score is ${teamAScore}.\n` +
+                      `Team Green: Players scored ${teamBGoalsTotal}, but final score is ${teamBScore}.\n\n` +
                       `Do you want to save anyway?`;
       if (!window.confirm(message)) {
         return;
@@ -92,70 +93,119 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     submit: validateAndSubmit,
   }));
 
-  const renderPlayerRow = (player: PlayerInPool) => (
-    <div key={player.id} className="flex items-center justify-between bg-gray-700 p-2 rounded-md">
-      <span className="text-gray-200">{player.name}</span>
-      <div className="flex items-center gap-2">
-        <Button onClick={() => handleGoalChange(player.id, -1)} size="sm" variant="secondary" disabled={isSubmitting || isCompleted}>-</Button>
-        <span className="font-bold w-6 text-center">{playerGoals.get(player.id) || 0}</span>
-        <Button onClick={() => handleGoalChange(player.id, 1)} size="sm" variant="secondary" disabled={isSubmitting || isCompleted}>+</Button>
+  const renderPlayerRow = (player: PlayerInPool) => {
+    const goals = playerGoals.get(player.id) || 0;
+    const displayName = player.name.length > 14 ? player.name.substring(0, 14) : player.name;
+    
+    return (
+      <div 
+        key={player.id} 
+        className="flex items-center justify-between bg-white rounded-lg shadow-soft-sm border border-gray-200 px-3 py-2 transition-all duration-200 hover:shadow-soft-md"
+      >
+        <span className="text-slate-700 font-medium text-sm flex-1">{displayName}</span>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={() => handleGoalChange(player.id, -1)} 
+            size="sm" 
+            variant="outline" 
+            disabled={isSubmitting || isCompleted || goals === 0}
+            className="w-7 h-7 p-0 rounded-full border-slate-300 hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
+          >
+            <Minus size={12} />
+          </Button>
+          <span className="font-bold text-sm w-6 text-center text-slate-800 bg-gray-50 rounded py-0.5">
+            {goals}
+          </span>
+          <Button 
+            onClick={() => handleGoalChange(player.id, 1)} 
+            size="sm" 
+            variant="outline" 
+            disabled={isSubmitting || isCompleted}
+            className="w-7 h-7 p-0 rounded-full border-slate-300 hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
+          >
+            <Plus size={12} />
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderTeamColumn = (team: PlayerInPool[], teamName: string, score: number, setScore: (s: number) => void) => (
-    <div className="flex-1 bg-gray-800/50 p-4 rounded-lg flex flex-col">
-      <h3 className="text-lg font-bold text-white mb-3 border-b border-gray-700 pb-2">{teamName}</h3>
-      <div className="flex-grow space-y-2 mb-4">
-        {team.map(renderPlayerRow)}
-      </div>
-       <div className="mt-auto">
-          <label className="text-sm font-semibold mb-2 block">Final Score for {teamName}</label>
-          <input
-            type="number"
-            value={score}
-            onChange={(e) => setScore(parseInt(e.target.value, 10) || 0)}
-            className="w-full p-2 rounded-md bg-gray-900 border border-gray-700 focus:ring-orange-500 focus:border-orange-500"
-            disabled={isSubmitting || isCompleted}
-          />
+    <div className="flex-1">
+      <Card>
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="font-bold text-slate-700 text-lg text-center">
+            {teamName}
+          </h3>
         </div>
+        <div className="p-4">
+          <div className="space-y-3 mb-6">
+            {team.map(renderPlayerRow)}
+          </div>
+          
+          <div className="pt-4 border-t border-gray-200">
+            <label className="text-sm font-semibold text-slate-700 mb-3 block">Final Score</label>
+            <div className="relative">
+              <input
+                type="number"
+                value={score}
+                onChange={(e) => setScore(parseInt(e.target.value, 10) || 0)}
+                className="w-full px-4 py-3 text-lg font-bold text-center rounded-lg border-2 border-gray-200 bg-white shadow-soft-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 focus:outline-none transition-all duration-200 disabled:bg-gray-50 disabled:text-gray-500"
+                disabled={isSubmitting || isCompleted}
+                min="0"
+                placeholder="0"
+              />
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">
-        {isCompleted ? 'Match Result' : 'Enter Match Results'}
-      </h2>
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">
+          {isCompleted ? 'Match Result' : 'Enter Match Results'}
+        </h2>
+        <p className="text-slate-600">
+          {isCompleted ? 'This match has been completed and saved.' : 'Record goals for each player and enter the final scores.'}
+        </p>
+      </div>
       
       {isCompleted && (
-        <div className="bg-green-900/50 border border-green-700 text-green-300 p-4 rounded-lg mb-6 flex items-center gap-3">
-          <CheckCircle size={20} />
-          <p>This match has been completed and the result is saved.</p>
-        </div>
+        <Card>
+          <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-3 text-green-700">
+              <div className="flex-shrink-0">
+                <CheckCircle size={20} className="text-green-600" />
+              </div>
+              <p className="font-medium">Match completed successfully and results have been saved.</p>
+            </div>
+          </div>
+        </Card>
       )}
       
       {error && (
-        <div className="bg-red-900/50 border border-red-700 text-red-300 p-3 rounded-lg mb-4">
-          <p><strong>Error:</strong> {error}</p>
-        </div>
+        <Card>
+          <div className="p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-3 text-red-700">
+              <div className="flex-shrink-0 mt-0.5">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              </div>
+              <div>
+                <p className="font-medium">Error saving results</p>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
       )}
 
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        {renderTeamColumn(teamA, 'Team A', teamAScore, setTeamAScore)}
-        {renderTeamColumn(teamB, 'Team B', teamBScore, setTeamBScore)}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {renderTeamColumn(teamA, 'Orange', teamAScore, setTeamAScore)}
+        {renderTeamColumn(teamB, 'Green', teamBScore, setTeamBScore)}
       </div>
-
-      {!isCompleted && (
-        <div className="flex justify-end">
-          {/* The Global CTA bar will replace this button */}
-          {/*
-          <Button onClick={validateAndSubmit} disabled={isSubmitting} variant="primary">
-            {isSubmitting ? 'Saving...' : 'Save Final Result'}
-          </Button>
-          */}
-        </div>
-      )}
     </div>
   );
 });

@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
             stamina_pace: true,
             control: true,
             teamwork: true,
-            resilience: true
+            resilience: true,
+            is_ringer: true,
+            is_retired: true,
+            selected_club: true
           }
         }
       },
@@ -68,7 +71,17 @@ export async function GET(request: NextRequest) {
       pool_id: p.upcoming_player_id,
       responseStatus: 'PENDING',
       team: p.team || 'Unassigned',
-      ...p.player
+      slot_number: p.slot_number,
+      name: p.player.name,
+      goalscoring: p.player.goalscoring,
+      defending: p.player.defender,
+      staminaPace: p.player.stamina_pace,
+      control: p.player.control,
+      teamwork: p.player.teamwork,
+      resilience: p.player.resilience,
+      isRinger: p.player.is_ringer,
+      isRetired: p.player.is_retired,
+      club: p.player.selected_club ? (typeof p.player.selected_club === 'string' ? JSON.parse(p.player.selected_club) : p.player.selected_club) : null
     }));
 
     return NextResponse.json({ 
@@ -200,7 +213,10 @@ export async function POST(request: NextRequest) {
             stamina_pace: true,
             control: true,
             teamwork: true,
-            resilience: true
+            resilience: true,
+            is_ringer: true,
+            is_retired: true,
+            selected_club: true
           }
         }
       }
@@ -218,7 +234,17 @@ export async function POST(request: NextRequest) {
       pool_id: newAssignment.upcoming_player_id,
       responseStatus: 'PENDING',
       team: newAssignment.team,
-      ...newAssignment.player
+      slot_number: newAssignment.slot_number,
+      name: newAssignment.player.name,
+      goalscoring: newAssignment.player.goalscoring,
+      defending: newAssignment.player.defender,
+      staminaPace: newAssignment.player.stamina_pace,
+      control: newAssignment.player.control,
+      teamwork: newAssignment.player.teamwork,
+      resilience: newAssignment.player.resilience,
+      isRinger: newAssignment.player.is_ringer,
+      isRetired: newAssignment.player.is_retired,
+      club: newAssignment.player.selected_club ? (typeof newAssignment.player.selected_club === 'string' ? JSON.parse(newAssignment.player.selected_club) : newAssignment.player.selected_club) : null
     };
 
     return NextResponse.json({ 

@@ -31,6 +31,18 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   const [playerPoolIds, setPlayerPoolIds] = useState<string[]>([]);
   const completeFormRef = useRef<CompleteFormHandle>(null);
   
+  // Helper function to format state display text
+  const formatStateDisplay = (state: string) => {
+    switch (state) {
+      case 'PoolLocked':
+        return 'POOL LOCKED';
+      case 'TeamsBalanced':
+        return 'TEAMS BALANCED';
+      default:
+        return state;
+    }
+  };
+  
   const { currentStep, primaryLabel, primaryAction, primaryDisabled } = useMemo(() => {
     if (!matchData) {
       return { currentStep: 'Pool' as 'Pool', primaryLabel: 'Loading...', primaryAction: () => {}, primaryDisabled: true };
@@ -153,7 +165,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
               </p>
             </div>
             <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase py-1 px-3 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md">{matchData.state}</span>
+                <span className="text-xs font-bold uppercase py-1 px-3 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md">{formatStateDisplay(matchData.state)}</span>
                 {renderMoreMenu()}
             </div>
         </div>

@@ -110,7 +110,7 @@ export const getPositionLabels = (teamSize: number = 9, teamTemplate?: TeamTempl
     case 7:
       return { defense: 'Defense (2)', midfield: 'Midfield (3)', attack: 'Attack (2)' };
     case 9:
-      return { defense: 'Defense (3)', midfield: 'Midfield (3)', attack: 'Attack (3)' };
+      return { defense: 'Defense (3)', midfield: 'Midfield (4)', attack: 'Attack (2)' };
     case 11:
       return { defense: 'Defense (4)', midfield: 'Midfield (4)', attack: 'Attack (3)' };
     default:

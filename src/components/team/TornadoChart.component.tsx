@@ -12,16 +12,9 @@ interface TornadoChartProps {
   };
   teamSize?: number;           // Add for dynamic sizing
   isModified?: boolean;        // Add for status indication
-  showComparison?: {
-    original: {
-      teamA: TeamStats;
-      teamB: TeamStats;
-    };
-    label: string;
-  };
 }
 
-const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, weights, teamSize, isModified, showComparison }) => {
+const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, weights, teamSize, isModified }) => {
   if (!teamAStats || !teamBStats) return null;
   
   // Default weights (as fallback)
@@ -93,37 +86,67 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   const teamBResilienceAvg = getAttributeAvg(teamBStats, 'resilience');
   const resilienceDiff = teamBResilienceAvg - teamAResilienceAvg;
 
-  // Calculate original differences for comparison if available
-  let originalDiffs: {
-    defense: number;
-    midfield: number;
-    attacking: number;
-    teamwork: number;
-    resilience: number;
-  } | null = null;
-  if (showComparison) {
-    const { original } = showComparison;
+  // Calculate weighted balance score using the SAME algorithm as balanceByRating
+  const calculateWeightedBalanceScore = () => {
+    if (!weights) return null;
     
-    const originalTeamADefense = calculatePositionScore(original.teamA, 'defense');
-    const originalTeamAMidfield = calculatePositionScore(original.teamA, 'midfield');
-    const originalTeamAAttacking = calculatePositionScore(original.teamA, 'attack');
+    // Debug logging for weights and team stats
+    if (process.env.NODE_ENV === 'development') {
+      console.log('=== BALANCE SCORE DEBUG ===');
+      console.log('Weights structure:', weights);
+      console.log('Team A stats:', teamAStats);
+      console.log('Team B stats:', teamBStats);
+    }
     
-    const originalTeamBDefense = calculatePositionScore(original.teamB, 'defense');
-    const originalTeamBMidfield = calculatePositionScore(original.teamB, 'midfield');
-    const originalTeamBAttacking = calculatePositionScore(original.teamB, 'attack');
+    let totalDifference = 0;
+    const positionGroups: ('defense' | 'midfield' | 'attack')[] = ['defense', 'midfield', 'attack'];
     
-    const originalTeamATeamworkAvg = getAttributeAvg(original.teamA, 'teamwork');
-    const originalTeamBTeamworkAvg = getAttributeAvg(original.teamB, 'teamwork');
-    const originalTeamAResilienceAvg = getAttributeAvg(original.teamA, 'resilience');
-    const originalTeamBResilienceAvg = getAttributeAvg(original.teamB, 'resilience');
+    for (const group of positionGroups) {
+      const statsA = teamAStats[group];
+      const statsB = teamBStats[group];
+      const groupWeights = weights[group] || {};
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`--- ${group.toUpperCase()} ---`);
+        console.log(`Group weights:`, groupWeights);
+        console.log(`Team A ${group}:`, statsA);
+        console.log(`Team B ${group}:`, statsB);
+      }
+      
+      // Calculate weighted differences for each attribute
+      Object.keys(statsA).forEach(attribute => {
+        const weight = groupWeights[attribute] || 0;
+        const diff = Math.abs(statsA[attribute] - statsB[attribute]);
+        const weightedDiff = diff * weight;
+        totalDifference += weightedDiff;
+        
+        // Debug logging for each attribute calculation
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`  ${attribute}: A=${statsA[attribute].toFixed(2)}, B=${statsB[attribute].toFixed(2)}, diff=${diff.toFixed(2)}, weight=${weight}, weighted=${weightedDiff.toFixed(4)}`);
+        }
+      });
+    }
     
-    originalDiffs = {
-      defense: originalTeamBDefense - originalTeamADefense,
-      midfield: originalTeamBMidfield - originalTeamAMidfield,
-      attacking: originalTeamBAttacking - originalTeamAAttacking,
-      teamwork: originalTeamBTeamworkAvg - originalTeamATeamworkAvg,
-      resilience: originalTeamBResilienceAvg - originalTeamAResilienceAvg
-    };
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`=== FINAL RESULT ===`);
+      console.log(`Total weighted difference: ${totalDifference.toFixed(4)}`);
+      console.log('========================');
+    }
+    
+    return totalDifference;
+  };
+
+  const balanceScore = calculateWeightedBalanceScore();
+  
+  // Convert to percentage (0-100%, higher is better)
+  // Adjust scaling - if balanceScore is very small, we need a different scale factor
+  const balancePercentage = balanceScore !== null 
+    ? Math.min(100, Math.max(0, Math.round(100 - (balanceScore * 25))))  // Increased scale factor
+    : null;
+    
+  // Debug logging for balance score
+  if (process.env.NODE_ENV === 'development' && balanceScore !== null) {
+    console.log(`Raw balance score: ${balanceScore.toFixed(4)}, Scaled percentage: ${balancePercentage}%`);
   }
   
   // Helper function to calculate bar width percentage (scale differences for visualization)
@@ -135,11 +158,9 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
     return `${percentage}%`;
   };
   
-  // Helper for determining the color based on difference
+  // Helper for determining the color based on difference - consistent purple/pink
   const getBarColor = (diff: number) => {
-    return diff > 0 
-      ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500' 
-      : 'bg-gradient-to-r from-fuchsia-500 to-purple-600';
+    return 'bg-gradient-to-r from-pink-500 to-purple-700';
   };
   
   // Helper for positioning the bar (left or right of center)
@@ -149,15 +170,36 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   
   // Categories to display
   const categories = [
-    { label: 'Defense', diff: defenseDiff, originalDiff: originalDiffs?.defense },
-    { label: 'Midfield', diff: midfieldDiff, originalDiff: originalDiffs?.midfield },
-    { label: 'Attacking', diff: attackingDiff, originalDiff: originalDiffs?.attacking },
-    { label: 'Teamwork', diff: teamworkDiff, originalDiff: originalDiffs?.teamwork },
-    { label: 'Resilience', diff: resilienceDiff, originalDiff: originalDiffs?.resilience }
+    { label: 'Defense', diff: defenseDiff },
+    { label: 'Midfield', diff: midfieldDiff },
+    { label: 'Attacking', diff: attackingDiff },
+    { label: 'Teamwork', diff: teamworkDiff },
+    { label: 'Resilience', diff: resilienceDiff }
   ];
   
   return (
     <div className="rounded-xl overflow-hidden">
+      {/* Balance Score Display */}
+      {balancePercentage !== null && (
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-slate-300">Balance Score</p>
+            <span className="text-sm font-semibold text-white">{balancePercentage}%</span>
+          </div>
+                      <div className="h-1.5 flex overflow-hidden rounded-lg bg-slate-700">
+              <div
+                className="duration-600 ease-soft flex h-full flex-col justify-center overflow-hidden whitespace-nowrap rounded-lg text-center text-white transition-all bg-gradient-to-br from-pink-500 to-purple-700"
+              style={{ width: `${balancePercentage}%` }}
+              role="progressbar" 
+              aria-valuenow={balancePercentage} 
+              aria-valuemin={0} 
+              aria-valuemax={100}
+            ></div>
+          </div>
+        </div>
+      )}
+
+      {/* Tornado Chart */}
       <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 text-white">
         <div className="space-y-5 pt-2">
           {categories.map((category, index) => (
@@ -165,11 +207,6 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
               {/* Category label */}
               <div className="flex items-center mb-1">
                 <span className="text-xs font-medium text-slate-400">{category.label}</span>
-                {showComparison && category.originalDiff !== undefined && (
-                  <span className="text-xs text-slate-500 ml-2">
-                    (vs {showComparison.label})
-                  </span>
-                )}
               </div>
               
               {/* Bar container with center line */}
@@ -177,20 +214,7 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
                 {/* Center line */}
                 <div className="absolute top-0 bottom-0 left-1/2 w-px bg-slate-600"></div>
                 
-                {/* Original/Comparison bar (background) */}
-                {showComparison && category.originalDiff !== undefined && (
-                  <div 
-                    className={`absolute top-0 bottom-0 ${getBarPosition(category.originalDiff)} border-2 rounded-full opacity-40`}
-                    style={{ 
-                      width: getBarWidth(category.originalDiff),
-                      borderColor: category.originalDiff > 0 ? '#a855f7' : '#d946ef',
-                      backgroundColor: 'transparent',
-                      ...(category.originalDiff < 0 ? { right: '50%' } : { left: '50%' })
-                    }}
-                  ></div>
-                )}
-                
-                {/* Current bar (foreground) */}
+                {/* Current bar */}
                 <div 
                   className={`absolute top-0 bottom-0 ${getBarPosition(category.diff)} ${getBarColor(category.diff)} rounded-full shadow-soft-md`}
                   style={{ 

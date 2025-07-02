@@ -173,7 +173,6 @@ const BalanceTeamsPane = ({
   const [balanceWeights, setBalanceWeights] = useState<any>(null);
   const [balanceMethod, setBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(null);
   const [isTeamsModified, setIsTeamsModified] = useState<boolean>(false);
-  const [originalTeamStats, setOriginalTeamStats] = useState<{ teamA: any; teamB: any } | null>(null);
 
   useEffect(() => {
     setPlayers(initialPlayers);
@@ -182,11 +181,17 @@ const BalanceTeamsPane = ({
   useEffect(() => {
     const fetchTemplate = async () => {
         try {
-            const response = await fetch(`/api/admin/team-templates?team_size=${teamSize}`);
+            const response = await fetch(`/api/admin/team-templates?teamSize=${teamSize}`);
             const result = await response.json();
-            if (result.success && result.data.length > 0) setTeamTemplate(result.data[0]);
-            else setTeamTemplate({ defenders: 3, midfielders: 3, attackers: 3 });
-        } catch (error) { setTeamTemplate({ defenders: 3, midfielders: 3, attackers: 3 }); }
+            
+            if (result.success && result.data.length > 0) {
+                setTeamTemplate(result.data[0]);
+            } else {
+                setTeamTemplate({ defenders: 3, midfielders: 4, attackers: 2 });
+            }
+        } catch (error) { 
+            setTeamTemplate({ defenders: 3, midfielders: 4, attackers: 2 }); 
+        }
     };
     fetchTemplate();
   }, [teamSize]);
@@ -207,12 +212,17 @@ const BalanceTeamsPane = ({
           };
           
           result.data.forEach((weight: any) => {
-            const group = weight.position_group;
-            const attribute = weight.attribute;
+            const group = weight.description;     // ✅ Use 'description' field
+            const attribute = weight.name;        // ✅ Use 'name' field
             if (group && attribute && formattedWeights[group as keyof typeof formattedWeights]) {
               formattedWeights[group as keyof typeof formattedWeights][attribute] = weight.weight;
             }
           });
+          
+          // Debug logging
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Fetched balance weights:', formattedWeights);
+          }
           
           setBalanceWeights(formattedWeights);
         }
@@ -244,32 +254,24 @@ const BalanceTeamsPane = ({
 
   // Calculate team stats for TornadoChart - keep calculating even after teams are modified
   const teamStatsData = useMemo(() => {
-    if (!teamTemplate || teamA.length === 0 || teamB.length === 0) {
+    if (!teamTemplate) {
+      return null;
+    }
+    
+    // Hide chart if teams are incomplete (players moved to pool)
+    if (teamA.length !== teamSize || teamB.length !== teamSize) {
       return null;
     }
     
     // Show stats if originally balanced with ability method OR currently balanced
-    const shouldCalculate = (balanceMethod === 'ability' && originalTeamStats) || isBalanced;
+    const shouldCalculate = balanceMethod === 'ability' || isBalanced;
     if (!shouldCalculate) return null;
     
     const teamAStats = calculateTeamStatsFromPlayers(teamA, teamTemplate, teamSize);
     const teamBStats = calculateTeamStatsFromPlayers(teamB, teamTemplate, teamSize);
     
     return { teamAStats, teamBStats };
-  }, [isBalanced, balanceMethod, originalTeamStats, teamA, teamB, teamTemplate, teamSize]);
-
-  // Capture original team stats after balancing with "ability" method
-  useEffect(() => {
-    if (isBalanced && balanceMethod === 'ability' && !isTeamsModified && teamTemplate && teamA.length > 0 && teamB.length > 0) {
-      const originalTeamAStats = calculateTeamStatsFromPlayers(teamA, teamTemplate, teamSize);
-      const originalTeamBStats = calculateTeamStatsFromPlayers(teamB, teamTemplate, teamSize);
-      
-      setOriginalTeamStats({
-        teamA: originalTeamAStats,
-        teamB: originalTeamBStats
-      });
-    }
-  }, [isBalanced, balanceMethod, isTeamsModified, teamA, teamB, teamTemplate, teamSize]);
+  }, [isBalanced, balanceMethod, teamA, teamB, teamTemplate, teamSize, players]);
 
   const handleBalanceConfirm = async (method: 'ability' | 'performance' | 'random') => {
     setIsBalanceModalOpen(false);
@@ -288,7 +290,6 @@ const BalanceTeamsPane = ({
       await clearTeamsAction();
       // Reset TornadoChart state when teams are cleared
       setBalanceMethod(null);
-      setOriginalTeamStats(null);
       setIsTeamsModified(false);
     } catch (error: any) {
       onShowToast(error.message || "Failed to clear teams", 'error');
@@ -302,12 +303,22 @@ const BalanceTeamsPane = ({
     onShowToast("Teams copied to clipboard!", 'success');
   };
 
-  const renderPlayer = (player: PlayerInPool) => (
-      <div key={player.id} draggable onDragStart={() => handleDragStart(player)} className="inline-flex items-center bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-3 py-2 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing">
-          <span className="truncate text-sm">{player.name}</span>
-          <GripVertical className="ml-2 text-slate-400" size={16} />
+  const renderPlayer = (player: PlayerInPool) => {
+    // Truncate name to 14 characters max
+    const displayName = player.name.length > 14 ? player.name.substring(0, 14) : player.name;
+    
+    return (
+      <div 
+        key={player.id} 
+        draggable 
+        onDragStart={() => handleDragStart(player)} 
+        className="inline-flex items-center justify-between bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-3 py-2 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing w-[170px]"
+      >
+          <span className="text-sm font-medium truncate flex-1">{displayName}</span>
+          <GripVertical className="ml-2 text-slate-400 flex-shrink-0" size={16} />
       </div>
-  );
+    );
+  };
   
   const renderTeamSlot = (team: 'A' | 'B', slotIndex: number) => {
     // For Team B, the slot number needs to be offset by the team size.
@@ -315,8 +326,19 @@ const BalanceTeamsPane = ({
     const playerInSlot = (team === 'A' ? teamA : teamB).find(p => p.slot_number === actualSlotNumber);
     
     return (
-      <div key={actualSlotNumber} onDragOver={handleDragOver} onDrop={() => handleDrop(team, actualSlotNumber)} className="h-[52px] w-[190px] flex items-center justify-center rounded-lg border-2 border-dashed border-gray-200 hover:border-purple-400 hover:bg-gray-50 transition-colors p-1 mx-auto">
-        {playerInSlot ? renderPlayer(playerInSlot) : null}
+      <div 
+        key={actualSlotNumber} 
+        onDragOver={handleDragOver} 
+        onDrop={() => handleDrop(team, actualSlotNumber)} 
+        className={`h-[44px] w-[170px] flex items-center justify-center rounded-lg transition-all duration-200 ease-in-out mx-auto ${
+          playerInSlot 
+            ? 'bg-transparent' 
+            : 'bg-gray-50 border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50 hover:shadow-soft-sm'
+        }`}
+      >
+        {playerInSlot ? renderPlayer(playerInSlot) : (
+          <span className="text-xs text-gray-400 font-medium">Drop player here</span>
+        )}
       </div>
     );
   };
@@ -325,20 +347,28 @@ const BalanceTeamsPane = ({
     if (!teamTemplate) return <div className="p-4"><div className="w-full h-96 bg-gray-200 animate-pulse rounded-lg"></div></div>;
     // Loop from 0 to teamSize-1 to get the correct index for the slot
     const slots = Array.from({ length: teamSize }, (_, i) => i);
-    const { defenders, midfielders } = teamTemplate;
+    const { defenders, midfielders, attackers } = teamTemplate;
+    
     return (
-      <div className="space-y-2">
-        <h3 className="font-bold text-slate-700 text-lg text-center">
+      <div className="space-y-1">
+        <h3 className="font-bold text-slate-700 text-lg text-center mb-3">
           {teamName === 'A' ? 'Orange' : 'Green'}
         </h3>
-        {slots.map((slotIndex) => (
+        {slots.map((slotIndex) => {
+          const currentSlot = slotIndex + 1;
+          const showLineAfter = currentSlot === defenders || currentSlot === defenders + midfielders;
+          
+          return (
             <React.Fragment key={slotIndex}>
                 {renderTeamSlot(teamName, slotIndex)}
-                {(slotIndex + 1 === defenders || slotIndex + 1 === defenders + midfielders) && (
-                     <div className="h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent my-1" />
+                {showLineAfter && (
+                     <div className="py-2 flex items-center justify-center">
+                       <div className="h-0.5 w-24 bg-gradient-to-r from-pink-400 via-purple-500 to-pink-400 rounded-full shadow-sm opacity-75"></div>
+                     </div>
                 )}
             </React.Fragment>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -361,8 +391,12 @@ const BalanceTeamsPane = ({
                 </div>
             </div>
             <div className="p-3 border-t border-gray-200 flex justify-end">
-                <Button variant="primary" onClick={() => setIsBalanceModalOpen(true)} disabled={isBalancing || unassigned.length === 0}>
-                    Auto Assign
+                <Button 
+                    variant="primary" 
+                    onClick={() => setIsBalanceModalOpen(true)} 
+                    disabled={isBalancing}
+                >
+                    {unassigned.length === 0 ? 'Re-Balance Teams' : 'Auto Assign'}
                 </Button>
             </div>
           </Card>
@@ -389,10 +423,6 @@ const BalanceTeamsPane = ({
                       weights={balanceWeights}
                       teamSize={teamSize}
                       isModified={isTeamsModified}
-                      showComparison={originalTeamStats && isTeamsModified ? {
-                        original: originalTeamStats,
-                        label: 'Original Balance'
-                      } : undefined}
                     />
                   </div>
                 </div>
@@ -441,10 +471,6 @@ const BalanceTeamsPane = ({
                   weights={balanceWeights}
                   teamSize={teamSize}
                   isModified={isTeamsModified}
-                  showComparison={originalTeamStats && isTeamsModified ? {
-                    original: originalTeamStats,
-                    label: 'Original Balance'
-                  } : undefined}
                 />
               </div>
             </div>

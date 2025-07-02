@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     let result;
     if (method === 'balanceByRating') {
-      result = await balanceByRating(matchId, playerIdsAsStrings);
+      result = await balanceByRating(matchId);
     } else if (method === 'balanceByPerformance') {
       result = await balanceByPerformance(matchId, playerIdsAsStrings);
     } else {
