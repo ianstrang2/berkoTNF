@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { match_id, upcoming_match_id, match_date, team_size, is_balanced, is_active } = body;
+    const { match_id, upcoming_match_id, state_version, match_date, team_size, is_balanced, is_active } = body;
     
     // Use upcoming_match_id if provided, fallback to match_id for compatibility
     let targetMatchId = upcoming_match_id || match_id;
@@ -206,6 +206,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Match not found' }, { status: 404 });
     }
 
+    // Add state_version concurrency check
+    if (typeof state_version === 'number' && currentMatch.state_version !== state_version) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Match was updated by another user. Please refresh and try again.' 
+      }, { status: 409 });
+    }
+
     // Check if team size is being reduced and there are more players than the new size would allow
     if (team_size && team_size < currentMatch.team_size && currentMatch._count.players > team_size * 2) {
       return NextResponse.json({ 
@@ -225,14 +233,15 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Update match
+    // Update match with state_version increment
     const updatedMatch = await prisma.upcoming_matches.update({
       where: { upcoming_match_id: targetMatchId },
       data: {
         match_date: match_date ? new Date(match_date) : undefined,
         team_size: team_size,
         is_balanced: is_balanced !== undefined ? is_balanced : undefined,
-        is_active: is_active !== undefined ? is_active : undefined
+        is_active: is_active !== undefined ? is_active : undefined,
+        state_version: { increment: 1 }
       }
     });
 
