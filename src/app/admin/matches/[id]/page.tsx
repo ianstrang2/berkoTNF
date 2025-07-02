@@ -47,7 +47,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
     if (!matchData) {
       return { currentStep: 'Pool' as 'Pool', primaryLabel: 'Loading...', primaryAction: () => {}, primaryDisabled: true };
     }
-    let step: 'Pool' | 'Teams' | 'Complete' | 'Done' = 'Pool';
+    let step: 'Pool' | 'Teams' | 'Result' | 'Done' = 'Pool';
     let label = '';
     let action = () => {};
     let disabled = true;
@@ -66,7 +66,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         disabled = !matchData.isBalanced;
         break;
       case 'TeamsBalanced':
-        step = 'Complete';
+        step = 'Result';
         label = 'Save Result';
         action = () => completeFormRef.current?.submit();
         disabled = false;

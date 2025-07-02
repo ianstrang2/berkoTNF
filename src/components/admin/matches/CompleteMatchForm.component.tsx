@@ -24,9 +24,9 @@ export type CompleteFormHandle = {
 
 const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>(
   ({ matchId, players, completeMatchAction, isCompleted }, ref) => {
-  const [teamAScore, setTeamAScore] = useState(0);
-  const [teamBScore, setTeamBScore] = useState(0);
   const [playerGoals, setPlayerGoals] = useState<Map<string, number>>(new Map());
+  const [ownGoalsA, setOwnGoalsA] = useState(0);
+  const [ownGoalsB, setOwnGoalsB] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,18 +56,12 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
   
   const validateAndSubmit = async () => {
     setError(null);
+    
+    // Calculate final scores
     const teamAGoalsTotal = teamA.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
     const teamBGoalsTotal = teamB.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
-
-    if (teamAGoalsTotal !== teamAScore || teamBGoalsTotal !== teamBScore) {
-      const message = `The player goal totals do not match the final scores.\n\n` +
-                      `Team Orange: Players scored ${teamAGoalsTotal}, but final score is ${teamAScore}.\n` +
-                      `Team Green: Players scored ${teamBGoalsTotal}, but final score is ${teamBScore}.\n\n` +
-                      `Do you want to save anyway?`;
-      if (!window.confirm(message)) {
-        return;
-      }
-    }
+    const finalTeamAScore = teamAGoalsTotal + ownGoalsA;
+    const finalTeamBScore = teamBGoalsTotal + ownGoalsB;
     
     setIsSubmitting(true);
     try {
@@ -76,7 +70,7 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
         .filter(p => p.goals > 0);
         
       const payload = {
-        score: { team_a: teamAScore, team_b: teamBScore },
+        score: { team_a: finalTeamAScore, team_b: finalTeamBScore },
         player_stats: player_stats,
       };
       
@@ -93,19 +87,31 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     submit: validateAndSubmit,
   }));
 
-  const renderPlayerRow = (player: PlayerInPool) => {
-    const goals = playerGoals.get(player.id) || 0;
+  const renderPlayerRow = (player: PlayerInPool | { id: string; name: string; isSynthetic?: boolean }, isOwnGoal = false) => {
+    const goals = isOwnGoal 
+      ? (player.id === 'own-goal-a' ? ownGoalsA : ownGoalsB)
+      : (playerGoals.get(player.id) || 0);
     const displayName = player.name.length > 14 ? player.name.substring(0, 14) : player.name;
+    const isSynthetic = 'isSynthetic' in player && player.isSynthetic;
     
     return (
       <div 
         key={player.id} 
-        className="flex items-center justify-between bg-white rounded-lg shadow-soft-sm border border-gray-200 px-3 py-2 transition-all duration-200 hover:shadow-soft-md"
+        className={`flex items-center justify-between bg-white rounded-lg shadow-soft-sm border border-gray-200 px-3 py-2 transition-all duration-200 hover:shadow-soft-md ${
+          isSynthetic ? 'bg-gray-50' : ''
+        }`}
       >
-        <span className="text-slate-700 font-medium text-sm flex-1">{displayName}</span>
+        <span className={`font-medium text-sm flex-1 ${
+          isSynthetic ? 'text-gray-500' : 'text-slate-700'
+        }`}>
+          {displayName}
+        </span>
         <div className="flex items-center gap-2">
           <Button 
-            onClick={() => handleGoalChange(player.id, -1)} 
+            onClick={() => isOwnGoal 
+              ? (player.id === 'own-goal-a' ? setOwnGoalsA(Math.max(0, ownGoalsA - 1)) : setOwnGoalsB(Math.max(0, ownGoalsB - 1)))
+              : handleGoalChange(player.id, -1)
+            } 
             size="sm" 
             variant="outline" 
             disabled={isSubmitting || isCompleted || goals === 0}
@@ -117,7 +123,10 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
             {goals}
           </span>
           <Button 
-            onClick={() => handleGoalChange(player.id, 1)} 
+            onClick={() => isOwnGoal
+              ? (player.id === 'own-goal-a' ? setOwnGoalsA(ownGoalsA + 1) : setOwnGoalsB(ownGoalsB + 1))
+              : handleGoalChange(player.id, 1)
+            } 
             size="sm" 
             variant="outline" 
             disabled={isSubmitting || isCompleted}
@@ -130,37 +139,52 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     );
   };
 
-  const renderTeamColumn = (team: PlayerInPool[], teamName: string, score: number, setScore: (s: number) => void) => (
-    <div className="flex-1">
-      <Card>
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="font-bold text-slate-700 text-lg text-center">
-            {teamName}
-          </h3>
-        </div>
-        <div className="p-4">
-          <div className="space-y-3 mb-6">
-            {team.map(renderPlayerRow)}
+  const renderTeamColumn = (team: PlayerInPool[], teamName: string, teamId: 'A' | 'B') => {
+    // Calculate auto score
+    const playerGoalsTotal = team.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
+    const ownGoals = teamId === 'A' ? ownGoalsA : ownGoalsB;
+    const calculatedScore = playerGoalsTotal + ownGoals;
+    
+    return (
+      <div className="flex-1">
+        <Card>
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="font-bold text-slate-700 text-lg text-center">
+              {teamName}
+            </h3>
           </div>
-          
-          <div className="pt-4 border-t border-gray-200">
-            <label className="text-sm font-semibold text-slate-700 mb-3 block">Final Score</label>
-            <div className="relative">
-              <input
-                type="number"
-                value={score}
-                onChange={(e) => setScore(parseInt(e.target.value, 10) || 0)}
-                className="w-full px-4 py-3 text-lg font-bold text-center rounded-lg border-2 border-gray-200 bg-white shadow-soft-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 focus:outline-none transition-all duration-200 disabled:bg-gray-50 disabled:text-gray-500"
-                disabled={isSubmitting || isCompleted}
-                min="0"
-                placeholder="0"
-              />
+          <div className="p-4">
+            <div className="space-y-3 mb-4">
+              {team.map(player => renderPlayerRow(player))}
+              
+              {/* Own Goal Row */}
+              {renderPlayerRow(
+                { 
+                  id: `own-goal-${teamId.toLowerCase()}`, 
+                  name: 'OG / Unknown', 
+                  isSynthetic: true 
+                }, 
+                true
+              )}
+            </div>
+            
+            <div className="pt-4 border-t border-gray-200">
+              <label className="text-sm font-semibold text-slate-700 mb-3 block">Final Score</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={calculatedScore}
+                  readOnly
+                  className="w-full px-4 py-3 text-lg font-bold text-center rounded-lg border-2 border-gray-200 bg-gray-50 text-slate-600 shadow-soft-sm cursor-not-allowed"
+                  placeholder="0"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
-    </div>
-  );
+        </Card>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -203,8 +227,8 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {renderTeamColumn(teamA, 'Orange', teamAScore, setTeamAScore)}
-        {renderTeamColumn(teamB, 'Green', teamBScore, setTeamBScore)}
+        {renderTeamColumn(teamA, 'Orange', 'A')}
+        {renderTeamColumn(teamB, 'Green', 'B')}
       </div>
     </div>
   );

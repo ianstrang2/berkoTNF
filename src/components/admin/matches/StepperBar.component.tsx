@@ -3,13 +3,13 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 
-type Step = 'Pool' | 'Teams' | 'Complete' | 'Done';
+type Step = 'Pool' | 'Teams' | 'Result' | 'Done';
 
 interface StepperBarProps {
   currentStep: Step;
 }
 
-const steps: Step[] = ['Pool', 'Teams', 'Complete', 'Done'];
+const steps: Step[] = ['Pool', 'Teams', 'Result', 'Done'];
 
 const StepperBar: React.FC<StepperBarProps> = ({ currentStep }) => {
   const currentStepIndex = steps.indexOf(currentStep);
