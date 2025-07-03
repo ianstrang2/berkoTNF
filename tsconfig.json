@@ -41,6 +41,8 @@
     "supabase/functions",
     "backup/**/*",
     "temp_old_files",
-    "temp_old_files/**/*"
+    "temp_old_files/**/*",
+    "deprecated",
+    "deprecated/**/*"
   ]
 }
