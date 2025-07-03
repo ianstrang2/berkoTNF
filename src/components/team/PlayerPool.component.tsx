@@ -134,7 +134,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
                   <span className="bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 font-sans text-sm max-w-40">{player.name}</span>
                 </div>
                 <button 
-                  className="text-purple-500 hover:text-purple-700 focus:outline-none transition-colors"
+                  className="focus:outline-none transition-all duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (!hasReachedMaxPlayers && !pendingPlayers.has(player.id)) onTogglePlayer(player);
@@ -142,8 +142,14 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
                   disabled={hasReachedMaxPlayers || pendingPlayers.has(player.id)}
                   aria-label={`Add ${player.name}`}
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24">
+                    <defs>
+                      <linearGradient id="purple-gradient-plus" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#7c3aed" />
+                        <stop offset="100%" stopColor="#ec4899" />
+                      </linearGradient>
+                    </defs>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} stroke="url(#purple-gradient-plus)" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                 </button>
               </div>

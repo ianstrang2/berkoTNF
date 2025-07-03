@@ -117,9 +117,17 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
             disabled={isSubmitting || isCompleted || goals === 0}
             className="w-7 h-7 p-0 rounded-full border-slate-300 hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
           >
-            <Minus size={12} />
+            <svg width="12" height="12" viewBox="0 0 24 24">
+              <defs>
+                <linearGradient id={`minus-gradient-${player.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#7c3aed" />
+                  <stop offset="100%" stopColor="#ec4899" />
+                </linearGradient>
+              </defs>
+              <rect x="6" y="11" width="12" height="2" rx="1" fill={`url(#minus-gradient-${player.id})`} />
+            </svg>
           </Button>
-          <span className="font-bold text-sm w-6 text-center text-slate-800 bg-gray-50 rounded py-0.5">
+          <span className="font-bold text-sm w-6 text-center text-slate-800">
             {goals}
           </span>
           <Button 
@@ -132,7 +140,15 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
             disabled={isSubmitting || isCompleted}
             className="w-7 h-7 p-0 rounded-full border-slate-300 hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
           >
-            <Plus size={12} />
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
+              <defs>
+                <linearGradient id={`plus-gradient-${player.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#7c3aed" />
+                  <stop offset="100%" stopColor="#ec4899" />
+                </linearGradient>
+              </defs>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" stroke={`url(#plus-gradient-${player.id})`} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
           </Button>
         </div>
       </div>
@@ -175,7 +191,7 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
                   type="number"
                   value={calculatedScore}
                   readOnly
-                  className="w-full px-4 py-3 text-lg font-bold text-center rounded-lg border-2 border-gray-200 bg-gray-50 text-slate-600 shadow-soft-sm cursor-not-allowed"
+                  className="w-full px-4 py-3 text-lg font-bold text-center rounded-lg border-2 border-gray-200 text-slate-600 shadow-soft-sm cursor-not-allowed"
                   placeholder="0"
                 />
               </div>
