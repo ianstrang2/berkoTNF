@@ -14,7 +14,7 @@ const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = 
     // This container handles the responsive positioning.
     <div
       className="
-        max-md:fixed max-md:bottom-0 max-md:left-0 max-md:w-full max-md:z-30 
+        max-md:fixed max-md:bottom-16 max-md:left-0 max-md:w-full max-md:z-30 
         max-md:p-4 max-md:pb-6 max-md:bg-white max-md:shadow-soft-xl-top
         md:relative md:w-full md:mt-6
       "
