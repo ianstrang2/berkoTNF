@@ -3,8 +3,10 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { format, nextThursday } from 'date-fns';
+import { Trash2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout.layout';
 import MatchModal from '@/components/team/modals/MatchModal.component';
+import ConfirmationDialog from '@/components/ui-kit/ConfirmationDialog.component';
 import Button from '@/components/ui-kit/Button.component';
 
 interface ActiveMatch {
@@ -39,6 +41,11 @@ const MatchListPageContent = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Delete modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [matchToDelete, setMatchToDelete] = useState<ActiveMatch | HistoricalMatch | null>(null);
+
   // New match data state
   const [newMatchData, setNewMatchData] = useState({
     date: format(nextThursday(new Date()), 'yyyy-MM-dd'),
@@ -57,6 +64,94 @@ const MatchListPageContent = () => {
         return 'TEAMS BALANCED';
       default:
         return state.toUpperCase();
+    }
+  };
+
+  // Delete functionality
+  const handleDeleteClick = (match: ActiveMatch | HistoricalMatch) => {
+    setMatchToDelete(match);
+    setIsDeleteModalOpen(true);
+  };
+
+  const getDeleteEndpoint = (match: ActiveMatch | HistoricalMatch) => {
+    if ('_count' in match) {
+      // Active match
+      return `/api/admin/upcoming-matches?id=${match.upcoming_match_id}`;
+    } else {
+      // Historical match
+      return `/api/matches/history?matchId=${match.match_id}`;
+    }
+  };
+
+  const getDeleteMessage = (match: ActiveMatch | HistoricalMatch) => {
+    if ('_count' in match) {
+      // Active match
+      const activeMatch = match as ActiveMatch;
+      const dateStr = format(new Date(activeMatch.match_date), 'EEEE, MMMM d, yyyy');
+      
+      switch (activeMatch.state) {
+        case 'Draft':
+          return `Delete this match on ${dateStr}?`;
+        case 'PoolLocked':
+          return `Delete this match on ${dateStr}? ${activeMatch._count.players} players will be removed from the pool.`;
+        case 'TeamsBalanced':
+          return `Delete this match on ${dateStr}? Teams have been balanced and will be lost.`;
+        case 'Completed':
+          return `⚠️ Delete completed match on ${dateStr}? This will permanently remove results and may affect player statistics.`;
+        default:
+          return `Delete this match on ${dateStr}?`;
+      }
+    } else {
+      // Historical match
+      const histMatch = match as HistoricalMatch;
+      const dateStr = format(new Date(histMatch.match_date), 'EEEE, MMMM d, yyyy');
+      return `⚠️ Delete completed match on ${dateStr}? Score: ${histMatch.team_a_score}-${histMatch.team_b_score}. This will permanently remove results and may affect player statistics.`;
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!matchToDelete) return;
+
+    setIsDeleting(true);
+    
+    try {
+      const endpoint = getDeleteEndpoint(matchToDelete);
+      const response = await fetch(endpoint, { method: 'DELETE' });
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete match');
+      }
+
+      // Refresh the matches list
+      const fetchData = async () => {
+        try {
+          const [activeRes, historyRes] = await Promise.all([
+            fetch('/api/admin/upcoming-matches'),
+            fetch('/api/matches/history')
+          ]);
+
+          if (activeRes.ok && historyRes.ok) {
+            const activeData = await activeRes.json();
+            const historyData = await historyRes.json();
+            setActive(activeData.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || []);
+            setHistory(historyData.data || []);
+          }
+        } catch (err) {
+          console.error('Failed to refresh matches:', err);
+        }
+      };
+      await fetchData();
+      
+      // Close modal
+      setIsDeleteModalOpen(false);
+      setMatchToDelete(null);
+      
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      // You could add a toast notification here for the error
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -152,15 +247,31 @@ const MatchListPageContent = () => {
       
       {/* Existing match list */}
       {active.map(match => (
-        <Link key={match.upcoming_match_id} href={`/admin/matches/${match.upcoming_match_id}`} className="block bg-white hover:shadow-lg transition-shadow duration-300 p-4 rounded-xl shadow-soft-xl border">
+        <div key={match.upcoming_match_id} className="relative block bg-white hover:shadow-lg transition-shadow duration-300 p-4 rounded-xl shadow-soft-xl border">
           <div className="flex justify-between items-center">
             <div>
               <p className="font-semibold text-slate-700">{format(new Date(match.match_date), 'EEEE, MMMM d, yyyy')}</p>
               <p className="text-sm text-slate-500">Players in pool: {match._count.players}</p>
             </div>
-            <span className="text-xs font-bold uppercase py-1 px-3 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md">{formatStateDisplay(match.state)}</span>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm">{formatStateDisplay(match.state)}</span>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDeleteClick(match);
+                }}
+                className="relative z-10 w-8 h-8 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md flex items-center justify-center hover:scale-105 transition-transform"
+                title="Delete match"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
-        </Link>
+          
+          {/* Make the entire card clickable for navigation */}
+          <Link href={`/admin/matches/${match.upcoming_match_id}`} className="absolute inset-0 z-0" />
+        </div>
       ))}
       
       {/* Create New Match Card */}
@@ -188,15 +299,31 @@ const MatchListPageContent = () => {
         const href = isLegacy ? '#' : `/admin/matches/${match.upcoming_match_id}`;
 
         return (
-         <Link key={match.match_id} href={href} className={`block bg-white p-4 rounded-xl shadow-soft-xl border ${isLegacy ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-lg transition-shadow duration-300'}`}>
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-semibold text-slate-700">{format(new Date(match.match_date), 'EEEE, MMMM d, yyyy')}</p>
-              <p className="text-sm text-slate-500 font-bold">{match.team_a_score} - {match.team_b_score}</p>
+          <div key={match.match_id} className={`relative block bg-white p-4 rounded-xl shadow-soft-xl border ${isLegacy ? 'opacity-70' : 'hover:shadow-lg transition-shadow duration-300'}`}>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-semibold text-slate-700">{format(new Date(match.match_date), 'EEEE, MMMM d, yyyy')}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-slate-500 font-bold">{match.team_a_score} - {match.team_b_score}</p>
+                  {isLegacy && <span className="text-xs text-gray-500 font-semibold">Legacy</span>}
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDeleteClick(match);
+                }}
+                className="relative z-10 w-8 h-8 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md flex items-center justify-center hover:scale-105 transition-transform"
+                title="Delete match"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
-             {isLegacy && <span className="text-xs text-gray-500 font-semibold">Legacy</span>}
+            
+            {/* Make the entire card clickable for navigation (if not legacy) */}
+            {!isLegacy && <Link href={href} className="absolute inset-0 z-0" />}
           </div>
-        </Link>
         );
       })}
     </div>
@@ -222,6 +349,21 @@ const MatchListPageContent = () => {
         isLoading={isCreating}
         error={createError}
         isEditing={false}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationDialog
+        isOpen={isDeleteModalOpen}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setMatchToDelete(null);
+        }}
+        title="Delete Match"
+        message={matchToDelete ? getDeleteMessage(matchToDelete) : ''}
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Match'}
+        cancelText="Cancel"
+        isConfirming={isDeleting}
       />
     </div>
   );

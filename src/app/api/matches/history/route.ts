@@ -309,24 +309,94 @@ export async function DELETE(request: Request) {
     }
     
     const parsedMatchId = parseInt(matchId);
+    if (isNaN(parsedMatchId)) {
+      return NextResponse.json(
+        { error: 'Invalid Match ID' },
+        { status: 400 }
+      );
+    }
+    
     console.log(`Deleting match with ID: ${parsedMatchId}`);
+
+    // Get the match to check if it's linked to upcoming system
+    const match = await prisma.matches.findUnique({
+      where: { match_id: parsedMatchId },
+      include: {
+        upcoming_matches: {
+          select: {
+            upcoming_match_id: true,
+            state: true
+          }
+        }
+      }
+    });
+
+    if (!match) {
+      return NextResponse.json(
+        { error: 'Match not found' },
+        { status: 404 }
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Delete player_matches first to maintain referential integrity
+      console.log('1. Deleting player_matches...');
+      await tx.player_matches.deleteMany({
+        where: { match_id: parsedMatchId }
+      });
+      console.log('2. Player_matches deleted');
+      
+      // Delete the historical match
+      console.log('3. Deleting match...');
+      await tx.matches.delete({
+        where: { match_id: parsedMatchId }
+      });
+      console.log('4. Match deleted');
+
+      // If this match is linked to the new system, also clean up upcoming data
+      if (match.upcoming_matches && match.upcoming_matches.upcoming_match_id) {
+        console.log('5. Cleaning up linked upcoming match data...');
+        
+        // Delete upcoming match players
+        await tx.upcoming_match_players.deleteMany({
+          where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
+        });
+
+        // Delete player pool data
+        await tx.match_player_pool.deleteMany({
+          where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
+        });
+
+        // Delete the upcoming match
+        await tx.upcoming_matches.delete({
+          where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
+        });
+        
+        console.log('6. Upcoming match data cleaned up');
+      }
+    });
     
-    // Delete player_matches first to maintain referential integrity
-    console.log('1. Deleting player_matches...');
-    await prisma.$executeRaw`DELETE FROM player_matches WHERE match_id = ${parsedMatchId}`;
-    console.log('2. Player_matches deleted');
-    
-    // Delete the match
-    console.log('3. Deleting match...');
-    await prisma.$executeRaw`DELETE FROM matches WHERE match_id = ${parsedMatchId}`;
-    console.log('4. Match deleted');
+    // Trigger stats recalculation since we deleted historical data
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      const statsResponse = await fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
+        method: 'POST',
+      });
+      
+      if (!statsResponse.ok) {
+        console.warn('Stats recalculation failed, but match deletion was successful');
+      }
+    } catch (statsError) {
+      console.warn('Could not trigger stats recalculation:', statsError);
+      // Don't fail the deletion if stats update fails
+    }
     
     // Revalidate caches after successful deletion
     await revalidateMatchCaches();
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Match successfully deleted'
+      message: 'Match deleted successfully. Stats are being recalculated.'
     });
   } catch (error) {
     console.error('Error deleting match:', error);

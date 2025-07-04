@@ -1138,4 +1138,262 @@ The new match flow now provides a robust, production-ready experience with compr
 
 ---
 
+## **Enhanced Match Deletion System - December 2024**
+
+**Objective**: Redesigned match deletion to provide more intuitive UX with better visual hierarchy and comprehensive data integrity handling.
+
+### **UX Design Improvements**
+
+#### **1. Removed Deletion from Match Control Centre**
+**Problem**: Deletion functionality in the three-dot menu felt disconnected from the match lifecycle and created inconsistent state restrictions.
+
+**Solution**: Completely removed deletion from the Match Control Centre interface to focus on match progression:
+- **Cleaner Interface**: Match Control Centre now focuses purely on lifecycle management
+- **Consistent Actions**: Three-dot menu only contains flow-related actions (unlock pool, unlock teams, undo completion)
+- **Reduced Cognitive Load**: No destructive actions mixed with constructive workflow
+
+#### **2. Card-Level Deletion Interface**
+**New Pattern**: Added permanent delete buttons to match cards, matching the "+" button positioning for create actions.
+
+**Active Match Cards**:
+```typescript
+// Delete button positioned like create button
+<div className="flex items-center gap-3 sm:gap-4">
+  <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm">
+    {formatStateDisplay(match.state)}
+  </span>
+  <button className="w-8 h-8 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md">
+    <Trash2 size={14} />
+  </button>
+</div>
+```
+
+**History Match Cards**:
+- Same positioning pattern for consistency
+- Enhanced warnings for completed matches that affect stats
+
+#### **3. Status Pill Redesign**
+**Change**: Updated status pills throughout the system to match copy button styling pattern.
+
+**Before**: `border-2 border-purple-700 bg-transparent text-slate-700`
+**After**: `border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm`
+
+**Applied To**:
+- Active match cards
+- History match cards  
+- Match Control Centre header
+- StepperBar components (outline style, non-clickable appearance)
+
+#### **4. Mobile Responsiveness**
+**Responsive Spacing**:
+```css
+/* Mobile: Tighter spacing */
+gap-3
+
+/* Desktop: More breathing room */  
+sm:gap-4
+```
+
+**Touch Optimization**:
+- Delete buttons sized for touch targets (32px minimum)
+- Proper z-index layering for clickability over card links
+- Mobile-friendly confirmation modals
+
+### **API & Data Integrity Enhancements**
+
+#### **1. Enhanced Upcoming Matches DELETE API**
+**File**: `/api/admin/upcoming-matches/route.ts`
+
+**Capability**: Handles both active and completed matches with proper data cleanup:
+
+```typescript
+// Get match state first
+const upcomingMatch = await prisma.upcoming_matches.findUnique({
+  where: { upcoming_match_id: upcomingMatchId }
+});
+
+if (upcomingMatch.state === 'Completed') {
+  // Handle completed match - delete both planning and historical records
+  
+  // Find linked historical match
+  const linkedMatch = await prisma.matches.findFirst({
+    where: { upcoming_match_id: upcomingMatchId }
+  });
+  
+  if (linkedMatch) {
+    // Delete historical data
+    await prisma.player_matches.deleteMany({
+      where: { match_id: linkedMatch.match_id }
+    });
+    await prisma.matches.delete({
+      where: { match_id: linkedMatch.match_id }
+    });
+  }
+  
+  // Trigger stats recalculation
+  await fetch('/api/admin/trigger-stats-update', { method: 'POST' });
+}
+
+// Always clean up planning data
+await prisma.upcoming_match_players.deleteMany({
+  where: { upcoming_match_id: upcomingMatchId }
+});
+await prisma.upcoming_matches.delete({
+  where: { upcoming_match_id: upcomingMatchId }
+});
+```
+
+#### **2. Enhanced History Matches DELETE API**  
+**File**: `/api/matches/history/route.ts`
+
+**Capability**: Handles both legacy and new system matches:
+
+```typescript
+// Check if match is linked to upcoming system
+const match = await prisma.matches.findUnique({
+  where: { match_id: parsedMatchId },
+  include: { upcoming_matches: true }
+});
+
+if (match.upcoming_matches) {
+  // New system match - delete both historical and planning records
+  
+  // Delete planning data first
+  await prisma.upcoming_match_players.deleteMany({
+    where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
+  });
+  await prisma.upcoming_matches.delete({
+    where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
+  });
+}
+
+// Delete historical data (always)
+await prisma.player_matches.deleteMany({
+  where: { match_id: parsedMatchId }
+});
+await prisma.matches.delete({
+  where: { match_id: parsedMatchId }
+});
+
+// Trigger stats recalculation for completed matches
+await fetch('/api/admin/trigger-stats-update', { method: 'POST' });
+```
+
+#### **3. Automatic Stats Recalculation**
+**Feature**: Deletion of completed matches automatically triggers stats updates to maintain data consistency.
+
+**Implementation**:
+- Calls `/api/admin/trigger-stats-update` after successful deletion
+- Updates all affected player statistics
+- Recalculates leaderboards and records
+- Maintains data integrity across the entire system
+
+### **State-Aware Confirmation System**
+
+#### **Enhanced Confirmation Messages**
+**Context-Sensitive Warnings**:
+
+```typescript
+const getDeleteMessage = (match) => {
+  if ('_count' in match) {
+    // Active match
+    switch (match.state) {
+      case 'Draft':
+        return `Delete this match on ${dateStr}?`;
+      case 'PoolLocked':
+        return `Delete this match on ${dateStr}? ${match._count.players} players will be removed from the pool.`;
+      case 'TeamsBalanced':
+        return `Delete this match on ${dateStr}? Teams have been balanced and will be lost.`;
+      case 'Completed':
+        return `⚠️ Delete completed match on ${dateStr}? This will permanently remove results and may affect player statistics.`;
+    }
+  } else {
+    // Historical match
+    return `⚠️ Delete completed match on ${dateStr}? This will permanently remove results and may affect player statistics.`;
+  }
+};
+```
+
+#### **ConfirmationDialog Integration**
+**Features**:
+- Consistent soft-UI styling matching existing modal system
+- Loading states during deletion process
+- Error handling with user-friendly messages
+- Proper button states (destructive red styling for delete confirmation)
+
+```typescript
+<ConfirmationDialog
+  isOpen={isDeleteModalOpen}
+  onConfirm={handleDeleteConfirm}
+  onCancel={() => {
+    setIsDeleteModalOpen(false);
+    setMatchToDelete(null);
+  }}
+  title="Delete Match"
+  message={matchToDelete ? getDeleteMessage(matchToDelete) : ''}
+  confirmText={isDeleting ? 'Deleting...' : 'Delete Match'}
+  confirmVariant="danger"
+  isLoading={isDeleting}
+/>
+```
+
+### **Prevention of Accidental Deletion**
+
+#### **Multi-Layer Protection**:
+1. **Visual Distinction**: Delete buttons use clear trash icon and destructive colors
+2. **Confirmation Modal**: Required confirmation for all deletions
+3. **Context-Aware Messages**: Specific warnings based on match state and impact
+4. **Enhanced Warnings**: Special ⚠️ indicators for completed matches affecting stats
+5. **Loading States**: Prevent double-clicks during deletion process
+
+#### **User Education**:
+- Clear messaging about consequences (player pool removal, team loss, stats impact)
+- Different warning levels based on deletion severity
+- Informative button text that describes the action
+
+### **Benefits Achieved**
+
+#### **✅ Improved User Experience**
+- **Intuitive Design**: Delete buttons positioned where users expect them (card level)
+- **Consistent Patterns**: Matches existing create/edit workflows
+- **Clear Hierarchy**: Separation between constructive (match flow) and destructive (deletion) actions
+- **Mobile Optimized**: Proper touch targets and responsive spacing
+
+#### **✅ Enhanced Data Integrity**
+- **Complete Cleanup**: Both planning and historical data removed appropriately
+- **Stats Consistency**: Automatic recalculation maintains accurate statistics
+- **No Orphaned Records**: Proper handling of linked match relationships
+- **Legacy Support**: Backward compatibility with existing match data
+
+#### **✅ Robust Error Handling**
+- **Network Resilience**: Proper error handling and user feedback
+- **State Validation**: Appropriate warnings based on match state and impact
+- **Rollback Protection**: Transactional operations prevent partial failures
+- **User Guidance**: Clear messaging about consequences and next steps
+
+#### **✅ Design System Consistency**
+- **Visual Harmony**: Status pills match copy button styling throughout app
+- **Soft UI Integration**: Consistent with existing modal and button patterns
+- **Responsive Design**: Proper mobile/desktop adaptation
+- **Accessibility**: Clear visual hierarchy and touch-friendly interactions
+
+### **Files Modified**
+
+**Core APIs**:
+- `src/app/api/admin/upcoming-matches/route.ts` - Enhanced DELETE with completion handling
+- `src/app/api/matches/history/route.ts` - Enhanced DELETE with system integration
+
+**UI Components**:
+- `src/app/admin/matches/page.tsx` - Card-level deletion interface
+- `src/app/admin/matches/[id]/page.tsx` - Removed deletion from Match Control Centre
+- `src/components/admin/matches/StepperBar.component.tsx` - Updated status pill styling
+
+**Implementation Notes**:
+- All deletion operations are protected by confirmation dialogs
+- Status pill styling changes applied consistently across the entire match flow
+- Mobile responsiveness ensures usability across all device types
+- Automatic stats recalculation maintains system integrity after deletions
+
+---
+
 **End of Complete Implementation Documentation** 

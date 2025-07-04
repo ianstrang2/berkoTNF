@@ -12,8 +12,7 @@ import StepperBar from '@/components/admin/matches/StepperBar.component';
 import GlobalCtaBar from '@/components/admin/matches/GlobalCtaBar.component';
 import MatchModal from '@/components/team/modals/MatchModal.component';
 import MatchCompletedModal from '@/components/team/modals/MatchCompletedModal.component';
-import ConfirmationDialog from '@/components/ui-kit/ConfirmationDialog.component';
-import { MoreVertical, Lock, Unlock, RotateCcw, Edit, Trash2 } from 'lucide-react';
+import { MoreVertical, Lock, Unlock, RotateCcw, Edit } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout.layout';
 import { format } from 'date-fns';
 
@@ -38,9 +37,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
 
   // Edit/Delete modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState(false);
 
@@ -113,28 +110,6 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
     }
   };
 
-  // Delete handler
-  const handleDeleteMatch = async () => {
-    setIsDeleting(true);
-    
-    try {
-      const response = await fetch(`/api/admin/upcoming-matches?id=${matchId}`, {
-        method: 'DELETE'
-      });
-
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete match');
-      }
-
-      router.push('/admin/matches');
-    } catch (err: any) {
-      console.error('Delete failed:', err);
-      setIsDeleting(false);
-    }
-  };
-  
   const { currentStep, primaryLabel, primaryAction, primaryDisabled } = useMemo(() => {
     if (!matchData) {
       return { currentStep: 'Pool' as 'Pool', primaryLabel: 'Loading...', primaryAction: () => {}, primaryDisabled: true };
@@ -214,16 +189,6 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
                   Edit Match
                 </a>
               )}
-              {canEdit && (
-                <a href="#" onClick={(e) => { 
-                  e.preventDefault(); 
-                  setIsDeleteModalOpen(true); 
-                  setIsMenuOpen(false); 
-                }} className="text-red-600 hover:bg-red-50 hover:text-red-700 group flex items-center px-4 py-2 text-sm">
-                  <Trash2 className="mr-3 h-5 w-5" />
-                  Delete Match
-                </a>
-              )}
               {can('unlockPool') && (
                 <a href="#" onClick={(e) => { e.preventDefault(); actions.unlockPool(); setIsMenuOpen(false); }} className="text-slate-700 hover:bg-gray-100 hover:text-slate-900 group flex items-center px-4 py-2 text-sm" role="menuitem">
                   <Unlock className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
@@ -283,7 +248,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
               </p>
             </div>
             <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase py-1 px-3 rounded-full bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md">{formatStateDisplay(matchData.state)}</span>
+                <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm">{formatStateDisplay(matchData.state)}</span>
                 {renderMoreMenu()}
             </div>
         </div>
@@ -316,18 +281,6 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         isLoading={isEditing}
         error={editError}
         isEditing={true}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <ConfirmationDialog
-        isOpen={isDeleteModalOpen}
-        onConfirm={handleDeleteMatch}
-        onCancel={() => setIsDeleteModalOpen(false)}
-        title="Delete Match"
-        message={`Are you sure you want to delete this match on ${matchData?.matchDate ? format(new Date(matchData.matchDate), 'EEEE, MMMM d, yyyy') : 'this date'}? ${matchData?.players?.length || 0} players are assigned. This action cannot be undone.`}
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Match'}
-        cancelText="Cancel"
-        isConfirming={isDeleting}
       />
     </div>
   );
