@@ -81,12 +81,12 @@ BEGIN
             pm.heavy_win,
             pm.heavy_loss,
             pm.clean_sheet,
-            calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet) AS fantasy_points
+            calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)) AS fantasy_points
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id
         JOIN players p ON pm.player_id = p.player_id
-        WHERE m.match_date >= (target_date - (v_window_days || ' days')::interval)
-        AND m.match_date <= target_date
+        WHERE m.match_date::date >= (target_date::date - (v_window_days || ' days')::interval)::date
+        AND m.match_date::date <= target_date::date
         AND p.is_ringer = false 
         AND p.is_retired = false
     ),
@@ -260,47 +260,47 @@ BEGIN
     match_stats_with_points AS (
         SELECT
             ms.*,
-            calculate_match_fantasy_points(ms.result, ms.heavy_win, ms.heavy_loss, ms.clean_sheet) as calculated_fantasy_points
+            calculate_match_fantasy_points(COALESCE(ms.result, 'loss'), COALESCE(ms.heavy_win, false), COALESCE(ms.heavy_loss, false), COALESCE(ms.clean_sheet, false)) as calculated_fantasy_points
         FROM match_stats ms
     ),
     current_season_stats AS (
         SELECT
             name,
             SUM(COALESCE(goals, 0)) as total_goals,
-            SUM(calculated_fantasy_points) as fantasy_points
+            SUM(COALESCE(calculated_fantasy_points, 0)) as fantasy_points
         FROM match_stats_with_points
-        WHERE match_date >= DATE_TRUNC('year', target_date)::date
-        AND match_date <= target_date
+        WHERE match_date::date >= DATE_TRUNC('year', target_date)::date
+        AND match_date::date <= target_date::date
         GROUP BY name
     ),
     previous_season_stats AS (
         SELECT
             name,
             SUM(COALESCE(goals, 0)) as total_goals,
-            SUM(calculated_fantasy_points) as fantasy_points
+            SUM(COALESCE(calculated_fantasy_points, 0)) as fantasy_points
         FROM match_stats_with_points
-        WHERE match_date >= DATE_TRUNC('year', target_date)::date
-        AND match_date < target_date
+        WHERE match_date::date >= DATE_TRUNC('year', target_date)::date
+        AND match_date::date < target_date::date
         GROUP BY name
     ),
     current_half_season_stats AS (
         SELECT
             name,
             SUM(COALESCE(goals, 0)) as total_goals,
-            SUM(calculated_fantasy_points) as fantasy_points
+            SUM(COALESCE(calculated_fantasy_points, 0)) as fantasy_points
         FROM match_stats_with_points
-        WHERE match_date >= half_season_start
-        AND match_date <= half_season_end
+        WHERE match_date::date >= half_season_start
+        AND match_date::date <= half_season_end
         GROUP BY name
     ),
     previous_half_season_stats AS (
         SELECT
             name,
             SUM(COALESCE(goals, 0)) as total_goals,
-            SUM(calculated_fantasy_points) as fantasy_points
+            SUM(COALESCE(calculated_fantasy_points, 0)) as fantasy_points
         FROM match_stats_with_points
-        WHERE match_date >= half_season_start
-        AND match_date < target_date -- This defines the state *before* the current match for comparison
+        WHERE match_date::date >= half_season_start
+        AND match_date::date < target_date::date -- This defines the state *before* the current match for comparison
         GROUP BY name
     )
     SELECT
@@ -333,7 +333,7 @@ BEGIN
         COALESCE(
             (WITH current_ranked_leaders AS (
                 SELECT name, fantasy_points, DENSE_RANK() OVER (ORDER BY fantasy_points DESC) as rnk
-                FROM current_season_stats WHERE fantasy_points > 0
+                FROM current_season_stats WHERE COALESCE(fantasy_points, 0) > 0
             ),
             previous_top_leader AS (
                 SELECT name, fantasy_points FROM previous_season_stats ORDER BY fantasy_points DESC, name LIMIT 1
@@ -344,7 +344,7 @@ BEGIN
                 'change_type', CASE
                                 WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
                                 WHEN crl.name = ptl.name THEN 'remains'
-                                WHEN crl.fantasy_points = ptl.fantasy_points AND crl.name != ptl.name THEN 'tied'
+                                WHEN COALESCE(crl.fantasy_points, 0) = COALESCE(ptl.fantasy_points, 0) AND crl.name != ptl.name THEN 'tied'
                                 WHEN crl.name != ptl.name THEN 'overtake'
                                 ELSE 'new_leader'
                             END
@@ -383,7 +383,7 @@ BEGIN
         COALESCE(
             (WITH current_ranked_leaders AS (
                 SELECT name, fantasy_points, DENSE_RANK() OVER (ORDER BY fantasy_points DESC) as rnk
-                FROM current_half_season_stats WHERE fantasy_points > 0
+                FROM current_half_season_stats WHERE COALESCE(fantasy_points, 0) > 0
             ),
             previous_top_leader AS (
                 SELECT name, fantasy_points FROM previous_half_season_stats ORDER BY fantasy_points DESC, name LIMIT 1
@@ -394,7 +394,7 @@ BEGIN
                 'change_type', CASE
                                 WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
                                 WHEN crl.name = ptl.name THEN 'remains'
-                                WHEN crl.fantasy_points = ptl.fantasy_points AND crl.name != ptl.name THEN 'tied'
+                                WHEN COALESCE(crl.fantasy_points, 0) = COALESCE(ptl.fantasy_points, 0) AND crl.name != ptl.name THEN 'tied'
                                 WHEN crl.name != ptl.name THEN 'overtake'
                                 ELSE 'new_leader'
                             END

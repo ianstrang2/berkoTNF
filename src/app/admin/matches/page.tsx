@@ -6,7 +6,7 @@ import { format, nextThursday } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout.layout';
 import MatchModal from '@/components/team/modals/MatchModal.component';
-import ConfirmationDialog from '@/components/ui-kit/ConfirmationDialog.component';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import Button from '@/components/ui-kit/Button.component';
 
 interface ActiveMatch {
@@ -339,6 +339,16 @@ const MatchListPageContent = () => {
         </div>
       )}
       
+      {/* Mobile FAB for creating matches - only show on active view */}
+      {view === 'active' && (
+        <Button 
+          onClick={() => setIsNewMatchModalOpen(true)}
+          className="md:hidden fixed bottom-20 right-4 z-40 rounded-full w-14 h-14 bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md flex items-center justify-center"
+        >
+          <span className="text-xl font-bold">+</span>
+        </Button>
+      )}
+      
       {/* New Match Modal */}
       <MatchModal 
         isOpen={isNewMatchModalOpen}
@@ -352,10 +362,10 @@ const MatchListPageContent = () => {
       />
 
       {/* Delete Confirmation Modal */}
-      <ConfirmationDialog
+      <SoftUIConfirmationModal
         isOpen={isDeleteModalOpen}
         onConfirm={handleDeleteConfirm}
-        onCancel={() => {
+        onClose={() => {
           setIsDeleteModalOpen(false);
           setMatchToDelete(null);
         }}
@@ -364,6 +374,7 @@ const MatchListPageContent = () => {
         confirmText={isDeleting ? 'Deleting...' : 'Delete Match'}
         cancelText="Cancel"
         isConfirming={isDeleting}
+        icon="warning"
       />
     </div>
   );

@@ -75,7 +75,7 @@ BEGIN
     DELETE FROM aggregated_season_honours WHERE TRUE;
     WITH yearly_stats AS (
         SELECT p.name, EXTRACT(YEAR FROM m.match_date) as year,
-               SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet)) as points,
+               SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))) as points,
                SUM(COALESCE(pm.goals, 0)) as goals, COUNT(*) as games_played
         FROM players p JOIN player_matches pm ON p.player_id = pm.player_id JOIN matches m ON pm.match_id = m.match_id
         WHERE p.is_ringer = false AND EXTRACT(YEAR FROM m.match_date) < EXTRACT(YEAR FROM CURRENT_DATE) -- Only past years for honours

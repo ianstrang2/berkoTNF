@@ -10,6 +10,8 @@ interface GlobalCtaBarProps {
 }
 
 const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = false }) => {
+  const isLoading = label.includes('Saving...') || label.includes('Loading...');
+  
   return (
     // This container handles the responsive positioning.
     <div
@@ -25,9 +27,16 @@ const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = 
           disabled={disabled}
           variant="primary"
           size="lg"
-          className="w-full bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md"
+          className={`w-full bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md ${
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
-          {label}
+          <div className="flex items-center justify-center">
+            {isLoading && (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 flex-shrink-0" />
+            )}
+            <span>{label}</span>
+          </div>
         </Button>
       </div>
     </div>

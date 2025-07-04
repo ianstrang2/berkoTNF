@@ -61,22 +61,25 @@ export async function POST(
       const scoreDiff = Math.abs(score.team_a - score.team_b);
       const isHeavyWin = scoreDiff >= 4;
       
-      const playerMatchesData = upcomingMatch.players
-        .filter(p => p.team === 'A' || p.team === 'B') // Ensure only assigned players are included
-        .map(p => {
+      console.log(`MATCH COMPLETION DEBUG: Match ${matchId}, Score: ${score.team_a}-${score.team_b}, ScoreDiff: ${scoreDiff}, IsHeavyWin: ${isHeavyWin}`);
+      
+      const assignedPlayers = upcomingMatch.players.filter(p => p.team === 'A' || p.team === 'B');
+      console.log(`ASSIGNED PLAYERS: ${assignedPlayers.length} players found`);
+      
+      const playerMatchesData = assignedPlayers.map(p => {
           // Determine team score and opposing score
           const teamScore = p.team === 'A' ? score.team_a : score.team_b;
           const opposingScore = p.team === 'A' ? score.team_b : score.team_a;
           
-          // Calculate result
+          // Calculate result - ensure we always get a valid string
           const result = teamScore > opposingScore ? 'win' : (teamScore < opposingScore ? 'loss' : 'draw');
           
-          // Calculate result-specific flags
+          // Calculate result-specific flags - ensure we always get valid booleans
           const heavy_win = result === 'win' && isHeavyWin;
           const heavy_loss = result === 'loss' && isHeavyWin;
           const clean_sheet = opposingScore === 0;
           
-          return {
+          const playerData = {
             match_id: newMatch.match_id,
             player_id: p.player_id,
             team: p.team,
@@ -86,12 +89,33 @@ export async function POST(
             heavy_loss,
             clean_sheet,
           };
+          
+          console.log(`PLAYER ${p.player_id} (Team ${p.team}): result=${result}, heavy_win=${heavy_win}, heavy_loss=${heavy_loss}, clean_sheet=${clean_sheet}`);
+          
+          return playerData;
         });
 
+      console.log(`CREATING ${playerMatchesData.length} player_matches records`);
+      
       if (playerMatchesData.length > 0) {
+        // Validate that all critical fields are populated
+        const invalidRecords = playerMatchesData.filter(p => 
+          !p.result || typeof p.heavy_win !== 'boolean' || typeof p.heavy_loss !== 'boolean' || typeof p.clean_sheet !== 'boolean'
+        );
+        
+        if (invalidRecords.length > 0) {
+          console.error('INVALID PLAYER RECORDS DETECTED:', invalidRecords);
+          throw new Error(`Invalid player match data: ${invalidRecords.length} records have NULL/invalid result fields`);
+        }
+        
         await tx.player_matches.createMany({
-          data: playerMatchesData as any, // Prisma expects a more specific type here, but our data is valid
+          data: playerMatchesData as any,
         });
+        
+        console.log(`SUCCESS: Created ${playerMatchesData.length} player_matches records with calculated fields`);
+      } else {
+        console.warn('WARNING: No player matches data to create - this will result in NULL fields!');
+        throw new Error('No assigned players found for match completion');
       }
 
       // 4. Update the upcoming_match state (remove strict concurrency check for completion)
@@ -108,6 +132,24 @@ export async function POST(
       });
 
       return updatedUpcomingMatch;
+    });
+
+    // Trigger stats recalculation after successful completion (non-blocking)
+    console.log(`TRIGGERING STATS UPDATE for completed match ${matchId}`);
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    
+    // ✅ Fire and forget - don't await this
+    fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    }).then(statsResponse => {
+      if (statsResponse.ok) {
+        console.log('STATS UPDATE triggered successfully');
+      } else {
+        console.warn('STATS UPDATE failed to trigger');
+      }
+    }).catch(statsError => {
+      console.warn('STATS UPDATE trigger error (non-critical):', statsError);
     });
 
     return NextResponse.json({ success: true, data: completedMatch });

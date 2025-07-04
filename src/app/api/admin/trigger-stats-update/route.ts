@@ -6,6 +6,7 @@ import { CACHE_TAGS } from '@/lib/cache/constants';
 const FUNCTIONS_TO_CALL = [
   { name: 'call-update-all-time-stats', tag: CACHE_TAGS.ALL_TIME_STATS },
   { name: 'call-update-half-and-full-season-stats', tag: CACHE_TAGS.SEASON_STATS },
+  { name: 'call-update-half-and-full-season-stats', tag: CACHE_TAGS.HALF_SEASON_STATS },
   { name: 'call-update-hall-of-fame', tag: CACHE_TAGS.HALL_OF_FAME },
   { name: 'call-update-recent-performance', tag: CACHE_TAGS.RECENT_PERFORMANCE },
   { name: 'call-update-season-honours-and-records', tag: CACHE_TAGS.HONOUR_ROLL },

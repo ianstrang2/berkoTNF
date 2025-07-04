@@ -33,6 +33,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   const { error, toast, matchCompletedModal, closeMatchCompletedModal, can, matchData, showToast, actions } = useMatchState(matchId);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [playerPoolIds, setPlayerPoolIds] = useState<string[]>([]);
+  const [isCompleteFormSubmitting, setIsCompleteFormSubmitting] = useState(false);
   const completeFormRef = useRef<CompleteFormHandle>(null);
 
   // Edit/Delete modal states
@@ -134,9 +135,9 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         break;
       case 'TeamsBalanced':
         step = 'Result';
-        label = 'Save Result';
+        label = isCompleteFormSubmitting ? 'Saving...' : 'Save Result';
         action = () => completeFormRef.current?.submit();
-        disabled = false;
+        disabled = isCompleteFormSubmitting;
         break;
       case 'Completed':
         step = 'Done';
@@ -146,7 +147,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         break;
     }
     return { currentStep: step, primaryLabel: label, primaryAction: action, primaryDisabled: disabled };
-  }, [matchData, playerPoolIds, actions]);
+  }, [matchData, playerPoolIds, actions, isCompleteFormSubmitting]);
 
   if (error) {
     return <div className="p-4 text-center text-red-500">{error}</div>;
@@ -222,7 +223,16 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         return <BalanceTeamsPane matchId={matchId} teamSize={matchData.teamSize} players={matchData.players} isBalanced={matchData.isBalanced} balanceTeamsAction={actions.balanceTeams} clearTeamsAction={actions.clearAssignments} onShowToast={showToast} markAsUnbalanced={actions.markAsUnbalanced} />;
       case 'TeamsBalanced':
       case 'Completed':
-        return <CompleteMatchForm ref={completeFormRef} matchId={matchId} players={matchData.players} completeMatchAction={actions.completeMatch} isCompleted={matchData.state === 'Completed'} />;
+        return (
+          <CompleteMatchForm 
+            ref={completeFormRef} 
+            matchId={matchId} 
+            players={matchData.players} 
+            completeMatchAction={actions.completeMatch} 
+            isCompleted={matchData.state === 'Completed'}
+            onLoadingChange={setIsCompleteFormSubmitting}
+          />
+        );
       default:
         return <div>Invalid match state or state not handled: {matchData.state}</div>;
     }

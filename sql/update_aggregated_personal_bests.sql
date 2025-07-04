@@ -87,7 +87,7 @@ BEGIN
                 ROW_NUMBER() OVER (ORDER BY m.match_date, m.match_id) as played_match_seq_num
             FROM public.matches m
             JOIN public.player_matches pm ON m.match_id = pm.match_id
-            WHERE pm.player_id = v_player_id AND m.match_date <= v_latest_match_date -- Ensure context of played matches
+                            WHERE pm.player_id = v_player_id AND m.match_date::date <= v_latest_match_date::date -- Ensure context of played matches
         ),
         played_game_streak_groups AS (
             SELECT
@@ -118,7 +118,7 @@ BEGIN
                 m.match_date,
                 ROW_NUMBER() OVER (ORDER BY m.match_date, m.match_id) as overall_match_seq_num
             FROM public.matches m
-            WHERE m.match_date <= v_latest_match_date
+            WHERE m.match_date::date <= v_latest_match_date::date
         ),
         player_attendance_status_for_all_matches AS (
             SELECT
@@ -163,7 +163,7 @@ BEGIN
             FROM public.matches m -- Base for all matches in context
             LEFT JOIN result_streaks_by_played_match rsbpm ON m.match_id = rsbpm.match_id
             JOIN attendance_streaks_by_match asbm ON m.match_id = asbm.match_id
-            WHERE m.match_date <= v_latest_match_date -- Critical filter for context
+            WHERE m.match_date::date <= v_latest_match_date::date -- Critical filter for context
         )
         -- Final SELECT statement to populate variables
         SELECT

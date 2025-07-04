@@ -87,7 +87,7 @@ BEGIN
             COUNT(*) FILTER (WHERE mps.clean_sheet = true) as clean_sheets
         FROM match_player_stats mps
         JOIN players p ON mps.player_id = p.player_id
-        WHERE mps.match_date BETWEEN half_season_start AND half_season_end
+        WHERE mps.match_date::date BETWEEN half_season_start AND half_season_end
           AND p.is_ringer = false
         GROUP BY mps.player_id
     ),
@@ -182,7 +182,7 @@ BEGIN
                 COUNT(*) FILTER (WHERE mps.clean_sheet = true) as clean_sheets
             FROM match_player_stats mps
             JOIN players p ON mps.player_id = p.player_id
-            WHERE mps.match_date BETWEEN season_start AND season_end
+            WHERE mps.match_date::date BETWEEN season_start AND season_end
               AND p.is_ringer = false
             GROUP BY mps.player_id
         ),

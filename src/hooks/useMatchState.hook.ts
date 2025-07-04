@@ -164,14 +164,17 @@ export const useMatchState = (matchId: number | string) => {
       }
 
       if (url.includes('/complete')) {
-        // Show match completed modal instead of toast
+        // ✅ Show success modal IMMEDIATELY (don't wait for stats)
         const teamAName = matchData?.teamAName || 'Orange';
         const teamBName = matchData?.teamBName || 'Green';
         const teamAScore = actionBody?.score?.team_a || 0;
         const teamBScore = actionBody?.score?.team_b || 0;
         
         showMatchCompletedModal(teamAName, teamBName, teamAScore, teamBScore);
-        await fetch('/api/admin/trigger-stats-update', { method: 'POST' });
+        
+        // ✅ Trigger stats in background (non-blocking)
+        fetch('/api/admin/trigger-stats-update', { method: 'POST' })
+          .catch(err => console.warn('Stats update failed:', err));
       }
 
       await fetchMatchState();

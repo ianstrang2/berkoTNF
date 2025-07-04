@@ -29,15 +29,15 @@ BEGIN
         pm.player_id, COUNT(*),
         SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END), SUM(CASE WHEN pm.result = 'draw' THEN 1 ELSE 0 END), SUM(CASE WHEN pm.result = 'loss' THEN 1 ELSE 0 END),
         SUM(COALESCE(pm.goals, 0)), SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END), SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END), SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
-        -- Call centralized helper
-        SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet)),
-        ROUND(CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet))::numeric / COUNT(*) ELSE 0 END, 1),
+        -- Call centralized helper with NULL protection
+        SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))),
+        ROUND(CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)))::numeric / COUNT(*) ELSE 0 END, 1),
         -- Calculate win_percentage
         ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100 ELSE 0 END), 1)
     FROM player_matches pm
     JOIN matches m ON pm.match_id = m.match_id
     JOIN players p ON pm.player_id = p.player_id
-    WHERE p.is_ringer = false AND m.match_date BETWEEN half_season_start_date AND half_season_end_date
+    WHERE p.is_ringer = false AND m.match_date::date BETWEEN half_season_start_date AND half_season_end_date
     GROUP BY pm.player_id;
     RAISE NOTICE 'Finished calculating half-season stats.';
 
@@ -68,13 +68,13 @@ BEGIN
             SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END),
             SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END),
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
-            -- Call centralized helper
-            SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet)),
-            ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet))::numeric / COUNT(*) ELSE 0 END), 1)
+            -- Call centralized helper with NULL protection
+            SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))),
+            ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)))::numeric / COUNT(*) ELSE 0 END), 1)
         FROM player_matches pm
         JOIN matches m ON pm.match_id = m.match_id
         JOIN players p ON pm.player_id = p.player_id
-        WHERE p.is_ringer = false AND EXTRACT(YEAR FROM m.match_date) = historical_year
+        WHERE p.is_ringer = false AND EXTRACT(YEAR FROM m.match_date::date) = historical_year
         GROUP BY pm.player_id;
     END LOOP;
 

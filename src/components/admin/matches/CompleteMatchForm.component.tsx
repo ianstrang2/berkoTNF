@@ -16,6 +16,7 @@ interface CompleteMatchFormProps {
   players: PlayerInPool[];
   completeMatchAction: (payload: { score: { team_a: number; team_b: number }, player_stats: PlayerGoalStat[] }) => Promise<void>;
   isCompleted: boolean;
+  onLoadingChange?: (isLoading: boolean) => void;
 }
 
 export type CompleteFormHandle = {
@@ -23,12 +24,13 @@ export type CompleteFormHandle = {
 };
 
 const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>(
-  ({ matchId, players, completeMatchAction, isCompleted }, ref) => {
+  ({ matchId, players, completeMatchAction, isCompleted, onLoadingChange }, ref) => {
   const [playerGoals, setPlayerGoals] = useState<Map<string, number>>(new Map());
   const [ownGoalsA, setOwnGoalsA] = useState(0);
   const [ownGoalsB, setOwnGoalsB] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingHistoricalData, setIsLoadingHistoricalData] = useState(false);
 
   const { teamA, teamB } = useMemo(() => {
     const a: PlayerInPool[] = [];
@@ -45,6 +47,69 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     return { teamA: a, teamB: b };
   }, [players]);
 
+  // Load historical match data for completed matches
+  useEffect(() => {
+    if (isCompleted && matchId) {
+      const loadHistoricalData = async () => {
+        setIsLoadingHistoricalData(true);
+        try {
+          // Fetch historical match data to get actual goals
+          const response = await fetch(`/api/matches/history`);
+          const historyData = await response.json();
+          
+          if (historyData.data) {
+            // Find the match by looking for the one with matching upcoming_match_id
+            const historicalMatch = historyData.data.find((match: any) => 
+              match.upcoming_match_id?.toString() === matchId.toString()
+            );
+            
+            if (historicalMatch) {
+              // Create a map of player goals from historical data
+              const goalMap = new Map<string, number>();
+              let teamAPlayerGoals = 0;
+              let teamBPlayerGoals = 0;
+              
+              historicalMatch.player_matches.forEach((pm: any) => {
+                goalMap.set(pm.player_id.toString(), pm.goals || 0);
+                
+                // Track player goals by team to calculate own goals
+                const player = players.find(p => p.id === pm.player_id.toString());
+                if (player) {
+                  if (player.team === 'A') {
+                    teamAPlayerGoals += (pm.goals || 0);
+                  } else if (player.team === 'B') {
+                    teamBPlayerGoals += (pm.goals || 0);
+                  }
+                }
+              });
+              
+              // Calculate own goals (team score minus player goals)
+              const calculatedOwnGoalsA = Math.max(0, historicalMatch.team_a_score - teamAPlayerGoals);
+              const calculatedOwnGoalsB = Math.max(0, historicalMatch.team_b_score - teamBPlayerGoals);
+              
+              // Update state with historical data
+              setPlayerGoals(goalMap);
+              setOwnGoalsA(calculatedOwnGoalsA);
+              setOwnGoalsB(calculatedOwnGoalsB);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load historical match data:', err);
+          setError('Failed to load match results. Please refresh the page.');
+        } finally {
+          setIsLoadingHistoricalData(false);
+        }
+      };
+      
+      loadHistoricalData();
+    }
+  }, [isCompleted, matchId, players]);
+
+  // Notify parent of loading state changes
+  useEffect(() => {
+    onLoadingChange?.(isSubmitting);
+  }, [isSubmitting, onLoadingChange]);
+
   const handleGoalChange = (playerId: string, delta: number) => {
     setPlayerGoals(prev => {
       const newGoals = new Map(prev);
@@ -56,15 +121,15 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
   
   const validateAndSubmit = async () => {
     setError(null);
-    
-    // Calculate final scores
-    const teamAGoalsTotal = teamA.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
-    const teamBGoalsTotal = teamB.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
-    const finalTeamAScore = teamAGoalsTotal + ownGoalsA;
-    const finalTeamBScore = teamBGoalsTotal + ownGoalsB;
-    
     setIsSubmitting(true);
+    
     try {
+      // Calculate final scores
+      const teamAGoalsTotal = teamA.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
+      const teamBGoalsTotal = teamB.reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
+      const finalTeamAScore = teamAGoalsTotal + ownGoalsA;
+      const finalTeamBScore = teamBGoalsTotal + ownGoalsB;
+      
       const player_stats = Array.from(playerGoals.entries())
         .map(([id, goals]) => ({ player_id: Number(id), goals }))
         .filter(p => p.goals > 0);
@@ -75,11 +140,9 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
       };
       
       await completeMatchAction(payload as any);
-      // On success, the parent component will switch the view.
     } catch (err: any) {
-        setError(err.message || 'Failed to submit results.');
-    } finally {
-        setIsSubmitting(false);
+      setError(err.message || 'Failed to submit results.');
+      setIsSubmitting(false);
     }
   };
 
@@ -212,6 +275,19 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
           {isCompleted ? 'This match has been completed and saved.' : 'Record goals for each player and enter the final scores.'}
         </p>
       </div>
+      
+      {isLoadingHistoricalData && (
+        <Card>
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-3 text-blue-700">
+              <div className="flex-shrink-0">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <p className="font-medium">Loading match results...</p>
+            </div>
+          </div>
+        </Card>
+      )}
       
       {error && (
         <Card>
