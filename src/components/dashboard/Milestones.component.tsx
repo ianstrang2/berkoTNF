@@ -319,21 +319,22 @@ const Milestones: React.FC = () => {
           playerId: playerId
         });
       } else {
-        // Co-leaders
-        const leaderNames = leaders.map(l => l.new_leader).join(' and ');
+        // Co-leaders - create ONE entry for all tied leaders
+        const leaderNames = leaders.length === 2 
+          ? leaders.map(l => l.new_leader).join(' and ')
+          : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
         const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
-        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader)).filter((id): id is string => id !== undefined);
-        const content = `${leaderNames} lead with ${goals}.`;
-        playerIds.forEach(id => {
-          items.push({
-            type: 'leader_change',
-            player: 'Half-Season Goals',
-            content: content,
-            icon: 'crown',
-            date: matchDate,
-            color: 'amber',
-            playerId: id
-          });
+        const content = `${leaderNames} are tied for the lead with ${goals}.`;
+        
+        // Create only ONE timeline entry for all tied leaders
+        items.push({
+          type: 'leader_change',
+          player: 'Half-Season Goals',
+          content: content,
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+          // No playerId since this represents multiple players
         });
       }
     }
@@ -355,21 +356,22 @@ const Milestones: React.FC = () => {
           playerId: playerId
         });
       } else {
-        // Co-leaders
-        const leaderNames = leaders.map(l => l.new_leader).join(' and ');
+        // Co-leaders - create ONE entry for all tied leaders
+        const leaderNames = leaders.length === 2 
+          ? leaders.map(l => l.new_leader).join(' and ')
+          : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
         const points = firstLeader.new_leader_points || firstLeader.value || 0;
-        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader)).filter((id): id is string => id !== undefined);
-        const content = `${leaderNames} lead with ${points}.`;
-        playerIds.forEach(id => {
-          items.push({
-            type: 'leader_change',
-            player: 'Half-Season Points',
-            content: content,
-            icon: 'crown',
-            date: matchDate,
-            color: 'amber',
-            playerId: id
-          });
+        const content = `${leaderNames} are tied for the lead with ${points}.`;
+        
+        // Create only ONE timeline entry for all tied leaders
+        items.push({
+          type: 'leader_change',
+          player: 'Half-Season Points',
+          content: content,
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+          // No playerId since this represents multiple players
         });
       }
     }
@@ -395,21 +397,22 @@ const Milestones: React.FC = () => {
           playerId: playerId
         });
       } else {
-        // Co-leaders
-        const leaderNames = leaders.map(l => l.new_leader).join(' and ');
+        // Co-leaders - create ONE entry for all tied leaders
+        const leaderNames = leaders.length === 2 
+          ? leaders.map(l => l.new_leader).join(' and ')
+          : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
         const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
-        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader)).filter((id): id is string => id !== undefined);
-        const content = `${leaderNames} lead with ${goals}.`;
-        playerIds.forEach(id => {
-          items.push({
-            type: 'leader_change',
-            player: 'Season Goals',
-            content: content,
-            icon: 'crown',
-            date: matchDate,
-            color: 'amber',
-            playerId: id
-          });
+        const content = `${leaderNames} are tied for the lead with ${goals}.`;
+        
+        // Create only ONE timeline entry for all tied leaders
+        items.push({
+          type: 'leader_change',
+          player: 'Season Goals',
+          content: content,
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+          // No playerId since this represents multiple players
         });
       }
     }
@@ -431,21 +434,22 @@ const Milestones: React.FC = () => {
           playerId: playerId
         });
       } else {
-        // Co-leaders
-        const leaderNames = leaders.map(l => l.new_leader).join(' and ');
+        // Co-leaders - create ONE entry for all tied leaders
+        const leaderNames = leaders.length === 2 
+          ? leaders.map(l => l.new_leader).join(' and ')
+          : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
         const points = firstLeader.new_leader_points || firstLeader.value || 0;
-        const playerIds = leaders.map(l => getPlayerIdByName(l.new_leader)).filter((id): id is string => id !== undefined);
-        const content = `${leaderNames} lead with ${points}.`;
-        playerIds.forEach(id => {
-          items.push({
-            type: 'leader_change',
-            player: 'Season Points',
-            content: content,
-            icon: 'crown',
-            date: matchDate,
-            color: 'amber',
-            playerId: id
-          });
+        const content = `${leaderNames} are tied for the lead with ${points}.`;
+        
+        // Create only ONE timeline entry for all tied leaders
+        items.push({
+          type: 'leader_change',
+          player: 'Season Points',
+          content: content,
+          icon: 'crown',
+          date: matchDate,
+          color: 'amber'
+          // No playerId since this represents multiple players
         });
       }
     }

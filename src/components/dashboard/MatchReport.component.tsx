@@ -260,16 +260,60 @@ const LatestMatch: React.FC = () => {
     const formatList = (title: string, items: any[] | undefined, formatter: (item: any) => string) => {
       if (items && items.length > 0) {
         ensureLeaderHeader();
+        
+        // Group leaders by their value to handle ties properly
+        const valueGroups: { [key: number]: any[] } = {};
         items.forEach(item => {
-          report += `- ${formatter(item)}\n`;
+          // Extract the value based on the title to determine if it's goals or points
+          const isGoals = title.toLowerCase().includes('goal');
+          const value = isGoals 
+            ? (item.new_leader_goals || item.value || 0)
+            : (item.new_leader_points || item.value || 0);
+          
+          if (!valueGroups[value]) {
+            valueGroups[value] = [];
+          }
+          valueGroups[value].push(item);
+        });
+        
+        // Process each value group
+        Object.values(valueGroups).forEach(group => {
+          if (group.length === 1) {
+            // Single leader - use existing formatter
+            report += `- ${formatter(group[0])}\n`;
+          } else {
+            // Multiple tied leaders - create combined message
+            const firstItem = group[0];
+            const isGoals = title.toLowerCase().includes('goal');
+            const value = isGoals 
+              ? (firstItem.new_leader_goals || firstItem.value || 0)
+              : (firstItem.new_leader_points || firstItem.value || 0);
+            
+            const leaderNames = group.map(item => item.new_leader);
+            const namesText = leaderNames.length === 2 
+              ? leaderNames.join(' and ')
+              : leaderNames.slice(0, -1).join(', ') + ', and ' + leaderNames[leaderNames.length - 1];
+            
+            const period = title.replace(' Goal Leaders', '').replace(' Fantasy Leaders', '');
+            const metric = isGoals ? 'goals' : 'points';
+            
+            report += `- ${namesText} are tied for the ${period} ${metric} lead with ${value}\n`;
+          }
         });
       }
     };
 
     formatList('Half-Season Goal Leaders', data.halfSeasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Half-Season'));
     formatList('Half-Season Fantasy Leaders', data.halfSeasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Half-Season'));
-    formatList('Season Goal Leaders', data.seasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Season'));
-    formatList('Season Fantasy Leaders', data.seasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Season'));
+    
+    // Only show season leaders in the second half of the year (Jul-Dec)
+    const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
+    const isSecondHalf = currentDate.getMonth() >= 6;
+    
+    if (isSecondHalf) {
+      formatList('Season Goal Leaders', data.seasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Season'));
+      formatList('Season Fantasy Leaders', data.seasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Season'));
+    }
 
     if (data.gamesMilestones && data.gamesMilestones.length > 0) {
       report += `\n--- MILESTONES ---\n`;
@@ -285,30 +329,6 @@ const LatestMatch: React.FC = () => {
         const goalCount = m.total_goals || m.value || 0;
         report += `- ${m.name}: Scored ${getOrdinalSuffix(goalCount)} goal\n`;
       });
-    }
-
-    const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
-    const isSecondHalf = currentDate.getMonth() >= 6;
-
-    if (isSecondHalf && data.seasonGoalLeaders && data.seasonGoalLeaders.length > 0) {
-        ensureLeaderHeader();
-        if (data.seasonGoalLeaders.length === 1) {
-            report += `- ${formatLeaderText(data.seasonGoalLeaders[0], 'goals', 'Season')}\n`;
-        } else {
-            const leaderNames = data.seasonGoalLeaders.map(l => l.new_leader).join(' and ');
-            const goals = data.seasonGoalLeaders[0].new_leader_goals || data.seasonGoalLeaders[0].value || 0;
-            report += `- ${leaderNames} are tied for the Season goals lead with ${goals}\n`;
-        }
-    }
-    if (isSecondHalf && data.seasonFantasyLeaders && data.seasonFantasyLeaders.length > 0) {
-        ensureLeaderHeader();
-        if (data.seasonFantasyLeaders.length === 1) {
-            report += `- ${formatLeaderText(data.seasonFantasyLeaders[0], 'points', 'Season')}\n`;
-        } else {
-            const leaderNames = data.seasonFantasyLeaders.map(l => l.new_leader).join(' and ');
-            const points = data.seasonFantasyLeaders[0].new_leader_points || data.seasonFantasyLeaders[0].value || 0;
-            report += `- ${leaderNames} are tied for the Season points lead with ${points}\n`;
-        }
     }
 
     return report;
