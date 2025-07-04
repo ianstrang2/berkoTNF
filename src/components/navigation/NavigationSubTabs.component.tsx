@@ -24,10 +24,10 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
         case 'matches':
           return [
             {
-              key: 'upcoming',
-              label: 'Upcoming',
-              href: '/admin/matches?view=upcoming',
-              active: !currentView || currentView === 'upcoming'
+              key: 'active',
+              label: 'Active',
+              href: '/admin/matches?view=active',
+              active: !currentView || currentView === 'active'
             },
             {
               key: 'history',

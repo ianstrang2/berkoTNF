@@ -11,6 +11,7 @@ import Button from '@/components/ui-kit/Button.component';
 import StepperBar from '@/components/admin/matches/StepperBar.component';
 import GlobalCtaBar from '@/components/admin/matches/GlobalCtaBar.component';
 import MatchModal from '@/components/team/modals/MatchModal.component';
+import MatchCompletedModal from '@/components/team/modals/MatchCompletedModal.component';
 import ConfirmationDialog from '@/components/ui-kit/ConfirmationDialog.component';
 import { MoreVertical, Lock, Unlock, RotateCcw, Edit, Trash2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout.layout';
@@ -30,7 +31,7 @@ type CompleteFormHandle = {
 const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) => {
   const { id: matchId } = params;
   const router = useRouter();
-  const { error, toast, can, matchData, showToast, actions } = useMatchState(matchId);
+  const { error, toast, matchCompletedModal, closeMatchCompletedModal, can, matchData, showToast, actions } = useMatchState(matchId);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [playerPoolIds, setPlayerPoolIds] = useState<string[]>([]);
   const completeFormRef = useRef<CompleteFormHandle>(null);
@@ -294,6 +295,16 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
       {matchData.state !== 'Completed' && (
         <GlobalCtaBar label={primaryLabel} onClick={primaryAction} disabled={primaryDisabled} />
       )}
+
+      {/* Match Completed Modal */}
+      <MatchCompletedModal
+        isOpen={matchCompletedModal.isOpen}
+        onClose={closeMatchCompletedModal}
+        teamAName={matchCompletedModal.teamAName}
+        teamBName={matchCompletedModal.teamBName}
+        teamAScore={matchCompletedModal.teamAScore}
+        teamBScore={matchCompletedModal.teamBScore}
+      />
 
       {/* Edit Match Modal */}
       <MatchModal 

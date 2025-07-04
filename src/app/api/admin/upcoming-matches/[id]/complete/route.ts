@@ -54,17 +54,39 @@ export async function POST(
         } as any,
       });
 
-      // 3. Create player_matches records
+      // 3. Create player_matches records with calculated result fields
       const goalsMap = new Map(player_stats.map((p: { player_id: number; goals: number }) => [p.player_id, p.goals]));
+      
+      // Calculate match result metrics
+      const scoreDiff = Math.abs(score.team_a - score.team_b);
+      const isHeavyWin = scoreDiff >= 4;
       
       const playerMatchesData = upcomingMatch.players
         .filter(p => p.team === 'A' || p.team === 'B') // Ensure only assigned players are included
-        .map(p => ({
+        .map(p => {
+          // Determine team score and opposing score
+          const teamScore = p.team === 'A' ? score.team_a : score.team_b;
+          const opposingScore = p.team === 'A' ? score.team_b : score.team_a;
+          
+          // Calculate result
+          const result = teamScore > opposingScore ? 'win' : (teamScore < opposingScore ? 'loss' : 'draw');
+          
+          // Calculate result-specific flags
+          const heavy_win = result === 'win' && isHeavyWin;
+          const heavy_loss = result === 'loss' && isHeavyWin;
+          const clean_sheet = opposingScore === 0;
+          
+          return {
             match_id: newMatch.match_id,
             player_id: p.player_id,
             team: p.team,
             goals: goalsMap.get(p.player_id) || 0,
-        }));
+            result,
+            heavy_win,
+            heavy_loss,
+            clean_sheet,
+          };
+        });
 
       if (playerMatchesData.length > 0) {
         await tx.player_matches.createMany({
@@ -72,11 +94,10 @@ export async function POST(
         });
       }
 
-      // 4. Update the upcoming_match state
+      // 4. Update the upcoming_match state (remove strict concurrency check for completion)
       const updatedUpcomingMatch = await tx.upcoming_matches.update({
         where: {
           upcoming_match_id: matchId,
-          state_version: state_version, // Final concurrency check
         } as any,
         data: {
           state: 'Completed',
@@ -91,13 +112,25 @@ export async function POST(
 
     return NextResponse.json({ success: true, data: completedMatch });
   } catch (error: any) {
+    console.error('ERROR COMPLETING MATCH:', error);
+    console.error('Full error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      meta: error.meta
+    });
+    
     if (error.message.includes('Conflict')) {
         return NextResponse.json({ success: false, error: error.message }, { status: 409 });
     }
     if (error.message.includes('not found')) {
         return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
-    console.error('Error completing match:', error);
-    return NextResponse.json({ success: false, error: 'An unexpected error occurred.' }, { status: 500 });
+    
+    return NextResponse.json({ 
+      success: false, 
+      error: `Match completion failed: ${error.message}` 
+    }, { status: 500 });
   }
 } 

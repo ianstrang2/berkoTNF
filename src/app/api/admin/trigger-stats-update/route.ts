@@ -17,7 +17,10 @@ const FUNCTIONS_TO_CALL = [
 
 // Helper function to call the revalidation endpoint
 async function revalidateCache(tag: string) {
-  const revalidateUrl = new URL('/api/admin/revalidate-cache', process.env.NEXT_PUBLIC_SITE_URL);
+  // Use localhost for development, or construct URL properly
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const revalidateUrl = new URL('/api/admin/revalidate-cache', baseUrl);
+  
   try {
     const res = await fetch(revalidateUrl.toString(), {
       method: 'POST',
@@ -56,11 +59,35 @@ export async function POST() {
 
   for (const func of FUNCTIONS_TO_CALL) {
     console.log(`Invoking Edge Function: ${func.name}`);
-    const { error: invokeError } = await supabase.functions.invoke(func.name);
+    
+    // Add retry logic for network issues
+    let attempt = 0;
+    const maxAttempts = 3;
+    let invokeError = null;
+
+    while (attempt < maxAttempts) {
+      attempt++;
+      console.log(`Attempt ${attempt} for ${func.name}`);
+      
+      const { error } = await supabase.functions.invoke(func.name);
+      
+      if (!error) {
+        invokeError = null;
+        break; // Success, exit retry loop
+      }
+      
+      invokeError = error;
+      console.log(`Attempt ${attempt} failed for ${func.name}:`, error);
+      
+      // Wait briefly before retry
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
 
     if (invokeError) {
-      console.error(`Error invoking ${func.name}:`, invokeError);
-      results.push({ function: func.name, status: 'failed', error: invokeError.message });
+      console.error(`All attempts failed for ${func.name}:`, invokeError);
+      results.push({ function: func.name, status: 'failed', error: String(invokeError) });
       hasFailed = true;
       continue; // Continue to next function even if one fails
     }
@@ -75,6 +102,8 @@ export async function POST() {
     if (!revalidationResult.success) {
       hasFailed = true;
     }
+
+
   }
 
   if (hasFailed) {

@@ -11,10 +11,23 @@ async function revalidateMatchCaches() {
   console.log('Finished revalidating match-related tags.');
 }
 
-// Get matches with player details
+// Get matches with player details - only show completed matches
 export async function GET() {
   try {
     const matches = await prisma.matches.findMany({
+      where: {
+        OR: [
+          // Legacy matches (no upcoming_match_id)
+          { upcoming_match_id: null },
+          // New match flow matches that are actually completed
+          {
+            upcoming_match_id: { not: null },
+            upcoming_matches: {
+              state: 'Completed'
+            }
+          }
+        ]
+      },
       orderBy: {
         match_date: 'desc',
       },
@@ -24,12 +37,19 @@ export async function GET() {
             players: true,  // Get player details
           },
         },
+        upcoming_matches: {
+          select: {
+            state: true,
+            upcoming_match_id: true
+          }
+        }
       },
     });
 
     // Format the matches data
     const formattedMatches = matches.map(match => ({
       match_id: match.match_id,
+      upcoming_match_id: match.upcoming_match_id,  // Include for legacy detection
       match_date: match.match_date.toISOString(),  // Convert date to ISO format
       team_a_score: match.team_a_score,
       team_b_score: match.team_b_score,

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
-import { CheckCircle, Plus, Minus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 import { PlayerInPool } from '@/types/player.types';
 
 interface PlayerGoalStat {
@@ -212,19 +212,6 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
           {isCompleted ? 'This match has been completed and saved.' : 'Record goals for each player and enter the final scores.'}
         </p>
       </div>
-      
-      {isCompleted && (
-        <Card>
-          <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-3 text-green-700">
-              <div className="flex-shrink-0">
-                <CheckCircle size={20} className="text-green-600" />
-              </div>
-              <p className="font-medium">Match completed successfully and results have been saved.</p>
-            </div>
-          </div>
-        </Card>
-      )}
       
       {error && (
         <Card>

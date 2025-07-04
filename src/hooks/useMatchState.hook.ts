@@ -13,6 +13,14 @@ interface ToastState {
   };
 }
 
+interface MatchCompletedModalState {
+  isOpen: boolean;
+  teamAName: string;
+  teamBName: string;
+  teamAScore: number;
+  teamBScore: number;
+}
+
 interface MatchData {
   state: 'Draft' | 'PoolLocked' | 'TeamsBalanced' | 'Completed' | 'Cancelled';
   stateVersion: number;
@@ -21,6 +29,8 @@ interface MatchData {
   isBalanced: boolean;
   updatedAt: string;
   matchDate: string;
+  teamAName?: string;
+  teamBName?: string;
 }
 
 /**
@@ -32,10 +42,31 @@ export const useMatchState = (matchId: number | string) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [matchCompletedModal, setMatchCompletedModal] = useState<MatchCompletedModalState>({
+    isOpen: false,
+    teamAName: 'Orange',
+    teamBName: 'Green',
+    teamAScore: 0,
+    teamBScore: 0
+  });
 
   const showToast = (message: string, type: ToastState['type'], action?: ToastState['action']) => {
     setToast({ message, type, action });
     setTimeout(() => setToast(null), 8000); // Increased duration for action
+  };
+
+  const showMatchCompletedModal = (teamAName: string, teamBName: string, teamAScore: number, teamBScore: number) => {
+    setMatchCompletedModal({
+      isOpen: true,
+      teamAName,
+      teamBName,
+      teamAScore,
+      teamBScore
+    });
+  };
+
+  const closeMatchCompletedModal = () => {
+    setMatchCompletedModal(prev => ({ ...prev, isOpen: false }));
   };
 
   const fetchMatchState = useCallback(async () => {
@@ -54,6 +85,8 @@ export const useMatchState = (matchId: number | string) => {
           isBalanced: result.data.is_balanced,
           updatedAt: result.data.updated_at,
           matchDate: result.data.match_date,
+          teamAName: result.data.team_a_name || 'Orange',
+          teamBName: result.data.team_b_name || 'Green',
         };
         setMatchData(transformedData);
       } else {
@@ -131,10 +164,13 @@ export const useMatchState = (matchId: number | string) => {
       }
 
       if (url.includes('/complete')) {
-        showToast('Match saved. Stats recalculating (~45s)...', 'success', {
-          label: 'Undo',
-          onClick: () => createApiAction(`/api/admin/upcoming-matches/${matchId}/undo`, 'PATCH')()
-        });
+        // Show match completed modal instead of toast
+        const teamAName = matchData?.teamAName || 'Orange';
+        const teamBName = matchData?.teamBName || 'Green';
+        const teamAScore = actionBody?.score?.team_a || 0;
+        const teamBScore = actionBody?.score?.team_b || 0;
+        
+        showMatchCompletedModal(teamAName, teamBName, teamAScore, teamBScore);
         await fetch('/api/admin/trigger-stats-update', { method: 'POST' });
       }
 
@@ -206,6 +242,8 @@ export const useMatchState = (matchId: number | string) => {
     isLoading,
     error,
     toast,
+    matchCompletedModal,
+    closeMatchCompletedModal,
     can,
     matchData,
     showToast,

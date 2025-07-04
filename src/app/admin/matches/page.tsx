@@ -7,7 +7,7 @@ import MainLayout from '@/components/layout/MainLayout.layout';
 import MatchModal from '@/components/team/modals/MatchModal.component';
 import Button from '@/components/ui-kit/Button.component';
 
-interface UpcomingMatch {
+interface ActiveMatch {
   upcoming_match_id: number;
   match_date: string;
   state: string;
@@ -26,10 +26,10 @@ interface HistoricalMatch {
 
 const MatchListPageContent = () => {
   const searchParams = useSearchParams() || new URLSearchParams();
-  const view = searchParams.get('view') || 'upcoming';
+  const view = searchParams.get('view') || 'active';
   const router = useRouter();
 
-  const [upcoming, setUpcoming] = useState<UpcomingMatch[]>([]);
+  const [active, setActive] = useState<ActiveMatch[]>([]);
   const [history, setHistory] = useState<HistoricalMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,10 +94,11 @@ const MatchListPageContent = () => {
       // Refresh the matches list
       const fetchData = async () => {
         try {
-          const upcomingRes = await fetch('/api/admin/upcoming-matches');
-          if (upcomingRes.ok) {
-            const upcomingData = await upcomingRes.json();
-            setUpcoming(upcomingData.data?.filter((m: UpcomingMatch) => m.state !== 'Completed') || []);
+          const activeRes = await fetch('/api/admin/upcoming-matches');
+          if (activeRes.ok) {
+            const activeData = await activeRes.json();
+            // Show all non-completed matches regardless of date
+            setActive(activeData.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || []);
           }
         } catch (err) {
           console.error('Failed to refresh matches:', err);
@@ -117,19 +118,20 @@ const MatchListPageContent = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [upcomingRes, historyRes] = await Promise.all([
+        const [activeRes, historyRes] = await Promise.all([
           fetch('/api/admin/upcoming-matches'),
           fetch('/api/matches/history')
         ]);
 
-        if (!upcomingRes.ok || !historyRes.ok) {
+        if (!activeRes.ok || !historyRes.ok) {
           throw new Error('Failed to fetch match data');
         }
 
-        const upcomingData = await upcomingRes.json();
+        const activeData = await activeRes.json();
         const historyData = await historyRes.json();
 
-        setUpcoming(upcomingData.data?.filter((m: UpcomingMatch) => m.state !== 'Completed') || []);
+        // Show all non-completed matches regardless of date
+        setActive(activeData.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || []);
         setHistory(historyData.data || []);
 
       } catch (err: any) {
@@ -141,15 +143,15 @@ const MatchListPageContent = () => {
     fetchData();
   }, []);
 
-  const renderUpcomingList = () => (
+  const renderActiveList = () => (
     <div className="space-y-4 max-w-3xl">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-slate-800">Upcoming Matches</h2>
+        <h2 className="text-xl font-semibold text-slate-800">Active Matches</h2>
       </div>
       
       {/* Existing match list */}
-      {upcoming.map(match => (
+      {active.map(match => (
         <Link key={match.upcoming_match_id} href={`/admin/matches/${match.upcoming_match_id}`} className="block bg-white hover:shadow-lg transition-shadow duration-300 p-4 rounded-xl shadow-soft-xl border">
           <div className="flex justify-between items-center">
             <div>
@@ -206,7 +208,7 @@ const MatchListPageContent = () => {
       {error && <p className="text-red-500">{error}</p>}
       {!isLoading && !error && (
         <div>
-          {view === 'upcoming' ? renderUpcomingList() : renderHistoryList()}
+          {view === 'active' ? renderActiveList() : renderHistoryList()}
         </div>
       )}
       

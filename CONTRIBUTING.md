@@ -10,15 +10,68 @@ We organize our codebase by feature rather than by type. This means that related
 
 ```
 src/
-├── app/             # App Router pages and layouts
-├── components/      # React components organized by feature
-│   ├── admin/       # Admin-related components
-│   ├── matchday/    # Matchday-related components
-│   ├── ui-kit/      # Reusable UI components
-├── hooks/           # Custom React hooks
-├── services/        # Business logic and API services
-├── types/           # TypeScript type definitions
-└── utils/           # Utility functions
+├── app/                    # App Router pages and layouts (Next.js 13+)
+│   ├── admin/             # Admin routes (/admin/*)
+│   ├── records/           # Records routes (/records/*)
+│   ├── table/             # Table routes (/table/*)
+│   ├── upcoming/          # Upcoming fixtures route
+│   └── api/               # API routes
+├── components/            # React components organized by feature
+│   ├── admin/             # Admin-related components
+│   ├── dashboard/         # Dashboard page + dashboard widgets
+│   │   ├── Dashboard      # Main dashboard component
+│   │   ├── PersonalBests  # Personal bests widget
+│   │   ├── Milestones     # Milestones widget
+│   │   └── MatchReport    # Latest match widget
+│   ├── layout/            # Layout components (MainLayout, etc.)
+│   ├── navigation/        # Navigation components (DesktopSidebar, BottomNavigation, etc.)
+│   ├── player/            # Player-related components
+│   ├── records/           # All-time records & achievements (standalone pages)
+│   │   ├── LeaderboardStats # All-time player statistics
+│   │   ├── Legends        # Hall of fame / season winners
+│   │   └── Feats          # Notable achievements/records
+│   ├── tables/            # Season standings/tables
+│   │   ├── CurrentHalfSeason # Half season table
+│   │   └── OverallSeasonPerformance # Whole season table
+│   ├── team/              # Team-related components
+│   ├── ui-kit/            # Reusable UI components
+│   └── ...                # Other feature-specific directories
+├── contexts/              # React Context providers (NavigationContext, etc.)
+├── hooks/                 # Custom React hooks
+├── services/              # Business logic and API services
+├── types/                 # TypeScript type definitions
+└── utils/                 # Utility functions
+```
+
+### App vs Components Directory
+
+Understanding the relationship between `/app` and `/components`:
+
+**`/app` Directory (Routes)**
+- Defines URL routes using Next.js 13+ App Router
+- Each `page.tsx` file creates a new route
+- Example: `/app/table/half/page.tsx` → `localhost:3000/table/half`
+- Contains minimal logic - mainly imports and renders components
+
+**`/components` Directory (Reusable Components)**
+- Contains the actual UI components and business logic
+- Components are imported and used by pages in `/app`
+- Organized by feature for better maintainability
+- Example: `/components/stats/CurrentHalfSeason.component.tsx`
+
+**Typical Flow:**
+```typescript
+// /app/table/half/page.tsx (Route)
+import { CurrentHalfSeason } from '@/components/stats';
+
+export default function TableHalfPage() {
+  return <CurrentHalfSeason initialView="points" />;
+}
+
+// /components/stats/CurrentHalfSeason.component.tsx (Component)
+export const CurrentHalfSeason = ({ initialView }) => {
+  // Component logic and UI here
+};
 ```
 
 ### Backend and Database Assets
