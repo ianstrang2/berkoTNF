@@ -89,8 +89,8 @@ interface ApiResponse {
     halfSeasonFantasyLeaders?: LeaderData[];
     seasonGoalLeaders?: LeaderData[];
     seasonFantasyLeaders?: LeaderData[];
-    on_fire_player_id?: number | null;
-    grim_reaper_player_id?: number | null;
+    on_fire_player_id?: string | null;
+    grim_reaper_player_id?: string | null;
   };
   error?: string;
 }
@@ -465,8 +465,8 @@ const getMatchReportData = unstable_cache(
           halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders || [],
           seasonGoalLeaders: extractedSeasonGoalLeaders || [],
           seasonFantasyLeaders: extractedSeasonFantasyLeaders || [],
-          on_fire_player_id: matchReportCache.on_fire_player_id,
-          grim_reaper_player_id: matchReportCache.grim_reaper_player_id
+          on_fire_player_id: matchReportCache.on_fire_player_id ? String(matchReportCache.on_fire_player_id) : null,
+          grim_reaper_player_id: matchReportCache.grim_reaper_player_id ? String(matchReportCache.grim_reaper_player_id) : null
         };
         
       } catch (processingError) {
@@ -481,7 +481,8 @@ const getMatchReportData = unstable_cache(
           gamesMilestones: [], goalsMilestones: [], streaks: [], goalStreaks: [],
           halfSeasonGoalLeaders: [], halfSeasonFantasyLeaders: [],
           seasonGoalLeaders: [], seasonFantasyLeaders: [],
-          on_fire_player_id: null, grim_reaper_player_id: null
+          on_fire_player_id: matchReportCache.on_fire_player_id ? String(matchReportCache.on_fire_player_id) : null, 
+          grim_reaper_player_id: matchReportCache.grim_reaper_player_id ? String(matchReportCache.grim_reaper_player_id) : null
         };
       }
     } catch (error) {
