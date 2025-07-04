@@ -72,8 +72,8 @@ interface MatchReportCache {
     winless_streak_threshold: number;
     goal_streak_threshold: number;
   };
-  on_fire_player_id: number | null;
-  grim_reaper_player_id: number | null;
+  on_fire_player_id: number | null;  // Keep as number since it comes from DB
+  grim_reaper_player_id: number | null;  // Keep as number since it comes from DB
   last_updated?: Date;
 }
 

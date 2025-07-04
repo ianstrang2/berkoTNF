@@ -16,7 +16,10 @@ const getHalfSeasonStats = unstable_cache(
     console.log('Cache miss, fetching fresh half-season data');
 
     const preAggregatedData = await prisma.$queryRaw<any[]>`
-      SELECT hs.*, p.name, p.selected_club
+      SELECT hs.player_id as id, hs.player_id, hs.games_played, hs.wins, hs.draws, 
+             hs.losses, hs.goals, hs.heavy_wins, hs.heavy_losses, hs.clean_sheets, 
+             hs.win_percentage, hs.fantasy_points, hs.points_per_game,
+             p.name, p.selected_club
       FROM aggregated_half_season_stats hs
       JOIN players p ON hs.player_id = p.player_id
     `;
@@ -35,6 +38,7 @@ const getHalfSeasonStats = unstable_cache(
       const dbPlayer = {
         ...perf,
         ...perf.player,
+        id: perf.player.player_id,  // Use player_id as the canonical ID
         total_goals: seasonStats.find(s => s.name === perf.player.name)?.goals || 0,
         minutes_per_goal: Math.round(((seasonStats.find(s => s.name === perf.player.name)?.gamesPlayed || 0) * 60) / (seasonStats.find(s => s.name === perf.player.name)?.goals || 1)),
         last_five_games: perf.last_5_games ? (perf.last_5_games as RecentGame[]).map(g => g.goals).reverse().join(',') : '0,0,0,0,0',

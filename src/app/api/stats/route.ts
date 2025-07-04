@@ -54,7 +54,11 @@ const getFullSeasonStats = unstable_cache(
     })]) as any[];
 
     const seasonStats = preAggregatedData.map(stat => {
-      const dbPlayer = { ...stat, ...stat.player };
+      const dbPlayer = { 
+        ...stat, 
+        ...stat.player,
+        id: stat.player_id  // Use player_id as the canonical ID, not the auto-increment id
+      };
       return toPlayerWithStats(dbPlayer);
     }).sort((a, b) => b.fantasyPoints - a.fantasyPoints);
 
@@ -64,6 +68,7 @@ const getFullSeasonStats = unstable_cache(
       const dbPlayer = {
         ...perf,
         ...perf.player,
+        id: perf.player.player_id,  // Use player_id as the canonical ID
         total_goals: seasonStat?.goals || 0,
         minutes_per_goal: Math.round(((seasonStat?.gamesPlayed || 0) * 60) / (seasonStat?.goals || 1)),
         last_five_games: last5Goals,

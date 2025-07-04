@@ -31,7 +31,6 @@ export async function GET() {
     return NextResponse.json({
       on_fire_player_id: latestStatus.on_fire_player_id ? String(latestStatus.on_fire_player_id) : null,
       grim_reaper_player_id: latestStatus.grim_reaper_player_id ? String(latestStatus.grim_reaper_player_id) : null,
-      // match_date: latestStatus.match_date, // Optional: for debugging/verification
     });
 
   } catch (error) {
