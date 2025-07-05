@@ -193,6 +193,35 @@ const LatestMatch: React.FC = () => {
     return player?.id;
   };
 
+  const formatLeaderText = (leaderData: LeaderData, metric: 'goals' | 'points', period: string): string => {
+    if (!leaderData || !leaderData.new_leader) {
+      return `Unknown leader in ${metric}`;
+    }
+    
+    const { change_type, new_leader, previous_leader } = leaderData;
+    
+    const value = metric === 'goals' 
+      ? (leaderData.new_leader_goals || leaderData.value || 0) 
+      : (leaderData.new_leader_points || leaderData.value || 0);
+          
+    if (!change_type && new_leader) {
+      return `${new_leader} leads with ${value}`;
+    }
+    
+    switch (change_type) {
+      case 'new_leader':
+        return `${new_leader} now leads with ${value}`;
+      case 'tied':
+        return `${new_leader} tied with ${previous_leader} at ${value}`;
+      case 'remains':
+        return `${new_leader} leads with ${value}`;
+      case 'overtake':
+        return `${new_leader} overtook ${previous_leader} with ${value}`;
+      default:
+        return `${new_leader} leads with ${value}`;
+    }
+  };
+
   const formatMatchReportForCopy = (
     data: FullMatchReportDataWithSpecialPlayers | null, 
     pbsData: PersonalBestsData | null,
@@ -328,6 +357,27 @@ const LatestMatch: React.FC = () => {
       data.goalsMilestones.forEach(m => {
         const goalCount = m.total_goals || m.value || 0;
         report += `- ${m.name}: Scored ${getOrdinalSuffix(goalCount)} goal\n`;
+      });
+    }
+
+    // Add form streaks to copy output
+    if (data.streaks && data.streaks.length > 0) {
+      report += `\n--- STREAKS ---\n`;
+      data.streaks.forEach(streak => {
+        const streakType = 
+          streak.streak_type === 'win' ? 'winning' :
+          streak.streak_type === 'loss' ? 'losing' :
+          streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless';
+        
+        report += `- ${streak.name}: ${streak.streak_count} game ${streakType} streak\n`;
+      });
+    }
+
+    // Add goal streaks to copy output
+    if (data.goalStreaks && data.goalStreaks.length > 0) {
+      report += `\n--- SCORING STREAKS ---\n`;
+      data.goalStreaks.forEach(streak => {
+        report += `- ${streak.name}: Scored in ${streak.matches_with_goals} consecutive matches (${streak.goals_in_streak} goals)\n`;
       });
     }
 

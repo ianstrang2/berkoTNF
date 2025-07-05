@@ -221,6 +221,37 @@ const Milestones: React.FC = () => {
     return player?.id;
   };
 
+  // Function to render content with player names as links
+  const renderContentWithLinks = (content: string): React.ReactNode => {
+    if (!allPlayers.length) return content;
+    
+    // Create a regex pattern that matches any player name
+    const playerNames = allPlayers.map(p => p.name);
+    const playerNamePattern = new RegExp(`\\b(${playerNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'g');
+    
+    const parts = content.split(playerNamePattern);
+    const result: React.ReactNode[] = [];
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const playerId = getPlayerIdByName(part);
+      
+      if (playerId) {
+        // This part is a player name, make it a link
+        result.push(
+          <Link key={i} href={`/players/${playerId}`} className="hover:underline text-slate-700">
+            {part}
+          </Link>
+        );
+      } else {
+        // This part is regular text
+        result.push(part);
+      }
+    }
+    
+    return result;
+  };
+
   const processTimelineItems = (data: MilestonesData) => {
     const items: TimelineItem[] = [];
     const matchDate = data.matchInfo.match_date ? formatDateSafely(data.matchInfo.match_date) : '';
@@ -573,7 +604,7 @@ const Milestones: React.FC = () => {
                     )}
                     <span className="ml-2 text-xs font-normal text-slate-500">{item.date}</span>
                   </h6>
-                  <p className="mt-1 mb-1 leading-normal text-sm text-slate-600">{item.content}</p>
+                  <p className="mt-1 mb-1 leading-normal text-sm text-slate-600">{renderContentWithLinks(item.content)}</p>
                   {item.subtext && (
                     <p className="mb-2 leading-normal text-xs text-slate-500">{item.subtext}</p>
                   )}
