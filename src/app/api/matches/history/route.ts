@@ -376,20 +376,14 @@ export async function DELETE(request: Request) {
       }
     });
     
-    // Trigger stats recalculation since we deleted historical data
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      const statsResponse = await fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
-        method: 'POST',
-      });
-      
-      if (!statsResponse.ok) {
-        console.warn('Stats recalculation failed, but match deletion was successful');
-      }
-    } catch (statsError) {
+    // Trigger stats recalculation since we deleted historical data (fire and forget)
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
+      method: 'POST',
+    }).catch(statsError => {
       console.warn('Could not trigger stats recalculation:', statsError);
-      // Don't fail the deletion if stats update fails
-    }
+      // Stats update failure doesn't affect deletion success
+    });
     
     // Revalidate caches after successful deletion
     await revalidateMatchCaches();

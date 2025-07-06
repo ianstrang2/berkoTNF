@@ -318,21 +318,16 @@ export async function DELETE(request: NextRequest) {
       });
     });
 
-    // Trigger stats recalculation if we deleted a completed match
+    // Trigger stats recalculation if we deleted a completed match (fire and forget)
     if (shouldTriggerStatsUpdate) {
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-        const statsResponse = await fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
-          method: 'POST',
-        });
-        
-        if (!statsResponse.ok) {
-          console.warn('Stats recalculation failed, but match deletion was successful');
-        }
-      } catch (statsError) {
+      // Don't await - let stats update run in background
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
+        method: 'POST',
+      }).catch(statsError => {
         console.warn('Could not trigger stats recalculation:', statsError);
-        // Don't fail the deletion if stats update fails
-      }
+        // Stats update failure doesn't affect deletion success
+      });
     }
 
     return NextResponse.json({ 
