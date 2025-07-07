@@ -31,6 +31,7 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingHistoricalData, setIsLoadingHistoricalData] = useState(false);
+  const [hasLoadedHistoricalData, setHasLoadedHistoricalData] = useState(false);
 
   const { teamA, teamB } = useMemo(() => {
     const a: PlayerInPool[] = [];
@@ -47,9 +48,11 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     return { teamA: a, teamB: b };
   }, [players]);
 
-  // Load historical match data for completed matches
+  // Load historical match data for completed matches OR matches with historical data (undone matches)
   useEffect(() => {
-    if (isCompleted && matchId) {
+    if (matchId && !hasLoadedHistoricalData) {
+      console.log('CompleteMatchForm: Starting historical data load for match', matchId, 'isCompleted:', isCompleted);
+      
       const loadHistoricalData = async () => {
         setIsLoadingHistoricalData(true);
         try {
@@ -66,24 +69,14 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
             if (historicalMatch) {
               // Create a map of player goals from historical data
               const goalMap = new Map<string, number>();
-              let teamAPlayerGoals = 0;
-              let teamBPlayerGoals = 0;
               
+              // Load player goals directly from historical player_matches data
+              // (Don't try to match with current team assignments - use historical data as-is)
               historicalMatch.player_matches.forEach((pm: any) => {
                 goalMap.set(pm.player_id.toString(), pm.goals || 0);
-                
-                // Track player goals by team to calculate own goals
-                const player = players.find(p => p.id === pm.player_id.toString());
-                if (player) {
-                  if (player.team === 'A') {
-                    teamAPlayerGoals += (pm.goals || 0);
-                  } else if (player.team === 'B') {
-                    teamBPlayerGoals += (pm.goals || 0);
-                  }
-                }
               });
               
-              // Load actual own goals from database (no calculation needed)
+              // Load actual own goals from database
               const actualOwnGoalsA = historicalMatch.team_a_own_goals || 0;
               const actualOwnGoalsB = historicalMatch.team_b_own_goals || 0;
               
@@ -91,11 +84,30 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
               setPlayerGoals(goalMap);
               setOwnGoalsA(actualOwnGoalsA);
               setOwnGoalsB(actualOwnGoalsB);
+              setHasLoadedHistoricalData(true);
+              
+              console.log('Successfully loaded historical data:', {
+                playerGoals: Object.fromEntries(goalMap),
+                ownGoalsA: actualOwnGoalsA,
+                ownGoalsB: actualOwnGoalsB,
+                matchId: historicalMatch.match_id
+              });
+            } else {
+              if (isCompleted) {
+                console.warn('No historical match found for completed match:', matchId);
+              } else {
+                console.log('No historical data found (normal for new match):', matchId);
+              }
+              setHasLoadedHistoricalData(true); // Prevent repeated attempts
             }
+          } else {
+            console.log('No history data received');
+            setHasLoadedHistoricalData(true); // Prevent repeated attempts
           }
         } catch (err) {
           console.error('Failed to load historical match data:', err);
           setError('Failed to load match results. Please refresh the page.');
+          setHasLoadedHistoricalData(true); // Prevent repeated attempts even on error
         } finally {
           setIsLoadingHistoricalData(false);
         }
@@ -103,7 +115,18 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
       
       loadHistoricalData();
     }
-  }, [isCompleted, matchId, players]);
+  }, [matchId, hasLoadedHistoricalData]); // Removed isCompleted dependency
+
+  // Reset historical data flag only when match ID changes (different match)
+  useEffect(() => {
+    console.log('CompleteMatchForm: matchId changed to', matchId);
+    // Reset state when switching to a completely different match
+    setHasLoadedHistoricalData(false);
+    setPlayerGoals(new Map());
+    setOwnGoalsA(0);
+    setOwnGoalsB(0);
+    setError(null);
+  }, [matchId]); // Only depend on matchId, not isCompleted
 
   // Notify parent of loading state changes
   useEffect(() => {

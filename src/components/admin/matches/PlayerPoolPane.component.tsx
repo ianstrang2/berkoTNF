@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { PlayerInPool } from '@/types/player.types';
+import { PlayerFormData } from '@/types/team-algorithm.types';
 import PlayerPool from '@/components/team/PlayerPool.component';
+import PlayerFormModal from '@/components/admin/player/PlayerFormModal.component';
 import Button from '@/components/ui-kit/Button.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 
@@ -20,6 +22,10 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  
+  // Add Player Modal states
+  const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchAllPlayers = async () => {
@@ -103,8 +109,66 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
     }
   };
 
+  const handleAddPlayer = async (playerData: PlayerFormData) => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // 1. Create the new player
+      const response = await fetch('/api/admin/players', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...playerData,
+          is_ringer: playerData.isRinger,
+          is_retired: playerData.isRetired,
+          stamina_pace: playerData.staminaPace,
+          selected_club: playerData.club,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add player');
+      }
+
+      const newPlayer = result.data;
+
+      // 2. Add player to current match pool
+      await fetch('/api/admin/match-player-pool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_id: matchId, player_id: newPlayer.id })
+      });
+
+      // 3. Update local states
+      const newPlayerInPool: PlayerInPool = {
+        ...newPlayer,
+        responseStatus: 'IN' as const
+      };
+      
+      setAllPlayers(prev => [...prev, newPlayerInPool]);
+      setSelectedPlayers(prev => [...prev, newPlayerInPool]);
+      
+      setIsPlayerModalOpen(false);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setError(errorMessage);
+      throw error; // Let the modal handle the error display
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
   if (isLoading && allPlayers.length === 0) return <div className="p-4 text-center">Loading players...</div>;
+
+  const maxAllowedPlayers = teamSize * 2;
+  const hasReachedMaxPlayers = selectedPlayers.length >= maxAllowedPlayers;
 
   return (
     <>
@@ -121,8 +185,8 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
             isBalancing={false}
           />
         </div>
-        {selectedPlayers.length > 0 && (
-          <div className="p-3 border-t border-gray-200 flex justify-start">
+        <div className="p-3 border-t border-gray-200 flex justify-end gap-3">
+          {selectedPlayers.length > 0 && (
             <Button 
               variant="secondary" 
               onClick={() => setIsClearConfirmOpen(true)} 
@@ -130,8 +194,17 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
             >
               Clear
             </Button>
-          </div>
-        )}
+          )}
+          
+          <Button 
+            variant="secondary"
+            className="rounded-lg shadow-soft-sm"
+            onClick={() => setIsPlayerModalOpen(true)}
+            disabled={hasReachedMaxPlayers}
+          >
+            Create Player
+          </Button>
+        </div>
       </div>
 
       <SoftUIConfirmationModal 
@@ -143,6 +216,28 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
         confirmText="Clear Pool" 
         cancelText="Cancel"
         icon="warning"
+      />
+
+      <PlayerFormModal 
+        isOpen={isPlayerModalOpen}
+        onClose={() => {
+          setIsPlayerModalOpen(false);
+          setError(null);
+        }}
+        onSubmit={handleAddPlayer}
+        isProcessing={isSubmitting}
+        initialData={{
+          isRinger: true, 
+          goalscoring: 3, 
+          defending: 3, 
+          staminaPace: 3, 
+          control: 3, 
+          teamwork: 3, 
+          resilience: 3, 
+          club: null
+        }}
+        title="Add New Player"
+        submitButtonText="Create Player"
       />
     </>
   );

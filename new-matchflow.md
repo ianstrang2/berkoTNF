@@ -977,12 +977,52 @@ if (score.team_a !== totalPlayerGoalsA + own_goals.team_a) {
 - Own goals now saved as actual values (not calculated)
 - Re-editing completed matches preserves original own goals breakdown
 - Score validation prevents future data inconsistencies
+- Fixed historical data loading bug that caused player goals to disappear during editing
+- Fixed API validation logic that incorrectly calculated team goals
+- Fixed history API to properly return own goals data
+
+**Match Report Enhancements:**
+- Enhanced SQL aggregation to display own goals in match reports
+- Own goals appear as "OG (x)" entries in team player lists
+- Conditional display: only shows when own goals > 0
+- Non-clickable entries that blend seamlessly with player names
 
 ### **Impact**
-- **Before Fix**: Own goals lost when re-editing matches
-- **After Fix**: Perfect own goals persistence across all match operations
+- **Before Fix**: Own goals lost when re-editing matches, player goals could disappear during editing, validation errors on correct data
+- **After Fix**: Perfect own goals persistence across all match operations, reliable historical data loading, accurate validation
 - **Data Migration**: 759 total own goals properly calculated for historical matches
 - **Undo Behavior**: Own goals automatically removed when matches are undone (database cascade)
+- **Corruption Recovery**: Diagnostic tools available for fixing partially-saved matches
+- **Dashboard Integration**: Own goals now display properly in match reports and statistics
+
+### **Technical Bug Fixes Resolved**
+
+#### **Bug 1: API Validation Logic Error**
+**Problem**: Score validation always failed because it tried to filter `player_stats` by team, but the array only contained `{player_id, goals}` with no team information.
+**Solution**: Enhanced validation to lookup team assignments from database before calculating totals.
+
+#### **Bug 2: Historical Data Loading Loop** 
+**Problem**: Component re-rendered on every change, causing historical data to reload and overwrite user modifications.
+**Solution**: Added `hasLoadedHistoricalData` flag and optimized dependency arrays to prevent unnecessary reloads.
+
+#### **Bug 3: History API Missing Fields**
+**Problem**: `/api/matches/history` wasn't returning `team_a_own_goals` and `team_b_own_goals` fields.
+**Solution**: Added own goals fields to API response with null safety handling.
+
+#### **Bug 4: Undo State Reset**
+**Problem**: "Undo" operation triggered aggressive reset logic that wiped all form data.
+**Solution**: Refined reset logic to only clear data when switching between different matches, not state changes.
+
+#### **Bug 5: Match Report SQL Enhancement**
+**Problem**: Own goals weren't displayed in dashboard match reports.
+**Solution**: Enhanced SQL aggregation to conditionally append "OG (x)" entries to team player arrays.
+
+### **Production Reliability Improvements**
+- **Robust error handling** for edge cases and corrupted data
+- **Comprehensive logging** for debugging historical data issues  
+- **Defensive null checking** throughout the codebase
+- **Graceful degradation** when data inconsistencies are detected
+- **Diagnostic tools** for identifying and fixing match state corruption
 
 ---
 

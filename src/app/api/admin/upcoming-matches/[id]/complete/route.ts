@@ -34,8 +34,28 @@ export async function POST(
     }
 
     // Validate score integrity: team_score should equal player_goals + own_goals
-    const totalPlayerGoalsA = player_stats.filter(p => p.team === 'A').reduce((sum, p) => sum + (p.goals || 0), 0);
-    const totalPlayerGoalsB = player_stats.filter(p => p.team === 'B').reduce((sum, p) => sum + (p.goals || 0), 0);
+    // First, get team assignments from database to properly validate
+    const upcomingMatchForValidation = await prisma.upcoming_matches.findUnique({
+      where: { upcoming_match_id: matchId },
+      include: { players: true },
+    });
+    
+    if (!upcomingMatchForValidation) {
+      return NextResponse.json({ success: false, error: 'Match not found' }, { status: 404 });
+    }
+    
+    // Create a map of player_id to team
+    const playerTeamMap = new Map(
+      upcomingMatchForValidation.players.map(p => [p.player_id, p.team])
+    );
+    
+    // Calculate total goals by team using the team assignments
+    const totalPlayerGoalsA = player_stats
+      .filter(p => playerTeamMap.get(p.player_id) === 'A')
+      .reduce((sum, p) => sum + (p.goals || 0), 0);
+    const totalPlayerGoalsB = player_stats
+      .filter(p => playerTeamMap.get(p.player_id) === 'B')
+      .reduce((sum, p) => sum + (p.goals || 0), 0);
     
     if (score.team_a !== totalPlayerGoalsA + own_goals.team_a) {
       return NextResponse.json({ 
@@ -50,24 +70,25 @@ export async function POST(
       }, { status: 400 });
     }
 
+    // Additional state validation before transaction
+    if ((upcomingMatchForValidation as any).state !== 'TeamsBalanced') {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Cannot complete match with state ${(upcomingMatchForValidation as any).state}.` 
+      }, { status: 400 });
+    }
+    if ((upcomingMatchForValidation as any).state_version !== state_version) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Conflict: Match has been updated by someone else.' 
+      }, { status: 409 });
+    }
+
     const completedMatch = await prisma.$transaction(async (tx) => {
-      // 1. Fetch and validate the upcoming match
-      const upcomingMatch = await tx.upcoming_matches.findUnique({
-        where: { upcoming_match_id: matchId },
-        include: { players: true },
-      });
+      // Use the already-fetched match data
+      const upcomingMatch = upcomingMatchForValidation;
 
-      if (!upcomingMatch) {
-        throw new Error('Match not found');
-      }
-      if ((upcomingMatch as any).state !== 'TeamsBalanced') {
-        throw new Error(`Cannot complete match with state ${(upcomingMatch as any).state}.`);
-      }
-      if ((upcomingMatch as any).state_version !== state_version) {
-        throw new Error('Conflict: Match has been updated by someone else.');
-      }
-
-      // 2. Create the historical match record with own goals
+      // 1. Create the historical match record with own goals
       const newMatch = await tx.matches.create({
         data: {
           match_date: upcomingMatch.match_date,
@@ -79,7 +100,7 @@ export async function POST(
         } as any,
       });
 
-      // 3. Create player_matches records with calculated result fields
+      // 2. Create player_matches records with calculated result fields
       const goalsMap = new Map(player_stats.map((p: { player_id: number; goals: number }) => [p.player_id, p.goals]));
       
       // Calculate match result metrics
@@ -143,7 +164,7 @@ export async function POST(
         throw new Error('No assigned players found for match completion');
       }
 
-      // 4. Update the upcoming_match state (remove strict concurrency check for completion)
+      // 3. Update the upcoming_match state (remove strict concurrency check for completion)
       const updatedUpcomingMatch = await tx.upcoming_matches.update({
         where: {
           upcoming_match_id: matchId,
