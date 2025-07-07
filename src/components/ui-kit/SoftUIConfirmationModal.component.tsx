@@ -30,67 +30,88 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
   isConfirming = false,
   icon = 'warning',
 }) => {
-  // Only display the modal if isOpen is true
+  // Handle the case where isConfirming changes from true to false
+  // This closes any stuck loading modals
   React.useEffect(() => {
-    if (isOpen) {
-      // Define custom button styling based on soft-UI design system
-      const swalWithSoftUI = Swal.mixin({
-        customClass: {
-          popup: 'rounded-2xl shadow-soft-xl',
-          title: 'text-lg leading-6 font-medium text-slate-700',
-          htmlContainer: 'text-sm text-slate-500',
-          confirmButton: 'inline-block px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro text-xs ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25',
-          cancelButton: 'ml-3 inline-block px-6 py-3 font-bold text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro text-xs ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25'
-        },
-        buttonsStyling: false,
-        showClass: {
-          popup: 'animate-fade-in-up'
-        },
-        hideClass: {
-          popup: 'animate-fade-out-down'
+    if (!isConfirming && Swal.isVisible()) {
+      Swal.close();
+    }
+  }, [isConfirming]);
+
+  // Handle modal visibility and state
+  React.useEffect(() => {
+    if (!isOpen) {
+      // Close any existing SweetAlert when modal should be closed
+      if (Swal.isVisible()) {
+        Swal.close();
+      }
+      return;
+    }
+
+    // Define custom button styling based on soft-UI design system
+    const swalWithSoftUI = Swal.mixin({
+      customClass: {
+        popup: 'rounded-2xl shadow-soft-xl',
+        title: 'text-lg leading-6 font-medium text-slate-700',
+        htmlContainer: 'text-sm text-slate-500',
+        confirmButton: 'inline-block px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro text-xs ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25',
+        cancelButton: 'ml-3 inline-block px-6 py-3 font-bold text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro text-xs ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25'
+      },
+      buttonsStyling: false,
+      showClass: {
+        popup: 'animate-fade-in-up'
+      },
+      hideClass: {
+        popup: 'animate-fade-out-down'
+      }
+    });
+
+    // Create the base modal configuration
+    const modalConfig: SweetAlertOptions = {
+      title: title,
+      html: typeof message === 'string' ? message : <div>{message}</div>,
+      icon: icon,
+      showCancelButton: true,
+      confirmButtonText: isConfirming ? 'Processing...' : confirmText,
+      cancelButtonText: cancelText,
+      reverseButtons: false,
+      allowOutsideClick: !isConfirming,
+      allowEscapeKey: !isConfirming,
+    };
+
+    // If we're in confirming state, show loading state but allow it to be closed
+    if (isConfirming) {
+      swalWithSoftUI.fire({
+        ...modalConfig,
+        showLoaderOnConfirm: false, // Don't use the built-in loader
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          // Disable the confirm button to show loading state
+          const confirmButton = Swal.getConfirmButton();
+          if (confirmButton) {
+            confirmButton.disabled = true;
+            confirmButton.style.opacity = '0.6';
+          }
+          // Disable the cancel button during processing
+          const cancelButton = Swal.getCancelButton();
+          if (cancelButton) {
+            cancelButton.disabled = true;
+            cancelButton.style.opacity = '0.6';
+          }
         }
       });
-
-      // Create the base modal configuration
-      const modalConfig: SweetAlertOptions = {
-        title: title,
-        html: typeof message === 'string' ? message : <div>{message}</div>,
-        icon: icon,
-        showCancelButton: true,
-        confirmButtonText: isConfirming ? 'Processing...' : confirmText,
-        cancelButtonText: cancelText,
-        reverseButtons: false,
-        allowOutsideClick: !isConfirming,
-        allowEscapeKey: !isConfirming,
-      };
-
-      // If we're in confirming state, use a different approach with preConfirm
-      if (isConfirming) {
-        // When confirming, we need to handle the loading state properly
-        swalWithSoftUI.fire({
-          ...modalConfig,
-          showLoaderOnConfirm: true,
-          preConfirm: () => {
-            // Return a promise that doesn't resolve automatically
-            // This keeps the loading state visible until we close it programmatically
-            return new Promise(() => {});
-          },
-          didOpen: () => {
-            Swal.disableButtons();
-          }
-        });
-      } else {
-        // Normal operation (not in confirming state)
-        swalWithSoftUI.fire(modalConfig).then((result) => {
-          if (result.isConfirmed) {
-            onConfirm();
-          } else {
-            onClose();
-          }
-        });
-      }
+    } else {
+      // Normal operation (not in confirming state)
+      swalWithSoftUI.fire(modalConfig).then((result) => {
+        if (result.isConfirmed) {
+          onConfirm();
+        } else if (result.isDismissed) {
+          onClose();
+        }
+      });
     }
-  }, [isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isConfirming, icon]);
+  }, [isOpen, title, message, confirmText, cancelText, isConfirming, icon]);
 
   // This component doesn't directly render anything
   return null;
