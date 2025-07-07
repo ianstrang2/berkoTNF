@@ -20,7 +20,7 @@ interface ActiveMatch {
 
 interface HistoricalMatch {
   match_id: number;
-  upcoming_match_id: number | null;
+  upcoming_match_id: number;
   match_date: string;
   team_a_score: number;
   team_b_score: number;
@@ -295,17 +295,13 @@ const MatchListPageContent = () => {
   const renderHistoryList = () => (
     <div className="space-y-4 max-w-3xl">
       {history.map(match => {
-        const isLegacy = !match.upcoming_match_id;
-        const href = isLegacy ? '#' : `/admin/matches/${match.upcoming_match_id}`;
-
         return (
-          <div key={match.match_id} className={`relative block bg-white p-4 rounded-xl shadow-soft-xl border ${isLegacy ? 'opacity-70' : 'hover:shadow-lg transition-shadow duration-300'}`}>
+          <div key={match.match_id} className="relative block bg-white hover:shadow-lg transition-shadow duration-300 p-4 rounded-xl shadow-soft-xl border">
             <div className="flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-700">{format(new Date(match.match_date), 'EEEE, MMMM d, yyyy')}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-sm text-slate-500 font-bold">{match.team_a_score} - {match.team_b_score}</p>
-                  {isLegacy && <span className="text-xs text-gray-500 font-semibold">Legacy</span>}
                 </div>
               </div>
               <button
@@ -321,8 +317,8 @@ const MatchListPageContent = () => {
               </button>
             </div>
             
-            {/* Make the entire card clickable for navigation (if not legacy) */}
-            {!isLegacy && <Link href={href} className="absolute inset-0 z-0" />}
+            {/* Make all matches clickable for navigation */}
+            <Link href={`/admin/matches/${match.upcoming_match_id}`} className="absolute inset-0 z-0" />
           </div>
         );
       })}

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 /**
  * API route to complete a match.
- * Accepts final score and player stats, creates the historical match record,
+ * Accepts final score, own goals, and player stats, creates the historical match record,
  * and transitions the upcoming_match state to 'Completed'.
  */
 export async function POST(
@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
     const matchId = parseInt(params.id, 10);
-    const { state_version, score, player_stats } = await request.json();
+    const { state_version, score, own_goals, player_stats } = await request.json();
 
     if (isNaN(matchId)) {
       return NextResponse.json({ success: false, error: 'Invalid Match ID' }, { status: 400 });
@@ -23,8 +23,31 @@ export async function POST(
     if (!score || typeof score.team_a !== 'number' || typeof score.team_b !== 'number') {
       return NextResponse.json({ success: false, error: 'Valid score object is required' }, { status: 400 });
     }
+    if (!own_goals || typeof own_goals.team_a !== 'number' || typeof own_goals.team_b !== 'number') {
+      return NextResponse.json({ success: false, error: 'Valid own_goals object is required' }, { status: 400 });
+    }
+    if (own_goals.team_a < 0 || own_goals.team_b < 0) {
+      return NextResponse.json({ success: false, error: 'Own goals cannot be negative' }, { status: 400 });
+    }
     if (!Array.isArray(player_stats)) {
       return NextResponse.json({ success: false, error: 'player_stats must be an array' }, { status: 400 });
+    }
+
+    // Validate score integrity: team_score should equal player_goals + own_goals
+    const totalPlayerGoalsA = player_stats.filter(p => p.team === 'A').reduce((sum, p) => sum + (p.goals || 0), 0);
+    const totalPlayerGoalsB = player_stats.filter(p => p.team === 'B').reduce((sum, p) => sum + (p.goals || 0), 0);
+    
+    if (score.team_a !== totalPlayerGoalsA + own_goals.team_a) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Team A score validation failed: ${score.team_a} ≠ ${totalPlayerGoalsA} (player goals) + ${own_goals.team_a} (own goals)` 
+      }, { status: 400 });
+    }
+    if (score.team_b !== totalPlayerGoalsB + own_goals.team_b) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Team B score validation failed: ${score.team_b} ≠ ${totalPlayerGoalsB} (player goals) + ${own_goals.team_b} (own goals)` 
+      }, { status: 400 });
     }
 
     const completedMatch = await prisma.$transaction(async (tx) => {
@@ -44,12 +67,14 @@ export async function POST(
         throw new Error('Conflict: Match has been updated by someone else.');
       }
 
-      // 2. Create the historical match record
+      // 2. Create the historical match record with own goals
       const newMatch = await tx.matches.create({
         data: {
           match_date: upcomingMatch.match_date,
           team_a_score: score.team_a,
           team_b_score: score.team_b,
+          team_a_own_goals: own_goals.team_a,
+          team_b_own_goals: own_goals.team_b,
           upcoming_match_id: matchId,
         } as any,
       });
@@ -61,7 +86,7 @@ export async function POST(
       const scoreDiff = Math.abs(score.team_a - score.team_b);
       const isHeavyWin = scoreDiff >= 4;
       
-      console.log(`MATCH COMPLETION DEBUG: Match ${matchId}, Score: ${score.team_a}-${score.team_b}, ScoreDiff: ${scoreDiff}, IsHeavyWin: ${isHeavyWin}`);
+      console.log(`MATCH COMPLETION DEBUG: Match ${matchId}, Score: ${score.team_a}-${score.team_b}, Own Goals: ${own_goals.team_a}-${own_goals.team_b}, ScoreDiff: ${scoreDiff}, IsHeavyWin: ${isHeavyWin}`);
       
       const assignedPlayers = upcomingMatch.players.filter(p => p.team === 'A' || p.team === 'B');
       console.log(`ASSIGNED PLAYERS: ${assignedPlayers.length} players found`);

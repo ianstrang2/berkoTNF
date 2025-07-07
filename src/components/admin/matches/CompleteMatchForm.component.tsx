@@ -14,7 +14,7 @@ interface PlayerGoalStat {
 interface CompleteMatchFormProps {
   matchId: string;
   players: PlayerInPool[];
-  completeMatchAction: (payload: { score: { team_a: number; team_b: number }, player_stats: PlayerGoalStat[] }) => Promise<void>;
+  completeMatchAction: (payload: { score: { team_a: number; team_b: number }, own_goals: { team_a: number; team_b: number }, player_stats: PlayerGoalStat[] }) => Promise<void>;
   isCompleted: boolean;
   onLoadingChange?: (isLoading: boolean) => void;
 }
@@ -83,14 +83,14 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
                 }
               });
               
-              // Calculate own goals (team score minus player goals)
-              const calculatedOwnGoalsA = Math.max(0, historicalMatch.team_a_score - teamAPlayerGoals);
-              const calculatedOwnGoalsB = Math.max(0, historicalMatch.team_b_score - teamBPlayerGoals);
+              // Load actual own goals from database (no calculation needed)
+              const actualOwnGoalsA = historicalMatch.team_a_own_goals || 0;
+              const actualOwnGoalsB = historicalMatch.team_b_own_goals || 0;
               
               // Update state with historical data
               setPlayerGoals(goalMap);
-              setOwnGoalsA(calculatedOwnGoalsA);
-              setOwnGoalsB(calculatedOwnGoalsB);
+              setOwnGoalsA(actualOwnGoalsA);
+              setOwnGoalsB(actualOwnGoalsB);
             }
           }
         } catch (err) {
@@ -136,6 +136,7 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
         
       const payload = {
         score: { team_a: finalTeamAScore, team_b: finalTeamBScore },
+        own_goals: { team_a: ownGoalsA, team_b: ownGoalsB },
         player_stats: player_stats,
       };
       

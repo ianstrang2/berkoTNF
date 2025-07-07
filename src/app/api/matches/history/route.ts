@@ -16,17 +16,9 @@ export async function GET() {
   try {
     const matches = await prisma.matches.findMany({
       where: {
-        OR: [
-          // Legacy matches (no upcoming_match_id)
-          { upcoming_match_id: null },
-          // New match flow matches that are actually completed
-          {
-            upcoming_match_id: { not: null },
-            upcoming_matches: {
-              state: 'Completed'
-            }
-          }
-        ]
+        upcoming_matches: {
+          state: 'Completed'
+        }
       },
       orderBy: {
         match_date: 'desc',
@@ -49,7 +41,7 @@ export async function GET() {
     // Format the matches data
     const formattedMatches = matches.map(match => ({
       match_id: match.match_id,
-      upcoming_match_id: match.upcoming_match_id,  // Include for legacy detection
+      upcoming_match_id: match.upcoming_match_id,  // Always present in unified system
       match_date: match.match_date.toISOString(),  // Convert date to ISO format
       team_a_score: match.team_a_score,
       team_b_score: match.team_b_score,

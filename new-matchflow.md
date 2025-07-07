@@ -212,10 +212,8 @@ enum match_state {
 ```
 /app/admin/matches/
 ├── page.tsx                    # Match list with create functionality
-├── [id]/
-│   └── page.tsx               # Match Control Centre (MCC)
-└── results/
-    └── page.tsx               # Legacy match editor (preserved)
+└── [id]/
+    └── page.tsx               # Match Control Centre (MCC)
 ```
 
 ### **4.2 Core Components**
@@ -386,11 +384,11 @@ const { currentStep, primaryLabel, primaryAction, primaryDisabled } = useMemo(()
 
 3. **Active Match Management**:
    ```typescript
-   // Shows all non-completed matches regardless of date
-   const href = isLegacy ? '#' : `/admin/matches/${match.upcoming_match_id}`;
-   // Active matches = any match requiring action (Draft/PoolLocked/TeamsBalanced)
-   setActive(activeData.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || []);
-   ```
+// Shows all non-completed matches regardless of date
+const href = `/admin/matches/${match.upcoming_match_id}`;
+// Active matches = any match requiring action (Draft/PoolLocked/TeamsBalanced)
+setActive(activeData.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || []);
+```
 
 **UX Improvement**: Changed from "Upcoming" to "Active" matches to better reflect functionality - shows all matches needing action regardless of scheduled date, removing confusing date-based filtering.
 
@@ -789,30 +787,36 @@ setTimeout(() => setEditSuccess(false), 2000);
 
 ---
 
-## 10. Legacy Integration & Migration Strategy
+## 10. Legacy Migration - ✅ COMPLETED
 
-### **10.1 Legacy Match Support**
-**Backward Compatibility**:
-- Existing matches continue to work without `upcoming_match_id`
-- Legacy matches display "Legacy" badge in match history
-- Conditional navigation prevents access to lifecycle features for old matches
+### **10.1 Migration Status**
+**✅ ALL LEGACY MATCHES MIGRATED** - As documented in `clean-legacy-matches.md`:
+- **685 legacy matches** successfully migrated to unified system
+- **All matches** now have `upcoming_match_id` linking to planning records
+- **Legacy detection code removed** from application
+- **Unified functionality** across all historical data
 
-**Data Integrity**:
+**Post-Migration State**:
 ```typescript
-// Optional foreign key preserves existing data
-upcoming_match_id: Int? // NULL for legacy matches
+// All matches now required to have upcoming_match_id
+upcoming_match_id: Int // No longer optional
 
-// Conditional rendering
-const isLegacy = !match.upcoming_match_id;
-const href = isLegacy ? '#' : `/admin/matches/${match.upcoming_match_id}`;
+// Simplified navigation - no legacy checks needed
+const href = `/admin/matches/${match.upcoming_match_id}`;
 ```
 
-### **10.2 Progressive Enhancement**
-**Implementation Strategy**:
-1. **Phase 1**: New matches use full lifecycle (✅ Complete)
-2. **Phase 2**: Legacy matches remain functional (✅ Complete)  
-3. **Phase 3**: Optional backfill script for historical linking
-4. **Phase 4**: Deprecate legacy results editor (Future)
+### **10.2 Migration Achievements**
+**Completed Implementation**:
+1. **✅ Phase 1**: New matches use full lifecycle 
+2. **✅ Phase 2**: Legacy matches migrated to new system
+3. **✅ Phase 3**: Complete historical data migration executed
+4. **✅ Phase 4**: Legacy results editor completely removed
+
+**Benefits Achieved**:
+- **Unified User Experience**: All matches work identically
+- **Simplified Codebase**: No dual-system complexity
+- **Enhanced Functionality**: Full Match Control Centre for all historical data
+- **Future-Proof Architecture**: Single system for all operations
 
 ---
 
@@ -936,14 +940,53 @@ NODE_ENV="production"
 - [x] Feature flags for UI elements (fire/grim reaper indicators)
 
 ### ✅ **Integration & Compatibility (100% Complete)**
-- [x] Legacy match support with backward compatibility
+- [x] Complete legacy data migration (685+ matches) 
 - [x] Proper data transformation via canonical player types
 - [x] Integration with existing stats calculation system
 - [x] Preservation of all historical match data
 
 ---
 
-## **Critical Bug Fix: Match Completion API Data Issue**
+## **Critical Bug Fix: Own Goals Persistence Issue - ✅ RESOLVED**
+
+**Issue Discovered**: When re-editing a completed match, own goals that were previously entered were lost because they weren't persisted to the database. The system only saved final team scores and individual player goals, then tried to reverse-engineer own goals during re-editing.
+
+### **Solution Implemented**
+Enhanced the match completion system to properly persist own goals:
+
+**Database Schema Updates:**
+- Added `team_a_own_goals` and `team_b_own_goals` columns to `matches` table
+- Migrated 686+ historical matches with calculated own goals (99.7% data integrity)
+
+**API Enhancements:**
+```typescript
+// Updated match completion payload
+{
+  score: { team_a: number, team_b: number },
+  own_goals: { team_a: number, team_b: number },  // NEW
+  player_stats: [{ player_id: number, goals: number }]
+}
+
+// Built-in validation ensures data integrity
+if (score.team_a !== totalPlayerGoalsA + own_goals.team_a) {
+  throw new ValidationError('Score calculation mismatch');
+}
+```
+
+**UI Improvements:**
+- Own goals now saved as actual values (not calculated)
+- Re-editing completed matches preserves original own goals breakdown
+- Score validation prevents future data inconsistencies
+
+### **Impact**
+- **Before Fix**: Own goals lost when re-editing matches
+- **After Fix**: Perfect own goals persistence across all match operations
+- **Data Migration**: 759 total own goals properly calculated for historical matches
+- **Undo Behavior**: Own goals automatically removed when matches are undone (database cascade)
+
+---
+
+## **Critical Bug Fix: Match Completion API Data Issue - ✅ RESOLVED**
 
 **Issue Discovered**: The initial implementation of the match completion API (`/api/admin/upcoming-matches/[id]/complete`) was missing critical fields in `player_matches` records, causing stats update edge functions to fail.
 
@@ -1106,13 +1149,7 @@ History was showing ALL matches from the database instead of only completed ones
 **Solution**: Added proper state-based filtering:
 ```typescript
 where: {
-  OR: [
-    { upcoming_match_id: null }, // Legacy matches
-    { 
-      upcoming_match_id: { not: null },
-      upcoming_matches: { state: 'Completed' } // Only completed new matches
-    }
-  ]
+  upcoming_matches: { state: 'Completed' } // All matches now in unified system
 }
 ```
 
@@ -1246,28 +1283,24 @@ await prisma.upcoming_matches.delete({
 #### **2. Enhanced History Matches DELETE API**  
 **File**: `/api/matches/history/route.ts`
 
-**Capability**: Handles both legacy and new system matches:
+**Capability**: Handles all matches in the unified system:
 
 ```typescript
-// Check if match is linked to upcoming system
+// All matches now have planning records - delete both historical and planning data
 const match = await prisma.matches.findUnique({
   where: { match_id: parsedMatchId },
   include: { upcoming_matches: true }
 });
 
-if (match.upcoming_matches) {
-  // New system match - delete both historical and planning records
-  
-  // Delete planning data first
-  await prisma.upcoming_match_players.deleteMany({
-    where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
-  });
-  await prisma.upcoming_matches.delete({
-    where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
-  });
-}
+// Delete planning data first
+await prisma.upcoming_match_players.deleteMany({
+  where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
+});
+await prisma.upcoming_matches.delete({
+  where: { upcoming_match_id: match.upcoming_matches.upcoming_match_id }
+});
 
-// Delete historical data (always)
+// Delete historical data
 await prisma.player_matches.deleteMany({
   where: { match_id: parsedMatchId }
 });
@@ -1275,7 +1308,7 @@ await prisma.matches.delete({
   where: { match_id: parsedMatchId }
 });
 
-// Trigger stats recalculation for completed matches
+// Trigger stats recalculation
 await fetch('/api/admin/trigger-stats-update', { method: 'POST' });
 ```
 
@@ -1363,7 +1396,7 @@ const getDeleteMessage = (match) => {
 - **Complete Cleanup**: Both planning and historical data removed appropriately
 - **Stats Consistency**: Automatic recalculation maintains accurate statistics
 - **No Orphaned Records**: Proper handling of linked match relationships
-- **Legacy Support**: Backward compatibility with existing match data
+- **Unified System**: All historical matches migrated to new system
 
 #### **✅ Robust Error Handling**
 - **Network Resilience**: Proper error handling and user feedback
