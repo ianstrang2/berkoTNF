@@ -1,42 +1,43 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-// import { ErrorBoundary } from '@/components/ui-kit';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
-import { MatchReport } from '@/components/dashboard';
-import { Milestones } from '@/components/dashboard';
-import PersonalBests from './PersonalBests.component';
+import MatchReport from './MatchReport.component';
+import RecordsAndAchievements from './PersonalBests.component';
+import CurrentStandings from './Milestones.component';
+import CurrentForm from './CurrentForm.component';
 
 const Dashboard: React.FC = () => {
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
-      {/* Latest Match Section - Full width on mobile, constrained on desktop */}
-      <div className="w-full flex justify-center">
-        <div className="w-full max-w-4xl">
+    <div className="w-full max-w-full">
+      {/* Main Dashboard Grid - 2x2 Layout */}
+      <div className="flex flex-wrap -mx-3 max-w-7xl mx-auto">
+        
+        {/* Top Row: Match Report + Current Form */}
+        <div className="w-full lg:w-1/2 max-w-full px-3 mb-6 flex-none">
           <ErrorBoundary>
             <MatchReport />
           </ErrorBoundary>
         </div>
-      </div>
-      
-      {/* Secondary content - Stack on mobile, side-by-side on desktop, with reasonable constraints */}
-      <div className="w-full flex justify-center">
-        <div className="w-full max-w-5xl">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-            {/* Milestones Section */}
-            <div className="w-full">
-              <ErrorBoundary>
-                <Milestones />
-              </ErrorBoundary>
-            </div>
 
-            {/* Personal Bests Section */}
-            <div className="w-full">
-              <ErrorBoundary>
-                <PersonalBests />
-              </ErrorBoundary>
-            </div>
-          </div>
+        <div className="w-full lg:w-1/2 max-w-full px-3 mb-6 flex-none">
+          <ErrorBoundary>
+            <CurrentForm />
+          </ErrorBoundary>
         </div>
+
+        {/* Bottom Row: Current Standings + Records & Achievements */}
+        <div className="w-full lg:w-1/2 max-w-full px-3 mb-6 flex-none">
+          <ErrorBoundary>
+            <CurrentStandings />
+          </ErrorBoundary>
+        </div>
+
+        <div className="w-full lg:w-1/2 max-w-full px-3 mb-6 flex-none">
+          <ErrorBoundary>
+            <RecordsAndAchievements />
+          </ErrorBoundary>
+        </div>
+
       </div>
     </div>
   );

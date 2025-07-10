@@ -206,26 +206,22 @@ const LatestMatch: React.FC = () => {
     const value = metric === 'goals' 
       ? (leaderData.new_leader_goals || leaderData.value || 0) 
       : (leaderData.new_leader_points || leaderData.value || 0);
-    
-    // Create a clear description of what they lead
-    const metricLabel = metric === 'goals' ? 'goals' : 'points';
-    const leadText = period.includes('goals') || period.includes('points') ? period : `${period} ${metricLabel}`;
           
     if (!change_type && new_leader) {
-      return `${new_leader} leads ${leadText} with ${value}`;
+      return `${new_leader} leads with ${value}`;
     }
     
     switch (change_type) {
       case 'new_leader':
-        return `${new_leader} now leads ${leadText} with ${value}`;
+        return `${new_leader} now leads with ${value}`;
       case 'tied':
-        return `${new_leader} tied with ${previous_leader} for ${leadText} at ${value}`;
+        return `${new_leader} tied with ${previous_leader} at ${value}`;
       case 'remains':
-        return `${new_leader} leads ${leadText} with ${value}`;
+        return `${new_leader} leads with ${value}`;
       case 'overtake':
-        return `${new_leader} overtook ${previous_leader} for ${leadText} with ${value}`;
+        return `${new_leader} overtook ${previous_leader} with ${value}`;
       default:
-        return `${new_leader} leads ${leadText} with ${value}`;
+        return `${new_leader} leads with ${value}`;
     }
   };
 
@@ -271,33 +267,31 @@ const LatestMatch: React.FC = () => {
       report += `Scorers: ${matchInfo.team_b_scorers}\n`;
     }
 
-    // Personal Bests will be included in Records & Achievements section below
-    let personalBestsContent = '';
     if (pbsData && pbsData.broken_pbs_data && Object.keys(pbsData.broken_pbs_data).length > 0) {
-      personalBestsContent += `PERSONAL BESTS:\n`;
+      report += `\n--- PERSONAL BESTS ACHIEVED ---\n`;
       Object.values(pbsData.broken_pbs_data).forEach((playerPbData: { name: string; pbs: { metric_type: string; value: number }[] }) => {
         playerPbData.pbs.forEach(pb => {
           const metricDetail = PB_METRIC_DETAILS_FOR_COPY[pb.metric_type];
           if (metricDetail) {
-            personalBestsContent += `- ${playerPbData.name}: ${metricDetail.name} - ${pb.value} ${metricDetail.unit}\n`;
+            report += `- ${playerPbData.name}: ${metricDetail.name} - ${pb.value} ${metricDetail.unit}\n`;
           } else {
-            personalBestsContent += `- ${playerPbData.name}: ${pb.metric_type.replace(/_/g, ' ')} - ${pb.value}\n`;
+            report += `- ${playerPbData.name}: ${pb.metric_type.replace(/_/g, ' ')} - ${pb.value}\n`;
           }
         });
       });
-      personalBestsContent += `\n`;
     }
 
-    // CURRENT STANDINGS SECTION (Leaderboards only)
-    let hasStandingsData = false;
-    let standingsSection = '';
+    let leaderHeaderAdded = false;
+    const ensureLeaderHeader = () => {
+      if (!leaderHeaderAdded) {
+        report += `\n--- LEADERBOARD UPDATES ---\n`;
+        leaderHeaderAdded = true;
+      }
+    };
 
-    const formatStandingsList = (title: string, items: any[] | undefined, formatter: (item: any) => string) => {
+    const formatList = (title: string, items: any[] | undefined, formatter: (item: any) => string) => {
       if (items && items.length > 0) {
-        if (!hasStandingsData) {
-          standingsSection += `\n--- CURRENT STANDINGS ---\n`;
-          hasStandingsData = true;
-        }
+        ensureLeaderHeader();
         
         // Group leaders by their value to handle ties properly
         const valueGroups: { [key: number]: any[] } = {};
@@ -318,7 +312,7 @@ const LatestMatch: React.FC = () => {
         Object.values(valueGroups).forEach(group => {
           if (group.length === 1) {
             // Single leader - use existing formatter
-            standingsSection += `- ${formatter(group[0])}\n`;
+            report += `- ${formatter(group[0])}\n`;
           } else {
             // Multiple tied leaders - create combined message
             const firstItem = group[0];
@@ -335,143 +329,68 @@ const LatestMatch: React.FC = () => {
             const period = title.replace(' Goal Leaders', '').replace(' Fantasy Leaders', '');
             const metric = isGoals ? 'goals' : 'points';
             
-            standingsSection += `- ${namesText} are tied for the ${period} ${metric} lead with ${value}\n`;
+            report += `- ${namesText} are tied for the ${period} ${metric} lead with ${value}\n`;
           }
         });
       }
     };
 
-    formatStandingsList('Half-Season Goal Leaders', data.halfSeasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Half-Season'));
-    formatStandingsList('Half-Season Fantasy Leaders', data.halfSeasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Half-Season'));
+    formatList('Half-Season Goal Leaders', data.halfSeasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Half-Season'));
+    formatList('Half-Season Fantasy Leaders', data.halfSeasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Half-Season'));
     
     // Only show season leaders in the second half of the year (Jul-Dec)
     const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
     const isSecondHalf = currentDate.getMonth() >= 6;
     
     if (isSecondHalf) {
-      formatStandingsList('Season Goal Leaders', data.seasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Season'));
-      formatStandingsList('Season Fantasy Leaders', data.seasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Season'));
-    }
-    
-    if (hasStandingsData) {
-      report += standingsSection;
+      formatList('Season Goal Leaders', data.seasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Season'));
+      formatList('Season Fantasy Leaders', data.seasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Season'));
     }
 
-
-
-    // Reorganize remaining sections to match dashboard structure
-    
-    // CURRENT FORM SECTION (Streaks + Reaper/On Fire status)
-    let hasCurrentFormData = false;
-    let currentFormSection = '';
-    
-    // Add Reaper/On Fire status
-    if (data.grim_reaper_player_id || data.on_fire_player_id) {
-      if (!hasCurrentFormData) {
-        currentFormSection += `\n--- CURRENT FORM ---\n`;
-        hasCurrentFormData = true;
-      }
-      
-      if (data.grim_reaper_player_id && allPlayers.length > 0) {
-        const reaperPlayer = allPlayers.find(p => p.id === data.grim_reaper_player_id);
-        if (reaperPlayer) {
-          currentFormSection += `- ${reaperPlayer.name} is The Grim Reaper 💀\n`;
-        }
-      }
-      
-      if (data.on_fire_player_id && allPlayers.length > 0) {
-        const onFirePlayer = allPlayers.find(p => p.id === data.on_fire_player_id);
-        if (onFirePlayer) {
-          currentFormSection += `- ${onFirePlayer.name} is On Fire! 🔥\n`;
-        }
-      }
+    if (data.gamesMilestones && data.gamesMilestones.length > 0) {
+      report += `\n--- MILESTONES ---\n`;
+      data.gamesMilestones.forEach(m => {
+        const gameCount = m.total_games || m.value || 0;
+        report += `- ${m.name}: Played ${getOrdinalSuffix(gameCount)} game\n`;
+      });
     }
-    
-    // Add form streaks 
+
+    if (data.goalsMilestones && data.goalsMilestones.length > 0) {
+      report += `\n--- GOAL MILESTONES ---\n`;
+      data.goalsMilestones.forEach(m => {
+        const goalCount = m.total_goals || m.value || 0;
+        report += `- ${m.name}: Scored ${getOrdinalSuffix(goalCount)} goal\n`;
+      });
+    }
+
+    // Add form streaks to copy output
     if (data.streaks && data.streaks.length > 0) {
-      if (!hasCurrentFormData) {
-        currentFormSection += `\n--- CURRENT FORM ---\n`;
-        hasCurrentFormData = true;
-      }
+      report += `\n--- STREAKS ---\n`;
       data.streaks.forEach(streak => {
         const streakType = 
           streak.streak_type === 'win' ? 'winning' :
           streak.streak_type === 'loss' ? 'losing' :
           streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless';
         
-        currentFormSection += `- ${streak.name}: ${streak.streak_count} game ${streakType} streak\n`;
+        report += `- ${streak.name}: ${streak.streak_count} game ${streakType} streak\n`;
       });
     }
 
-    // Add goal streaks
+    // Add goal streaks to copy output
     if (data.goalStreaks && data.goalStreaks.length > 0) {
-      if (!hasCurrentFormData) {
-        currentFormSection += `\n--- CURRENT FORM ---\n`;
-        hasCurrentFormData = true;
-      }
+      report += `\n--- SCORING STREAKS ---\n`;
       data.goalStreaks.forEach(streak => {
-        currentFormSection += `- ${streak.name}: Scored in ${streak.matches_with_goals} consecutive matches (${streak.goals_in_streak} goals)\n`;
+        report += `- ${streak.name}: Scored in ${streak.matches_with_goals} consecutive matches (${streak.goals_in_streak} goals)\n`;
       });
     }
-    
-    if (hasCurrentFormData) {
-      report += currentFormSection;
-    }
 
-    // RECORDS & ACHIEVEMENTS SECTION (Personal Bests + Milestones + Feat-Breaking)
-    let hasRecordsData = false;
-    let recordsSection = '';
-    
-    // Add personal bests to records section
-    if (personalBestsContent) {
-      recordsSection += `\n--- RECORDS & ACHIEVEMENTS ---\n`;
-      recordsSection += personalBestsContent;
-      hasRecordsData = true;
-    }
-    
-    // Add milestones to records section (combine game and goal milestones)
-    if ((data.gamesMilestones && data.gamesMilestones.length > 0) || 
-        (data.goalsMilestones && data.goalsMilestones.length > 0)) {
-      if (!hasRecordsData) {
-        recordsSection += `\n--- RECORDS & ACHIEVEMENTS ---\n`;
-        hasRecordsData = true;
-      }
-      recordsSection += `MILESTONES:\n`;
-      
-      // Add game milestones
-      if (data.gamesMilestones && data.gamesMilestones.length > 0) {
-        data.gamesMilestones.forEach(m => {
-          const gameCount = m.total_games || m.value || 0;
-          recordsSection += `- ${m.name}: Played ${getOrdinalSuffix(gameCount)} game\n`;
-        });
-      }
-      
-      // Add goal milestones
-      if (data.goalsMilestones && data.goalsMilestones.length > 0) {
-        data.goalsMilestones.forEach(m => {
-          const goalCount = m.total_goals || m.value || 0;
-          recordsSection += `- ${m.name}: Scored ${getOrdinalSuffix(goalCount)} goal\n`;
-        });
-      }
-      recordsSection += `\n`;
-    }
-
-    // Add feat-breaking records to records section
+    // Add feat-breaking records to copy output
     if (data.featBreakingData && data.featBreakingData.length > 0) {
-      if (!hasRecordsData) {
-        recordsSection += `\n--- RECORDS & ACHIEVEMENTS ---\n`;
-        hasRecordsData = true;
-      }
-      recordsSection += `RECORD-BREAKING FEATS:\n`;
+      report += `\n--- RECORD-BREAKING ACHIEVEMENTS ---\n`;
       data.featBreakingData.forEach(feat => {
         const content = generateFeatContent(feat);
-        const status = feat.status === 'broken' ? 'BROKEN' : 'EQUALED';
-        recordsSection += `- ${feat.player_name}: ${content} [RECORD ${status}]\n`;
+        report += `- ${feat.player_name}: ${content}\n`;
       });
-    }
-    
-    if (hasRecordsData) {
-      report += recordsSection;
     }
 
     return report;

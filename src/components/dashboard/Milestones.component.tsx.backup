@@ -60,7 +60,7 @@ interface MilestonesData {
   seasonFantasyLeaders?: LeaderData[];
 }
 
-const CurrentStandings: React.FC = () => {
+const Milestones: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [milestonesData, setMilestonesData] = useState<MilestonesData | null>(null);
   const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
@@ -256,9 +256,81 @@ const CurrentStandings: React.FC = () => {
     const items: TimelineItem[] = [];
     const matchDate = data.matchInfo.match_date ? formatDateSafely(data.matchInfo.match_date) : '';
     
-    // REMOVED: Game and goal milestones - moved to Records & Achievements component
+    // Add game milestones to timeline
+    if (data.gamesMilestones && data.gamesMilestones.length > 0) {
+      data.gamesMilestones.forEach(milestone => {
+        const gameCount = milestone.total_games || milestone.value || 0;
+        const playerId = getPlayerIdByName(milestone.name);
+        items.push({
+          type: 'game_milestone',
+          player: milestone.name,
+          playerId: playerId,
+          content: `Played ${getOrdinalSuffix(gameCount)} game`,
+          icon: 'trophy',
+          date: matchDate,
+          color: 'blue'
+        });
+      });
+    }
     
-    // REMOVED: Form and goal streaks - moved to Current Form component
+    // Add goal milestones to timeline
+    if (data.goalsMilestones && data.goalsMilestones.length > 0) {
+      data.goalsMilestones.forEach(milestone => {
+        const goalCount = milestone.total_goals || milestone.value || 0;
+        const playerId = getPlayerIdByName(milestone.name);
+        items.push({
+          type: 'goal_milestone',
+          player: milestone.name,
+          playerId: playerId,
+          content: `Scored ${getOrdinalSuffix(goalCount)} goal`,
+          icon: 'goal',
+          date: matchDate,
+          color: 'blue'
+        });
+      });
+    }
+    
+    // Add form streaks to timeline - Match icon colors with badge colors
+    if (data.streaks && data.streaks.length > 0) {
+      data.streaks.forEach(streak => {
+        const streakType = 
+          streak.streak_type === 'win' ? 'winning' :
+          streak.streak_type === 'loss' ? 'losing' :
+          streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless';
+        
+        // Assign appropriate colors based on streak type
+        const streakColor = 
+          streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'green' : 'red';
+        
+        const playerId = getPlayerIdByName(streak.name);
+        items.push({
+          type: 'form_streak',
+          player: streak.name,
+          playerId: playerId,
+          content: `${streak.streak_count} game ${streakType} streak`,
+          icon: streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'fire' : 'chart',
+          date: matchDate,
+          color: streakColor
+        });
+      });
+    }
+    
+    // Add goal streaks to timeline
+    if (data.goalStreaks && data.goalStreaks.length > 0) {
+      data.goalStreaks.forEach(streak => {
+        const playerId = getPlayerIdByName(streak.name);
+        items.push({
+          type: 'goal_streak',
+          player: streak.name,
+          playerId: playerId,
+          content: `Scored in ${streak.matches_with_goals} consecutive matches`,
+          subtext: `${streak.goals_in_streak} goals in those games`,
+          icon: 'soccer',
+          date: matchDate,
+          color: 'green'
+        });
+      });
+    }
     
     // Add current leader changes with improved handling
     if (data.halfSeasonGoalLeaders && data.halfSeasonGoalLeaders.length > 0) {
@@ -457,11 +529,11 @@ const CurrentStandings: React.FC = () => {
   if (timelineItems.length === 0) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-                 <div className="p-4">
-           <div className="text-center">
-             <p className="text-neutral-500">No current standings data to display</p>
-           </div>
-         </div>
+        <div className="p-4">
+          <div className="text-center">
+            <p className="text-neutral-500">No milestones or achievements to display</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -473,9 +545,9 @@ const CurrentStandings: React.FC = () => {
       variants={containerVariants}
       className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border"
     >
-             <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-         <h5 className="mb-0">Current Standings</h5>
-       </div>
+      <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+        <h5 className="mb-0">Milestones & Achievements</h5>
+      </div>
       <div className="flex-auto p-4">
         <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
           <div className="w-auto relative before:absolute before:left-4 before:top-0 before:h-full before:border-r-2 before:border-solid before:border-slate-100 before:content-[''] lg:before:-ml-px">
@@ -566,4 +638,4 @@ const CurrentStandings: React.FC = () => {
   );
 };
 
-export default CurrentStandings; 
+export default Milestones; 

@@ -2,28 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PersonalBestsAPIResponseData as PersonalBestsData } from '@/types/personal-bests.types';
-import { FeatBreakingItem, generateFeatContent } from '@/types/feat-breaking.types';
 import Link from 'next/link';
 
-// Interfaces for milestones
-interface Milestone {
-  name: string;
-  games_played?: number;
-  total_games?: number;
-  total_goals?: number;
-  value?: number;
-}
-
-// Interface for individual timeline items (expanded for all three types)
+// Interface for individual timeline items
 interface TimelineItem {
-  type: 'personal_best_broken' | 'game_milestone' | 'goal_milestone' | 'feat_broken' | 'feat_equaled';
+  type: 'personal_best_broken';
   player: string;
-  playerId: number | string;
+  playerId: number;
   content: string;
   subtext?: string;
-  icon: 'goals' | 'win_streak' | 'undefeated_streak' | 'loss_streak' | 'winless_streak' | 'attendance_streak' | 'scoring_streak' | 'trophy' | 'goal'; 
+  icon: 'goals' | 'win_streak' | 'undefeated_streak' | 'loss_streak' | 'winless_streak' | 'attendance_streak' | 'scoring_streak'; // Icon keys
   date?: string;
-  color?: 'green' | 'red' | 'blue' | 'amber' | 'purple';
+  color?: 'green' | 'red' | 'blue' | 'amber' | 'purple'; // Tailwind color names
 }
 
 // Mapping personal best types to their display details
@@ -55,10 +45,9 @@ const getOrdinalSuffix = (num: number): string => {
   return num + "th";
 };
 
-const RecordsAndAchievements: React.FC = () => {
+const PersonalBests: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [pbData, setPbData] = useState<PersonalBestsData | null>(null);
-  const [milestonesData, setMilestonesData] = useState<any>(null);
   const [error, setError] = useState<Error | null>(null);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
 
@@ -88,161 +77,86 @@ const RecordsAndAchievements: React.FC = () => {
     }
   };
 
-  // Helper function to get the correct ordinal suffix for numbers
-  const getOrdinalSuffix = (num: number): string => {
-    if (num === 0) return "0th";
-    const j = num % 10;
-    const k = num % 100;
-    if (j === 1 && k !== 11) return num + "st";
-    if (j === 2 && k !== 12) return num + "nd";
-    if (j === 3 && k !== 13) return num + "rd";
-    return num + "th";
-  };
+  const processTimelineItems = (data: PersonalBestsData | null) => {
+    if (!data || !data.broken_pbs_data) {
+      setTimelineItems([]);
+      return;
+    }
 
-  const processTimelineItems = (personalBestsData: PersonalBestsData | null, milestonesData: any) => {
     const items: TimelineItem[] = [];
+    // const matchDate = data.match_date ? formatDateSafely(data.match_date) : ''; // Date no longer needed for individual items
 
-    // 1. Process Personal Bests
-    if (personalBestsData && personalBestsData.broken_pbs_data) {
-      Object.entries(personalBestsData.broken_pbs_data).forEach(([playerIdStr, playerData]) => {
-        const playerId = parseInt(playerIdStr, 10);
-        if (isNaN(playerId)) return;
+    Object.entries(data.broken_pbs_data).forEach(([playerIdStr, playerData]) => {
+      const playerId = parseInt(playerIdStr, 10);
+      if (isNaN(playerId)) return; // Skip if playerId is not a number
 
-        playerData.pbs.forEach(pb => {
-          const metricDetail = PB_METRIC_DETAILS[pb.metric_type];
-          if (metricDetail) {
-            let content = `${metricDetail.name} - ${pb.value} ${metricDetail.unit}`;
+      playerData.pbs.forEach(pb => {
+        const metricDetail = PB_METRIC_DETAILS[pb.metric_type];
+        if (metricDetail) {
+          let content = `${metricDetail.name} - ${pb.value} ${metricDetail.unit}`;
+          // Example of using ordinal for attendance, if desired:
+          // if (pb.metric_type === 'attendance_streak') {
+          //   content = `${metricDetail.name} - ${getOrdinalSuffix(pb.value)} consecutive game attended`;
+          // }
 
-            items.push({
-              type: 'personal_best_broken',
-              player: playerData.name,
-              playerId: playerId,
-              content: content,
-              icon: metricDetail.icon,
-              color: metricDetail.color,
-            });
-          }
-        });
+          items.push({
+            type: 'personal_best_broken',
+            player: playerData.name,
+            playerId: playerId,
+            content: content, // "New PB: " prefix removed
+            // subtext: `(Previous Best: ${pb.previous_best_value} ${metricDetail.unit})`, // Previous best removed
+            icon: metricDetail.icon,
+            // date: matchDate, // Date for individual item removed
+            color: metricDetail.color,
+          });
+        }
       });
-    }
-
-    // 2. Process Milestones (moved from left component)
-    if (milestonesData) {
-      // Game milestones
-      if (milestonesData.gamesMilestones && milestonesData.gamesMilestones.length > 0) {
-        milestonesData.gamesMilestones.forEach((milestone: Milestone) => {
-          const gameCount = milestone.total_games || milestone.value || 0;
-          items.push({
-            type: 'game_milestone',
-            player: milestone.name,
-            playerId: 0, // No specific player ID for milestones in this context
-            content: `Played ${getOrdinalSuffix(gameCount)} game`,
-            icon: 'trophy',
-            color: 'blue'
-          });
-        });
-      }
-
-      // Goal milestones
-      if (milestonesData.goalsMilestones && milestonesData.goalsMilestones.length > 0) {
-        milestonesData.goalsMilestones.forEach((milestone: Milestone) => {
-          const goalCount = milestone.total_goals || milestone.value || 0;
-          items.push({
-            type: 'goal_milestone',
-            player: milestone.name,
-            playerId: 0,
-            content: `Scored ${getOrdinalSuffix(goalCount)} goal`,
-            icon: 'goal',
-            color: 'blue'
-          });
-        });
-      }
-
-      // 3. Process Feat-Breaking Data
-      if (milestonesData.featBreakingData && Array.isArray(milestonesData.featBreakingData)) {
-        milestonesData.featBreakingData.forEach((feat: FeatBreakingItem) => {
-          const content = generateFeatContent(feat);
-          items.push({
-            type: feat.status === 'broken' ? 'feat_broken' : 'feat_equaled',
-            player: feat.player_name,
-            playerId: feat.player_id || 0,
-            content: content,
-            subtext: `Previous record: ${feat.current_record}`,
-            icon: 'goals', // Default icon, could be mapped based on feat_type
-            color: feat.status === 'broken' ? 'purple' : 'amber',
-          });
-        });
-      }
-    }
-
-    // Sort by priority: feats first, then personal bests, then milestones, then by player name
+    });
+    // Sort by player name, then by metric name for consistent ordering
     items.sort((a, b) => {
-      // Priority order
-      const typeOrder = {
-        'feat_broken': 1,
-        'feat_equaled': 2,
-        'personal_best_broken': 3,
-        'game_milestone': 4,
-        'goal_milestone': 5
-      };
-      
-      const aPriority = typeOrder[a.type] || 99;
-      const bPriority = typeOrder[b.type] || 99;
-      
-      if (aPriority !== bPriority) return aPriority - bPriority;
-      
-      // Within same type, sort by player name
       if (a.player < b.player) return -1;
       if (a.player > b.player) return 1;
+      // If players are the same, sort by the original metric name for sub-sorting
+      const metricA = Object.values(PB_METRIC_DETAILS).find(detail => detail.icon === a.icon)?.name || '';
+      const metricB = Object.values(PB_METRIC_DETAILS).find(detail => detail.icon === b.icon)?.name || '';
+      if (metricA < metricB) return -1;
+      if (metricA > metricB) return 1;
       return 0;
     });
-
     setTimelineItems(items);
   };
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPersonalBestsData = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        // Fetch both personal bests and match report data in parallel
-        const [pbResponse, matchResponse] = await Promise.all([
-          fetch('/api/personal-bests'),
-          fetch('/api/matchReport')
-        ]);
-        
-        // Handle personal bests
-        if (pbResponse.ok) {
-          const pbResult = await pbResponse.json();
-          if (pbResult.success) {
-            setPbData(pbResult.data as PersonalBestsData | null);
-          }
+        const response = await fetch('/api/personal-bests');
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`API error: ${response.status} - ${errorText || 'No details'}`);
         }
-        
-        // Handle milestones and feat-breaking data from match report
-        if (matchResponse.ok) {
-          const matchResult = await matchResponse.json();
-          if (matchResult.success) {
-            setMilestonesData(matchResult.data);
-          }
+        const result = await response.json();
+        if (result.success) {
+          setPbData(result.data as PersonalBestsData | null);
+        } else {
+          setError(new Error(result.error || 'Failed to fetch personal bests data'));
+          setPbData(null);
         }
-        
       } catch (error) {
-        console.error('Error in fetchData:', error);
-        setError(error instanceof Error ? error : new Error('Failed to fetch data'));
+        console.error('Error in fetchPersonalBestsData:', error);
+        setError(error instanceof Error ? error : new Error('Failed to fetch personal bests data'));
         setPbData(null);
-        setMilestonesData(null);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchPersonalBestsData();
   }, []);
 
   useEffect(() => {
-    processTimelineItems(pbData, milestonesData);
-  }, [pbData, milestonesData]);
+    processTimelineItems(pbData);
+  }, [pbData]);
 
   if (loading) {
     return (
@@ -252,7 +166,7 @@ const RecordsAndAchievements: React.FC = () => {
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
               <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
             </div>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Loading Records & Achievements...</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Loading Personal Bests...</p>
           </div>
         </div>
       </div>
@@ -264,7 +178,7 @@ const RecordsAndAchievements: React.FC = () => {
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border dark:bg-gray-800">
         <div className="p-4">
           <div className="text-center text-red-500">
-            <p>Error loading Records & Achievements</p>
+            <p>Error loading Personal Bests</p>
             <p className="text-sm">{error.message}</p>
           </div>
         </div>
@@ -276,11 +190,11 @@ const RecordsAndAchievements: React.FC = () => {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border dark:bg-gray-800">
          <div className="border-black/12.5 dark:border-white/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-          <h5 className="mb-0 dark:text-white">Records & Achievements</h5>
+          <h5 className="mb-0 dark:text-white">Personal Bests</h5>
         </div>
         <div className="p-4">
           <div className="text-center">
-            <p className="text-sm text-slate-500 dark:text-slate-400">No recent achievements or records.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">No new personal bests achieved.</p>
             {/* Top-level match date removed, but keeping this structure in case it's re-added for context elsewhere */}
             {/* {pbData?.match_date && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Match Date: {formatDateSafely(pbData.match_date)}</p>} */}
           </div>
@@ -296,8 +210,8 @@ const RecordsAndAchievements: React.FC = () => {
       variants={containerVariants}
       className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border dark:bg-gray-800"
     >
-             <div className="border-black/12.5 dark:border-white/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-        <h5 className="mb-0 dark:text-white">Records & Achievements</h5>
+      <div className="border-black/12.5 dark:border-white/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+        <h5 className="mb-0 dark:text-white">Personal Bests</h5>
         {/* {pbData?.match_date && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Latest Match: {formatDateSafely(pbData.match_date)}</p>} */}
       </div>
       <div className="flex-auto p-4">
@@ -312,19 +226,11 @@ const RecordsAndAchievements: React.FC = () => {
               >
                 <span className={`w-8 h-8 rounded-full text-base z-1 absolute left-4 inline-flex -translate-x-1/2 items-center justify-center bg-white dark:bg-gray-700 text-center font-semibold`}>
                   {/* SVG Icons based on item.icon */}
-                  {item.icon === 'goals' && (
-                    <svg className={`w-5 h-5 ${item.color === 'green' ? 'text-green-500' : item.color === 'red' ? 'text-red-500' : item.color === 'purple' ? 'text-purple-500' : item.color === 'amber' ? 'text-amber-500' : 'text-blue-500'} dark:text-${item.color}-400`} viewBox="0 0 24 24" fill="currentColor">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M12 4.75C8.007 4.75 4.75 8.007 4.75 12S8.007 19.25 12 19.25 19.25 15.993 19.25 12 15.993 4.75 12 4.75zM12 6a6 6 0 100 12 6 6 0 000-12z" />
-                    </svg>
-                  )}
-                  {item.icon === 'trophy' && (
-                    <svg className="w-5 h-5 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                    </svg>
-                  )}
-                  {item.icon === 'goal' && (
-                    <svg className="w-5 h-5 text-blue-500 dark:text-blue-400" viewBox="0 0 24 24" fill="currentColor">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M12 4.75C8.007 4.75 4.75 8.007 4.75 12S8.007 19.25 12 19.25 19.25 15.993 19.25 12 15.993 4.75 12 4.75zM12 6a6 6 0 100 12 6 6 0 000-12z" />
+                  {item.icon === 'goals' && ( // Soccer ball / Goal -  Using a filled soccer ball style
+                    <svg className={`w-5 h-5 ${item.color === 'green' ? 'text-green-500' : item.color === 'red' ? 'text-red-500' : 'text-purple-500'} dark:text-${item.color}-400`} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={0.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 7h2v2h-2z" />
+                      {/* A more traditional soccer ball pattern */}
+                      <path fillRule="evenodd" clipRule="evenodd" d="M12 4.75C8.007 4.75 4.75 8.007 4.75 12S8.007 19.25 12 19.25 19.25 15.993 19.25 12 15.993 4.75 12 4.75zM12 6a6 6 0 100 12 6 6 0 000-12zm-.625 2.063l2.5 4.33-2.5 4.33h-5l-2.5-4.33 2.5-4.33h5zm1.25 0h2.75l1.25 2.165-1.25 2.165h-2.75l-1.25-2.165 1.25-2.165zm-5 0h2.75l1.25 2.165-1.25 2.165h-2.75l-1.25-2.165 1.25-2.165zm2.5 4.33l1.25 2.165h2.5l1.25-2.165-1.25-2.165h-2.5l-1.25 2.165z" fill="currentColor"/>
                     </svg>
                   )}
                   {(item.icon === 'win_streak' || item.icon === 'scoring_streak') && ( // Fire icon from Milestones
@@ -367,21 +273,13 @@ const RecordsAndAchievements: React.FC = () => {
                     <p className="mb-2 leading-normal text-xs text-slate-500 dark:text-slate-400">{item.subtext}</p>
                   )} */}
                   
-                  {/* Badge for achievement type */}
+                  {/* Colored badge for Personal Best */}
                   <span className={`py-1.5 px-3 text-xxs rounded-lg inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white 
-                    ${item.type === 'feat_broken' ? 'bg-gradient-to-tl from-purple-600 to-violet-400' :
-                      item.type === 'feat_equaled' ? 'bg-gradient-to-tl from-amber-600 to-orange-500' :
-                      item.type === 'personal_best_broken' ? (
-                        item.color === 'green' ? 'bg-gradient-to-tl from-green-600 to-lime-400' : 
-                        item.color === 'red' ? 'bg-gradient-to-tl from-red-600 to-rose-400' : 
-                        item.color === 'purple' ? 'bg-gradient-to-tl from-purple-600 to-violet-400' :
-                        'bg-gradient-to-tl from-gray-600 to-slate-400'
-                      ) :
-                      'bg-gradient-to-tl from-blue-600 to-cyan-400'}`}>
-                    {item.type === 'feat_broken' ? 'RECORD BROKEN' :
-                     item.type === 'feat_equaled' ? 'RECORD EQUALED' :
-                     item.type === 'personal_best_broken' ? 'PERSONAL BEST' :
-                     'MILESTONE'}
+                    ${item.color === 'green' ? 'bg-gradient-to-tl from-green-600 to-lime-400' : 
+                      item.color === 'red' ? 'bg-gradient-to-tl from-red-600 to-rose-400' : 
+                      item.color === 'purple' ? 'bg-gradient-to-tl from-purple-600 to-violet-400' :
+                      'bg-gradient-to-tl from-gray-600 to-slate-400'}`}> {/* Default grey if no color */}
+                    Personal Best
                   </span>
                 </div>
               </motion.div>
@@ -393,4 +291,4 @@ const RecordsAndAchievements: React.FC = () => {
   );
 };
 
-export default RecordsAndAchievements; 
+export default PersonalBests; 

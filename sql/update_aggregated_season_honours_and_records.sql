@@ -139,6 +139,46 @@ BEGIN
         FROM streaks
         WHERE rnk = 1 -- Apply limit
     ),
+    attendance_streaks AS (
+        WITH player_game_sequences AS (
+            SELECT 
+                p.name, 
+                p.player_id,
+                m.match_date,
+                LAG(m.match_date) OVER (PARTITION BY p.player_id ORDER BY m.match_date) as prev_match_date,
+                ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date) as game_number
+            FROM players p 
+            JOIN player_matches pm ON p.player_id = pm.player_id 
+            JOIN matches m ON pm.match_id = m.match_id
+            WHERE p.is_ringer = false
+            ORDER BY p.player_id, m.match_date
+        ),
+        streak_groups AS (
+            SELECT 
+                name,
+                player_id,
+                match_date,
+                game_number,
+                SUM(CASE WHEN prev_match_date IS NULL OR game_number = 1 THEN 1 ELSE 0 END) 
+                OVER (PARTITION BY player_id ORDER BY match_date ROWS UNBOUNDED PRECEDING) as streak_group
+            FROM player_game_sequences
+        ),
+        streak_calculations AS (
+            SELECT 
+                name,
+                streak_group,
+                COUNT(*) as streak_length,
+                MIN(match_date) as streak_start,
+                MAX(match_date) as streak_end,
+                DENSE_RANK() OVER (ORDER BY COUNT(*) DESC, MAX(match_date) DESC) as rnk
+            FROM streak_groups
+            GROUP BY name, player_id, streak_group
+            HAVING COUNT(*) >= min_streak_length
+        )
+        SELECT name, streak_length as streak, streak_start, streak_end
+        FROM streak_calculations 
+        WHERE rnk = 1
+    ),
     streaks AS (
         WITH numbered_matches AS (
             SELECT p.name, m.match_date, pm.result, ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date) as match_num
@@ -226,6 +266,18 @@ BEGIN
             )
             SELECT COALESCE(jsonb_object_agg(type, jsonb_build_object('holders', holders)), '{}'::jsonb)
             FROM streak_holders
+        ),
+        'attendance_streak', (
+            -- Use attendance_streaks which already has the limit applied for rnk=1
+            SELECT COALESCE(jsonb_agg(
+                jsonb_build_object('name', name, 'streak', streak, 'start_date', streak_start::text, 'end_date', streak_end::text)
+                ORDER BY streak DESC, streak_end DESC, name ASC -- Order for final JSON array
+            ), '[]'::jsonb)
+            FROM (
+                SELECT *, ROW_NUMBER() OVER (ORDER BY streak DESC, streak_end DESC, name ASC) as row_num -- Tie-break rank 1s
+                FROM attendance_streaks -- This CTE is already filtered to rnk = 1
+            ) AS sub_attendance_streaks
+            WHERE sub_attendance_streaks.row_num <= hall_of_fame_limit
         )
     );
     RAISE NOTICE 'Finished aggregated_records.';

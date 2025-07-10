@@ -332,6 +332,7 @@ model aggregated_match_report {
   season_fantasy_leaders      Json?
   on_fire_player_id           Int?
   grim_reaper_player_id       Int?
+  feat_breaking_data          Json?     @default("[]")
 }
 
 /// This model stores cached player streak data for match reports

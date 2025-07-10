@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
+import { FeatBreakingItem } from '@/types/feat-breaking.types';
 
 // Add dynamic configuration to prevent static generation
 export const dynamic = 'force-dynamic';
@@ -74,6 +75,7 @@ interface MatchReportCache {
   };
   on_fire_player_id: number | null;  // Keep as number since it comes from DB
   grim_reaper_player_id: number | null;  // Keep as number since it comes from DB
+  feat_breaking_data: any | null;  // Raw JSON data from DB
   last_updated?: Date;
 }
 
@@ -91,6 +93,7 @@ interface ApiResponse {
     seasonFantasyLeaders?: LeaderData[];
     on_fire_player_id?: string | null;
     grim_reaper_player_id?: string | null;
+    featBreakingData?: FeatBreakingItem[];
   };
   error?: string;
 }
@@ -277,6 +280,88 @@ const validateMilestones = (milestones: any): Milestone[] => {
   }
 };
 
+// Comprehensive validation for feat-breaking data with production safety
+const validateFeatBreakingData = (featData: any): FeatBreakingItem[] => {
+  try {
+    // Handle null/undefined - return empty array as safe fallback
+    if (!featData) {
+      return [];
+    }
+    
+    // If it's a string, try to parse it as JSON
+    if (typeof featData === 'string') {
+      try {
+        const parsed = JSON.parse(featData);
+        if (!Array.isArray(parsed)) {
+          console.warn('Feat breaking data is not an array after parsing:', typeof parsed);
+          return [];
+        }
+        featData = parsed;
+      } catch (parseError) {
+        console.error('Error parsing feat breaking data JSON:', parseError);
+        return [];
+      }
+    }
+    
+    // Ensure we have an array
+    if (!Array.isArray(featData)) {
+      console.warn('Feat breaking data is not an array:', typeof featData);
+      return [];
+    }
+    
+    // Validate and clean each feat item
+    return featData
+      .filter((feat): feat is FeatBreakingItem => {
+        // Type guard: ensure required properties exist and are correct types
+        if (!feat || typeof feat !== 'object') {
+          return false;
+        }
+        
+        // Check for required properties
+        if (!feat.feat_type || typeof feat.feat_type !== 'string') {
+          return false;
+        }
+        
+        if (!feat.player_name || typeof feat.player_name !== 'string') {
+          return false;
+        }
+        
+        if (!feat.status || !['broken', 'equaled'].includes(feat.status)) {
+          return false;
+        }
+        
+        // Validate numeric fields
+        if (typeof feat.new_value !== 'number' || isNaN(feat.new_value)) {
+          return false;
+        }
+        
+        if (typeof feat.current_record !== 'number' || isNaN(feat.current_record)) {
+          return false;
+        }
+        
+        // player_id should be a number
+        if (feat.player_id && (typeof feat.player_id !== 'number' || isNaN(feat.player_id))) {
+          return false;
+        }
+        
+        return true;
+      })
+      .map(feat => ({
+        feat_type: feat.feat_type,
+        player_name: feat.player_name,
+        player_id: Number(feat.player_id),
+        new_value: Number(feat.new_value),
+        current_record: Number(feat.current_record),
+        status: feat.status as 'broken' | 'equaled'
+      }))
+      .slice(0, 10); // Limit to 10 items to prevent UI overload
+      
+  } catch (error) {
+    console.error('Error validating feat breaking data:', error);
+    return []; // Safe fallback
+  }
+};
+
 const getMatchReportData = unstable_cache(
   async () => {
     // All of the original GET logic will be moved here
@@ -347,6 +432,9 @@ const getMatchReportData = unstable_cache(
         
         const gamesMilestones = validateMilestones(matchReportCache.game_milestones);
         const goalsMilestones = validateMilestones(matchReportCache.goal_milestones);
+        
+        // Process feat-breaking data with comprehensive error handling
+        const featBreakingData = validateFeatBreakingData((rawMatchReport as any).feat_breaking_data);
         
         let streaksCache: any[] = [];
         let goalStreaksCache: any[] = [];
@@ -466,7 +554,8 @@ const getMatchReportData = unstable_cache(
           seasonGoalLeaders: extractedSeasonGoalLeaders || [],
           seasonFantasyLeaders: extractedSeasonFantasyLeaders || [],
           on_fire_player_id: matchReportCache.on_fire_player_id ? String(matchReportCache.on_fire_player_id) : null,
-          grim_reaper_player_id: matchReportCache.grim_reaper_player_id ? String(matchReportCache.grim_reaper_player_id) : null
+          grim_reaper_player_id: matchReportCache.grim_reaper_player_id ? String(matchReportCache.grim_reaper_player_id) : null,
+          featBreakingData: featBreakingData
         };
         
       } catch (processingError) {
@@ -482,7 +571,8 @@ const getMatchReportData = unstable_cache(
           halfSeasonGoalLeaders: [], halfSeasonFantasyLeaders: [],
           seasonGoalLeaders: [], seasonFantasyLeaders: [],
           on_fire_player_id: matchReportCache.on_fire_player_id ? String(matchReportCache.on_fire_player_id) : null, 
-          grim_reaper_player_id: matchReportCache.grim_reaper_player_id ? String(matchReportCache.grim_reaper_player_id) : null
+          grim_reaper_player_id: matchReportCache.grim_reaper_player_id ? String(matchReportCache.grim_reaper_player_id) : null,
+          featBreakingData: []
         };
       }
     } catch (error) {

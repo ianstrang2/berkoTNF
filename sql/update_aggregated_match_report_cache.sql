@@ -28,6 +28,14 @@ DECLARE
     half_season_end DATE;
     v_window_days INT;                  -- NEW: For configurable window
     v_min_games INT;                    -- NEW: For configurable minimum games
+    -- NEW: Feat-breaking detection config variables
+    v_feat_breaking_enabled BOOLEAN;
+    v_win_streak_threshold INT;
+    v_unbeaten_streak_threshold INT;
+    v_loss_streak_threshold INT;
+    v_winless_streak_threshold INT;
+    v_goal_streak_threshold INT;
+    hall_of_fame_limit INT;
 BEGIN
     -- Removed the temporary debug notices and RETURN
     RAISE NOTICE 'Starting update_aggregated_match_report_cache...';
@@ -35,6 +43,15 @@ BEGIN
     -- Fetch config values
     milestone_game_threshold := get_config_value('game_milestone_threshold', '50')::int;
     milestone_goal_threshold := get_config_value('goal_milestone_threshold', '25')::int;
+    
+    -- NEW: Fetch feat-breaking detection config (using existing config keys)
+    v_feat_breaking_enabled := get_config_value('feat_breaking_enabled', 'true')::boolean;
+    v_win_streak_threshold := get_config_value('win_streak_threshold', '4')::int;
+    v_unbeaten_streak_threshold := get_config_value('unbeaten_streak_threshold', '6')::int;
+    v_loss_streak_threshold := get_config_value('loss_streak_threshold', '4')::int;
+    v_winless_streak_threshold := get_config_value('winless_streak_threshold', '6')::int;
+    v_goal_streak_threshold := get_config_value('goal_streak_threshold', '3')::int;
+    hall_of_fame_limit := get_config_value('hall_of_fame_limit', '3')::int;
     
     -- NEW: Get On Fire/Grim Reaper config values with fallbacks
     BEGIN
@@ -55,8 +72,8 @@ BEGIN
         v_min_games := 4; -- Fallback on any error
     END;
     
-    RAISE NOTICE 'Using config: game_milestone=%, goal_milestone=%, window_days=%, min_games=%', 
-        milestone_game_threshold, milestone_goal_threshold, v_window_days, v_min_games;
+    RAISE NOTICE 'Using config: game_milestone=%, goal_milestone=%, window_days=%, min_games=%, feat_breaking_enabled=%', 
+        milestone_game_threshold, milestone_goal_threshold, v_window_days, v_min_games, v_feat_breaking_enabled;
 
     -- 1. Get Latest Match
     SELECT * INTO latest_match FROM matches ORDER BY match_date DESC, match_id DESC LIMIT 1;
@@ -607,6 +624,7 @@ BEGIN
         half_season_goal_leaders, half_season_fantasy_leaders,
         season_goal_leaders, season_fantasy_leaders,
         on_fire_player_id, grim_reaper_player_id, -- NEW
+        feat_breaking_data, -- NEW: Add feat-breaking data column
         last_updated
     ) VALUES (
         latest_match.match_id, latest_match.match_date, latest_match.team_a_score, latest_match.team_b_score,
@@ -622,6 +640,217 @@ BEGIN
         v_season_fantasy_leaders,     -- Use new variable
         v_on_fire_player_id,          -- NEW
         v_grim_reaper_player_id,      -- NEW
+        -- NEW: Feat Breaking Detection Logic
+        CASE 
+            WHEN v_feat_breaking_enabled THEN (
+                WITH current_records AS (
+                    SELECT records FROM aggregated_records 
+                    ORDER BY last_updated DESC LIMIT 1
+                ),
+                feat_breaking_candidates AS (
+                    -- Most Goals in Game Detection (only check if meets milestone threshold)
+                    SELECT 
+                        'most_goals_in_game' as feat_type,
+                        pm.player_id,
+                        p.name as player_name,
+                        pm.goals as new_value,
+                        COALESCE((current_records.records->'most_goals_in_game'->0->>'goals')::int, 0) as current_record,
+                        CASE 
+                            WHEN pm.goals > COALESCE((current_records.records->'most_goals_in_game'->0->>'goals')::int, 0) THEN 'broken'
+                            WHEN pm.goals = COALESCE((current_records.records->'most_goals_in_game'->0->>'goals')::int, 0) AND pm.goals >= milestone_goal_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM player_matches pm
+                    JOIN players p ON pm.player_id = p.player_id
+                    CROSS JOIN current_records
+                    WHERE pm.match_id = latest_match.match_id 
+                      AND pm.goals >= milestone_goal_threshold
+                      AND p.is_ringer = false
+                    
+                    UNION ALL
+                    
+                    -- Win Streak Detection (only check if meets threshold)
+                    SELECT 
+                        'win_streak' as feat_type,
+                        ams.player_id,
+                        ams.name as player_name,
+                        ams.current_win_streak as new_value,
+                        COALESCE((current_records.records->'streaks'->'Win Streak'->'holders'->0->>'streak')::int, 0) as current_record,
+                        CASE 
+                            WHEN ams.current_win_streak > COALESCE((current_records.records->'streaks'->'Win Streak'->'holders'->0->>'streak')::int, 0) THEN 'broken'
+                            WHEN ams.current_win_streak = COALESCE((current_records.records->'streaks'->'Win Streak'->'holders'->0->>'streak')::int, 0) AND ams.current_win_streak >= v_win_streak_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM aggregated_match_streaks ams
+                    CROSS JOIN current_records
+                    WHERE ams.player_id IN (
+                        SELECT DISTINCT pm.player_id 
+                        FROM player_matches pm 
+                        WHERE pm.match_id = latest_match.match_id
+                    )
+                    AND ams.current_win_streak >= v_win_streak_threshold
+                    
+                    UNION ALL
+                    
+                    -- Unbeaten Streak Detection
+                    SELECT 
+                        'unbeaten_streak' as feat_type,
+                        ams.player_id,
+                        ams.name as player_name,
+                        ams.current_unbeaten_streak as new_value,
+                        COALESCE((current_records.records->'streaks'->'Undefeated Streak'->'holders'->0->>'streak')::int, 0) as current_record,
+                        CASE 
+                            WHEN ams.current_unbeaten_streak > COALESCE((current_records.records->'streaks'->'Undefeated Streak'->'holders'->0->>'streak')::int, 0) THEN 'broken'
+                            WHEN ams.current_unbeaten_streak = COALESCE((current_records.records->'streaks'->'Undefeated Streak'->'holders'->0->>'streak')::int, 0) AND ams.current_unbeaten_streak >= v_unbeaten_streak_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM aggregated_match_streaks ams
+                    CROSS JOIN current_records
+                    WHERE ams.player_id IN (
+                        SELECT DISTINCT pm.player_id 
+                        FROM player_matches pm 
+                        WHERE pm.match_id = latest_match.match_id
+                    )
+                    AND ams.current_unbeaten_streak >= v_unbeaten_streak_threshold
+                    
+                    UNION ALL
+                    
+                    -- Loss Streak Detection
+                    SELECT 
+                        'loss_streak' as feat_type,
+                        ams.player_id,
+                        ams.name as player_name,
+                        ams.current_loss_streak as new_value,
+                        COALESCE((current_records.records->'streaks'->'Losing Streak'->'holders'->0->>'streak')::int, 0) as current_record,
+                        CASE 
+                            WHEN ams.current_loss_streak > COALESCE((current_records.records->'streaks'->'Losing Streak'->'holders'->0->>'streak')::int, 0) THEN 'broken'
+                            WHEN ams.current_loss_streak = COALESCE((current_records.records->'streaks'->'Losing Streak'->'holders'->0->>'streak')::int, 0) AND ams.current_loss_streak >= v_loss_streak_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM aggregated_match_streaks ams
+                    CROSS JOIN current_records
+                    WHERE ams.player_id IN (
+                        SELECT DISTINCT pm.player_id 
+                        FROM player_matches pm 
+                        WHERE pm.match_id = latest_match.match_id
+                    )
+                    AND ams.current_loss_streak >= v_loss_streak_threshold
+                    
+                    UNION ALL
+                    
+                    -- Winless Streak Detection
+                    SELECT 
+                        'winless_streak' as feat_type,
+                        ams.player_id,
+                        ams.name as player_name,
+                        ams.current_winless_streak as new_value,
+                        COALESCE((current_records.records->'streaks'->'Winless Streak'->'holders'->0->>'streak')::int, 0) as current_record,
+                        CASE 
+                            WHEN ams.current_winless_streak > COALESCE((current_records.records->'streaks'->'Winless Streak'->'holders'->0->>'streak')::int, 0) THEN 'broken'
+                            WHEN ams.current_winless_streak = COALESCE((current_records.records->'streaks'->'Winless Streak'->'holders'->0->>'streak')::int, 0) AND ams.current_winless_streak >= v_winless_streak_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM aggregated_match_streaks ams
+                    CROSS JOIN current_records
+                    WHERE ams.player_id IN (
+                        SELECT DISTINCT pm.player_id 
+                        FROM player_matches pm 
+                        WHERE pm.match_id = latest_match.match_id
+                    )
+                    AND ams.current_winless_streak >= v_winless_streak_threshold
+                    
+                    UNION ALL
+                    
+                    -- Goal Streak Detection
+                    SELECT 
+                        'goal_streak' as feat_type,
+                        ams.player_id,
+                        ams.name as player_name,
+                        ams.current_scoring_streak as new_value,
+                        COALESCE((current_records.records->'consecutive_goals_streak'->0->>'streak')::int, 0) as current_record,
+                        CASE 
+                            WHEN ams.current_scoring_streak > COALESCE((current_records.records->'consecutive_goals_streak'->0->>'streak')::int, 0) THEN 'broken'
+                            WHEN ams.current_scoring_streak = COALESCE((current_records.records->'consecutive_goals_streak'->0->>'streak')::int, 0) AND ams.current_scoring_streak >= v_goal_streak_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM aggregated_match_streaks ams
+                    CROSS JOIN current_records
+                    WHERE ams.player_id IN (
+                        SELECT DISTINCT pm.player_id 
+                        FROM player_matches pm 
+                        WHERE pm.match_id = latest_match.match_id
+                    )
+                    AND ams.current_scoring_streak >= v_goal_streak_threshold
+                    
+                    UNION ALL
+                    
+                    -- Biggest Victory Detection (check all match scores > 0 difference)
+                    SELECT 
+                        'biggest_victory' as feat_type,
+                        NULL as player_id, -- No specific player for biggest victory
+                        'Team Result' as player_name,
+                        ABS(latest_match.team_a_score - latest_match.team_b_score) as new_value,
+                        COALESCE((current_records.records->'biggest_victory'->0->>'team_a_score')::int - (current_records.records->'biggest_victory'->0->>'team_b_score')::int, 0) as current_record,
+                        CASE 
+                            WHEN ABS(latest_match.team_a_score - latest_match.team_b_score) > ABS(COALESCE((current_records.records->'biggest_victory'->0->>'team_a_score')::int, 0) - COALESCE((current_records.records->'biggest_victory'->0->>'team_b_score')::int, 0)) THEN 'broken'
+                            WHEN ABS(latest_match.team_a_score - latest_match.team_b_score) = ABS(COALESCE((current_records.records->'biggest_victory'->0->>'team_a_score')::int, 0) - COALESCE((current_records.records->'biggest_victory'->0->>'team_b_score')::int, 0)) AND ABS(latest_match.team_a_score - latest_match.team_b_score) > 0 THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM (SELECT 1) dummy
+                    CROSS JOIN current_records
+                    WHERE ABS(latest_match.team_a_score - latest_match.team_b_score) > 0
+                    
+                    UNION ALL
+                    
+                    -- Attendance Streak Detection (for players in the current match)
+                    SELECT 
+                        'attendance_streak' as feat_type,
+                        pm_count.player_id,
+                        p.name as player_name,
+                        pm_count.total_matches as new_value,
+                        COALESCE((current_records.records->'attendance_streak'->0->>'streak')::int, 0) as current_record,
+                        CASE 
+                            WHEN pm_count.total_matches > COALESCE((current_records.records->'attendance_streak'->0->>'streak')::int, 0) THEN 'broken'
+                            WHEN pm_count.total_matches = COALESCE((current_records.records->'attendance_streak'->0->>'streak')::int, 0) AND pm_count.total_matches >= hall_of_fame_limit THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM (
+                        SELECT 
+                            pm.player_id,
+                            COUNT(*) as total_matches
+                        FROM player_matches pm
+                        JOIN players p ON pm.player_id = p.player_id
+                        WHERE pm.player_id IN (
+                            SELECT DISTINCT pm2.player_id 
+                            FROM player_matches pm2 
+                            WHERE pm2.match_id = latest_match.match_id
+                        )
+                        AND p.is_ringer = false
+                        GROUP BY pm.player_id
+                    ) pm_count
+                    JOIN players p ON pm_count.player_id = p.player_id
+                    CROSS JOIN current_records
+                    WHERE pm_count.total_matches >= hall_of_fame_limit
+                )
+                SELECT COALESCE(jsonb_agg(
+                    jsonb_build_object(
+                        'feat_type', feat_type,
+                        'player_name', player_name,
+                        'player_id', player_id,
+                        'new_value', new_value,
+                        'current_record', current_record,
+                        'status', status
+                    )
+                    ORDER BY 
+                        CASE WHEN status = 'broken' THEN 1 ELSE 2 END, -- Broken records first
+                        new_value DESC, 
+                        player_name ASC
+                ), '[]'::jsonb)
+                FROM feat_breaking_candidates
+                WHERE status IS NOT NULL
+            )
+            ELSE '[]'::jsonb
+        END, -- End feat_breaking_data
         NOW()
     );
 
@@ -630,7 +859,7 @@ BEGIN
     VALUES ('match_report', NOW(), 'match_report')
     ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
 
-    RAISE NOTICE 'update_aggregated_match_report_cache completed.';
+    RAISE NOTICE 'update_aggregated_match_report_cache completed with feat-breaking detection.';
 
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Error in update_aggregated_match_report_cache: %', SQLERRM;

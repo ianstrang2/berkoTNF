@@ -58,9 +58,11 @@ interface MilestonesData {
   halfSeasonFantasyLeaders?: LeaderData[];
   seasonGoalLeaders?: LeaderData[];
   seasonFantasyLeaders?: LeaderData[];
+  on_fire_player_id?: string | null;
+  grim_reaper_player_id?: string | null;
 }
 
-const CurrentStandings: React.FC = () => {
+const CurrentForm: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [milestonesData, setMilestonesData] = useState<MilestonesData | null>(null);
   const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
@@ -258,160 +260,49 @@ const CurrentStandings: React.FC = () => {
     
     // REMOVED: Game and goal milestones - moved to Records & Achievements component
     
-    // REMOVED: Form and goal streaks - moved to Current Form component
-    
-    // Add current leader changes with improved handling
-    if (data.halfSeasonGoalLeaders && data.halfSeasonGoalLeaders.length > 0) {
-      const leaders = data.halfSeasonGoalLeaders;
-      const firstLeader = leaders[0];
-
-      if (leaders.length === 1) {
-        // Single leader
-        const playerId = getPlayerIdByName(firstLeader.new_leader);
-        items.push({
-          type: 'leader_change',
-          player: 'Half-Season Goals',
-          content: formatLeaderText(firstLeader, 'goals', 'current Half-Season'),
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber',
-          playerId: playerId
-        });
-      } else {
-        // Co-leaders - create ONE entry for all tied leaders
-        const leaderNames = leaders.length === 2 
-          ? leaders.map(l => l.new_leader).join(' and ')
-          : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
-        const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
-        const content = `${leaderNames} are tied for the lead with ${goals}.`;
+    // Add form streaks to timeline - Match icon colors with badge colors
+    if (data.streaks && data.streaks.length > 0) {
+      data.streaks.forEach(streak => {
+        const streakType = 
+          streak.streak_type === 'win' ? 'winning' :
+          streak.streak_type === 'loss' ? 'losing' :
+          streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless';
         
-        // Create only ONE timeline entry for all tied leaders
+        // Assign appropriate colors based on streak type
+        const streakColor = 
+          streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'green' : 'red';
+        
+        const playerId = getPlayerIdByName(streak.name);
         items.push({
-          type: 'leader_change',
-          player: 'Half-Season Goals',
-          content: content,
-          icon: 'crown',
+          type: 'form_streak',
+          player: streak.name,
+          playerId: playerId,
+          content: `${streak.streak_count} game ${streakType} streak`,
+          icon: streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'fire' : 'chart',
           date: matchDate,
-          color: 'amber'
-          // No playerId since this represents multiple players
+          color: streakColor
         });
-      }
+      });
     }
     
-    if (data.halfSeasonFantasyLeaders && data.halfSeasonFantasyLeaders.length > 0) {
-      const leaders = data.halfSeasonFantasyLeaders;
-      const firstLeader = leaders[0];
-
-      if (leaders.length === 1) {
-        // Single leader
-        const playerId = getPlayerIdByName(firstLeader.new_leader);
+    // Add goal streaks to timeline
+    if (data.goalStreaks && data.goalStreaks.length > 0) {
+      data.goalStreaks.forEach(streak => {
+        const playerId = getPlayerIdByName(streak.name);
         items.push({
-          type: 'leader_change',
-          player: 'Half-Season Points Leader',
-          content: formatLeaderText(firstLeader, 'points', 'current Half-Season'),
-          icon: 'crown',
+          type: 'goal_streak',
+          player: streak.name,
+          playerId: playerId,
+          content: `Scored in ${streak.matches_with_goals} consecutive matches`,
+          subtext: `${streak.goals_in_streak} goals in those games`,
+          icon: 'soccer',
           date: matchDate,
-          color: 'amber',
-          playerId: playerId
+          color: 'green'
         });
-      } else {
-        // Co-leaders - create ONE entry for all tied leaders
-        const leaderNames = leaders.length === 2 
-          ? leaders.map(l => l.new_leader).join(' and ')
-          : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
-        const points = firstLeader.new_leader_points || firstLeader.value || 0;
-        const content = `${leaderNames} are tied for the lead with ${points}.`;
-        
-        // Create only ONE timeline entry for all tied leaders
-        items.push({
-          type: 'leader_change',
-          player: 'Half-Season Points',
-          content: content,
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber'
-          // No playerId since this represents multiple players
-        });
-      }
+      });
     }
     
-    // Only show season leaders in the second half of the year (Jul-Dec)
-    const currentDate = data.matchInfo.match_date ? new Date(data.matchInfo.match_date) : new Date();
-    const isSecondHalf = currentDate.getMonth() >= 6; // getMonth() is 0-based, so 6 = July
-    
-    if (isSecondHalf && data.seasonGoalLeaders && data.seasonGoalLeaders.length > 0) {
-      const leaders = data.seasonGoalLeaders;
-      const firstLeader = leaders[0];
-
-      if (leaders.length === 1) {
-        // Single leader
-        const playerId = getPlayerIdByName(firstLeader.new_leader);
-        items.push({
-          type: 'leader_change',
-          player: 'Season Goals',
-          content: formatLeaderText(firstLeader, 'goals', new Date().getFullYear() + ' Season'),
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber',
-          playerId: playerId
-        });
-      } else {
-        // Co-leaders - create ONE entry for all tied leaders
-        const leaderNames = leaders.length === 2 
-          ? leaders.map(l => l.new_leader).join(' and ')
-          : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
-        const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
-        const content = `${leaderNames} are tied for the lead with ${goals}.`;
-        
-        // Create only ONE timeline entry for all tied leaders
-        items.push({
-          type: 'leader_change',
-          player: 'Season Goals',
-          content: content,
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber'
-          // No playerId since this represents multiple players
-        });
-      }
-    }
-    
-    if (isSecondHalf && data.seasonFantasyLeaders && data.seasonFantasyLeaders.length > 0) {
-      const leaders = data.seasonFantasyLeaders;
-      const firstLeader = leaders[0];
-
-      if (leaders.length === 1) {
-        // Single leader
-        const playerId = getPlayerIdByName(firstLeader.new_leader);
-        items.push({
-          type: 'leader_change',
-          player: 'Season Points Leader',
-          content: formatLeaderText(firstLeader, 'points', new Date().getFullYear() + ' Season'),
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber',
-          playerId: playerId
-        });
-      } else {
-        // Co-leaders - create ONE entry for all tied leaders
-        const leaderNames = leaders.length === 2 
-          ? leaders.map(l => l.new_leader).join(' and ')
-          : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
-        const points = firstLeader.new_leader_points || firstLeader.value || 0;
-        const content = `${leaderNames} are tied for the lead with ${points}.`;
-        
-        // Create only ONE timeline entry for all tied leaders
-        items.push({
-          type: 'leader_change',
-          player: 'Season Points',
-          content: content,
-          icon: 'crown',
-          date: matchDate,
-          color: 'amber'
-          // No playerId since this represents multiple players
-        });
-      }
-    }
+    // REMOVED: Leader changes - moved to Current Standings component
     
     setTimelineItems(items);
   };
@@ -459,7 +350,7 @@ const CurrentStandings: React.FC = () => {
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
                  <div className="p-4">
            <div className="text-center">
-             <p className="text-neutral-500">No current standings data to display</p>
+             <p className="text-neutral-500">No current form data to display</p>
            </div>
          </div>
       </div>
@@ -474,9 +365,59 @@ const CurrentStandings: React.FC = () => {
       className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border"
     >
              <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-         <h5 className="mb-0">Current Standings</h5>
+         <h5 className="mb-0">Current Form</h5>
        </div>
       <div className="flex-auto p-4">
+        {/* Reaper and On Fire Status */}
+        {(milestonesData?.on_fire_player_id || milestonesData?.grim_reaper_player_id) && (
+          <div className="mb-6">
+            <div className="flex justify-center gap-8">
+              {milestonesData?.grim_reaper_player_id && (
+                <div className="text-center">
+                  <img 
+                    src="/img/player-status/reaper.png" 
+                    alt="The Grim Reaper" 
+                    className="w-24 h-24 mx-auto mb-2 rounded-lg shadow-soft-md"
+                  />
+                  <p className="text-sm text-slate-700">
+                    {allPlayers.find(p => p.id === milestonesData.grim_reaper_player_id) ? (
+                      <Link 
+                        href={`/players/${milestonesData.grim_reaper_player_id}`} 
+                        className="hover:underline"
+                      >
+                        {allPlayers.find(p => p.id === milestonesData.grim_reaper_player_id)?.name}
+                      </Link>
+                    ) : (
+                      'Unknown Player'
+                    )}
+                  </p>
+                </div>
+              )}
+              {milestonesData?.on_fire_player_id && (
+                <div className="text-center">
+                  <img 
+                    src="/img/player-status/on-fire.png" 
+                    alt="On Fire" 
+                    className="w-24 h-24 mx-auto mb-2 rounded-lg shadow-soft-md"
+                  />
+                  <p className="text-sm text-slate-700">
+                    {allPlayers.find(p => p.id === milestonesData.on_fire_player_id) ? (
+                      <Link 
+                        href={`/players/${milestonesData.on_fire_player_id}`} 
+                        className="hover:underline"
+                      >
+                        {allPlayers.find(p => p.id === milestonesData.on_fire_player_id)?.name}
+                      </Link>
+                    ) : (
+                      'Unknown Player'
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
         <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
           <div className="w-auto relative before:absolute before:left-4 before:top-0 before:h-full before:border-r-2 before:border-solid before:border-slate-100 before:content-[''] lg:before:-ml-px">
             {timelineItems.map((item, index) => (
@@ -566,4 +507,4 @@ const CurrentStandings: React.FC = () => {
   );
 };
 
-export default CurrentStandings; 
+export default CurrentForm; 
