@@ -74,7 +74,13 @@ export async function GET() {
       })),
     }));
 
-    return NextResponse.json({ data: formattedMatches });
+    return NextResponse.json({ data: formattedMatches }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to fetch matches', details: error },

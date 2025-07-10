@@ -127,8 +127,8 @@ const MatchListPageContent = () => {
       const fetchData = async () => {
         try {
           const [activeRes, historyRes] = await Promise.all([
-            fetch('/api/admin/upcoming-matches'),
-            fetch('/api/matches/history')
+            fetch('/api/admin/upcoming-matches', { cache: 'no-store' }),
+            fetch('/api/matches/history', { cache: 'no-store' })
           ]);
 
           if (activeRes.ok && historyRes.ok) {
@@ -189,7 +189,7 @@ const MatchListPageContent = () => {
       // Refresh the matches list
       const fetchData = async () => {
         try {
-          const activeRes = await fetch('/api/admin/upcoming-matches');
+          const activeRes = await fetch('/api/admin/upcoming-matches', { cache: 'no-store' });
           if (activeRes.ok) {
             const activeData = await activeRes.json();
             // Show all non-completed matches regardless of date
@@ -214,8 +214,8 @@ const MatchListPageContent = () => {
       setError(null);
       try {
         const [activeRes, historyRes] = await Promise.all([
-          fetch('/api/admin/upcoming-matches'),
-          fetch('/api/matches/history')
+          fetch('/api/admin/upcoming-matches', { cache: 'no-store' }),
+          fetch('/api/matches/history', { cache: 'no-store' })
         ]);
 
         if (!activeRes.ok || !historyRes.ok) {
