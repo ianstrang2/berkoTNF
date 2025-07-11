@@ -387,31 +387,41 @@ const LatestMatch: React.FC = () => {
       }
     }
     
-    // Add form streaks 
+    // Add form streaks (only for players who played in this match)
     if (data.streaks && data.streaks.length > 0) {
-      if (!hasCurrentFormData) {
-        currentFormSection += `\n--- CURRENT FORM ---\n`;
-        hasCurrentFormData = true;
+      const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
+      const filteredStreaks = data.streaks.filter(streak => matchPlayers.includes(streak.name));
+      
+      if (filteredStreaks.length > 0) {
+        if (!hasCurrentFormData) {
+          currentFormSection += `\n--- CURRENT FORM ---\n`;
+          hasCurrentFormData = true;
+        }
+        filteredStreaks.forEach(streak => {
+          const streakType = 
+            streak.streak_type === 'win' ? 'winning' :
+            streak.streak_type === 'loss' ? 'losing' :
+            streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless';
+          
+          currentFormSection += `- ${streak.name}: ${streak.streak_count} game ${streakType} streak\n`;
+        });
       }
-      data.streaks.forEach(streak => {
-        const streakType = 
-          streak.streak_type === 'win' ? 'winning' :
-          streak.streak_type === 'loss' ? 'losing' :
-          streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless';
-        
-        currentFormSection += `- ${streak.name}: ${streak.streak_count} game ${streakType} streak\n`;
-      });
     }
 
-    // Add goal streaks
+    // Add goal streaks (only for players who played in this match)
     if (data.goalStreaks && data.goalStreaks.length > 0) {
-      if (!hasCurrentFormData) {
-        currentFormSection += `\n--- CURRENT FORM ---\n`;
-        hasCurrentFormData = true;
+      const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
+      const filteredGoalStreaks = data.goalStreaks.filter(streak => matchPlayers.includes(streak.name));
+      
+      if (filteredGoalStreaks.length > 0) {
+        if (!hasCurrentFormData) {
+          currentFormSection += `\n--- CURRENT FORM ---\n`;
+          hasCurrentFormData = true;
+        }
+        filteredGoalStreaks.forEach(streak => {
+          currentFormSection += `- ${streak.name}: Scored in ${streak.matches_with_goals} consecutive matches (${streak.goals_in_streak} goals)\n`;
+        });
       }
-      data.goalStreaks.forEach(streak => {
-        currentFormSection += `- ${streak.name}: Scored in ${streak.matches_with_goals} consecutive matches (${streak.goals_in_streak} goals)\n`;
-      });
     }
     
     if (hasCurrentFormData) {
