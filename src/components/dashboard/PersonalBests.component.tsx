@@ -354,7 +354,7 @@ const RecordsAndAchievements: React.FC = () => {
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700 dark:text-slate-200">
                     {/* Apply Link to item.player, preserving original h6 classes */}
                     {item.playerId ? (
-                      <Link href={`/records/players/${item.playerId}`} className="hover:underline">
+                      <Link href={`/players/${item.playerId}`} className="hover:underline">
                         {item.player}
                       </Link>
                     ) : (
