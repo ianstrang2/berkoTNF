@@ -132,7 +132,7 @@ BEGIN
             FROM player_matches_with_gaps
         ), streaks AS (
             SELECT name, COUNT(*) as streak, MIN(match_date) as streak_start, MAX(match_date) as streak_end,
-                   DENSE_RANK() OVER (ORDER BY COUNT(*) DESC, MAX(match_date) DESC) as rnk
+                   DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) as rnk
             FROM streak_groups WHERE scored = 1 GROUP BY name, change_group
         )
         SELECT name, streak, streak_start, streak_end
@@ -190,20 +190,20 @@ BEGIN
                 MAX(streak_length) as streak,
                 -- Get dates for the longest streak
                 (SELECT 
-                    (SELECT match_date FROM all_matches WHERE match_sequence = asc.start_sequence)
-                 FROM attendance_streaks_calc asc 
-                 WHERE asc.player_id = mas.player_id 
-                   AND asc.streak_length = MAX(mas.streak_length)
-                 ORDER BY asc.end_sequence DESC 
+                    (SELECT match_date FROM all_matches WHERE match_sequence = asc_table.start_sequence)
+                 FROM attendance_streaks_calc asc_table 
+                 WHERE asc_table.player_id = mas.player_id 
+                   AND asc_table.streak_length = MAX(mas.streak_length)
+                 ORDER BY asc_table.end_sequence DESC 
                  LIMIT 1) as streak_start,
                 (SELECT 
-                    (SELECT match_date FROM all_matches WHERE match_sequence = asc.end_sequence)
-                 FROM attendance_streaks_calc asc 
-                 WHERE asc.player_id = mas.player_id 
-                   AND asc.streak_length = MAX(mas.streak_length)
-                 ORDER BY asc.end_sequence DESC 
+                    (SELECT match_date FROM all_matches WHERE match_sequence = asc_table.end_sequence)
+                 FROM attendance_streaks_calc asc_table 
+                 WHERE asc_table.player_id = mas.player_id 
+                   AND asc_table.streak_length = MAX(mas.streak_length)
+                 ORDER BY asc_table.end_sequence DESC 
                  LIMIT 1) as streak_end,
-                DENSE_RANK() OVER (ORDER BY MAX(streak_length) DESC, name ASC) as rnk
+                DENSE_RANK() OVER (ORDER BY MAX(streak_length) DESC) as rnk
             FROM attendance_streaks_calc mas
             GROUP BY player_id, name
             HAVING MAX(streak_length) >= min_streak_length
@@ -239,7 +239,7 @@ BEGIN
             GROUP BY type, name, gap_group
         ), ranked_streaks AS (
             SELECT type, name, streak, streak_start, streak_end,
-                   DENSE_RANK() OVER (PARTITION BY type ORDER BY streak DESC, streak_end DESC) as rnk
+                   DENSE_RANK() OVER (PARTITION BY type ORDER BY streak DESC) as rnk
             FROM final_streaks
         )
         SELECT type, name, streak, streak_start, streak_end
