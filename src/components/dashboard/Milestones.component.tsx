@@ -221,6 +221,29 @@ const CurrentStandings: React.FC = () => {
     return player?.id;
   };
 
+  // Helper function to render section headers with appropriate links
+  const renderSectionHeader = (sectionName: string): React.ReactNode => {
+    const linkMap: { [key: string]: string } = {
+      'Half-Season Goals': '/table/half?view=goals',
+      'Half-Season Points Leader': '/table/half',
+      'Half-Season Points': '/table/half',
+      'Season Goals': '/table/whole?view=goals',
+      'Season Points Leader': '/table/whole',
+      'Season Points': '/table/whole'
+    };
+
+    const url = linkMap[sectionName];
+    if (url) {
+      return (
+        <Link href={url} className="hover:underline text-slate-700">
+          {sectionName}
+        </Link>
+      );
+    }
+    
+    return sectionName;
+  };
+
   // Function to render content with player names as links
   const renderContentWithLinks = (content: string): React.ReactNode => {
     if (!allPlayers.length) return content;
@@ -523,7 +546,9 @@ const CurrentStandings: React.FC = () => {
 
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto">
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700">
-                    {item.playerId && (item.type === 'game_milestone' || item.type === 'goal_milestone' || item.type === 'form_streak' || item.type === 'goal_streak') ? (
+                    {item.type === 'leader_change' ? (
+                      renderSectionHeader(item.player)
+                    ) : item.playerId && (item.type === 'game_milestone' || item.type === 'goal_milestone' || item.type === 'form_streak' || item.type === 'goal_streak') ? (
                       <Link href={`/players/${item.playerId}`} className="hover:underline">
                         {item.player}
                       </Link>
