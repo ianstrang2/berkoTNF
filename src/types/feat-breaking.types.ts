@@ -39,7 +39,7 @@ export interface RecordsTimelineItem {
   subtext?: string;
   icon: React.ComponentType<{ className?: string }>;
   date: string;
-  color: 'purple' | 'amber' | 'blue' | 'green';
+  color: 'purple' | 'amber' | 'blue' | 'green' | 'red';
   previous_record_value?: number;
   key: string;
 }

@@ -169,7 +169,7 @@ const RecordsAndAchievements: React.FC = () => {
             content: content,
             subtext: `Previous record: ${feat.current_record}`,
             icon: 'goals', // Default icon, could be mapped based on feat_type
-            color: feat.status === 'broken' ? 'purple' : 'amber',
+            color: feat.status === 'broken' ? 'red' : 'amber',
           });
         });
       }
@@ -369,7 +369,7 @@ const RecordsAndAchievements: React.FC = () => {
                   
                   {/* Badge for achievement type */}
                   <span className={`py-1.5 px-3 text-xxs rounded-lg inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white 
-                    ${item.type === 'feat_broken' ? 'bg-gradient-to-tl from-purple-600 to-violet-400' :
+                    ${item.type === 'feat_broken' ? 'bg-gradient-to-tl from-red-600 to-rose-400' :
                       item.type === 'feat_equaled' ? 'bg-gradient-to-tl from-amber-600 to-orange-500' :
                       item.type === 'personal_best_broken' ? (
                         item.color === 'green' ? 'bg-gradient-to-tl from-green-600 to-lime-400' : 

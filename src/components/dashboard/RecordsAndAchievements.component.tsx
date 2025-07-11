@@ -80,7 +80,7 @@ const RecordsAndAchievements: React.FC = () => {
             subtext: feat.current_record ? `Previous record: ${feat.current_record}` : undefined,
             icon: Icon,
             date: formatDateSafely(matchDate),
-            color: feat.status === 'broken' ? 'purple' : 'amber',
+            color: feat.status === 'broken' ? 'red' : 'amber',
             previous_record_value: feat.current_record,
             key: `feat-${index}-${feat.feat_type}-${feat.player_id}`
           } as RecordsTimelineItem;
@@ -188,7 +188,8 @@ const RecordsAndAchievements: React.FC = () => {
       purple: 'bg-purple-100 text-purple-600 border-purple-200',
       amber: 'bg-amber-100 text-amber-600 border-amber-200', 
       green: 'bg-green-100 text-green-600 border-green-200',
-      blue: 'bg-blue-100 text-blue-600 border-blue-200'
+      blue: 'bg-blue-100 text-blue-600 border-blue-200',
+      red: 'bg-red-100 text-red-600 border-red-200'
     };
     
     const content = (

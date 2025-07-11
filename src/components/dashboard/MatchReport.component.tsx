@@ -670,48 +670,7 @@ const LatestMatch: React.FC = () => {
         </div>
       </div>
 
-      {/* Feat-Breaking Records Section */}
-      {matchData.featBreakingData && matchData.featBreakingData.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-slate-100">
-          <div className="text-center mb-4">
-            <h6 className="text-lg font-bold text-slate-700 mb-1">🏆 Record-Breaking Achievements</h6>
-            <p className="text-sm text-slate-500">New records set in this match</p>
-          </div>
-          <div className="space-y-3">
-            {matchData.featBreakingData.map((feat, index) => {
-              const content = generateFeatContent(feat);
-              const FeatIcon = getFeatIcon(feat.feat_type);
-              
-              return (
-                <div key={index} className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tl from-amber-600 to-orange-500 text-white flex items-center justify-center">
-                      <FeatIcon className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div className="flex-grow">
-                    <div className="text-sm font-semibold text-slate-700">
-                      {feat.player_name ? (
-                        <Link href={`/players/${feat.player_id}`} className="hover:underline text-purple-700">
-                          {feat.player_name}
-                        </Link>
-                      ) : (
-                        feat.player_name || 'Unknown Player'
-                      )}
-                    </div>
-                    <div className="text-sm text-slate-600">{content}</div>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-amber-600 to-orange-500 text-white rounded-full">
-                      RECORD
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+
 
       <div className="mt-4 sm:mt-6 lg:mt-8 flex justify-center">
         <Button

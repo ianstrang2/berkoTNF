@@ -76,6 +76,8 @@ interface MatchReportCache {
   on_fire_player_id: number | null;  // Keep as number since it comes from DB
   grim_reaper_player_id: number | null;  // Keep as number since it comes from DB
   feat_breaking_data: any | null;  // Raw JSON data from DB
+  streaks: any[] | null;  // NEW: Streak data
+  goal_streaks: any[] | null;  // NEW: Goal streak data
   last_updated?: Date;
 }
 
@@ -488,112 +490,27 @@ const getMatchReportData = unstable_cache(
         // Process feat-breaking data with comprehensive error handling
         const featBreakingData = validateFeatBreakingData((rawMatchReport as any).feat_breaking_data);
         
-        let streaksCache: any[] = [];
-        let goalStreaksCache: any[] = [];
-        
-        streaksCache = await prisma.aggregated_match_streaks.findMany({
-          where: {
-            OR: [
-              { current_unbeaten_streak: { gte: Number(thresholds.unbeaten_streak_threshold) } },
-              { current_winless_streak: { gte: Number(thresholds.winless_streak_threshold) } },
-              { current_win_streak: { gte: Number(thresholds.win_streak_threshold) } },
-              { current_loss_streak: { gte: Number(thresholds.loss_streak_threshold) } }
-            ]
-          },
-          select: {
-            player_id: true,
-            name: true,
-            current_unbeaten_streak: true,
-            current_winless_streak: true,
-            current_win_streak: true,
-            current_loss_streak: true
-          },
-          orderBy: [
-            { current_win_streak: 'desc' },
-            { current_unbeaten_streak: 'desc' }
-          ]
-        });
+        // Current Streaks and Goal Streaks (NEW: Read from aggregated_match_report)
+        // Type cast to access new columns that Prisma doesn't know about yet
+        const rawData = rawMatchReport as any;
+        const streaksData = rawData.streaks || [];
+        const goalStreaksData = rawData.goal_streaks || [];
 
-        goalStreaksCache = await prisma.aggregated_match_streaks.findMany({
-          where: {
-            current_scoring_streak: { gte: Number(thresholds.goal_streak_threshold) }
-          },
-          select: {
-            player_id: true,
-            name: true,
-            current_scoring_streak: true,
-            goals_in_scoring_streak: true
-          },
-          orderBy: [
-            { current_scoring_streak: 'desc' },
-            { goals_in_scoring_streak: 'desc' }
-          ]
-        });
 
-        const playerIdsFromAllStreaks = [
-          ...streaksCache.map(s => s.player_id),
-          ...goalStreaksCache.map(s => s.player_id)
-        ];
-        const uniquePlayerIdsFromStreaks = [...new Set(playerIdsFromAllStreaks.filter(id => id != null))];
 
-        let playerNamesMap: Record<number, string> = {};
-        if (uniquePlayerIdsFromStreaks.length > 0) {
-          const playersData = await prisma.players.findMany({
-            where: { player_id: { in: uniquePlayerIdsFromStreaks } },
-            select: { player_id: true, name: true }
-          });
-          playersData.forEach(p => {
-            if (p.name) {
-              playerNamesMap[p.player_id] = p.name;
-            }
-          });
-        }
-        
-        const processJsonField = (field: any): any[] => {
-          if (!field) return [];
-          if (typeof field === 'string') {
-            try { return JSON.parse(field); } catch (e) { return []; }
-          }
-          if (Array.isArray(field)) { return field; }
-          return [];
-        };
-        
-        const extractedHalfSeasonGoalLeaders = processJsonField((rawMatchReport as any).half_season_goal_leaders);
-        const extractedHalfSeasonFantasyLeaders = processJsonField((rawMatchReport as any).half_season_fantasy_leaders);
-        const extractedSeasonGoalLeaders = processJsonField((rawMatchReport as any).season_goal_leaders);
-        const extractedSeasonFantasyLeaders = processJsonField((rawMatchReport as any).season_fantasy_leaders);
+        // Convert streaks to the format expected by the frontend
+        const formattedStreaks = streaksData.map((streak: any) => ({
+          name: streak.name,
+          streak_type: streak.streak_type,
+          streak_count: streak.streak_count
+        }));
 
-        const formattedStreaks = streaksCache.map(streak => {
-          let streakType = '';
-          let streakCount = 0;
-
-          if ((streak.current_unbeaten_streak ?? 0) >= Number(thresholds.unbeaten_streak_threshold)) {
-            streakType = 'unbeaten';
-            streakCount = streak.current_unbeaten_streak ?? 0;
-          } else if ((streak.current_winless_streak ?? 0) >= Number(thresholds.winless_streak_threshold)) {
-            streakType = 'winless';
-            streakCount = streak.current_winless_streak ?? 0;
-          } else if ((streak.current_loss_streak ?? 0) >= Number(thresholds.loss_streak_threshold)) {
-            streakType = 'loss';
-            streakCount = streak.current_loss_streak ?? 0;
-          } else if ((streak.current_win_streak ?? 0) >= Number(thresholds.win_streak_threshold)) {
-            streakType = 'win';
-            streakCount = streak.current_win_streak ?? 0;
-          }
-          
-          const playerName = playerNamesMap[streak.player_id] || streak.name || 'Unknown Player';
-
-          return { name: playerName, streak_type: streakType as Streak['streak_type'], streak_count: streakCount };
-        }).filter(streak => streak.streak_count > 0);
-
-        const formattedGoalStreaks = goalStreaksCache.map(streak => {
-          const playerName = playerNamesMap[streak.player_id] || streak.name || 'Unknown Player';
-          return {
-              name: playerName,
-              matches_with_goals: streak.current_scoring_streak,
-              goals_in_streak: streak.goals_in_scoring_streak
-          };
-        });
+        // Convert goal streaks to the format expected by the frontend  
+        const formattedGoalStreaks = goalStreaksData.map((goalStreak: any) => ({
+          name: goalStreak.name,
+          matches_with_goals: goalStreak.matches_with_goals,
+          goals_in_streak: goalStreak.goals_in_streak
+        }));
         
         return {
           matchInfo: matchInfo,
@@ -601,10 +518,10 @@ const getMatchReportData = unstable_cache(
           goalsMilestones: goalsMilestones || [],
           streaks: formattedStreaks || [],
           goalStreaks: formattedGoalStreaks || [],
-          halfSeasonGoalLeaders: extractedHalfSeasonGoalLeaders || [],
-          halfSeasonFantasyLeaders: extractedHalfSeasonFantasyLeaders || [],
-          seasonGoalLeaders: extractedSeasonGoalLeaders || [],
-          seasonFantasyLeaders: extractedSeasonFantasyLeaders || [],
+          halfSeasonGoalLeaders: matchReportCache.half_season_goal_leaders || [],
+          halfSeasonFantasyLeaders: matchReportCache.half_season_fantasy_leaders || [],
+          seasonGoalLeaders: matchReportCache.season_goal_leaders || [],
+          seasonFantasyLeaders: matchReportCache.season_fantasy_leaders || [],
           on_fire_player_id: matchReportCache.on_fire_player_id ? String(matchReportCache.on_fire_player_id) : null,
           grim_reaper_player_id: matchReportCache.grim_reaper_player_id ? String(matchReportCache.grim_reaper_player_id) : null,
           featBreakingData: featBreakingData
@@ -632,7 +549,7 @@ const getMatchReportData = unstable_cache(
       return null;
     }
   },
-  ['match-report-data'],
+  ['match-report-data-v3'],
   {
     tags: [CACHE_TAGS.MATCH_REPORT],
     revalidate: 3600,

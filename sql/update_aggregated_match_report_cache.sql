@@ -36,6 +36,9 @@ DECLARE
     v_winless_streak_threshold INT;
     v_goal_streak_threshold INT;
     hall_of_fame_limit INT;
+    -- NEW: Variables for storing calculated streaks
+    v_streaks_json JSONB := '[]'::jsonb;
+    v_goal_streaks_json JSONB := '[]'::jsonb;
 BEGIN
     -- Removed the temporary debug notices and RETURN
     RAISE NOTICE 'Starting update_aggregated_match_report_cache...';
@@ -76,9 +79,14 @@ BEGIN
         milestone_game_threshold, milestone_goal_threshold, v_window_days, v_min_games, v_feat_breaking_enabled;
 
     -- 1. Get Latest Match
-    SELECT * INTO latest_match FROM matches ORDER BY match_date DESC, match_id DESC LIMIT 1;
-    IF NOT FOUND THEN RAISE NOTICE 'No matches found. Exiting.'; RETURN; END IF;
-    RAISE NOTICE 'Processing latest match ID: %', latest_match.match_id;
+    SELECT * INTO latest_match
+    FROM matches ORDER BY match_date DESC, match_id DESC LIMIT 1;
+    
+    IF latest_match.match_id IS NULL THEN
+        RAISE EXCEPTION 'No matches found in the database';
+    END IF;
+    
+    RAISE NOTICE 'Processing latest match ID: %, Date: %', latest_match.match_id, latest_match.match_date;
     target_date := latest_match.match_date::date; -- Ensure target_date is DATE
 
     -- 2. Calculate On Fire and Grim Reaper Players
@@ -441,179 +449,171 @@ BEGIN
         v_half_season_goal_leaders,   -- Changed from path assignment
         v_half_season_fantasy_leaders; -- Changed from path assignment
 
-    -- 6. Update Player Streaks
-    RAISE NOTICE 'Updating player streaks...';
-    UPDATE aggregated_match_streaks ams
-    SET
-        current_win_streak = 0,
-        current_unbeaten_streak = 0,
-        current_winless_streak = 0,
-        current_loss_streak = 0,
-        current_scoring_streak = 0,
-        goals_in_scoring_streak = 0
-    WHERE ams.player_id NOT IN (
-        SELECT pm.player_id
-        FROM player_matches pm
-        WHERE pm.match_id = latest_match.match_id
-    );
-
-    -- Goal Scoring Streaks
-    WITH latest_players AS (
-        SELECT DISTINCT pm.player_id
-        FROM player_matches pm
-        WHERE pm.match_id = latest_match.match_id
-    )
-    -- Reset scoring streak for players in the current match before recalculation
-    UPDATE aggregated_match_streaks
-    SET current_scoring_streak = 0, goals_in_scoring_streak = 0
-    WHERE player_id IN (SELECT player_id FROM latest_players);
-
-    WITH latest_players AS ( -- Re-declare for this specific calculation block
-        SELECT DISTINCT pm.player_id
-        FROM player_matches pm
-        WHERE pm.match_id = latest_match.match_id
+    -- 6. Calculate Current Streaks (NEW: Store in variables instead of updating broken table)
+    RAISE NOTICE 'Calculating current streaks for all active players...';
+    
+    -- Calculate current streaks for all non-ringer, non-retired players
+    WITH all_active_players AS (
+        SELECT player_id, name 
+        FROM players 
+        WHERE is_ringer = false AND is_retired = false
     ),
-    player_matches_scoring AS (
-        SELECT
-            p.player_id,
+    -- Calculate current streaks using the same logic as player_profile_stats
+    player_current_streaks AS (
+        WITH numbered_matches AS (
+            SELECT
+                pm.player_id, p.name, m.match_date, m.match_id, pm.result,
+                ROW_NUMBER() OVER (PARTITION BY pm.player_id ORDER BY m.match_date DESC, m.match_id DESC) as match_num
+            FROM player_matches pm 
+            JOIN matches m ON pm.match_id = m.match_id
+            JOIN players p ON pm.player_id = p.player_id
+            WHERE p.is_ringer = false AND p.is_retired = false
+        ),
+        streak_groups AS (
+            SELECT
+                player_id, name, result, match_date,
+                -- Current streaks: count consecutive results from most recent match
+                SUM(CASE WHEN result != 'win' THEN 1 ELSE 0 END) OVER (
+                    PARTITION BY player_id 
+                    ORDER BY match_num 
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                ) as win_breaks,
+                SUM(CASE WHEN result = 'loss' THEN 1 ELSE 0 END) OVER (
+                    PARTITION BY player_id 
+                    ORDER BY match_num 
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                ) as unbeaten_breaks,
+                SUM(CASE WHEN result != 'loss' THEN 1 ELSE 0 END) OVER (
+                    PARTITION BY player_id 
+                    ORDER BY match_num 
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                ) as loss_breaks,
+                SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) OVER (
+                    PARTITION BY player_id 
+                    ORDER BY match_num 
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                ) as winless_breaks,
+                match_num
+            FROM numbered_matches
+            WHERE match_num <= 20 -- Only consider recent matches for current streaks
+        ),
+        current_win_streaks AS (
+            SELECT player_id, name, COUNT(*) as current_win_streak
+            FROM streak_groups 
+            WHERE win_breaks = 0 AND result = 'win'
+            GROUP BY player_id, name
+        ),
+        current_unbeaten_streaks AS (
+            SELECT player_id, name, COUNT(*) as current_unbeaten_streak
+            FROM streak_groups 
+            WHERE unbeaten_breaks = 0 AND result != 'loss'
+            GROUP BY player_id, name
+        ),
+        current_loss_streaks AS (
+            SELECT player_id, name, COUNT(*) as current_loss_streak
+            FROM streak_groups 
+            WHERE loss_breaks = 0 AND result = 'loss'
+            GROUP BY player_id, name
+        ),
+        current_winless_streaks AS (
+            SELECT player_id, name, COUNT(*) as current_winless_streak
+            FROM streak_groups 
+            WHERE winless_breaks = 0 AND result != 'win'
+            GROUP BY player_id, name
+        )
+        SELECT 
+            p.player_id, 
             p.name,
-            m.match_date,
-            pm.goals,
-            ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as match_num
-        FROM players p
-        JOIN player_matches pm ON p.player_id = pm.player_id
-        JOIN matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = false
-        AND p.is_retired = false
-        AND p.player_id IN (SELECT player_id FROM latest_players)
+            COALESCE(cws.current_win_streak, 0) as current_win_streak,
+            COALESCE(cus.current_unbeaten_streak, 0) as current_unbeaten_streak,
+            COALESCE(cls.current_loss_streak, 0) as current_loss_streak,
+            COALESCE(cwls.current_winless_streak, 0) as current_winless_streak
+        FROM all_active_players p
+        LEFT JOIN current_win_streaks cws ON p.player_id = cws.player_id
+        LEFT JOIN current_unbeaten_streaks cus ON p.player_id = cus.player_id
+        LEFT JOIN current_loss_streaks cls ON p.player_id = cls.player_id
+        LEFT JOIN current_winless_streaks cwls ON p.player_id = cwls.player_id
     ),
-    streak_groups_scoring AS (
-        SELECT
-            player_id,
+    -- Calculate goal streaks
+    player_goal_streaks AS (
+        WITH numbered_goal_matches AS (
+            SELECT
+                pm.player_id, p.name, m.match_date, pm.goals,
+                ROW_NUMBER() OVER (PARTITION BY pm.player_id ORDER BY m.match_date DESC) as match_num
+            FROM player_matches pm 
+            JOIN matches m ON pm.match_id = m.match_id
+            JOIN players p ON pm.player_id = p.player_id
+            WHERE p.is_ringer = false AND p.is_retired = false
+        ),
+        goal_streak_groups AS (
+            SELECT
+                player_id, name, goals, match_date,
+                SUM(CASE WHEN COALESCE(goals, 0) = 0 THEN 1 ELSE 0 END) OVER (
+                    PARTITION BY player_id 
+                    ORDER BY match_num 
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                ) as goal_breaks,
+                match_num
+            FROM numbered_goal_matches
+            WHERE match_num <= 20
+        )
+        SELECT 
+            player_id, 
             name,
-            match_num,
-            goals,
-            SUM(CASE WHEN COALESCE(goals, 0) = 0 THEN 1 ELSE 0 END) OVER (
-                PARTITION BY player_id
-                ORDER BY match_num
-                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-            ) as streak_group
-        FROM player_matches_scoring
-        WHERE match_num <= 20
+            COUNT(*) as current_scoring_streak,
+            SUM(COALESCE(goals, 0)) as goals_in_streak
+        FROM goal_streak_groups 
+        WHERE goal_breaks = 0 AND COALESCE(goals, 0) > 0
+        GROUP BY player_id, name
     ),
-    current_streaks_scoring AS (
-        SELECT
-            player_id,
-            COUNT(*) as streak_length,
-            SUM(goals) as total_goals
-        FROM streak_groups_scoring
-        WHERE streak_group = 0
-        GROUP BY player_id
+    -- Format streaks for storage
+    formatted_streaks AS (
+        SELECT jsonb_agg(
+            jsonb_build_object(
+                'name', pcs.name,
+                'streak_type', 
+                CASE 
+                    WHEN pcs.current_win_streak >= v_win_streak_threshold THEN 'win'
+                    WHEN pcs.current_unbeaten_streak >= v_unbeaten_streak_threshold THEN 'unbeaten'
+                    WHEN pcs.current_loss_streak >= v_loss_streak_threshold THEN 'loss'
+                    WHEN pcs.current_winless_streak >= v_winless_streak_threshold THEN 'winless'
+                    ELSE NULL
+                END,
+                'streak_count',
+                CASE 
+                    WHEN pcs.current_win_streak >= v_win_streak_threshold THEN pcs.current_win_streak
+                    WHEN pcs.current_unbeaten_streak >= v_unbeaten_streak_threshold THEN pcs.current_unbeaten_streak
+                    WHEN pcs.current_loss_streak >= v_loss_streak_threshold THEN pcs.current_loss_streak
+                    WHEN pcs.current_winless_streak >= v_winless_streak_threshold THEN pcs.current_winless_streak
+                    ELSE NULL
+                END
+            )
+        ) FILTER (WHERE 
+            pcs.current_win_streak >= v_win_streak_threshold OR
+            pcs.current_unbeaten_streak >= v_unbeaten_streak_threshold OR
+            pcs.current_loss_streak >= v_loss_streak_threshold OR
+            pcs.current_winless_streak >= v_winless_streak_threshold
+        ) as streaks_data
+        FROM player_current_streaks pcs
+    ),
+    formatted_goal_streaks AS (
+        SELECT jsonb_agg(
+            jsonb_build_object(
+                'name', pgs.name,
+                'matches_with_goals', pgs.current_scoring_streak,
+                'goals_in_streak', pgs.goals_in_streak
+            )
+        ) as goal_streaks_data
+        FROM player_goal_streaks pgs
+        WHERE pgs.current_scoring_streak >= v_goal_streak_threshold
     )
-    UPDATE aggregated_match_streaks ams
-    SET
-        current_scoring_streak = cs.streak_length,
-        goals_in_scoring_streak = cs.total_goals
-    FROM current_streaks_scoring cs
-    WHERE ams.player_id = cs.player_id;
+    SELECT 
+        COALESCE(fs.streaks_data, '[]'::jsonb),
+        COALESCE(fgs.goal_streaks_data, '[]'::jsonb)
+    INTO v_streaks_json, v_goal_streaks_json
+    FROM formatted_streaks fs, formatted_goal_streaks fgs;
 
-    -- Win Streaks
-    WITH latest_players_win AS (
-        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
-    )
-    -- Reset win streak for players in the current match before recalculation
-    UPDATE aggregated_match_streaks
-    SET current_win_streak = 0
-    WHERE player_id IN (SELECT player_id FROM latest_players_win);
-
-    WITH latest_players_win AS ( -- Re-declare for this specific calculation block
-        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
-    ),
-    player_matches_win AS (
-        SELECT p.player_id, pm.result, ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as match_num
-        FROM players p JOIN player_matches pm ON p.player_id = pm.player_id JOIN matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = false AND p.is_retired = false AND p.player_id IN (SELECT player_id FROM latest_players_win)
-    ),
-    streak_groups_win AS (
-        SELECT player_id, match_num, SUM(CASE WHEN result != 'win' THEN 1 ELSE 0 END) OVER (PARTITION BY player_id ORDER BY match_num) as streak_group
-        FROM player_matches_win WHERE match_num <= 20
-    ),
-    current_streaks_win AS (SELECT player_id, COUNT(*) as streak_length FROM streak_groups_win WHERE streak_group = 0 GROUP BY player_id)
-    UPDATE aggregated_match_streaks ams SET current_win_streak = cs.streak_length FROM current_streaks_win cs WHERE ams.player_id = cs.player_id;
-
-    -- Unbeaten Streaks
-    WITH latest_players_unbeaten AS (
-        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
-    )
-    -- Reset unbeaten streak for players in the current match before recalculation
-    UPDATE aggregated_match_streaks
-    SET current_unbeaten_streak = 0
-    WHERE player_id IN (SELECT player_id FROM latest_players_unbeaten);
-
-    WITH latest_players_unbeaten AS ( -- Re-declare for this specific calculation block
-        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
-    ),
-    player_matches_unbeaten AS (
-        SELECT p.player_id, pm.result, ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as match_num
-        FROM players p JOIN player_matches pm ON p.player_id = pm.player_id JOIN matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = false AND p.is_retired = false AND p.player_id IN (SELECT player_id FROM latest_players_unbeaten)
-    ),
-    streak_groups_unbeaten AS (
-        SELECT player_id, match_num, SUM(CASE WHEN result = 'loss' THEN 1 ELSE 0 END) OVER (PARTITION BY player_id ORDER BY match_num) as streak_group
-        FROM player_matches_unbeaten WHERE match_num <= 20
-    ),
-    current_streaks_unbeaten AS (SELECT player_id, COUNT(*) as streak_length FROM streak_groups_unbeaten WHERE streak_group = 0 GROUP BY player_id)
-    UPDATE aggregated_match_streaks ams SET current_unbeaten_streak = cs.streak_length FROM current_streaks_unbeaten cs WHERE ams.player_id = cs.player_id;
-
-    -- Winless Streaks
-    WITH latest_players_winless AS (
-        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
-    )
-    -- Reset winless streak for players in the current match before recalculation
-    UPDATE aggregated_match_streaks
-    SET current_winless_streak = 0
-    WHERE player_id IN (SELECT player_id FROM latest_players_winless);
-
-    WITH latest_players_winless AS ( -- Re-declare for this specific calculation block
-        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
-    ),
-    player_matches_winless AS (
-        SELECT p.player_id, pm.result, ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as match_num
-        FROM players p JOIN player_matches pm ON p.player_id = pm.player_id JOIN matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = false AND p.is_retired = false AND p.player_id IN (SELECT player_id FROM latest_players_winless)
-    ),
-    streak_groups_winless AS (
-        SELECT player_id, match_num, SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) OVER (PARTITION BY player_id ORDER BY match_num) as streak_group
-        FROM player_matches_winless WHERE match_num <= 20
-    ),
-    current_streaks_winless AS (SELECT player_id, COUNT(*) as streak_length FROM streak_groups_winless WHERE streak_group = 0 GROUP BY player_id)
-    UPDATE aggregated_match_streaks ams SET current_winless_streak = cs.streak_length FROM current_streaks_winless cs WHERE ams.player_id = cs.player_id;
-
-    -- Loss Streaks
-    WITH latest_players_loss AS (
-        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
-    )
-    -- Reset loss streak for players in the current match before recalculation
-    UPDATE aggregated_match_streaks
-    SET current_loss_streak = 0
-    WHERE player_id IN (SELECT player_id FROM latest_players_loss);
-
-    WITH latest_players_loss AS ( -- Re-declare for this specific calculation block
-        SELECT DISTINCT pm.player_id FROM player_matches pm WHERE pm.match_id = latest_match.match_id
-    ),
-    player_matches_loss AS (
-        SELECT p.player_id, pm.result, ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date DESC) as match_num
-        FROM players p JOIN player_matches pm ON p.player_id = pm.player_id JOIN matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = false AND p.is_retired = false AND p.player_id IN (SELECT player_id FROM latest_players_loss)
-    ),
-    streak_groups_loss AS (
-        SELECT player_id, match_num, SUM(CASE WHEN result != 'loss' THEN 1 ELSE 0 END) OVER (PARTITION BY player_id ORDER BY match_num) as streak_group
-        FROM player_matches_loss WHERE match_num <= 20
-    ),
-    current_streaks_loss AS (SELECT player_id, COUNT(*) as streak_length FROM streak_groups_loss WHERE streak_group = 0 GROUP BY player_id)
-    UPDATE aggregated_match_streaks ams SET current_loss_streak = cs.streak_length FROM current_streaks_loss cs WHERE ams.player_id = cs.player_id;
-
-    -- 7. Update aggregated_match_report Table
+    -- 7. Update aggregated_match_report Table (UPDATED: Include streaks)
     RAISE NOTICE 'Updating aggregated_match_report table for match ID: %', latest_match.match_id;
     DELETE FROM aggregated_match_report WHERE TRUE; -- Keep WHERE TRUE fix
 
@@ -625,21 +625,32 @@ BEGIN
         season_goal_leaders, season_fantasy_leaders,
         on_fire_player_id, grim_reaper_player_id, -- NEW
         feat_breaking_data, -- NEW: Add feat-breaking data column
+        streaks, goal_streaks, -- NEW: Add streak columns
         last_updated
-    ) VALUES (
-        latest_match.match_id, latest_match.match_date, latest_match.team_a_score, latest_match.team_b_score,
-        team_a_players_json, team_b_players_json, team_a_scorers, team_b_scorers,
+    )         VALUES (
+            latest_match.match_id,
+            latest_match.match_date,
+            latest_match.team_a_score,
+            latest_match.team_b_score,
+        team_a_players_json,
+        team_b_players_json,
+        team_a_scorers,
+        team_b_scorers,
         jsonb_build_object(
-            'game_milestone_threshold', milestone_game_threshold,
-            'goal_milestone_threshold', milestone_goal_threshold
+            'win_streak_threshold', v_win_streak_threshold,
+            'unbeaten_streak_threshold', v_unbeaten_streak_threshold,
+            'loss_streak_threshold', v_loss_streak_threshold,
+            'winless_streak_threshold', v_winless_streak_threshold,
+            'goal_streak_threshold', v_goal_streak_threshold
         ),
-        game_milestones_json, goal_milestones_json,
-        v_half_season_goal_leaders,   -- Use new variable
-        v_half_season_fantasy_leaders, -- Use new variable
-        v_season_goal_leaders,        -- Use new variable
-        v_season_fantasy_leaders,     -- Use new variable
-        v_on_fire_player_id,          -- NEW
-        v_grim_reaper_player_id,      -- NEW
+        game_milestones_json,
+        goal_milestones_json,
+        v_half_season_goal_leaders,
+        v_half_season_fantasy_leaders,
+        v_season_goal_leaders,
+        v_season_fantasy_leaders,
+        v_on_fire_player_id,
+        v_grim_reaper_player_id,
         -- NEW: Feat Breaking Detection Logic
         CASE 
             WHEN v_feat_breaking_enabled THEN (
@@ -669,118 +680,51 @@ BEGIN
                     
                     UNION ALL
                     
-                    -- Win Streak Detection (only check if meets threshold)
+                    -- Win Streak Detection (using data from stored streaks)
                     SELECT 
                         'win_streak' as feat_type,
-                        ams.player_id,
-                        ams.name as player_name,
-                        ams.current_win_streak as new_value,
-                        COALESCE((current_records.records->'streaks'->'Win Streak'->'holders'->0->>'streak')::int, 0) as current_record,
+                        pm.player_id,
+                        p.name as player_name,
+                        (v_streaks_json->i->>'streak_count')::int as new_value,
+                        COALESCE((current_records.records->'streaks'->'Win Streak'->0->>'streak')::int, 0) as current_record,
                         CASE 
-                            WHEN ams.current_win_streak > COALESCE((current_records.records->'streaks'->'Win Streak'->'holders'->0->>'streak')::int, 0) THEN 'broken'
-                            WHEN ams.current_win_streak = COALESCE((current_records.records->'streaks'->'Win Streak'->'holders'->0->>'streak')::int, 0) AND ams.current_win_streak >= v_win_streak_threshold THEN 'equaled'
+                            WHEN (v_streaks_json->i->>'streak_count')::int > COALESCE((current_records.records->'streaks'->'Win Streak'->0->>'streak')::int, 0) THEN 'broken'
+                            WHEN (v_streaks_json->i->>'streak_count')::int = COALESCE((current_records.records->'streaks'->'Win Streak'->0->>'streak')::int, 0) AND (v_streaks_json->i->>'streak_count')::int >= v_win_streak_threshold THEN 'equaled'
                             ELSE NULL
                         END as status
-                    FROM aggregated_match_streaks ams
+                    FROM player_matches pm
+                    JOIN players p ON pm.player_id = p.player_id
                     CROSS JOIN current_records
-                    WHERE ams.player_id IN (
-                        SELECT DISTINCT pm.player_id 
-                        FROM player_matches pm 
-                        WHERE pm.match_id = latest_match.match_id
-                    )
-                    AND ams.current_win_streak >= v_win_streak_threshold
+                    CROSS JOIN generate_series(0, jsonb_array_length(v_streaks_json) - 1) AS i
+                    WHERE pm.match_id = latest_match.match_id 
+                      AND p.is_ringer = false
+                      AND v_streaks_json->i->>'name' = p.name
+                      AND v_streaks_json->i->>'streak_type' = 'win'
+                      AND (v_streaks_json->i->>'streak_count')::int >= v_win_streak_threshold
                     
                     UNION ALL
                     
-                    -- Unbeaten Streak Detection
-                    SELECT 
-                        'unbeaten_streak' as feat_type,
-                        ams.player_id,
-                        ams.name as player_name,
-                        ams.current_unbeaten_streak as new_value,
-                        COALESCE((current_records.records->'streaks'->'Undefeated Streak'->'holders'->0->>'streak')::int, 0) as current_record,
-                        CASE 
-                            WHEN ams.current_unbeaten_streak > COALESCE((current_records.records->'streaks'->'Undefeated Streak'->'holders'->0->>'streak')::int, 0) THEN 'broken'
-                            WHEN ams.current_unbeaten_streak = COALESCE((current_records.records->'streaks'->'Undefeated Streak'->'holders'->0->>'streak')::int, 0) AND ams.current_unbeaten_streak >= v_unbeaten_streak_threshold THEN 'equaled'
-                            ELSE NULL
-                        END as status
-                    FROM aggregated_match_streaks ams
-                    CROSS JOIN current_records
-                    WHERE ams.player_id IN (
-                        SELECT DISTINCT pm.player_id 
-                        FROM player_matches pm 
-                        WHERE pm.match_id = latest_match.match_id
-                    )
-                    AND ams.current_unbeaten_streak >= v_unbeaten_streak_threshold
-                    
-                    UNION ALL
-                    
-                    -- Loss Streak Detection
+                    -- Loss Streak Detection (using data from stored streaks)
                     SELECT 
                         'loss_streak' as feat_type,
-                        ams.player_id,
-                        ams.name as player_name,
-                        ams.current_loss_streak as new_value,
-                        COALESCE((current_records.records->'streaks'->'Losing Streak'->'holders'->0->>'streak')::int, 0) as current_record,
+                        pm.player_id,
+                        p.name as player_name,
+                        (v_streaks_json->i->>'streak_count')::int as new_value,
+                        COALESCE((current_records.records->'streaks'->'Losing Streak'->0->>'streak')::int, 0) as current_record,
                         CASE 
-                            WHEN ams.current_loss_streak > COALESCE((current_records.records->'streaks'->'Losing Streak'->'holders'->0->>'streak')::int, 0) THEN 'broken'
-                            WHEN ams.current_loss_streak = COALESCE((current_records.records->'streaks'->'Losing Streak'->'holders'->0->>'streak')::int, 0) AND ams.current_loss_streak >= v_loss_streak_threshold THEN 'equaled'
+                            WHEN (v_streaks_json->i->>'streak_count')::int > COALESCE((current_records.records->'streaks'->'Losing Streak'->0->>'streak')::int, 0) THEN 'broken'
+                            WHEN (v_streaks_json->i->>'streak_count')::int = COALESCE((current_records.records->'streaks'->'Losing Streak'->0->>'streak')::int, 0) AND (v_streaks_json->i->>'streak_count')::int >= v_loss_streak_threshold THEN 'equaled'
                             ELSE NULL
                         END as status
-                    FROM aggregated_match_streaks ams
+                    FROM player_matches pm
+                    JOIN players p ON pm.player_id = p.player_id
                     CROSS JOIN current_records
-                    WHERE ams.player_id IN (
-                        SELECT DISTINCT pm.player_id 
-                        FROM player_matches pm 
-                        WHERE pm.match_id = latest_match.match_id
-                    )
-                    AND ams.current_loss_streak >= v_loss_streak_threshold
-                    
-                    UNION ALL
-                    
-                    -- Winless Streak Detection
-                    SELECT 
-                        'winless_streak' as feat_type,
-                        ams.player_id,
-                        ams.name as player_name,
-                        ams.current_winless_streak as new_value,
-                        COALESCE((current_records.records->'streaks'->'Winless Streak'->'holders'->0->>'streak')::int, 0) as current_record,
-                        CASE 
-                            WHEN ams.current_winless_streak > COALESCE((current_records.records->'streaks'->'Winless Streak'->'holders'->0->>'streak')::int, 0) THEN 'broken'
-                            WHEN ams.current_winless_streak = COALESCE((current_records.records->'streaks'->'Winless Streak'->'holders'->0->>'streak')::int, 0) AND ams.current_winless_streak >= v_winless_streak_threshold THEN 'equaled'
-                            ELSE NULL
-                        END as status
-                    FROM aggregated_match_streaks ams
-                    CROSS JOIN current_records
-                    WHERE ams.player_id IN (
-                        SELECT DISTINCT pm.player_id 
-                        FROM player_matches pm 
-                        WHERE pm.match_id = latest_match.match_id
-                    )
-                    AND ams.current_winless_streak >= v_winless_streak_threshold
-                    
-                    UNION ALL
-                    
-                    -- Goal Streak Detection
-                    SELECT 
-                        'goal_streak' as feat_type,
-                        ams.player_id,
-                        ams.name as player_name,
-                        ams.current_scoring_streak as new_value,
-                        COALESCE((current_records.records->'consecutive_goals_streak'->0->>'streak')::int, 0) as current_record,
-                        CASE 
-                            WHEN ams.current_scoring_streak > COALESCE((current_records.records->'consecutive_goals_streak'->0->>'streak')::int, 0) THEN 'broken'
-                            WHEN ams.current_scoring_streak = COALESCE((current_records.records->'consecutive_goals_streak'->0->>'streak')::int, 0) AND ams.current_scoring_streak >= v_goal_streak_threshold THEN 'equaled'
-                            ELSE NULL
-                        END as status
-                    FROM aggregated_match_streaks ams
-                    CROSS JOIN current_records
-                    WHERE ams.player_id IN (
-                        SELECT DISTINCT pm.player_id 
-                        FROM player_matches pm 
-                        WHERE pm.match_id = latest_match.match_id
-                    )
-                    AND ams.current_scoring_streak >= v_goal_streak_threshold
+                    CROSS JOIN generate_series(0, jsonb_array_length(v_streaks_json) - 1) AS i
+                    WHERE pm.match_id = latest_match.match_id 
+                      AND p.is_ringer = false
+                      AND v_streaks_json->i->>'name' = p.name
+                      AND v_streaks_json->i->>'streak_type' = 'loss'
+                      AND (v_streaks_json->i->>'streak_count')::int >= v_loss_streak_threshold
                     
                     UNION ALL
                     
@@ -800,37 +744,7 @@ BEGIN
                     CROSS JOIN current_records
                     WHERE ABS(latest_match.team_a_score - latest_match.team_b_score) > 0
                     
-                    UNION ALL
-                    
-                    -- Attendance Streak Detection (for players in the current match)
-                    SELECT 
-                        'attendance_streak' as feat_type,
-                        pm_count.player_id,
-                        p.name as player_name,
-                        pm_count.total_matches as new_value,
-                        COALESCE((current_records.records->'attendance_streak'->0->>'streak')::int, 0) as current_record,
-                        CASE 
-                            WHEN pm_count.total_matches > COALESCE((current_records.records->'attendance_streak'->0->>'streak')::int, 0) THEN 'broken'
-                            WHEN pm_count.total_matches = COALESCE((current_records.records->'attendance_streak'->0->>'streak')::int, 0) AND pm_count.total_matches >= hall_of_fame_limit THEN 'equaled'
-                            ELSE NULL
-                        END as status
-                    FROM (
-                        SELECT 
-                            pm.player_id,
-                            COUNT(*) as total_matches
-                        FROM player_matches pm
-                        JOIN players p ON pm.player_id = p.player_id
-                        WHERE pm.player_id IN (
-                            SELECT DISTINCT pm2.player_id 
-                            FROM player_matches pm2 
-                            WHERE pm2.match_id = latest_match.match_id
-                        )
-                        AND p.is_ringer = false
-                        GROUP BY pm.player_id
-                    ) pm_count
-                    JOIN players p ON pm_count.player_id = p.player_id
-                    CROSS JOIN current_records
-                    WHERE pm_count.total_matches >= hall_of_fame_limit
+                    -- NOTE: Attendance streak feat-breaking detection also temporarily disabled
                 )
                 SELECT COALESCE(jsonb_agg(
                     jsonb_build_object(
@@ -851,16 +765,23 @@ BEGIN
             )
             ELSE '[]'::jsonb
         END, -- End feat_breaking_data
+        v_streaks_json,      -- NEW: Store calculated streaks
+        v_goal_streaks_json, -- NEW: Store calculated goal streaks
         NOW()
     );
 
-    -- 8. Update Cache Metadata (Renumbered step)
+    RAISE NOTICE 'Successfully updated aggregated_match_report with match data and streaks';
+
+    -- Update Cache Metadata
+    RAISE NOTICE 'Updating match_report cache metadata...';
     INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
     VALUES ('match_report', NOW(), 'match_report')
     ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
 
-    RAISE NOTICE 'update_aggregated_match_report_cache completed with feat-breaking detection.';
+    RAISE NOTICE 'update_aggregated_match_report_cache completed successfully.';
 
-EXCEPTION WHEN OTHERS THEN
-    RAISE EXCEPTION 'Error in update_aggregated_match_report_cache: %', SQLERRM;
-END; $$;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error in update_aggregated_match_report_cache: %', SQLERRM;
+END;
+$$;

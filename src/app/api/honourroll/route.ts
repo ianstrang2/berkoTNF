@@ -36,6 +36,8 @@ const getHonourRollData = unstable_cache(
       const rec = records[0].records;
       (rec.most_goals_in_game || []).forEach(p => playerNames.add(p.name));
       (rec.consecutive_goals_streak || []).forEach(p => playerNames.add(p.name));
+      // Add attendance_streak players to the set
+      (rec.attendance_streak || []).forEach(p => playerNames.add(p.name));
       if (rec.streaks) {
         Object.values(rec.streaks).forEach((streakData: any) => {
           (streakData.holders || []).forEach(h => playerNames.add(h.name));
@@ -106,6 +108,10 @@ const getHonourRollData = unstable_cache(
       }
       if (processedRecordObject.consecutive_goals_streak) {
         processedRecordObject.consecutive_goals_streak = processedRecordObject.consecutive_goals_streak.map(p => ({ ...p, selected_club: playerClubMap.get(p.name) || null }));
+      }
+      // Add attendance_streak processing
+      if (processedRecordObject.attendance_streak) {
+        processedRecordObject.attendance_streak = processedRecordObject.attendance_streak.map(p => ({ ...p, selected_club: playerClubMap.get(p.name) || null }));
       }
       if (processedRecordObject.streaks) {
         Object.keys(processedRecordObject.streaks).forEach(streakType => {

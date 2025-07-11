@@ -36,6 +36,7 @@ interface BiggestVictory {
 interface Records {
   most_goals_in_game?: GoalRecord[];
   consecutive_goals_streak?: StreakHolder[];
+  attendance_streak?: StreakHolder[];
   biggest_victory?: BiggestVictory[];
   streaks?: {
     'Win Streak'?: {
@@ -81,6 +82,7 @@ const Feats: React.FC = () => {
             records: {
               consecutive_goals_streak: recordsData?.consecutive_goals_streak,
               most_goals_in_game: recordsData?.most_goals_in_game,
+              attendance_streak: recordsData?.attendance_streak,
               biggest_victory: recordsData?.biggest_victory,
               streaks: {
                 'Win Streak': recordsData?.streaks?.['Win Streak'],
@@ -166,6 +168,13 @@ const Feats: React.FC = () => {
     return <>{name}</>;
   };
 
+  // Helper function to get the record value for joint winners display
+  const getRecordValue = (records: any[], valueKey: string): any => {
+    if (!records || records.length === 0) return null;
+    // For joint winners, they should all have the same value, so we can safely take the first one
+    return records[0][valueKey];
+  };
+
   const renderRecords = () => {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border lg:w-fit">
@@ -226,7 +235,7 @@ const Feats: React.FC = () => {
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         <span className="font-normal leading-normal text-sm">
-                          {data.records.most_goals_in_game[0].goals} goals
+                          {getRecordValue(data.records.most_goals_in_game, 'goals')} goals
                         </span>
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
@@ -271,7 +280,7 @@ const Feats: React.FC = () => {
                         </td>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                           <span className="font-normal leading-normal text-sm">
-                            {streakData.holders[0].streak} games
+                            {getRecordValue(streakData.holders, 'streak')} games
                           </span>
                         </td>
                         <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
@@ -315,12 +324,55 @@ const Feats: React.FC = () => {
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         <span className="font-normal leading-normal text-sm">
-                          {data.records.consecutive_goals_streak[0].streak} games
+                          {getRecordValue(data.records.consecutive_goals_streak, 'streak')} games
                         </span>
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                         {data.records.consecutive_goals_streak.map((holder, index) => (
                           <div key={`consecutive-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
+                            {renderSinglePlayerLink(holder.name)}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
+                            {new Date(holder.end_date).toLocaleDateString()}
+                          </div>
+                        ))}
+                      </td>
+                    </tr>
+                  )}
+
+                  {data.records.attendance_streak && data.records.attendance_streak.length > 0 && (
+                    <tr className="hover:bg-gray-50">
+                      <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
+                        <span className="font-semibold leading-normal text-sm text-slate-700">Attendance Streak</span>
+                      </td>
+                      <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
+                        {data.records.attendance_streak[0]?.selected_club ? (
+                          <img
+                            src={`/club-logos-40px/${data.records.attendance_streak[0].selected_club.filename}`}
+                            alt={data.records.attendance_streak[0].selected_club.name}
+                            className="w-8 h-8"
+                          />
+                        ) : (
+                          <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </td>
+                      <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
+                        <div className="px-2 py-1">
+                          <div className="flex flex-col justify-center">
+                            <h6 className="mb-0 leading-normal text-sm font-semibold break-words">
+                              {renderLinkedPlayerNames(data.records.attendance_streak)}
+                            </h6>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
+                        <span className="font-normal leading-normal text-sm">
+                          {getRecordValue(data.records.attendance_streak, 'streak')} games
+                        </span>
+                      </td>
+                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                        {data.records.attendance_streak.map((holder, index) => (
+                          <div key={`attendance-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
                             {renderSinglePlayerLink(holder.name)}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
                             {new Date(holder.end_date).toLocaleDateString()}
                           </div>

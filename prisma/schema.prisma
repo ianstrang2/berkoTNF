@@ -61,11 +61,7 @@ model players {
   all_time_stats                                                                                    aggregated_all_time_stats?
   half_season_stats                                                                                 aggregated_half_season_stats?
   hall_of_fame                                                                                      aggregated_hall_of_fame[]
-  aggregated_match_streaks                                                                          aggregated_match_streaks?
-  aggregated_match_streaks_aggregated_match_streaks_previous_half_season_fantasy_leader_idToplayers aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_half_season_fantasy_leader_idToplayers")
-  aggregated_match_streaks_aggregated_match_streaks_previous_half_season_goals_leader_idToplayers   aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_half_season_goals_leader_idToplayers")
-  aggregated_match_streaks_aggregated_match_streaks_previous_season_fantasy_leader_idToplayers      aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_season_fantasy_leader_idToplayers")
-  aggregated_match_streaks_aggregated_match_streaks_previous_season_goals_leader_idToplayers        aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_season_goals_leader_idToplayers")
+
   aggregated_player_power_ratings                                                                   aggregated_player_power_ratings?
   aggregated_player_profile_stats                                                                   aggregated_player_profile_stats?
   recent_performance                                                                                aggregated_recent_performance?
@@ -333,51 +329,11 @@ model aggregated_match_report {
   on_fire_player_id           Int?
   grim_reaper_player_id       Int?
   feat_breaking_data          Json?     @default("[]")
+  streaks                     Json?     @default("[]")
+  goal_streaks                Json?     @default("[]")
 }
 
-/// This model stores cached player streak data for match reports
-model aggregated_match_streaks {
-  player_id                                                                        Int       @id
-  name                                                                             String?   @db.VarChar(255)
-  current_win_streak                                                               Int?
-  current_unbeaten_streak                                                          Int?
-  current_winless_streak                                                           Int?
-  current_loss_streak                                                              Int?
-  current_scoring_streak                                                           Int?
-  goals_in_scoring_streak                                                          Int?
-  half_season_goals                                                                Int?
-  half_season_fantasy_points                                                       Int?
-  season_goals                                                                     Int?
-  season_fantasy_points                                                            Int?
-  config_values                                                                    Json?
-  last_updated                                                                     DateTime? @default(now()) @db.Timestamptz(6)
-  half_season_goals_rank                                                           Int?
-  half_season_fantasy_rank                                                         Int?
-  season_goals_rank                                                                Int?
-  season_fantasy_rank                                                              Int?
-  previous_half_season_goals                                                       Int?
-  previous_half_season_fantasy                                                     Int?
-  previous_season_goals                                                            Int?
-  previous_season_fantasy                                                          Int?
-  half_season_goals_status                                                         String?   @db.VarChar(20)
-  half_season_fantasy_status                                                       String?   @db.VarChar(20)
-  season_goals_status                                                              String?   @db.VarChar(20)
-  season_fantasy_status                                                            String?   @db.VarChar(20)
-  previous_half_season_goals_leader_id                                             Int?
-  previous_half_season_fantasy_leader_id                                           Int?
-  previous_season_goals_leader_id                                                  Int?
-  previous_season_fantasy_leader_id                                                Int?
-  player                                                                           players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
-  players_aggregated_match_streaks_previous_half_season_fantasy_leader_idToplayers players?  @relation("aggregated_match_streaks_previous_half_season_fantasy_leader_idToplayers", fields: [previous_half_season_fantasy_leader_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_previous_half_season_fantasy_leader")
-  players_aggregated_match_streaks_previous_half_season_goals_leader_idToplayers   players?  @relation("aggregated_match_streaks_previous_half_season_goals_leader_idToplayers", fields: [previous_half_season_goals_leader_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_previous_half_season_goals_leader")
-  players_aggregated_match_streaks_previous_season_fantasy_leader_idToplayers      players?  @relation("aggregated_match_streaks_previous_season_fantasy_leader_idToplayers", fields: [previous_season_fantasy_leader_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_previous_season_fantasy_leader")
-  players_aggregated_match_streaks_previous_season_goals_leader_idToplayers        players?  @relation("aggregated_match_streaks_previous_season_goals_leader_idToplayers", fields: [previous_season_goals_leader_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_previous_season_goals_leader")
 
-  @@index([half_season_fantasy_rank], map: "idx_ams_half_season_fantasy_rank")
-  @@index([half_season_goals_rank], map: "idx_ams_half_season_goals_rank")
-  @@index([season_fantasy_rank], map: "idx_ams_season_fantasy_rank")
-  @@index([season_goals_rank], map: "idx_ams_season_goals_rank")
-}
 
 /// This model stores aggregated records and achievements
 model aggregated_records {

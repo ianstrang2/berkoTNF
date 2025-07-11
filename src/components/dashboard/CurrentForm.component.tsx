@@ -49,6 +49,8 @@ interface TimelineItem {
 interface MilestonesData {
   matchInfo: {
     match_date: string;
+    team_a_players?: string[];
+    team_b_players?: string[];
   };
   gamesMilestones?: Milestone[];
   goalsMilestones?: Milestone[];
@@ -272,11 +274,22 @@ const CurrentForm: React.FC = () => {
     const items: TimelineItem[] = [];
     const matchDate = data.matchInfo.match_date ? formatDateSafely(data.matchInfo.match_date) : '';
     
+    // Get all players who played in this match
+    const allMatchPlayers = [
+      ...(data.matchInfo?.team_a_players || []),
+      ...(data.matchInfo?.team_b_players || [])
+    ];
+    
     // REMOVED: Game and goal milestones - moved to Records & Achievements component
     
-    // Add form streaks to timeline - Match icon colors with badge colors
+    // Add form streaks to timeline - ONLY for players who played in this match
     if (data.streaks && data.streaks.length > 0) {
       data.streaks.forEach(streak => {
+        // Only show streaks for players who actually played in this match
+        if (!allMatchPlayers.includes(streak.name)) {
+          return;
+        }
+        
         const streakType = 
           streak.streak_type === 'win' ? 'winning' :
           streak.streak_type === 'loss' ? 'losing' :

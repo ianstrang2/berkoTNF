@@ -102,10 +102,10 @@ BEGIN
          WHERE pm.goals > 0 AND p.is_ringer = false
     ),
     limited_game_goals AS (
-        -- Select only the top records based on hall_of_fame_limit
+        -- Select only the top records based on rank (all tied first place records)
         SELECT name, match_date, goals, team_a_score, team_b_score, team, rnk
         FROM game_goals
-        WHERE rnk = 1 -- Apply limit based on rank
+        WHERE rnk = 1 -- Get all joint record holders
     ),
     biggest_victories AS (
         SELECT m.match_id, m.match_date, m.team_a_score, m.team_b_score, ABS(m.team_a_score - m.team_b_score) as score_difference,
@@ -119,7 +119,7 @@ BEGIN
     limited_biggest_victories AS (
         SELECT match_id, match_date, team_a_score, team_b_score, team_a_players, team_b_players, rnk
         FROM biggest_victories
-        WHERE rnk = 1
+        WHERE rnk = 1 -- Get all joint record holders
     ),
     consecutive_goals AS (
         WITH player_matches_with_gaps AS (
@@ -137,47 +137,80 @@ BEGIN
         )
         SELECT name, streak, streak_start, streak_end
         FROM streaks
-        WHERE rnk = 1 -- Apply limit
+        WHERE rnk = 1 -- Get all joint record holders
     ),
     attendance_streaks AS (
-        WITH player_game_sequences AS (
+        -- Proper consecutive attendance streak calculation
+        WITH all_matches AS (
+            SELECT match_id, match_date, 
+                   ROW_NUMBER() OVER (ORDER BY match_date, match_id) as match_sequence
+            FROM matches
+        ),
+        player_attendance AS (
             SELECT 
-                p.name, 
-                p.player_id,
-                m.match_date,
-                LAG(m.match_date) OVER (PARTITION BY p.player_id ORDER BY m.match_date) as prev_match_date,
-                ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY m.match_date) as game_number
-            FROM players p 
-            JOIN player_matches pm ON p.player_id = pm.player_id 
-            JOIN matches m ON pm.match_id = m.match_id
+                p.player_id, 
+                p.name,
+                am.match_id,
+                am.match_date,
+                am.match_sequence,
+                (pm.player_id IS NOT NULL) as attended
+            FROM players p
+            CROSS JOIN all_matches am
+            LEFT JOIN player_matches pm ON p.player_id = pm.player_id AND am.match_id = pm.match_id
             WHERE p.is_ringer = false
-            ORDER BY p.player_id, m.match_date
         ),
-        streak_groups AS (
+        attendance_groups AS (
             SELECT 
-                name,
+                player_id, 
+                name, 
+                match_sequence, 
+                attended,
+                -- Create groups: when attendance changes, start a new group
+                match_sequence - ROW_NUMBER() OVER (
+                    PARTITION BY player_id, attended 
+                    ORDER BY match_sequence
+                ) as attendance_group
+            FROM player_attendance
+        ),
+        attendance_streaks_calc AS (
+            SELECT 
                 player_id,
-                match_date,
-                game_number,
-                SUM(CASE WHEN prev_match_date IS NULL OR game_number = 1 THEN 1 ELSE 0 END) 
-                OVER (PARTITION BY player_id ORDER BY match_date ROWS UNBOUNDED PRECEDING) as streak_group
-            FROM player_game_sequences
+                name,
+                COUNT(*) as streak_length,
+                MIN(match_sequence) as start_sequence,
+                MAX(match_sequence) as end_sequence
+            FROM attendance_groups
+            WHERE attended = true  -- Only count consecutive attended matches
+            GROUP BY player_id, name, attendance_group
+            HAVING COUNT(*) > 0  -- Ensure we only get actual streaks
         ),
-        streak_calculations AS (
+        max_attendance_streaks AS (
             SELECT 
                 name,
-                streak_group,
-                COUNT(*) as streak_length,
-                MIN(match_date) as streak_start,
-                MAX(match_date) as streak_end,
-                DENSE_RANK() OVER (ORDER BY COUNT(*) DESC, MAX(match_date) DESC) as rnk
-            FROM streak_groups
-            GROUP BY name, player_id, streak_group
-            HAVING COUNT(*) >= min_streak_length
+                MAX(streak_length) as streak,
+                -- Get dates for the longest streak
+                (SELECT 
+                    (SELECT match_date FROM all_matches WHERE match_sequence = asc.start_sequence)
+                 FROM attendance_streaks_calc asc 
+                 WHERE asc.player_id = mas.player_id 
+                   AND asc.streak_length = MAX(mas.streak_length)
+                 ORDER BY asc.end_sequence DESC 
+                 LIMIT 1) as streak_start,
+                (SELECT 
+                    (SELECT match_date FROM all_matches WHERE match_sequence = asc.end_sequence)
+                 FROM attendance_streaks_calc asc 
+                 WHERE asc.player_id = mas.player_id 
+                   AND asc.streak_length = MAX(mas.streak_length)
+                 ORDER BY asc.end_sequence DESC 
+                 LIMIT 1) as streak_end,
+                DENSE_RANK() OVER (ORDER BY MAX(streak_length) DESC, name ASC) as rnk
+            FROM attendance_streaks_calc mas
+            GROUP BY player_id, name
+            HAVING MAX(streak_length) >= min_streak_length
         )
-        SELECT name, streak_length as streak, streak_start, streak_end
-        FROM streak_calculations 
-        WHERE rnk = 1
+        SELECT name, streak, streak_start, streak_end
+        FROM max_attendance_streaks 
+        WHERE rnk = 1 -- Get all joint record holders
     ),
     streaks AS (
         WITH numbered_matches AS (
@@ -211,73 +244,52 @@ BEGIN
         )
         SELECT type, name, streak, streak_start, streak_end
         FROM ranked_streaks
-        WHERE rnk = 1 -- Apply limit per streak type
+        WHERE rnk = 1 -- Get all joint record holders per streak type
     )
     INSERT INTO aggregated_records (records)
     SELECT jsonb_build_object(
         'most_goals_in_game', (
-            -- Use limited_game_goals which already has the limit applied for rnk=1
+            -- Include ALL joint record holders
             SELECT COALESCE(jsonb_agg(
                 jsonb_build_object('name', name, 'goals', goals, 'date', match_date::text, 'score', CASE WHEN team = 'A' THEN team_a_score || '-' || team_b_score ELSE team_b_score || '-' || team_a_score END)
-                ORDER BY name ASC -- Order by name for consistency in the aggregated array
+                ORDER BY goals DESC, match_date DESC, name ASC
             ), '[]'::jsonb)
-            FROM (
-                SELECT *, ROW_NUMBER() OVER (ORDER BY name ASC) as row_num -- Tie-break rank 1s by name
-                FROM limited_game_goals -- This CTE is already filtered to rnk = 1
-            ) AS sub_limited_game_goals
-            WHERE sub_limited_game_goals.row_num <= hall_of_fame_limit
+            FROM limited_game_goals
         ),
         'biggest_victory', (
-            -- Use limited_biggest_victories which already has the limit applied for rnk=1
+            -- Include ALL joint record holders
             SELECT COALESCE(jsonb_agg(
                 jsonb_build_object('team_a_score', team_a_score, 'team_b_score', team_b_score, 'team_a_players', team_a_players, 'team_b_players', team_b_players, 'date', match_date::text)
-                ORDER BY match_date DESC, match_id ASC -- Order for final JSON array
+                ORDER BY match_date DESC, match_id ASC
             ), '[]'::jsonb)
-            FROM (
-                SELECT *, ROW_NUMBER() OVER (ORDER BY match_id ASC) as row_num -- Tie-break rank 1s by match_id
-                FROM limited_biggest_victories -- This CTE is already filtered to rnk = 1
-            ) AS sub_limited_biggest_victories
-            WHERE sub_limited_biggest_victories.row_num <= hall_of_fame_limit
+            FROM limited_biggest_victories
         ),
         'consecutive_goals_streak', (
-            -- Use consecutive_goals which already has the limit applied for rnk=1
+            -- Include ALL joint record holders
             SELECT COALESCE(jsonb_agg(
                 jsonb_build_object('name', name, 'streak', streak, 'start_date', streak_start::text, 'end_date', streak_end::text)
-                ORDER BY streak DESC, streak_end DESC, name ASC -- Order for final JSON array
+                ORDER BY streak DESC, streak_end DESC, name ASC
             ), '[]'::jsonb)
-            FROM (
-                SELECT *, ROW_NUMBER() OVER (ORDER BY streak DESC, streak_end DESC, name ASC) as row_num -- Tie-break rank 1s
-                FROM consecutive_goals -- This CTE is already filtered to rnk = 1 implicitly
-            ) AS sub_consecutive_goals
-            WHERE sub_consecutive_goals.row_num <= hall_of_fame_limit
+            FROM consecutive_goals
         ),
         'streaks', (
-            -- Use streaks which already has the limit applied per type for rnk=1
+            -- Include ALL joint record holders per type
             WITH streak_holders AS (
                 SELECT type,
                        jsonb_agg(jsonb_build_object('name', name, 'streak', streak, 'start_date', streak_start::text, 'end_date', streak_end::text) ORDER BY streak DESC, streak_end DESC, name ASC) AS holders
-                FROM (
-                    SELECT s_inner.*,
-                           ROW_NUMBER() OVER (PARTITION BY type ORDER BY streak DESC, streak_end DESC, name ASC) as rn_for_limit
-                    FROM streaks s_inner -- this 'streaks' CTE is already WHERE rnk = 1 per type
-                ) s_limited
-                WHERE s_limited.rn_for_limit <= hall_of_fame_limit
+                FROM streaks
                 GROUP BY type
             )
             SELECT COALESCE(jsonb_object_agg(type, jsonb_build_object('holders', holders)), '{}'::jsonb)
             FROM streak_holders
         ),
         'attendance_streak', (
-            -- Use attendance_streaks which already has the limit applied for rnk=1
+            -- Include ALL joint record holders
             SELECT COALESCE(jsonb_agg(
                 jsonb_build_object('name', name, 'streak', streak, 'start_date', streak_start::text, 'end_date', streak_end::text)
-                ORDER BY streak DESC, streak_end DESC, name ASC -- Order for final JSON array
+                ORDER BY streak DESC, streak_end DESC, name ASC
             ), '[]'::jsonb)
-            FROM (
-                SELECT *, ROW_NUMBER() OVER (ORDER BY streak DESC, streak_end DESC, name ASC) as row_num -- Tie-break rank 1s
-                FROM attendance_streaks -- This CTE is already filtered to rnk = 1
-            ) AS sub_attendance_streaks
-            WHERE sub_attendance_streaks.row_num <= hall_of_fame_limit
+            FROM attendance_streaks
         )
     );
     RAISE NOTICE 'Finished aggregated_records.';
