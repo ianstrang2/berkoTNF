@@ -1,4 +1,4 @@
-# 🛠 StatKick Match Creation, Editing & Deletion Implementation Plan
+# 🛠 Match CRUD UI Enhancement Plan
 
 ## 📋 Overview
 
@@ -9,6 +9,10 @@ The Match Control Centre (MCC) lifecycle system is fully implemented, but critic
 3. **Delete/Cancel matches** before completion
 
 **Root Cause:** API endpoints exist (`POST`, `PUT`, `DELETE /api/admin/upcoming-matches`) but the UI components to trigger them are missing.
+
+### **Related Documentation**
+- **Main System Architecture**: See `match-control-centre.md` for complete MCC system documentation including database schema, API routes, and component architecture
+- **Dashboard Implementation**: See `match-report.md` for dashboard reorganization and feat-breaking detection system
 
 ---
 

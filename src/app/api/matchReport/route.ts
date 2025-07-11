@@ -395,6 +395,58 @@ const getMatchReportData = unstable_cache(
       
       if (!rawMatchReport) {
         console.log('No match data found in DB');
+        
+        // Try fallback: get the most recent match directly from matches table
+        console.log('Attempting fallback: fetching latest match from matches table...');
+        try {
+          const fallbackMatch = await prisma.matches.findFirst({
+            orderBy: { match_date: 'desc' },
+            include: {
+              player_matches: {
+                include: {
+                  players: { select: { name: true } }
+                }
+              }
+            }
+          });
+          
+          if (fallbackMatch) {
+            console.log('Fallback match found, creating minimal match report...');
+            // Create a minimal match report structure
+            const teamAPlayers = fallbackMatch.player_matches
+              .filter(pm => pm.team === 'A' && pm.players)
+              .map(pm => pm.players!.name);
+            const teamBPlayers = fallbackMatch.player_matches
+              .filter(pm => pm.team === 'B' && pm.players)  
+              .map(pm => pm.players!.name);
+              
+            return {
+              matchInfo: {
+                match_date: fallbackMatch.match_date.toISOString(),
+                team_a_score: fallbackMatch.team_a_score,
+                team_b_score: fallbackMatch.team_b_score,
+                team_a_players: teamAPlayers,
+                team_b_players: teamBPlayers,
+                team_a_scorers: '',
+                team_b_scorers: ''
+              },
+              gamesMilestones: [],
+              goalsMilestones: [],
+              streaks: [],
+              goalStreaks: [],
+              halfSeasonGoalLeaders: [],
+              halfSeasonFantasyLeaders: [],
+              seasonGoalLeaders: [],
+              seasonFantasyLeaders: [],
+              on_fire_player_id: null,
+              grim_reaper_player_id: null,
+              featBreakingData: []
+            };
+          }
+        } catch (fallbackError) {
+          console.error('Fallback query failed:', fallbackError);
+        }
+        
         return null;
       }
 
@@ -595,7 +647,22 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'No match data available' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data });
+    // Add cache freshness metadata
+    const response = NextResponse.json({ 
+      success: true, 
+      data,
+      meta: {
+        cached_at: new Date().toISOString(),
+        cache_tag: 'match_report',
+        ttl_seconds: 3600
+      }
+    });
+
+    // Add cache headers for debugging
+    response.headers.set('X-Cache-Tag', 'match_report');
+    response.headers.set('X-Cache-TTL', '3600');
+    
+    return response;
 
   } catch (error: any) {
     console.error('Failed to fetch match report:', error);

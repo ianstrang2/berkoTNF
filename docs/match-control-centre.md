@@ -10,6 +10,10 @@ This document describes the fully implemented **Match Control Centre (MCC)** sys
 
 **Key Achievement**: Admins now manage the entire match process through one interface that evolves from Draft → PoolLocked → TeamsBalanced → Completed, with full mobile optimization and advanced team balancing capabilities.
 
+### **Related Documentation**
+- **UI Enhancement Plan**: See `match-crud-ui-plan.md` for specific CRUD UI improvements that address polish/completeness gaps identified after main system implementation
+- **Dashboard Implementation**: See `match-report.md` for dashboard reorganization and feat-breaking detection system
+
 ---
 
 ## 1. Implementation Status & Architecture

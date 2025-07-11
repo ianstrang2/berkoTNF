@@ -43,6 +43,11 @@ const AdminInfoPage = () => {
   const [isLoadingInfoData, setIsLoadingInfoData] = useState<boolean>(true);
   const [isUpdatingStats, setIsUpdatingStats] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
+  const [matchReportHealth, setMatchReportHealth] = useState<any>(null);
+  const [showMatchReportHealth, setShowMatchReportHealth] = useState<boolean>(false);
 
   const fetchCacheMetadata = useCallback(async () => {
     setIsLoadingCache(true);
@@ -96,11 +101,39 @@ const AdminInfoPage = () => {
     fetchInfoData();
   }, [fetchCacheMetadata, fetchInfoData]);
 
+  const fetchDebugInfo = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/debug-revalidation');
+      if (response.ok) {
+        const result = await response.json();
+        setDebugInfo(result.data);
+      } else {
+        console.warn('Could not fetch debug info:', response.status);
+      }
+    } catch (err) {
+      console.warn('Debug info fetch failed:', err);
+    }
+  }, []);
+
+  const fetchMatchReportHealth = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/match-report-health');
+      if (response.ok) {
+        const result = await response.json();
+        setMatchReportHealth(result.health);
+      } else {
+        console.warn('Could not fetch match report health:', response.status);
+      }
+    } catch (err) {
+      console.warn('Match report health fetch failed:', err);
+    }
+  }, []);
+
   const handleUpdateStats = async () => {
     setIsUpdatingStats(true);
     setError(null);
+    setSuccess(null);
     try {
-      // await triggerStatsUpdate(); // Old client-side call
       const response = await fetch('/api/admin/trigger-stats-update', {
         method: 'POST',
       });
@@ -119,13 +152,27 @@ const AdminInfoPage = () => {
 
       const result = await response.json();
       if (!result.success) {
-        throw new Error(result.error || 'An unknown error occurred during stats update.');
+        // Use the user-friendly message and add summary if available
+        let userMessage = result.message || result.error || 'An unknown error occurred during stats update.';
+        
+        // Add summary information if available
+        if (result.summary) {
+          const { total_functions, function_failures, revalidation_failures } = result.summary;
+          userMessage += `\n\nSummary:\n• Functions: ${total_functions - function_failures}/${total_functions} succeeded\n• Cache Invalidations: ${total_functions - revalidation_failures}/${total_functions} succeeded`;
+          
+          if (result.summary.failed_tags && result.summary.failed_tags.length > 0) {
+            userMessage += `\n• Failed tags: ${result.summary.failed_tags.join(', ')}`;
+          }
+        }
+        
+        throw new Error(userMessage);
       }
       
-      // If successful, refresh the cache metadata
+      // Success case
+      setSuccess(result.message || 'Stats update completed successfully!');
+      
+      // Refresh the cache metadata to show new timestamps
       await fetchCacheMetadata(); 
-      // Optionally, display a success message to the user
-      // alert('Stats update triggered successfully!'); 
     } catch (err: any) {
       console.error('Error triggering stats update:', err);
       setError(err.message || 'Failed to trigger stats update.');
@@ -194,8 +241,38 @@ const AdminInfoPage = () => {
       <AdminLayout>
         <div className="w-full px-4">
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-md">
-              <p>{`Error: ${error}`}</p>
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg shadow-soft-sm">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Stats Update Failed</h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <pre className="whitespace-pre-wrap font-sans">{error}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg shadow-soft-sm">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-green-800">Stats Update Successful</h3>
+                  <div className="mt-2 text-sm text-green-700">
+                    <pre className="whitespace-pre-wrap font-sans">{success}</pre>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -212,15 +289,162 @@ const AdminInfoPage = () => {
                     renderTable(cacheTableColumns, cacheMetadata)
                   )}
                 </div>
-                <div className="p-4 border-t border-gray-200">
-                  <Button 
-                    variant="secondary"
-                    className="rounded-lg shadow-soft-sm"
-                    onClick={handleUpdateStats} 
-                    disabled={isUpdatingStats}
-                  >
-                    {isUpdatingStats ? 'Updating...' : 'Update'}
-                  </Button>
+                <div className="p-4 border-t border-gray-200 space-y-2">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="secondary"
+                      className="rounded-lg shadow-soft-sm"
+                      onClick={handleUpdateStats} 
+                      disabled={isUpdatingStats}
+                    >
+                      {isUpdatingStats ? 'Updating...' : 'Update Stats'}
+                    </Button>
+                    <Button 
+                      variant="secondary"
+                      className="rounded-lg shadow-soft-sm"
+                      onClick={() => {
+                        setShowDebugInfo(!showDebugInfo);
+                        if (!showDebugInfo && !debugInfo) {
+                          fetchDebugInfo();
+                        }
+                      }}
+                      disabled={isUpdatingStats}
+                    >
+                      Debug
+                    </Button>
+                    <Button 
+                      variant="secondary"
+                      className="rounded-lg shadow-soft-sm"
+                      onClick={() => {
+                        setShowMatchReportHealth(!showMatchReportHealth);
+                        if (!showMatchReportHealth && !matchReportHealth) {
+                          fetchMatchReportHealth();
+                        }
+                      }}
+                      disabled={isUpdatingStats}
+                    >
+                      Health
+                    </Button>
+                  </div>
+                  
+                  {showDebugInfo && debugInfo && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs">
+                      <h4 className="font-semibold mb-2 text-gray-700">Revalidation Health Check</h4>
+                      <div className="space-y-1">
+                        <div className={`flex items-center gap-2 ${debugInfo.diagnosis.overallHealth ? 'text-green-600' : 'text-red-600'}`}>
+                          <span>{debugInfo.diagnosis.overallHealth ? '✅' : '❌'}</span>
+                          <span>Overall Health: {debugInfo.diagnosis.overallHealth ? 'Good' : 'Issues Detected'}</span>
+                        </div>
+                        <div className={`flex items-center gap-2 ${debugInfo.diagnosis.canBuildUrl ? 'text-green-600' : 'text-red-600'}`}>
+                          <span>{debugInfo.diagnosis.canBuildUrl ? '✅' : '❌'}</span>
+                          <span>URL Construction: {debugInfo.urlConstruction.urlSource || 'Failed'}</span>
+                        </div>
+                        <div className={`flex items-center gap-2 ${debugInfo.diagnosis.hasAuthToken ? 'text-green-600' : 'text-red-600'}`}>
+                          <span>{debugInfo.diagnosis.hasAuthToken ? '✅' : '❌'}</span>
+                          <span>Auth Token: {debugInfo.diagnosis.hasAuthToken ? 'Present' : 'Missing'}</span>
+                        </div>
+                        <div className={`flex items-center gap-2 ${debugInfo.diagnosis.canReachEndpoint ? 'text-green-600' : 'text-red-600'}`}>
+                          <span>{debugInfo.diagnosis.canReachEndpoint ? '✅' : '❌'}</span>
+                          <span>Endpoint: {debugInfo.revalidationEndpointTest.success ? 'Reachable' : `Failed (${debugInfo.revalidationEndpointTest.status || 'Network'})`}</span>
+                        </div>
+                      </div>
+                      {debugInfo.urlConstruction.finalUrl && (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <span className="text-gray-600">URL: </span>
+                          <span className="font-mono text-xs break-all">{debugInfo.urlConstruction.finalUrl}</span>
+                        </div>
+                      )}
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <span className="text-gray-600">Environment: </span>
+                        <span className="font-mono">{debugInfo.environment.NODE_ENV}</span>
+                        {debugInfo.environment.VERCEL_ENV && (
+                          <>
+                            <span className="text-gray-600 ml-2">Vercel: </span>
+                            <span className="font-mono">{debugInfo.environment.VERCEL_ENV}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {showMatchReportHealth && matchReportHealth && (
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs">
+                      <h4 className="font-semibold mb-2 text-blue-700">Match Report Health Check</h4>
+                      <div className="space-y-1">
+                        <div className={`flex items-center gap-2 ${
+                          matchReportHealth.status === 'healthy' ? 'text-green-600' :
+                          matchReportHealth.status === 'degraded' ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          <span>{
+                            matchReportHealth.status === 'healthy' ? '✅' :
+                            matchReportHealth.status === 'degraded' ? '⚠️' : '❌'
+                          }</span>
+                          <span>Status: {matchReportHealth.status}</span>
+                        </div>
+                        
+                        {/* Data Sources */}
+                        <div className="space-y-1 mt-2">
+                          <div className="text-gray-700 font-medium">Data Sources:</div>
+                          {matchReportHealth.data_sources?.aggregated_match_report && (
+                            <div className={`flex items-center gap-2 ml-2 ${
+                              matchReportHealth.data_sources.aggregated_match_report.status === 'available' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              <span>{matchReportHealth.data_sources.aggregated_match_report.status === 'available' ? '✅' : '❌'}</span>
+                              <span>Main Cache: {matchReportHealth.data_sources.aggregated_match_report.status}</span>
+                              {matchReportHealth.data_sources.aggregated_match_report.feat_count > 0 && (
+                                <span className="text-purple-600">({matchReportHealth.data_sources.aggregated_match_report.feat_count} feats)</span>
+                              )}
+                            </div>
+                          )}
+                          {matchReportHealth.data_sources?.matches_fallback && (
+                            <div className={`flex items-center gap-2 ml-2 ${
+                              matchReportHealth.data_sources.matches_fallback.status === 'available' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              <span>{matchReportHealth.data_sources.matches_fallback.status === 'available' ? '✅' : '❌'}</span>
+                              <span>Fallback: {matchReportHealth.data_sources.matches_fallback.status}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Cache Info */}
+                        {matchReportHealth.cache_info && (
+                          <div className="mt-2 pt-2 border-t border-blue-200">
+                            <div className="text-gray-700 font-medium">Cache Info:</div>
+                            <div className="ml-2 space-y-1">
+                              <div>Last invalidated: {matchReportHealth.cache_info.hours_since_invalidation}h ago</div>
+                              {matchReportHealth.cache_info.is_stale && (
+                                <div className="text-orange-600">⚠️ Cache may be stale</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Issues */}
+                        {matchReportHealth.issues && matchReportHealth.issues.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-blue-200">
+                            <div className="text-red-700 font-medium">Issues:</div>
+                            <ul className="ml-2 list-disc list-inside space-y-0">
+                              {matchReportHealth.issues.map((issue: string, index: number) => (
+                                <li key={index} className="text-red-600">{issue}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* Recommendations */}
+                        {matchReportHealth.recommendations && matchReportHealth.recommendations.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-blue-200">
+                            <div className="text-blue-700 font-medium">Recommendations:</div>
+                            <ul className="ml-2 list-disc list-inside space-y-0">
+                              {matchReportHealth.recommendations.map((rec: string, index: number) => (
+                                <li key={index} className="text-blue-600">{rec}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

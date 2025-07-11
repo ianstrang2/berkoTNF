@@ -23,10 +23,16 @@ export async function POST(request: NextRequest) {
   }
 
   // Ensure the provided key is a valid, known cache tag
-  const isValidTag = Object.values(CACHE_TAGS).includes(cacheKey);
+  const validTags = Object.values(CACHE_TAGS);
+  const isValidTag = validTags.includes(cacheKey);
 
   if (!isValidTag) {
-    return NextResponse.json({ error: `Invalid cacheKey: ${cacheKey}` }, { status: 400 });
+    console.error(`Invalid cache tag attempted: "${cacheKey}". Valid tags:`, validTags);
+    return NextResponse.json({ 
+      error: `Invalid cacheKey: "${cacheKey}"`, 
+      validTags: validTags,
+      hint: 'Check CACHE_TAGS constants for valid values'
+    }, { status: 400 });
   }
 
   try {

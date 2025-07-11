@@ -111,6 +111,12 @@ BEGIN
 
     GET DIAGNOSTICS inserted_count = ROW_COUNT;
     RAISE NOTICE 'Inserted % rows into aggregated_recent_performance.', inserted_count;
+    
+    -- Update Cache Metadata
+    RAISE NOTICE 'Updating recent_performance cache metadata...';
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
+    VALUES ('recent_performance', NOW(), 'recent_performance')
+    ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
 
     -- Temp table is dropped automatically ON COMMIT
     RAISE NOTICE 'update_aggregated_recent_performance completed.';

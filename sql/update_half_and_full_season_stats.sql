@@ -78,10 +78,15 @@ BEGIN
         GROUP BY pm.player_id;
     END LOOP;
 
-    -- Update Cache Metadata
+    -- Update Cache Metadata for both season_stats and half_season_stats
     RAISE NOTICE 'Updating season_stats cache metadata...';
     INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
     VALUES ('season_stats', NOW(), 'season_stats')
+    ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
+    
+    RAISE NOTICE 'Updating half_season_stats cache metadata...';
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
+    VALUES ('half_season_stats', NOW(), 'half_season_stats')
     ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
 
     RAISE NOTICE 'Season stats update complete.';

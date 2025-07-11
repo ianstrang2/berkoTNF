@@ -282,10 +282,10 @@ BEGIN
     );
     RAISE NOTICE 'Finished aggregated_records.';
 
-    -- Update Cache Metadata for records
-    RAISE NOTICE 'Updating cache metadata for records...';
+    -- Update Cache Metadata for honour_roll
+    RAISE NOTICE 'Updating cache metadata for honour_roll...';
     INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('records', NOW(), 'records')
+    VALUES ('honour_roll', NOW(), 'honour_roll')
     ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
 
     RAISE NOTICE 'update_aggregated_season_honours_and_records completed.';

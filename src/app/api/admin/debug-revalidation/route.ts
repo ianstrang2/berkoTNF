@@ -1,0 +1,145 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { CACHE_TAGS } from '@/lib/cache/constants';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(request: NextRequest) {
+  // Allow access from admin interface (simplified for debugging)
+  // In production, you might want stricter authentication
+  const referer = request.headers.get('referer');
+  const isAdminRequest = referer?.includes('/admin/info') || referer?.includes('localhost');
+  
+  if (!isAdminRequest) {
+    return NextResponse.json({ error: 'Unauthorized - Admin access only' }, { status: 401 });
+  }
+
+  try {
+    // Environment debugging
+    const environmentInfo = {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: process.env.VERCEL,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      VERCEL_URL: process.env.VERCEL_URL,
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+      hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      timestamp: new Date().toISOString(),
+      isVercelEnvironment: !!process.env.VERCEL,
+      relevantEnvKeys: Object.keys(process.env)
+        .filter(k => k.includes('VERCEL') || k.includes('URL') || k.includes('SUPABASE'))
+        .sort()
+    };
+
+    // URL construction test
+    let urlConstructionTest: any = {};
+    try {
+      let baseUrl: string;
+      let urlSource: string;
+      
+      if (process.env.NEXT_PUBLIC_SITE_URL) {
+        baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+        urlSource = 'NEXT_PUBLIC_SITE_URL';
+      } else if (process.env.VERCEL_URL) {
+        baseUrl = process.env.VERCEL_URL;
+        urlSource = 'VERCEL_URL';
+      } else {
+        baseUrl = 'http://localhost:3000';
+        urlSource = 'localhost_fallback';
+      }
+      
+      if (baseUrl && !baseUrl.startsWith('http')) {
+        if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+          baseUrl = `https://${baseUrl}`;
+        } else {
+          baseUrl = `http://${baseUrl}`;
+        }
+      }
+      
+      const testUrl = new URL('/api/admin/revalidate-cache', baseUrl);
+      
+      urlConstructionTest = {
+        success: true,
+        baseUrl,
+        urlSource,
+        finalUrl: testUrl.toString(),
+        protocol: testUrl.protocol,
+        host: testUrl.host
+      };
+    } catch (error) {
+      urlConstructionTest = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+
+    // Cache tags info
+    const cacheTagsInfo = {
+      totalTags: Object.keys(CACHE_TAGS).length,
+      tags: Object.entries(CACHE_TAGS).map(([key, value]) => ({
+        name: key,
+        tag: value
+      })),
+      matchRelatedTagsCount: 10 // from ALL_MATCH_RELATED_TAGS
+    };
+
+    // Test revalidation endpoint accessibility
+    let revalidationEndpointTest: any = {};
+    try {
+      if (urlConstructionTest.success) {
+        const testResponse = await fetch(urlConstructionTest.finalUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({ cacheKey: CACHE_TAGS.MATCH_REPORT }),
+          signal: AbortSignal.timeout(5000)
+        });
+
+        revalidationEndpointTest = {
+          success: testResponse.ok,
+          status: testResponse.status,
+          statusText: testResponse.statusText,
+          url: urlConstructionTest.finalUrl
+        };
+
+        if (!testResponse.ok) {
+          const errorBody = await testResponse.text();
+          revalidationEndpointTest.errorBody = errorBody.substring(0, 200);
+        }
+      } else {
+        revalidationEndpointTest = {
+          success: false,
+          error: 'URL construction failed'
+        };
+      }
+    } catch (error) {
+      revalidationEndpointTest = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorName: error instanceof Error ? error.name : 'UnknownError'
+      };
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        environment: environmentInfo,
+        urlConstruction: urlConstructionTest,
+        cacheInfo: cacheTagsInfo,
+        revalidationEndpointTest,
+        diagnosis: {
+          canBuildUrl: urlConstructionTest.success,
+          hasAuthToken: environmentInfo.hasSupabaseKey,
+          canReachEndpoint: revalidationEndpointTest.success,
+          overallHealth: urlConstructionTest.success && environmentInfo.hasSupabaseKey && revalidationEndpointTest.success
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  }
+} 

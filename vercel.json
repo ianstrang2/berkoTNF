@@ -39,7 +39,8 @@
     "crons": [
       {
         "path": "/api/admin/trigger-stats-update",
-        "schedule": "0 2 * * *"
+        "schedule": "0 2 * * *",
+        "method": "POST"
       }
     ]
   }

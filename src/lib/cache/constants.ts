@@ -11,7 +11,7 @@ export const CACHE_TAGS = {
   
   // Records & Honours
   HALL_OF_FAME: 'hall_of_fame',
-  HONOUR_ROLL: 'season_honours', // Note: from update_aggregated_season_honours_and_records.sql
+  HONOUR_ROLL: 'honour_roll', // Note: from update_aggregated_season_honours_and_records.sql
   
   // Match-related
   MATCH_REPORT: 'match_report',

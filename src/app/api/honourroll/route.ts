@@ -123,7 +123,7 @@ const getHonourRollData = unstable_cache(
       records: serializeData(finalRecords)
     };
   },
-  ['honour_roll'],
+  [CACHE_TAGS.HONOUR_ROLL],
   {
     tags: [CACHE_TAGS.HONOUR_ROLL],
     revalidate: 3600,
