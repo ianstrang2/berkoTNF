@@ -184,7 +184,8 @@ async function revalidateCache(tag: string) {
   };
 }
 
-export async function POST() {
+// Main stats update logic that can be called by both GET (cron) and POST (manual)
+async function triggerStatsUpdate() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -303,4 +304,16 @@ export async function POST() {
     },
     results,
   });
-} 
+}
+
+// GET handler for Vercel cron jobs
+export async function GET() {
+  console.log('📅 Cron job triggered stats update');
+  return triggerStatsUpdate();
+}
+
+// POST handler for manual admin triggers
+export async function POST() {
+  console.log('👤 Manual stats update triggered');
+  return triggerStatsUpdate();
+}
