@@ -68,6 +68,8 @@ const CurrentForm: React.FC = () => {
   const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
+  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
+  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
 
   // Card animation variants
   const cardVariants = {
@@ -182,10 +184,11 @@ const CurrentForm: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch milestones and players in parallel
-      const [milestonesResponse, playersResponse] = await Promise.all([
+      // Fetch milestones, players, and config in parallel
+      const [milestonesResponse, playersResponse, configResponse] = await Promise.all([
         fetch('/api/matchReport'), // This API seems to provide all milestone data
-        fetch('/api/players')
+        fetch('/api/players'),
+        fetch('/api/admin/app-config?group=match_settings')
       ]);
       
       if (!milestonesResponse.ok) {
@@ -202,6 +205,17 @@ const CurrentForm: React.FC = () => {
         // Non-critical, milestones can still be shown without player links
         console.warn('Failed to fetch players for Milestones component');
         setAllPlayers([]);
+      }
+
+      // Get config for visibility
+      if (configResponse.ok) {
+        const configData = await configResponse.json();
+        if (configData.success) {
+          const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
+          const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
+          setShowOnFireConfig(showOnFire?.config_value !== 'false');
+          setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
+        }
       }
       
       if (milestonesResult.success) {
@@ -369,10 +383,10 @@ const CurrentForm: React.FC = () => {
        </div>
       <div className="flex-auto p-4">
         {/* Reaper and On Fire Status */}
-        {(milestonesData?.on_fire_player_id || milestonesData?.grim_reaper_player_id) && (
+        {((showGrimReaperConfig && milestonesData?.grim_reaper_player_id) || (showOnFireConfig && milestonesData?.on_fire_player_id)) && (
           <div className="mb-6">
             <div className="flex justify-center gap-8">
-              {milestonesData?.grim_reaper_player_id && (
+              {showGrimReaperConfig && milestonesData?.grim_reaper_player_id && (
                 <div className="text-center">
                   <img 
                     src="/img/player-status/reaper.png" 
@@ -393,7 +407,7 @@ const CurrentForm: React.FC = () => {
                   </p>
                 </div>
               )}
-              {milestonesData?.on_fire_player_id && (
+              {showOnFireConfig && milestonesData?.on_fire_player_id && (
                 <div className="text-center">
                   <img 
                     src="/img/player-status/on-fire.png" 

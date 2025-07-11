@@ -372,14 +372,14 @@ const LatestMatch: React.FC = () => {
         hasCurrentFormData = true;
       }
       
-      if (data.grim_reaper_player_id && allPlayers.length > 0) {
+      if (showGrimReaperConfig && data.grim_reaper_player_id && allPlayers.length > 0) {
         const reaperPlayer = allPlayers.find(p => p.id === data.grim_reaper_player_id);
         if (reaperPlayer) {
           currentFormSection += `- ${reaperPlayer.name} is The Grim Reaper 💀\n`;
         }
       }
       
-      if (data.on_fire_player_id && allPlayers.length > 0) {
+      if (showOnFireConfig && data.on_fire_player_id && allPlayers.length > 0) {
         const onFirePlayer = allPlayers.find(p => p.id === data.on_fire_player_id);
         if (onFirePlayer) {
           currentFormSection += `- ${onFirePlayer.name} is On Fire! 🔥\n`;
