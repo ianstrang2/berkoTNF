@@ -79,7 +79,7 @@ export const getFeatDisplayName = (featType: FeatType): string => {
  * Generate human-readable content for a feat-breaking event
  */
 export const generateFeatContent = (feat: FeatBreakingItem): string => {
-  const action = feat.status === 'broken' ? 'broke' : 'equaled';
+  const action = feat.status === 'broken' ? 'Broke' : 'Equaled';
   const featName = getFeatDisplayName(feat.feat_type);
   
   if (feat.feat_type === 'most_goals_in_game') {

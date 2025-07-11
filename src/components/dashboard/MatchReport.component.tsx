@@ -465,8 +465,7 @@ const LatestMatch: React.FC = () => {
       recordsSection += `RECORD-BREAKING FEATS:\n`;
       data.featBreakingData.forEach(feat => {
         const content = generateFeatContent(feat);
-        const status = feat.status === 'broken' ? 'BROKEN' : 'EQUALED';
-        recordsSection += `- ${feat.player_name}: ${content} [RECORD ${status}]\n`;
+        recordsSection += `- ${feat.player_name}: ${content}\n`;
       });
     }
     
