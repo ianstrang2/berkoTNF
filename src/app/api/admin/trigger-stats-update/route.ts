@@ -12,7 +12,8 @@ const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> 
   { name: 'call-update-match-report-cache', tag: CACHE_TAGS.MATCH_REPORT },
   { name: 'call-update-personal-bests', tag: CACHE_TAGS.PERSONAL_BESTS },
   { name: 'call-update-player-power-rating', tag: CACHE_TAGS.PLAYER_POWER_RATING },
-  { name: 'call-update-player-profile-stats', tag: CACHE_TAGS.PLAYER_PROFILE }
+  { name: 'call-update-player-profile-stats', tag: CACHE_TAGS.PLAYER_PROFILE },
+  { name: 'call-update-season-race-data', tag: CACHE_TAGS.SEASON_RACE_DATA }
 ];
 
 // Helper function to call the revalidation endpoint

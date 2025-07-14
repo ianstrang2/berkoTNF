@@ -435,6 +435,16 @@ model aggregated_player_profile_stats {
   @@map("aggregated_player_profile_stats")
 }
 
+/// This model stores pre-aggregated season race data for faster retrieval
+model aggregated_season_race_data {
+  race_data_id Int      @id @default(autoincrement())
+  season_year  Int
+  player_data  Json
+  last_updated DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([season_year], map: "idx_season_race_data_year")
+}
+
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model matches_backup {
   match_id     Int?

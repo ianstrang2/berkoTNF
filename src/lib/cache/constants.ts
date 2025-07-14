@@ -16,6 +16,7 @@ export const CACHE_TAGS = {
   // Match-related
   MATCH_REPORT: 'match_report',
   RECENT_PERFORMANCE: 'recent_performance',
+  SEASON_RACE_DATA: 'season_race_data',
   
   // Admin & Config
   UPCOMING_MATCH: 'upcoming_match',
@@ -33,4 +34,5 @@ export const ALL_MATCH_RELATED_TAGS = [
   CACHE_TAGS.HONOUR_ROLL,
   CACHE_TAGS.MATCH_REPORT,
   CACHE_TAGS.RECENT_PERFORMANCE,
+  CACHE_TAGS.SEASON_RACE_DATA,
 ]; 
