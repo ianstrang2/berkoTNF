@@ -62,20 +62,22 @@ const getFullSeasonStats = unstable_cache(
       return toPlayerWithStats(dbPlayer);
     }).sort((a, b) => b.fantasyPoints - a.fantasyPoints);
 
-    const goalStats = recentPerformance.map(perf => {
-      const seasonStat = seasonStats.find(s => s.name === perf.player.name);
-      const last5Goals = perf.last_5_games ? (perf.last_5_games as RecentGame[]).map(g => g.goals).reverse().join(',') : '0,0,0,0,0';
+    const goalStats = seasonStats.map(player => {
+      const recentPerf = recentPerformance.find(perf => perf.player.name === player.name);
+      const last5Goals = recentPerf?.last_5_games ? (recentPerf.last_5_games as RecentGame[]).map(g => g.goals).reverse().join(',') : '0,0,0,0,0';
       const dbPlayer = {
-        ...perf,
-        ...perf.player,
-        id: perf.player.player_id,  // Use player_id as the canonical ID
-        total_goals: seasonStat?.goals || 0,
-        minutes_per_goal: Math.round(((seasonStat?.gamesPlayed || 0) * 60) / (seasonStat?.goals || 1)),
+        id: player.id,
+        player_id: player.id,
+        name: player.name,
+        selected_club: player.club,
+        total_goals: player.goals,
+        minutes_per_goal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
         last_five_games: last5Goals,
-        max_goals_in_game: Math.max(...(perf.last_5_games as RecentGame[] || []).map(g => g.goals)),
+        max_goals_in_game: recentPerf?.last_5_games ? Math.max(...(recentPerf.last_5_games as RecentGame[] || []).map(g => g.goals)) : 0,
       };
       return toPlayerWithGoalStats(dbPlayer);
-    }).sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
+    }).filter(player => player.totalGoals > 0)
+      .sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
 
     return { seasonStats, goalStats, formData: [] };
   },

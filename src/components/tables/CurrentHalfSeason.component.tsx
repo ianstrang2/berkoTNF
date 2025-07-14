@@ -295,7 +295,6 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
           </thead>
           <tbody>
             {stats.goalStats
-              .filter(player => player.totalGoals > 0)
               .map((player, index) => (
               <tr key={index} className="hover:bg-gray-50">
                 {/* Sticky Data */}

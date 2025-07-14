@@ -34,18 +34,21 @@ const getHalfSeasonStats = unstable_cache(
 
     const seasonStats = preAggregatedData.map(toPlayerWithStats).sort((a, b) => b.fantasyPoints - a.fantasyPoints);
     
-    const goalStats = recentPerformance.map(perf => {
+    const goalStats = seasonStats.map(player => {
+      const recentPerf = recentPerformance.find(perf => perf.player.name === player.name);
       const dbPlayer = {
-        ...perf,
-        ...perf.player,
-        id: perf.player.player_id,  // Use player_id as the canonical ID
-        total_goals: seasonStats.find(s => s.name === perf.player.name)?.goals || 0,
-        minutes_per_goal: Math.round(((seasonStats.find(s => s.name === perf.player.name)?.gamesPlayed || 0) * 60) / (seasonStats.find(s => s.name === perf.player.name)?.goals || 1)),
-        last_five_games: perf.last_5_games ? (perf.last_5_games as RecentGame[]).map(g => g.goals).reverse().join(',') : '0,0,0,0,0',
-        max_goals_in_game: Math.max(...(perf.last_5_games as RecentGame[] || []).map(g => g.goals)),
+        id: player.id,
+        player_id: player.id,
+        name: player.name,
+        selected_club: player.club,
+        total_goals: player.goals,
+        minutes_per_goal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
+        last_five_games: recentPerf?.last_5_games ? (recentPerf.last_5_games as RecentGame[]).map(g => g.goals).reverse().join(',') : '0,0,0,0,0',
+        max_goals_in_game: recentPerf?.last_5_games ? Math.max(...(recentPerf.last_5_games as RecentGame[] || []).map(g => g.goals)) : 0,
       };
       return toPlayerWithGoalStats(dbPlayer);
-    }).sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
+    }).filter(player => player.totalGoals > 0)
+      .sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
 
     const formData = recentPerformance.map(perf => ({
       name: perf.player.name,
