@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout.layout';
 import OverallSeasonPerformance from '@/components/tables/OverallSeasonPerformance.component';
+import SeasonRaceGraph from '@/components/tables/SeasonRaceGraph.component';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 // Loading component
@@ -45,6 +46,15 @@ function TableWholeContent() {
     );
   }
   
+  // Render different components based on view
+  if (view === 'race') {
+    return (
+      <ErrorBoundary>
+        <SeasonRaceGraph />
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <OverallSeasonPerformance initialView={view as 'points' | 'goals'} />

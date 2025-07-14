@@ -30,8 +30,10 @@ const SeasonRaceGraph: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     const checkDesktop = () => {
       setIsDesktop(window.innerWidth >= 1024);
     };
@@ -57,6 +59,7 @@ const SeasonRaceGraph: React.FC = () => {
           throw new Error(result.error || 'Unknown error');
         }
         
+        console.log('Raw API data:', result.data);
         setData(result.data);
       } catch (err) {
         console.error('Error fetching season race data:', err);
@@ -84,92 +87,83 @@ const SeasonRaceGraph: React.FC = () => {
     }));
 
     const sortedPlayers = playersWithFinalPoints.sort((a, b) => b.finalPoints - a.finalPoints);
+    
+    // Debug: show final points from database
+    console.log('Final points from database:');
+    sortedPlayers.forEach(player => {
+      const lastPoint = player.cumulative_data[player.cumulative_data.length - 1];
+      console.log(`${player.name}: ${lastPoint?.points} points (last match: ${lastPoint?.date})`);
+    });
 
-    // Create 52-week timeline (full season from January 1st)
-    const currentYear = new Date().getFullYear();
-    const seasonStart = new Date(currentYear, 0, 1); // January 1st
-    const seasonEnd = new Date(currentYear, 11, 31); // December 31st
-    
-    // Generate weekly dates for the full season
-    const weeklyDates: string[] = [];
-    const currentDate = new Date(seasonStart);
-    
-    while (currentDate <= seasonEnd) {
-      weeklyDates.push(currentDate.toISOString().split('T')[0]);
-      currentDate.setDate(currentDate.getDate() + 7); // Add 7 days
-    }
-
-    // Create a map of actual match data by date
-    const matchDataByDate: Record<string, Record<string, number>> = {};
-    let latestMatchDate = '';
-    
+    // Get all unique match dates from all players (these are exact match dates)
+    const allMatchDates = new Set<string>();
     sortedPlayers.forEach(player => {
       player.cumulative_data.forEach(point => {
-        if (!matchDataByDate[point.date]) {
-          matchDataByDate[point.date] = {};
-        }
-        matchDataByDate[point.date][player.name] = point.points;
-        // Track the latest match date across all players
-        if (point.date > latestMatchDate) {
-          latestMatchDate = point.date;
-        }
+        allMatchDates.add(point.date);
       });
     });
-
-    // Track last known values for each player (carry-forward logic)
-    const lastKnownValues: Record<string, number> = {};
     
-    // Initialize all players to 0
-    sortedPlayers.forEach(player => {
-      lastKnownValues[player.name] = 0;
-    });
+    // Sort the match dates chronologically
+    const sortedMatchDates = Array.from(allMatchDates).sort();
+    
+    console.log(`Found ${sortedMatchDates.length} unique match dates from ${sortedMatchDates[0]} to ${sortedMatchDates[sortedMatchDates.length - 1]}`);
 
-    // Create chart data points for the full 52-week timeline
-    const chartData = weeklyDates.map(weekDate => {
-      const dataPoint: any = { date: weekDate };
+    // Create chart data using actual match dates (not synthetic weekly timeline)
+    const chartData = sortedMatchDates.map(matchDate => {
+      const dataPoint: any = { date: matchDate };
       
-      // Only show player data up to the latest match date
-      if (weekDate <= latestMatchDate) {
-        // Check if there's any match data for this week or earlier
-        const matchDatesThisWeek = Object.keys(matchDataByDate).filter(matchDate => matchDate <= weekDate);
+      sortedPlayers.forEach(player => {
+        // Find the exact cumulative total for this player on this date
+        const matchPoint = player.cumulative_data.find(point => point.date === matchDate);
         
-        sortedPlayers.forEach(player => {
-          // Find the latest match data for this player up to this week
-          let latestPoints = lastKnownValues[player.name];
-          
-          matchDatesThisWeek.forEach(matchDate => {
-            if (matchDataByDate[matchDate][player.name] !== undefined) {
-              latestPoints = Math.max(latestPoints, matchDataByDate[matchDate][player.name]);
+        if (matchPoint) {
+          // Player played on this date - use their cumulative total
+          dataPoint[player.name] = matchPoint.points;
+        } else {
+          // Player didn't play on this date - find their last known total before this date
+          let lastKnownPoints = 0;
+          for (let i = player.cumulative_data.length - 1; i >= 0; i--) {
+            if (player.cumulative_data[i].date < matchDate) {
+              lastKnownPoints = player.cumulative_data[i].points;
+              break;
             }
-          });
-          
-          lastKnownValues[player.name] = latestPoints;
-          dataPoint[player.name] = latestPoints;
-        });
-      } else {
-        // For future dates, set player values to null so lines don't continue
-        sortedPlayers.forEach(player => {
-          dataPoint[player.name] = null;
-        });
-      }
+          }
+          dataPoint[player.name] = lastKnownPoints;
+        }
+      });
 
       return dataPoint;
     });
 
+    // Debug: verify chart data accuracy
+    console.log('Chart data verification:');
+    if (chartData.length > 0) {
+      const lastDataPoint = chartData[chartData.length - 1];
+      console.log('Final chart values:', lastDataPoint);
+      
+      // Compare with database final values
+      sortedPlayers.forEach(player => {
+        const chartFinal = lastDataPoint[player.name];
+        const dbFinal = player.finalPoints;
+        if (chartFinal !== dbFinal) {
+          console.error(`MISMATCH for ${player.name}: chart=${chartFinal}, database=${dbFinal}`);
+        }
+      });
+    }
+
     return { chartData, sortedPlayers };
   }, [data]);
 
-  // Calculate half-season date (closest weekly date to June 30th)
-  const currentYear = new Date().getFullYear();
-  const june30 = new Date(currentYear, 5, 30); // June 30th
-  
-  // Find the closest weekly date to June 30th from our chart data
+  // Calculate half-season date (closest match date to June 30th)
   const halfSeasonDate = React.useMemo(() => {
-    if (!chartData || chartData.length === 0) return `${currentYear}-06-30`;
+    const currentYear = new Date().getFullYear();
+    const june30 = new Date(currentYear, 5, 30); // June 30th
     
-    const june30Str = june30.toISOString().split('T')[0];
+    if (!chartData || chartData.length === 0) {
+      return `${currentYear}-06-30`;
+    }
     
-    // Find the closest date in our weekly data
+    // Find the closest actual match date to June 30th
     const closestDate = chartData.reduce((closest, dataPoint) => {
       const currentDiff = Math.abs(new Date(dataPoint.date).getTime() - june30.getTime());
       const closestDiff = Math.abs(new Date(closest.date).getTime() - june30.getTime());
@@ -177,7 +171,7 @@ const SeasonRaceGraph: React.FC = () => {
     });
     
     return closestDate.date;
-  }, [chartData, currentYear]);
+  }, [chartData]);
 
   if (loading) {
     return (
@@ -231,12 +225,6 @@ const SeasonRaceGraph: React.FC = () => {
           <div className="h-[30rem] sm:h-96 lg:h-[32rem] xl:h-[36rem]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 60 }}>
-                <defs>
-                  <linearGradient id="halfSeasonGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8B5CF6" />
-                    <stop offset="100%" stopColor="#EC4899" />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-current text-gray-200" />
                 <XAxis 
                   dataKey="date" 
@@ -277,22 +265,25 @@ const SeasonRaceGraph: React.FC = () => {
                 />
                 
                 {/* Player lines */}
-                {sortedPlayers.map((player, index) => (
-                  <Line
-                    key={player.player_id}
-                    type="monotone"
-                    dataKey={player.name}
-                    stroke={PLAYER_COLORS[index % PLAYER_COLORS.length]}
-                    strokeWidth={3}
-                    dot={{ 
-                      fill: 'white', 
-                      stroke: PLAYER_COLORS[index % PLAYER_COLORS.length], 
-                      strokeWidth: isDesktop ? 1.5 : 1, 
-                      r: isDesktop ? 2.5 : 1.5 // Bigger dots on desktop
-                    }}
-                    activeDot={{ r: isDesktop ? 6 : 4 }}
-                  />
-                ))}
+                {sortedPlayers.map((player, index) => {
+                  const playerColor = PLAYER_COLORS[index % PLAYER_COLORS.length];
+                  return (
+                    <Line
+                      key={player.player_id}
+                      type="monotone"
+                      dataKey={player.name}
+                      stroke={playerColor}
+                      strokeWidth={3}
+                      dot={{ 
+                        fill: 'white', 
+                        stroke: playerColor, 
+                        strokeWidth: isMounted && isDesktop ? 1.5 : 1, 
+                        r: isMounted && isDesktop ? 2.5 : 1.5 // Bigger dots on desktop
+                      }}
+                      activeDot={{ r: isMounted && isDesktop ? 6 : 4 }}
+                    />
+                  );
+                })}
               </LineChart>
             </ResponsiveContainer>
           </div>

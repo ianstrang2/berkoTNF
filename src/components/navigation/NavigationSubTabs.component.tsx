@@ -90,7 +90,8 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
     if (primarySection === 'table') {
       const baseHref = `/table/${secondarySection}`;
       
-      return [
+      // Base options for both half and whole season
+      const baseOptions = [
         {
           key: 'points',
           label: 'Points',
@@ -104,6 +105,18 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
           active: currentView === 'goals'
         }
       ];
+
+      // Add "Race" option only for whole season
+      if (secondarySection === 'whole') {
+        baseOptions.push({
+          key: 'race',
+          label: 'Race',
+          href: `${baseHref}?view=race`,
+          active: currentView === 'race'
+        });
+      }
+
+      return baseOptions;
     }
 
     if (primarySection === 'records' && secondarySection === 'legends') {

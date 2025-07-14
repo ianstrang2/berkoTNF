@@ -35,12 +35,6 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
             label: 'Whole Season',
             href: '/table/whole',
             active: secondarySection === 'whole'
-          },
-          {
-            key: 'graph',
-            label: 'Graph',
-            href: '/table/graph',
-            active: secondarySection === 'graph'
           }
         ];
       
