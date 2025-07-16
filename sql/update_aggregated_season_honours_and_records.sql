@@ -192,15 +192,15 @@ BEGIN
         -- Only get CURRENT attendance streaks (must extend to latest match)
         current_attendance_streaks AS (
             SELECT 
-                asc.player_id,
-                asc.name,
-                asc.streak_length,
-                asc.streak_start,
-                asc.streak_end,
-                asc.end_sequence
-            FROM attendance_streaks_calc asc
+                as_calc.player_id,
+                as_calc.name,
+                as_calc.streak_length,
+                as_calc.streak_start,
+                as_calc.streak_end,
+                as_calc.end_sequence
+            FROM attendance_streaks_calc as_calc
             CROSS JOIN latest_match lm
-            WHERE asc.end_sequence = lm.latest_sequence  -- Must extend to latest match
+            WHERE as_calc.end_sequence = lm.latest_sequence  -- Must extend to latest match
         ),
         ranked_current_streaks AS (
             SELECT 
