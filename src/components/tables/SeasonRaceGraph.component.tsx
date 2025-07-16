@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
+import { format, addWeeks, startOfWeek } from 'date-fns';
 
 interface PlayerRaceData {
   player_id: number;
@@ -8,7 +9,6 @@ interface PlayerRaceData {
   cumulative_data: Array<{
     date: string;
     points: number;
-    match_number: number;
   }>;
 }
 
@@ -30,6 +30,19 @@ const PLAYER_COLORS = [
   '#10B981', // Emerald
   '#3B82F6', // Blue
 ];
+
+// Generate weekly ticks for the given date range
+const generateWeeklyTicks = (startDate: Date, endDate: Date): number[] => {
+  const ticks: number[] = [];
+  let currentWeek = startOfWeek(startDate, { weekStartsOn: 1 }); // Start on Monday
+  
+  while (currentWeek <= endDate) {
+    ticks.push(currentWeek.getTime());
+    currentWeek = addWeeks(currentWeek, 1);
+  }
+  
+  return ticks;
+};
 
 const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({ 
   period = 'whole_season',
@@ -81,10 +94,10 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
     fetchData();
   }, [period]);
 
-  // Transform data for Recharts
-  const { chartData, sortedPlayers } = React.useMemo(() => {
+  // Transform data for time-based Recharts with weekly ticks
+  const { chartData, sortedPlayers, xAxisDomain, weeklyTicks } = React.useMemo(() => {
     if (!data || !data.players || data.players.length === 0) {
-      return { chartData: [], sortedPlayers: [] };
+      return { chartData: [], sortedPlayers: [], xAxisDomain: [0, 1], weeklyTicks: [] };
     }
 
     // Sort players by their final points (current standings order)
@@ -104,40 +117,101 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
       console.log(`${player.name}: ${lastPoint?.points} points (last match: ${lastPoint?.date})`);
     });
 
-    // Get all unique match dates from all players (these are exact match dates)
-    const allMatchDates = new Set<string>();
-    sortedPlayers.forEach(player => {
-      player.cumulative_data.forEach(point => {
-        allMatchDates.add(point.date);
+    // Calculate period dates
+    const currentYear = new Date().getFullYear();
+    let startDate: Date, endDate: Date;
+    
+    if (period === 'current_half') {
+      // Determine which half we're in
+      const isFirstHalf = new Date() <= new Date(currentYear, 5, 30); // June 30th
+      if (isFirstHalf) {
+        startDate = new Date(currentYear, 0, 1); // January 1st
+        endDate = new Date(currentYear, 5, 30); // June 30th
+      } else {
+        startDate = new Date(currentYear, 6, 1); // July 1st
+        endDate = new Date(currentYear, 11, 31); // December 31st
+      }
+    } else {
+      startDate = new Date(currentYear, 0, 1); // January 1st
+      endDate = new Date(currentYear, 11, 31); // December 31st
+    }
+
+    const xAxisDomain = [startDate.getTime(), endDate.getTime()];
+    const weeklyTicks = generateWeeklyTicks(startDate, endDate);
+
+    console.log(`Period: ${period}, Start: ${startDate.toISOString().split('T')[0]}, End: ${endDate.toISOString().split('T')[0]}`);
+    console.log(`Generated ${weeklyTicks.length} weekly ticks`);
+
+    // Transform player data to include starting points and timestamps
+    const transformedPlayers = sortedPlayers.map(player => {
+      const playerData = player.cumulative_data.map(point => ({
+        date: new Date(point.date).getTime(),
+        dateString: point.date,
+        points: point.points
+      }));
+
+      // Add starting point at 0 if player doesn't have data from period start
+      const periodStartStr = startDate.toISOString().split('T')[0];
+      const hasStartingPoint = player.cumulative_data.some(point => point.date === periodStartStr);
+      
+      if (!hasStartingPoint && playerData.length > 0) {
+        // Add a 0-point starting entry
+        playerData.unshift({
+          date: startDate.getTime(),
+          dateString: periodStartStr,
+          points: 0
+        });
+      }
+
+      // Sort by date to ensure chronological order
+      playerData.sort((a, b) => a.date - b.date);
+
+      return {
+        ...player,
+        transformedData: playerData
+      };
+    });
+
+    // Get all unique timestamps from all players
+    const allTimestamps = new Set<number>();
+    transformedPlayers.forEach(player => {
+      player.transformedData.forEach(point => {
+        allTimestamps.add(point.date);
       });
     });
     
-    // Sort the match dates chronologically
-    const sortedMatchDates = Array.from(allMatchDates).sort();
+    // Sort timestamps chronologically
+    const sortedTimestamps = Array.from(allTimestamps).sort();
     
-    console.log(`Found ${sortedMatchDates.length} unique match dates from ${sortedMatchDates[0]} to ${sortedMatchDates[sortedMatchDates.length - 1]}`);
+    console.log(`Found ${sortedTimestamps.length} unique timestamps`);
 
-    // Create chart data using actual match dates (not synthetic weekly timeline)
-    const chartData = sortedMatchDates.map(matchDate => {
-      const dataPoint: any = { date: matchDate };
+    // Create chart data using timestamps for time-based plotting
+    const chartData = sortedTimestamps.map(timestamp => {
+      const dataPoint: any = { date: timestamp };
       
-      sortedPlayers.forEach(player => {
-        // Find the exact cumulative total for this player on this date
-        const matchPoint = player.cumulative_data.find(point => point.date === matchDate);
+      transformedPlayers.forEach(player => {
+        // Find the exact cumulative total for this player at this timestamp
+        const exactPoint = player.transformedData.find(point => point.date === timestamp);
         
-        if (matchPoint) {
-          // Player played on this date - use their cumulative total
-          dataPoint[player.name] = matchPoint.points;
+        if (exactPoint) {
+          // Player has data at this exact timestamp
+          dataPoint[player.name] = exactPoint.points;
         } else {
-          // Player didn't play on this date - find their last known total before this date
-          let lastKnownPoints = 0;
-          for (let i = player.cumulative_data.length - 1; i >= 0; i--) {
-            if (player.cumulative_data[i].date < matchDate) {
-              lastKnownPoints = player.cumulative_data[i].points;
+          // Find the last known value before this timestamp
+          let lastKnownPoints: number | null = null;
+          for (let i = player.transformedData.length - 1; i >= 0; i--) {
+            if (player.transformedData[i].date < timestamp) {
+              lastKnownPoints = player.transformedData[i].points;
               break;
             }
           }
-          dataPoint[player.name] = lastKnownPoints;
+          
+          // Only set a value if we have a known point before this timestamp
+          // This prevents forward-filling into the future
+          if (lastKnownPoints !== null) {
+            dataPoint[player.name] = lastKnownPoints;
+          }
+          // If lastKnownPoints is null, we don't set a value, creating a gap in the line
         }
       });
 
@@ -151,23 +225,26 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
       console.log('Final chart values:', lastDataPoint);
       
       // Compare with database final values
-      sortedPlayers.forEach(player => {
+      transformedPlayers.forEach(player => {
         const chartFinal = lastDataPoint[player.name];
         const dbFinal = player.finalPoints;
-        if (chartFinal !== dbFinal) {
+        if (chartFinal && chartFinal !== dbFinal) {
           console.error(`MISMATCH for ${player.name}: chart=${chartFinal}, database=${dbFinal}`);
         }
       });
     }
 
-    return { chartData, sortedPlayers };
-  }, [data]);
+    return { chartData, sortedPlayers, xAxisDomain, weeklyTicks };
+  }, [data, period]);
 
-  // Calculate half-season date (June 30th exactly)
+  // Calculate half-season date as timestamp
   const halfSeasonDate = React.useMemo(() => {
     const currentYear = new Date().getFullYear();
-    return `${currentYear}-06-30`;
-  }, []);
+    const date = new Date(currentYear, 5, 30); // June 30th
+    const timestamp = date.getTime();
+    console.log(`Half-season timestamp: ${timestamp} (${date.toISOString().split('T')[0]}), showLine: ${showHalfSeasonLine}, period: ${period}`);
+    return timestamp;
+  }, [showHalfSeasonLine, period]);
 
   if (loading) {
     return (
@@ -215,9 +292,11 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
           <h5 className="mb-0">
-            {period === 'current_half' ? 'Race for the Half Season' : 'Race for the Season Title'}
+            {period === 'current_half' 
+              ? `Top 5 Race (${new Date() <= new Date(new Date().getFullYear(), 5, 30) ? 'Jan - Jun' : 'Jul - Dec'})`
+              : `Top 5 Race (${new Date().getFullYear()})`
+            }
           </h5>
-          <p className="text-sm text-gray-600 mt-1">Spotlight on the current top 5 contenders</p>
         </div>
         <div className="p-4">
           <div className="h-[30rem] sm:h-96 lg:h-[32rem] xl:h-[36rem]">
@@ -225,16 +304,18 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
               <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-current text-gray-200" />
                 <XAxis 
-                  dataKey="date" 
+                  dataKey="date"
+                  type="number"
+                  scale="time"
+                  domain={xAxisDomain}
+                  ticks={weeklyTicks}
+                  tickFormatter={(timestamp) => format(new Date(timestamp), 'dd/MM')}
+                  interval={0}
                   className="text-sm fill-current text-gray-600"
                   angle={-45}
                   textAnchor="end"
                   height={60}
                   tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => new Date(value).toLocaleDateString('en-GB', { 
-                    day: '2-digit', 
-                    month: '2-digit' 
-                  })}
                 />
                 <YAxis 
                   className="text-sm fill-current text-gray-600"
@@ -247,20 +328,16 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
                     borderRadius: '0.375rem',
                     boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                   }}
-                  labelFormatter={(value) => new Date(value).toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: '2-digit', 
-                    year: 'numeric'
-                  })}
+                  labelFormatter={(timestamp) => format(new Date(timestamp), 'dd/MM/yyyy')}
                 />
                 <Legend />
                 
                 {/* Half-season reference line */}
-                {showHalfSeasonLine && (
+                {showHalfSeasonLine && period === 'whole_season' && (
                   <ReferenceLine 
                     x={halfSeasonDate} 
-                    stroke="#6B7280"
-                    strokeWidth={1}
+                    className="stroke-current text-gray-200"
+                    strokeDasharray="3 3"
                   />
                 )}
                 
@@ -274,7 +351,8 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
                       dataKey={player.name}
                       stroke={playerColor}
                       strokeWidth={3}
-                      connectNulls={false} // Don't connect across null values - creates gaps
+                      connectNulls={false} // Critical: Don't connect across gaps - prevents future lines
+                      isAnimationActive={false} // Disable animation for cleaner rendering
                       dot={{ 
                         fill: 'white', 
                         stroke: playerColor, 

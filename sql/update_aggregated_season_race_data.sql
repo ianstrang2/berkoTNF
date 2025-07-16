@@ -1,14 +1,14 @@
 -- sql/update_aggregated_season_race_data.sql
+-- Updated version that uses actual match dates with zero-point starting records
 CREATE OR REPLACE FUNCTION update_aggregated_season_race_data()
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
     current_year INT := EXTRACT(YEAR FROM CURRENT_DATE);
-    current_week INT := EXTRACT(WEEK FROM CURRENT_DATE);
-    is_first_half BOOLEAN := current_week <= 26;
+    is_first_half BOOLEAN := CURRENT_DATE <= DATE(current_year || '-06-30');
     inserted_count INT := 0;
 BEGIN
     RAISE NOTICE 'Starting update_aggregated_season_race_data for year %...', current_year;
-    RAISE NOTICE 'Current week: %, First half: %', current_week, is_first_half;
+    RAISE NOTICE 'Current date: %, First half: %', CURRENT_DATE, is_first_half;
 
     -- Delete existing data for current year
     DELETE FROM aggregated_season_race_data WHERE season_year = current_year;
@@ -21,28 +21,13 @@ BEGIN
                    COALESCE(pm.heavy_win, false), 
                    COALESCE(pm.heavy_loss, false), 
                    COALESCE(pm.clean_sheet, false)
-               ) as fantasy_points,
-               EXTRACT(WEEK FROM m.match_date) as match_week
+               ) as fantasy_points
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id  
         JOIN players p ON pm.player_id = p.player_id
         WHERE EXTRACT(YEAR FROM m.match_date) = current_year
           AND p.is_ringer = false
         ORDER BY m.match_date, m.match_id
-    ),
-    -- Generate weekly dates for the full year (January 1 to December 31)
-    week_series AS (
-        SELECT 
-            generate_series(
-                DATE(current_year || '-01-01'),
-                DATE(current_year || '-12-31'),
-                INTERVAL '7 days'
-            )::date AS week_date,
-            EXTRACT(WEEK FROM generate_series(
-                DATE(current_year || '-01-01'),
-                DATE(current_year || '-12-31'),
-                INTERVAL '7 days'
-            )) AS week_number
     ),
     -- Calculate total points for whole season (for top 5 selection)
     whole_season_totals AS (
@@ -54,8 +39,8 @@ BEGIN
     current_half_totals AS (
         SELECT player_id, name, SUM(fantasy_points) as total_points
         FROM all_season_matches
-        WHERE (is_first_half AND match_week <= 26) 
-           OR (NOT is_first_half AND match_week > 26)
+        WHERE (is_first_half AND match_date <= DATE(current_year || '-06-30')) 
+           OR (NOT is_first_half AND match_date > DATE(current_year || '-06-30'))
         GROUP BY player_id, name
     ),
     -- Top 5 players for whole season
@@ -76,133 +61,95 @@ BEGIN
         ORDER BY total_points DESC, name ASC
         LIMIT 5
     ),
-    -- Calculate weekly cumulative points for whole season
-    whole_season_weekly AS (
+    -- Create zero-point starting records for whole season
+    whole_season_start_points AS (
+        SELECT
+            player_id,
+            name,
+            DATE(current_year || '-01-01') AS match_date,
+            0 AS cumulative_points
+        FROM top_5_whole_season
+    ),
+    -- Create zero-point starting records for current half season
+    current_half_start_points AS (
+        SELECT
+            player_id,
+            name,
+            CASE 
+                WHEN is_first_half THEN DATE(current_year || '-01-01')
+                ELSE DATE(current_year || '-07-01')
+            END AS match_date,
+            0 AS cumulative_points
+        FROM top_5_current_half
+    ),
+    -- Calculate cumulative points per match for whole season (actual match dates)
+    whole_season_match_cumulative AS (
         SELECT 
             t5.player_id,
             t5.name,
-            ws.week_date,
-            ws.week_number,
-            CASE 
-                WHEN ws.week_number <= (
-                    SELECT MAX(asm.match_week) 
-                    FROM all_season_matches asm 
-                    WHERE asm.player_id = t5.player_id
-                ) THEN
-                    COALESCE(
-                        (SELECT SUM(asm.fantasy_points)
-                         FROM all_season_matches asm
-                         WHERE asm.player_id = t5.player_id 
-                           AND asm.match_week <= ws.week_number),
-                        0
-                    )
-                ELSE NULL -- Don't include data for weeks beyond player's last match
-            END as cumulative_points
+            asm.match_date::date as match_date,
+            SUM(asm.fantasy_points) OVER (
+                PARTITION BY t5.player_id 
+                ORDER BY asm.match_date, asm.match_id 
+                ROWS UNBOUNDED PRECEDING
+            ) as cumulative_points
         FROM top_5_whole_season t5
-        CROSS JOIN week_series ws
+        JOIN all_season_matches asm ON t5.player_id = asm.player_id
     ),
-    -- Generate current half week series based on what half we're in
-    current_half_weeks AS (
-        SELECT 
-            generate_series(
-                CASE 
-                    WHEN current_week <= 26 THEN DATE(current_year || '-01-01')
-                    ELSE DATE(current_year || '-07-01')
-                END,
-                CASE 
-                    WHEN current_week <= 26 THEN DATE(current_year || '-06-30')
-                    ELSE DATE(current_year || '-12-31')
-                END,
-                INTERVAL '7 days'
-            )::date AS week_date,
-            EXTRACT(WEEK FROM generate_series(
-                CASE 
-                    WHEN current_week <= 26 THEN DATE(current_year || '-01-01')
-                    ELSE DATE(current_year || '-07-01')
-                END,
-                CASE 
-                    WHEN current_week <= 26 THEN DATE(current_year || '-06-30')
-                    ELSE DATE(current_year || '-12-31')
-                END,
-                INTERVAL '7 days'
-            )) AS week_number
-    ),
-    -- Calculate weekly cumulative points for current half season  
-    current_half_weekly AS (
+    -- Calculate cumulative points per match for current half (actual match dates)
+    current_half_match_cumulative AS (
         SELECT 
             t5.player_id,
             t5.name,
-            ws.week_date,
-            ws.week_number,
-            CASE 
-                WHEN current_week <= 26 THEN
-                    -- First half: weeks 1-26
-                    CASE 
-                        WHEN ws.week_number <= (
-                            SELECT MAX(asm.match_week) 
-                            FROM all_season_matches asm 
-                            WHERE asm.player_id = t5.player_id AND asm.match_week <= 26
-                        ) THEN
-                            COALESCE(
-                                (SELECT SUM(asm.fantasy_points)
-                                 FROM all_season_matches asm
-                                 WHERE asm.player_id = t5.player_id 
-                                   AND asm.match_week <= ws.week_number
-                                   AND asm.match_week <= 26),
-                                0
-                            )
-                        ELSE NULL
-                    END
-                ELSE
-                    -- Second half: weeks 27-52
-                    CASE 
-                        WHEN ws.week_number <= (
-                            SELECT MAX(asm.match_week) 
-                            FROM all_season_matches asm 
-                            WHERE asm.player_id = t5.player_id AND asm.match_week > 26
-                        ) THEN
-                            COALESCE(
-                                (SELECT SUM(asm.fantasy_points)
-                                 FROM all_season_matches asm
-                                 WHERE asm.player_id = t5.player_id 
-                                   AND asm.match_week <= ws.week_number
-                                   AND asm.match_week > 26),
-                                0
-                            )
-                        ELSE NULL
-                    END
-            END as cumulative_points
+            asm.match_date::date as match_date,
+            SUM(asm.fantasy_points) OVER (
+                PARTITION BY t5.player_id 
+                ORDER BY asm.match_date, asm.match_id 
+                ROWS UNBOUNDED PRECEDING
+            ) as cumulative_points
         FROM top_5_current_half t5
-        CROSS JOIN current_half_weeks ws
+        JOIN all_season_matches asm ON t5.player_id = asm.player_id
+        WHERE (is_first_half AND asm.match_date <= DATE(current_year || '-06-30')) 
+           OR (NOT is_first_half AND asm.match_date > DATE(current_year || '-06-30'))
     ),
-    -- Format whole season data (keep full timeline with nulls)
+    -- Combine whole season match data with zero starting points
+    whole_season_combined AS (
+        SELECT * FROM whole_season_match_cumulative
+        UNION ALL
+        SELECT * FROM whole_season_start_points
+    ),
+    -- Combine current half match data with zero starting points
+    current_half_combined AS (
+        SELECT * FROM current_half_match_cumulative
+        UNION ALL
+        SELECT * FROM current_half_start_points
+    ),
+    -- Generate JSON data for whole season using actual match dates
     whole_season_race_data AS (
         SELECT 
-            player_id, 
+            player_id,
             name,
             jsonb_agg(
                 jsonb_build_object(
-                    'date', week_date,
-                    'points', cumulative_points,
-                    'week_number', week_number
-                ) ORDER BY week_number
+                    'date', match_date,
+                    'points', cumulative_points
+                ) ORDER BY match_date
             ) as cumulative_data
-        FROM whole_season_weekly
+        FROM whole_season_combined
         GROUP BY player_id, name
     ),
-    -- Format current half season data (keep full timeline with nulls)
+    -- Generate JSON data for current half season using actual match dates
     current_half_race_data AS (
         SELECT 
-            player_id, 
+            player_id,
             name,
             jsonb_agg(
                 jsonb_build_object(
-                    'date', week_date,
-                    'points', cumulative_points,
-                    'week_number', week_number
-                ) ORDER BY week_number
+                    'date', match_date,
+                    'points', cumulative_points
+                ) ORDER BY match_date
             ) as cumulative_data
-        FROM current_half_weekly
+        FROM current_half_combined
         GROUP BY player_id, name
     ),
     -- Aggregate whole season data
