@@ -2,6 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import CurrentHalfSeason from '@/components/tables/CurrentHalfSeason.component';
+import SeasonRaceGraph from '@/components/tables/SeasonRaceGraph.component';
 import MainLayout from '@/components/layout/MainLayout.layout';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
@@ -45,6 +46,15 @@ function TableHalfContent() {
     );
   }
   
+  // Render different components based on view
+  if (view === 'race') {
+    return (
+      <ErrorBoundary>
+        <SeasonRaceGraph period="current_half" showHalfSeasonLine={false} />
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <CurrentHalfSeason initialView={view as 'points' | 'goals'} />

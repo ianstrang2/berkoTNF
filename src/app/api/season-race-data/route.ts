@@ -1,20 +1,33 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const period = searchParams.get('period') || 'whole_season';
     const currentYear = new Date().getFullYear();
     
+    // Validate period parameter
+    if (!['whole_season', 'current_half'].includes(period)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid period parameter. Use "whole_season" or "current_half"' },
+        { status: 400 }
+      );
+    }
+    
     const raceData = await prisma.aggregated_season_race_data.findFirst({
-      where: { season_year: currentYear },
-      select: { player_data: true, last_updated: true }
+      where: { 
+        season_year: currentYear,
+        period_type: period 
+      },
+      select: { player_data: true, last_updated: true, period_type: true }
     });
 
     if (!raceData) {
-      console.warn(`No season race data found for year ${currentYear}`);
+      console.warn(`No season race data found for year ${currentYear}, period ${period}`);
       return NextResponse.json({
         success: true,
-        data: { players: [], lastUpdated: null }
+        data: { players: [], lastUpdated: null, periodType: period }
       });
     }
 
@@ -22,7 +35,8 @@ export async function GET() {
       success: true,
       data: {
         players: raceData.player_data,
-        lastUpdated: raceData.last_updated
+        lastUpdated: raceData.last_updated,
+        periodType: raceData.period_type
       }
     });
 

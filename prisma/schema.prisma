@@ -439,10 +439,11 @@ model aggregated_player_profile_stats {
 model aggregated_season_race_data {
   race_data_id Int      @id @default(autoincrement())
   season_year  Int
+  period_type  String   @default("whole_season") @db.VarChar(20)
   player_data  Json
   last_updated DateTime @default(now()) @db.Timestamptz(6)
 
-  @@index([season_year], map: "idx_season_race_data_year")
+  @@unique([season_year, period_type], map: "idx_season_race_data_year_period")
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.

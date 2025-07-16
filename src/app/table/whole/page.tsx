@@ -50,7 +50,7 @@ function TableWholeContent() {
   if (view === 'race') {
     return (
       <ErrorBoundary>
-        <SeasonRaceGraph />
+        <SeasonRaceGraph period="whole_season" showHalfSeasonLine={true} />
       </ErrorBoundary>
     );
   }

@@ -15,6 +15,12 @@ interface PlayerRaceData {
 interface SeasonRaceData {
   players: PlayerRaceData[];
   lastUpdated: string | null;
+  periodType: string;
+}
+
+interface SeasonRaceGraphProps {
+  period?: 'whole_season' | 'current_half';
+  showHalfSeasonLine?: boolean;
 }
 
 const PLAYER_COLORS = [
@@ -25,7 +31,10 @@ const PLAYER_COLORS = [
   '#3B82F6', // Blue
 ];
 
-const SeasonRaceGraph: React.FC = () => {
+const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({ 
+  period = 'whole_season',
+  showHalfSeasonLine = true 
+}) => {
   const [data, setData] = useState<SeasonRaceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +58,7 @@ const SeasonRaceGraph: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        const response = await fetch('/api/season-race-data');
+        const response = await fetch(`/api/season-race-data?period=${period}`);
         if (!response.ok) {
           throw new Error('Failed to fetch season race data');
         }
@@ -59,7 +68,7 @@ const SeasonRaceGraph: React.FC = () => {
           throw new Error(result.error || 'Unknown error');
         }
         
-        console.log('Raw API data:', result.data);
+        console.log(`Raw API data for ${period}:`, result.data);
         setData(result.data);
       } catch (err) {
         console.error('Error fetching season race data:', err);
@@ -70,7 +79,7 @@ const SeasonRaceGraph: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [period]);
 
   // Transform data for Recharts
   const { chartData, sortedPlayers } = React.useMemo(() => {
@@ -154,24 +163,11 @@ const SeasonRaceGraph: React.FC = () => {
     return { chartData, sortedPlayers };
   }, [data]);
 
-  // Calculate half-season date (closest match date to June 30th)
+  // Calculate half-season date (June 30th exactly)
   const halfSeasonDate = React.useMemo(() => {
     const currentYear = new Date().getFullYear();
-    const june30 = new Date(currentYear, 5, 30); // June 30th
-    
-    if (!chartData || chartData.length === 0) {
-      return `${currentYear}-06-30`;
-    }
-    
-    // Find the closest actual match date to June 30th
-    const closestDate = chartData.reduce((closest, dataPoint) => {
-      const currentDiff = Math.abs(new Date(dataPoint.date).getTime() - june30.getTime());
-      const closestDiff = Math.abs(new Date(closest.date).getTime() - june30.getTime());
-      return currentDiff < closestDiff ? dataPoint : closest;
-    });
-    
-    return closestDate.date;
-  }, [chartData]);
+    return `${currentYear}-06-30`;
+  }, []);
 
   if (loading) {
     return (
@@ -218,7 +214,9 @@ const SeasonRaceGraph: React.FC = () => {
     <div className="w-full px-3">
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-          <h5 className="mb-0">Race for the Season Title</h5>
+          <h5 className="mb-0">
+            {period === 'current_half' ? 'Race for the Half Season' : 'Race for the Season Title'}
+          </h5>
           <p className="text-sm text-gray-600 mt-1">Spotlight on the current top 5 contenders</p>
         </div>
         <div className="p-4">
@@ -258,11 +256,13 @@ const SeasonRaceGraph: React.FC = () => {
                 <Legend />
                 
                 {/* Half-season reference line */}
-                <ReferenceLine 
-                  x={halfSeasonDate} 
-                  stroke="#6B7280"
-                  strokeWidth={1}
-                />
+                {showHalfSeasonLine && (
+                  <ReferenceLine 
+                    x={halfSeasonDate} 
+                    stroke="#6B7280"
+                    strokeWidth={1}
+                  />
+                )}
                 
                 {/* Player lines */}
                 {sortedPlayers.map((player, index) => {
@@ -274,6 +274,7 @@ const SeasonRaceGraph: React.FC = () => {
                       dataKey={player.name}
                       stroke={playerColor}
                       strokeWidth={3}
+                      connectNulls={false} // Don't connect across null values - creates gaps
                       dot={{ 
                         fill: 'white', 
                         stroke: playerColor, 

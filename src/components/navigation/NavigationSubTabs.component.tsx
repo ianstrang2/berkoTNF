@@ -103,18 +103,14 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
           label: 'Goals',
           href: `${baseHref}?view=goals`,
           active: currentView === 'goals'
-        }
-      ];
-
-      // Add "Race" option only for whole season
-      if (secondarySection === 'whole') {
-        baseOptions.push({
+        },
+        {
           key: 'race',
           label: 'Race',
           href: `${baseHref}?view=race`,
           active: currentView === 'race'
-        });
-      }
+        }
+      ];
 
       return baseOptions;
     }
