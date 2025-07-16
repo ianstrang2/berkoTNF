@@ -52,17 +52,20 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    const checkDesktop = () => {
-      setIsDesktop(window.innerWidth >= 1024);
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsDesktop(width >= 1024);
+      setIsMobile(width < 600);
     };
     
-    checkDesktop();
-    window.addEventListener('resize', checkDesktop);
-    return () => window.removeEventListener('resize', checkDesktop);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
   useEffect(() => {
@@ -95,9 +98,9 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
   }, [period]);
 
   // Transform data for time-based Recharts with weekly ticks
-  const { chartData, sortedPlayers, xAxisDomain, weeklyTicks } = React.useMemo(() => {
+  const { chartData, sortedPlayers, xAxisDomain, weeklyTicks, mobileTicksFiltered } = React.useMemo(() => {
     if (!data || !data.players || data.players.length === 0) {
-      return { chartData: [], sortedPlayers: [], xAxisDomain: [0, 1], weeklyTicks: [] };
+      return { chartData: [], sortedPlayers: [], xAxisDomain: [0, 1], weeklyTicks: [], mobileTicksFiltered: [] };
     }
 
     // Sort players by their final points (current standings order)
@@ -138,9 +141,12 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
 
     const xAxisDomain = [startDate.getTime(), endDate.getTime()];
     const weeklyTicks = generateWeeklyTicks(startDate, endDate);
+    
+    // Create filtered ticks for mobile (every 4th tick)
+    const mobileTicksFiltered = weeklyTicks.filter((_, index) => index % 4 === 0);
 
     console.log(`Period: ${period}, Start: ${startDate.toISOString().split('T')[0]}, End: ${endDate.toISOString().split('T')[0]}`);
-    console.log(`Generated ${weeklyTicks.length} weekly ticks`);
+    console.log(`Generated ${weeklyTicks.length} weekly ticks, ${mobileTicksFiltered.length} mobile ticks`);
 
     // Transform player data to include starting points and timestamps
     const transformedPlayers = sortedPlayers.map(player => {
@@ -234,7 +240,7 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
       });
     }
 
-    return { chartData, sortedPlayers, xAxisDomain, weeklyTicks };
+    return { chartData, sortedPlayers, xAxisDomain, weeklyTicks, mobileTicksFiltered };
   }, [data, period]);
 
   // Calculate half-season date as timestamp
@@ -245,6 +251,15 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
     console.log(`Half-season timestamp: ${timestamp} (${date.toISOString().split('T')[0]}), showLine: ${showHalfSeasonLine}, period: ${period}`);
     return timestamp;
   }, [showHalfSeasonLine, period]);
+
+  // Mobile tick formatter - shows week number instead of date
+  const mobileTickFormatter = (timestamp: number): string => {
+    const date = new Date(timestamp);
+    const currentYear = new Date().getFullYear();
+    const yearStart = new Date(currentYear, 0, 1);
+    const weekNumber = Math.ceil(((date.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24) + 1) / 7);
+    return `W${weekNumber}`;
+  };
 
   if (loading) {
     return (
@@ -299,72 +314,80 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
           </h5>
         </div>
         <div className="p-4">
-          <div className="h-[30rem] sm:h-96 lg:h-[32rem] xl:h-[36rem]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-current text-gray-200" />
-                <XAxis 
-                  dataKey="date"
-                  type="number"
-                  scale="time"
-                  domain={xAxisDomain}
-                  ticks={weeklyTicks}
-                  tickFormatter={(timestamp) => format(new Date(timestamp), 'dd/MM')}
-                  interval={0}
-                  className="text-sm fill-current text-gray-600"
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis 
-                  className="text-sm fill-current text-gray-600"
-                  label={{ value: 'Points', angle: -90, position: 'insideLeft' }}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #E0E0E0',
-                    borderRadius: '0.375rem',
-                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                  }}
-                  labelFormatter={(timestamp) => format(new Date(timestamp), 'dd/MM/yyyy')}
-                />
-                <Legend />
-                
-                {/* Half-season reference line */}
-                {showHalfSeasonLine && period === 'whole_season' && (
-                  <ReferenceLine 
-                    x={halfSeasonDate} 
-                    className="stroke-current text-gray-200"
-                    strokeDasharray="3 3"
+          {/* Horizontal scroll container for mobile */}
+          <div className={`${isMounted && isMobile ? 'overflow-x-auto' : ''}`}>
+            <div 
+              className="h-[30rem] sm:h-96 lg:h-[32rem] xl:h-[36rem]"
+              style={{
+                minWidth: isMounted && isMobile ? '1000px' : 'auto'
+              }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-current text-gray-200" />
+                  <XAxis 
+                    dataKey="date"
+                    type="number"
+                    scale="time"
+                    domain={xAxisDomain}
+                    ticks={isMounted && isMobile ? mobileTicksFiltered : weeklyTicks}
+                    tickFormatter={isMounted && isMobile ? mobileTickFormatter : (timestamp) => format(new Date(timestamp), 'dd/MM')}
+                    interval={0}
+                    className="text-sm fill-current text-gray-600"
+                    angle={isMounted && isMobile ? 0 : -45}
+                    textAnchor={isMounted && isMobile ? 'middle' : 'end'}
+                    height={60}
+                    tick={{ fontSize: isMounted && isMobile ? 10 : 12 }}
                   />
-                )}
-                
-                {/* Player lines */}
-                {sortedPlayers.map((player, index) => {
-                  const playerColor = PLAYER_COLORS[index % PLAYER_COLORS.length];
-                  return (
-                    <Line
-                      key={player.player_id}
-                      type="monotone"
-                      dataKey={player.name}
-                      stroke={playerColor}
-                      strokeWidth={3}
-                      connectNulls={false} // Critical: Don't connect across gaps - prevents future lines
-                      isAnimationActive={false} // Disable animation for cleaner rendering
-                      dot={{ 
-                        fill: 'white', 
-                        stroke: playerColor, 
-                        strokeWidth: isMounted && isDesktop ? 1.5 : 1, 
-                        r: isMounted && isDesktop ? 2.5 : 1.5 // Bigger dots on desktop
-                      }}
-                      activeDot={{ r: isMounted && isDesktop ? 6 : 4 }}
+                  <YAxis 
+                    className="text-sm fill-current text-gray-600"
+                    label={{ value: 'Points', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '1px solid #E0E0E0',
+                      borderRadius: '0.375rem',
+                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                    }}
+                    labelFormatter={(timestamp) => format(new Date(timestamp), 'dd/MM/yyyy')}
+                  />
+                  <Legend />
+                  
+                  {/* Half-season reference line */}
+                  {showHalfSeasonLine && period === 'whole_season' && (
+                    <ReferenceLine 
+                      x={halfSeasonDate} 
+                      className="stroke-current text-gray-200"
+                      strokeDasharray="3 3"
                     />
-                  );
-                })}
-              </LineChart>
-            </ResponsiveContainer>
+                  )}
+                  
+                  {/* Player lines */}
+                  {sortedPlayers.map((player, index) => {
+                    const playerColor = PLAYER_COLORS[index % PLAYER_COLORS.length];
+                    return (
+                      <Line
+                        key={player.player_id}
+                        type="monotone"
+                        dataKey={player.name}
+                        stroke={playerColor}
+                        strokeWidth={3}
+                        connectNulls={false} // Critical: Don't connect across gaps - prevents future lines
+                        isAnimationActive={false} // Disable animation for cleaner rendering
+                        dot={{ 
+                          fill: 'white', 
+                          stroke: playerColor, 
+                          strokeWidth: isMounted && isDesktop ? 1.5 : 1, 
+                          r: isMounted && isDesktop ? 2.5 : 1.5 // Bigger dots on desktop
+                        }}
+                        activeDot={{ r: isMounted && isDesktop ? 6 : 4 }}
+                      />
+                    );
+                  })}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>
