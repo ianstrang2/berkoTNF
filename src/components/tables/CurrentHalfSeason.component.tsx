@@ -4,6 +4,7 @@ import Link from 'next/link';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
+import FantasyPointsTooltip from '@/components/ui-kit/FantasyPointsTooltip.component';
 import { PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
 
 interface FormData {
@@ -46,6 +47,9 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
   const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
   const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
+
+  // Fantasy Points Tooltip state
+  const [isFantasyPointsTooltipOpen, setIsFantasyPointsTooltipOpen] = useState<boolean>(false);
 
   // Track component mount state
   const isMounted = useRef(true);
@@ -158,7 +162,19 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   const renderMainStats = () => (
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-        <h5 className="mb-0">{`Points (${getCurrentHalf().half === 1 ? 'Jan to Jun' : 'Jul to Dec'})`}</h5>
+        <div className="flex items-center">
+          <h5 className="mb-0">{`Points (${getCurrentHalf().half === 1 ? 'Jan to Jun' : 'Jul to Dec'})`}</h5>
+          <button
+            onClick={() => setIsFantasyPointsTooltipOpen(true)}
+            className="ml-2 w-5 h-5 rounded-lg bg-white hover:bg-gray-50 flex items-center justify-center text-slate-600 hover:text-slate-700 transition-all shadow-soft-md hover:shadow-soft-lg hover:scale-102 focus:outline-none"
+            aria-label="Scoring System Info"
+            title="Click to see how points are calculated"
+          >
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
       </div>
       {/* Container for horizontal scrolling only */}
       <div className="overflow-x-auto">
@@ -394,6 +410,12 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
           )}
         </>
       )}
+      
+      {/* Fantasy Points Tooltip Modal */}
+      <FantasyPointsTooltip
+        isOpen={isFantasyPointsTooltipOpen}
+        onClose={() => setIsFantasyPointsTooltipOpen(false)}
+      />
     </div>
   );
 };
