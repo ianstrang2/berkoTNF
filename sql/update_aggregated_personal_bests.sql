@@ -211,7 +211,15 @@ BEGIN
              v_player_pb_array := v_player_pb_array || jsonb_build_object('metric_type', 'longest_winless_streak', 'value', v_current_winless_streak, 'previous_best_value', v_previous_max_winless_streak);
         END IF;
         -- Metric 6: Attendance Streak
-        IF v_current_attendance_streak >= MIN_STREAK_FOR_PB AND v_current_attendance_streak > v_previous_max_attendance_streak THEN
+        -- FIXED: Only include attendance streaks that are CURRENT (extend to latest match)
+        IF v_current_attendance_streak >= MIN_STREAK_FOR_PB 
+           AND v_current_attendance_streak > v_previous_max_attendance_streak 
+           AND EXISTS (
+               -- Check if player attended the latest match (making the streak current)
+               SELECT 1 FROM public.player_matches pm_latest 
+               WHERE pm_latest.match_id = v_latest_match_id 
+               AND pm_latest.player_id = v_player_id
+           ) THEN
              v_player_pb_array := v_player_pb_array || jsonb_build_object('metric_type', 'attendance_streak', 'value', v_current_attendance_streak, 'previous_best_value', v_previous_max_attendance_streak);
         END IF;
         -- Metric 7: Longest Scoring Streak
