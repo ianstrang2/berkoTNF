@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ScatterChart, Scatter, ReferenceLine } from 'recharts';
 import Card from '@/components/ui-kit/Card.component';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 import { CardHeader, CardTitle, CardContent } from '@/components/ui-kit/Card.component';
@@ -8,6 +8,13 @@ import StatsCard from '@/components/ui-kit/StatsCard.component';
 import Chart from '@/components/ui-kit/Chart.component';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import MatchPerformance from './MatchPerformance.component';
+import PowerRatingGauge from './PowerRatingGauge.component';
+import PowerSlider from './PowerSlider.component';
+import { 
+  normalizePowerRatings, 
+  normalizeStreaks, 
+  decimalToNumber 
+} from '@/utils/powerRatingNormalization.util';
 
 interface ClubInfo {
   id: string;
@@ -18,15 +25,38 @@ interface ClubInfo {
   filename: string;
 }
 
-interface PlayerProfileProps {
-  id?: number;
-}
-
 interface YearlyStats {
   year: number;
   games_played: number;
   goals_scored: number;
   fantasy_points: number;
+}
+
+interface TeammateStat {
+  player_id: number;
+  name: string;
+  games_played_with?: number;
+  average_fantasy_points_with?: number;
+}
+
+interface PowerRatings {
+  rating: number;
+  goal_threat: number;
+  defensive_shield: number;
+  updated_at: string;
+}
+
+interface LeagueNormalization {
+  powerRating: { min: number; max: number; average: number };
+  goalThreat: { min: number; max: number; average: number };
+  defensiveShield: { min: number; max: number; average: number };
+  streaks: {
+    winStreak: { min: number; max: number; average: number };
+    undefeatedStreak: { min: number; max: number; average: number };
+    losingStreak: { min: number; max: number; average: number };
+    winlessStreak: { min: number; max: number; average: number };
+    attendanceStreak: { min: number; max: number; average: number };
+  };
 }
 
 interface ProfileData {
@@ -52,13 +82,8 @@ interface ProfileData {
   teammate_performance_high_top5?: TeammateStat[];
   teammate_performance_low_top5?: TeammateStat[];
   last_updated?: string;
-}
-
-interface TeammateStat {
-  player_id: number;
-  name: string;
-  games_played_with?: number;
-  average_fantasy_points_with?: number;
+  power_ratings?: PowerRatings | null;
+  league_normalization?: LeagueNormalization;
 }
 
 interface YearlyPerformanceData {
@@ -70,12 +95,17 @@ interface YearlyPerformanceData {
   fantasy_points: number;
 }
 
+interface PlayerProfileProps {
+  id?: number;
+}
+
 const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedStat, setSelectedStat] = useState<string>('Games Played');
+  const [selectedStat, setSelectedStat] = useState<string>('PPG');
+  const [leagueAverages, setLeagueAverages] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -93,13 +123,13 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           throw new Error(`Failed to fetch profile: ${response.statusText} for player ID ${id}`);
         }
         const data = await response.json();
-        console.log("[PlayerProfile] API Response Data:", data); // DEBUG LOG
+        console.log("[PlayerProfile] API Response Data:", data);
         if (data && data.profile) {
           const profileData: ProfileData = {
             ...data.profile,
             yearly_stats: data.profile.yearly_stats || [],
           };
-          console.log("[PlayerProfile] Processed Profile Data:", profileData); // DEBUG LOG
+          console.log("[PlayerProfile] Processed Profile Data:", profileData);
           setProfile(profileData);
           if (profileData.yearly_stats.length > 0) {
             setSelectedYear(profileData.yearly_stats[0].year);
@@ -120,16 +150,29 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
     fetchProfile();
   }, [id]);
 
-  const getStreakColor = (streak: number): string => {
-    return 'text-neutral-900';
-  };
+  // Fetch league averages for reference lines
+  useEffect(() => {
+    const fetchLeagueAverages = async () => {
+      try {
+        const response = await fetch('/api/stats/league-averages');
+        if (response.ok) {
+          const data = await response.json();
+          setLeagueAverages(data.averages || []);
+        }
+      } catch (err) {
+        console.error('Error fetching league averages:', err);
+        setLeagueAverages([]);
+      }
+    };
+
+    fetchLeagueAverages();
+  }, []);
 
   const statOptions: string[] = [
     'Games',
     'Goals',
     'MPG',
-    'PPG',
-    'Points'
+    'PPG'
   ];
 
   const yearlyPerformanceData: YearlyPerformanceData[] | undefined = profile?.yearly_stats.map(year => {
@@ -145,6 +188,112 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       fantasy_points: year.fantasy_points || 0
     };
   }).reverse();
+
+  // Process power ratings and streaks if available
+  const powerRatingsNormalized = profile?.power_ratings && profile?.league_normalization ? 
+    normalizePowerRatings(
+      decimalToNumber(profile.power_ratings.rating),
+      decimalToNumber(profile.power_ratings.goal_threat),
+      decimalToNumber(profile.power_ratings.defensive_shield),
+      {
+        rating: profile.league_normalization.powerRating,
+        goalThreat: profile.league_normalization.goalThreat,
+        defensiveShield: profile.league_normalization.defensiveShield
+      }
+    ) : null;
+
+  const streaksNormalized = profile?.league_normalization ? 
+    normalizeStreaks(
+      {
+        winStreak: profile.win_streak || 0,
+        winStreakDates: profile.win_streak_dates,
+        undefeatedStreak: profile.undefeated_streak || 0,
+        undefeatedStreakDates: profile.undefeated_streak_dates,
+        losingStreak: profile.losing_streak || 0,
+        losingStreakDates: profile.losing_streak_dates,
+        winlessStreak: profile.winless_streak || 0,
+        winlessStreakDates: profile.winless_streak_dates,
+        attendanceStreak: profile.attendance_streak || 0
+      },
+      profile.league_normalization.streaks
+    ) : null;
+
+  // Process teammate chemistry scatter plot data
+  const teammateScatterData = React.useMemo(() => {
+    if (!profile?.teammate_frequency_top5 || !profile?.teammate_performance_high_top5 || !profile?.teammate_performance_low_top5) {
+      return { best: [], worst: [], frequent: [] };
+    }
+
+    // Create maps for easy lookup
+    const frequencyMap = new Map();
+    profile.teammate_frequency_top5.forEach(tm => {
+      frequencyMap.set(tm.player_id, { name: tm.name, games: tm.games_played_with || 0 });
+    });
+
+    const bestChemistry: any[] = [];
+    const worstChemistry: any[] = [];
+    const mostFrequent: any[] = [];
+    
+    // Process high chemistry teammates (green dots)
+    profile.teammate_performance_high_top5.forEach(tm => {
+      if (tm.average_fantasy_points_with !== undefined) {
+        const freqData = frequencyMap.get(tm.player_id);
+        const games = freqData?.games || 5; // Default minimum if not found
+        
+        if (games >= 5) {
+          bestChemistry.push({
+            name: tm.name,
+            games: games,
+            performance: tm.average_fantasy_points_with,
+            player_id: tm.player_id
+          });
+        }
+      }
+    });
+
+    // Process low chemistry teammates (red dots)
+    profile.teammate_performance_low_top5.forEach(tm => {
+      if (tm.average_fantasy_points_with !== undefined) {
+        const freqData = frequencyMap.get(tm.player_id);
+        const games = freqData?.games || 5; // Default minimum if not found
+        
+        if (games >= 5) {
+          worstChemistry.push({
+            name: tm.name,
+            games: games,
+            performance: tm.average_fantasy_points_with,
+            player_id: tm.player_id
+          });
+        }
+      }
+    });
+
+    // Process most frequent teammates (blue dots) - only if not already in high/low
+    profile.teammate_frequency_top5.forEach(tm => {
+      if (tm.games_played_with && tm.games_played_with >= 5) {
+        const alreadyInBest = bestChemistry.some(point => point.player_id === tm.player_id);
+        const alreadyInWorst = worstChemistry.some(point => point.player_id === tm.player_id);
+        
+        if (!alreadyInBest && !alreadyInWorst) {
+          // For frequent teammates without explicit performance data, assume neutral performance
+          const avgPerformance = profile.fantasy_points / (profile.games_played || 1); // Use player's own average as baseline
+          
+          mostFrequent.push({
+            name: tm.name,
+            games: tm.games_played_with,
+            performance: avgPerformance, // Use player's average as neutral baseline
+            player_id: tm.player_id
+          });
+        }
+      }
+    });
+
+    return { 
+      best: bestChemistry,
+      worst: worstChemistry, 
+      frequent: mostFrequent 
+    };
+  }, [profile]);
 
   if (loading) {
     return (
@@ -181,51 +330,21 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
     );
   }
 
-  // Now we know profile is not null for the rest of the component
-  const {
-    games_played,
-    fantasy_points,
-    win_streak,
-    win_streak_dates,
-    most_game_goals,
-    most_game_goals_date,
-    most_season_goals,
-    most_season_goals_year,
-    losing_streak,
-    losing_streak_dates,
-    undefeated_streak,
-    undefeated_streak_dates,
-    winless_streak,
-    winless_streak_dates,
-    yearly_stats,
-    name,
-    selected_club,
-    attendance_streak,
-    teammate_frequency_top5,
-    teammate_performance_high_top5,
-    teammate_performance_low_top5
-  } = profile;
-
-  // DEBUG LOG for profile in render phase
-  // console.log("[PlayerProfile] Profile object in render:", profile);
-  // console.log("[PlayerProfile] Selected Club String from profile:", selected_club);
-
   // Parse clubInfo
   let clubInfo: ClubInfo | null = null;
-  if (selected_club) {
-    if (typeof selected_club === 'object' && selected_club !== null) {
+  if (profile.selected_club) {
+    if (typeof profile.selected_club === 'object' && profile.selected_club !== null) {
       clubInfo = {
-        id: selected_club.id || '',
-        name: selected_club.name || 'Unknown Club',
-        league: selected_club.league || '',
-        search: selected_club.search || '',
-        country: selected_club.country || '',
-        filename: selected_club.filename || ''
+        id: profile.selected_club.id || '',
+        name: profile.selected_club.name || 'Unknown Club',
+        league: profile.selected_club.league || '',
+        search: profile.selected_club.search || '',
+        country: profile.selected_club.country || '',
+        filename: profile.selected_club.filename || ''
       };
-      // console.log("[PlayerProfile] ClubInfo (already an object, mapped):", clubInfo);
-    } else if (typeof selected_club === 'string') {
+    } else if (typeof profile.selected_club === 'string') {
       try {
-        const parsedClub = JSON.parse(selected_club);
+        const parsedClub = JSON.parse(profile.selected_club);
         clubInfo = {
           id: parsedClub.id || '',
           name: parsedClub.name || 'Unknown Club',
@@ -234,24 +353,19 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           country: parsedClub.country || '',
           filename: parsedClub.filename || ''
         };
-        // console.log("[PlayerProfile] Parsed ClubInfo (from string fallback, mapped):", clubInfo);
       } catch (e) {
-        console.error("[PlayerProfile] Failed to parse selected_club JSON (from string fallback):", e);
+        console.error("[PlayerProfile] Failed to parse selected_club JSON:", e);
       }
-    } else {
-      console.warn("[PlayerProfile] selected_club is not an object or a string:", selected_club);
     }
-  } else {
-    console.log("[PlayerProfile] selected_club is undefined, null, or empty in profile object."); // DEBUG LOG
   }
 
   // Extract years for the MatchPerformance component
-  const availableYearsForMatchPerformance = yearly_stats.map(stat => stat.year).sort((a, b) => b - a);
+  const availableYearsForMatchPerformance = profile.yearly_stats.map(stat => stat.year).sort((a, b) => b - a);
 
   return (
     <div className="flex flex-wrap -mx-3">
       {/* Player Name and Club Logo */}
-      {name && (
+      {profile.name && (
         <div className="w-full max-w-full px-3 mb-6">
           <div className="mx-auto">
             <div className="flex items-center">
@@ -264,119 +378,137 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 />
               )}
               <h2 className="text-xl font-semibold text-slate-700 font-sans">
-                {name}
+                {profile.name}
               </h2>
             </div>
           </div>
         </div>
       )}
-      {/* Stats Cards */}
+
+      {/* NEW: Power Rating Section */}
       <div className="w-full max-w-full px-3 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mx-auto">
-          <div>
-            <StatsCard
-              title="Games"
-              value={games_played}
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              }
-            />
+        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left: Power Rating Gauge */}
+              <div className="flex justify-center items-center">
+                <PowerRatingGauge 
+                  rating={powerRatingsNormalized?.rating || 50}
+                  size="lg"
+                />
+              </div>
+              
+              {/* Right: Goal Threat and Defensive Shield Sliders */}
+              <div className="space-y-4">
+                <PowerSlider
+                  label="Goal Threat"
+                  value={profile.power_ratings?.goal_threat || 0}
+                  percentage={powerRatingsNormalized?.goalThreat || 50}
+                  leagueAverage={powerRatingsNormalized ? 50 : undefined}
+                  variant="neutral"
+                  hasVariance={powerRatingsNormalized?.hasVariance.goalThreat !== false}
+                  showPercentage={true}
+                  showValue={false}
+                />
+                
+                <PowerSlider
+                  label="Defensive Shield"
+                  value={profile.power_ratings?.defensive_shield || 0}
+                  percentage={powerRatingsNormalized?.defensiveShield || 50}
+                  leagueAverage={powerRatingsNormalized ? 50 : undefined}
+                  variant="neutral"
+                  hasVariance={powerRatingsNormalized?.hasVariance.defensiveShield !== false}
+                  showPercentage={true}
+                  showValue={false}
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <StatsCard
-              title="Points"
-              value={fantasy_points}
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              }
-            />
+        </div>
+      </div>
+
+      {/* NEW: Streaks Section */}
+      <div className="w-full max-w-full px-3 mb-6">
+        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+          <div className="p-6 pb-0">
+            <h6 className="mb-4 text-lg font-semibold text-slate-700">Streaks</h6>
           </div>
-          <div>
-            <StatsCard
-              title="Most Game Goals"
-              value={most_game_goals}
-              change={most_game_goals_date ? { value: most_game_goals_date, isPositive: true } : undefined}
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
-                </svg>
-              }
-            />
-          </div>
-          <div>
-            <StatsCard
-              title="Most Season Goals"
-              value={most_season_goals}
-              change={most_season_goals_year ? { value: most_season_goals_year, isPositive: true } : undefined}
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5M8 8v8m8-16l-8 4-8-4 8-4 8 4z" />
-                </svg>
-              }
-            />
-          </div>
-          <div>
-            <StatsCard
-              title="Win Streak"
-              value={win_streak}
-              change={win_streak_dates ? { value: win_streak_dates, isPositive: true } : undefined}
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-              }
-            />
-          </div>
-          <div>
-            <StatsCard
-              title="Undefeated Streak"
-              value={undefeated_streak}
-              change={undefeated_streak_dates ? { value: undefeated_streak_dates, isPositive: true } : undefined}
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                </svg>
-              }
-            />
-          </div>
-          <div>
-            <StatsCard
-              title="Losing Streak"
-              value={losing_streak}
-              change={losing_streak_dates ? { value: losing_streak_dates, isPositive: false } : undefined}
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                </svg>
-              }
-            />
-          </div>
-          <div>
-            <StatsCard
-              title="Winless Streak"
-              value={winless_streak}
-              change={winless_streak_dates ? { value: winless_streak_dates, isPositive: false } : undefined}
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-              }
-            />
-          </div>
-          <div>
-            <StatsCard
-              title="Attendance Streak"
-              value={attendance_streak !== undefined && attendance_streak !== null ? attendance_streak : 'N/A'}
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                  <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 0 0 0-1.5h-3.75V6Z" clipRule="evenodd" />
-                </svg>
-              }
-            />
+          <div className="p-6 pt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Positive Streaks */}
+              <div className="space-y-4">
+                {streaksNormalized && (
+                  <>
+                    <PowerSlider
+                      label="Attendance"
+                      value={streaksNormalized.attendanceStreak.value}
+                      percentage={streaksNormalized.attendanceStreak.percentage}
+                      leagueAverage={streaksNormalized.attendanceStreak.leagueAverage}
+                      contextText={streaksNormalized.attendanceStreak.dates}
+                      variant="positive"
+                      hasVariance={streaksNormalized.attendanceStreak.hasVariance}
+                      showPercentage={false}
+                      showValue={true}
+                    />
+                    
+                    <PowerSlider
+                      label="Win"
+                      value={streaksNormalized.winStreak.value}
+                      percentage={streaksNormalized.winStreak.percentage}
+                      leagueAverage={streaksNormalized.winStreak.leagueAverage}
+                      contextText={streaksNormalized.winStreak.dates}
+                      variant="positive"
+                      hasVariance={streaksNormalized.winStreak.hasVariance}
+                      showPercentage={false}
+                      showValue={true}
+                    />
+                    
+                    <PowerSlider
+                      label="Unbeaten"
+                      value={streaksNormalized.undefeatedStreak.value}
+                      percentage={streaksNormalized.undefeatedStreak.percentage}
+                      leagueAverage={streaksNormalized.undefeatedStreak.leagueAverage}
+                      contextText={streaksNormalized.undefeatedStreak.dates}
+                      variant="positive"
+                      hasVariance={streaksNormalized.undefeatedStreak.hasVariance}
+                      showPercentage={false}
+                      showValue={true}
+                    />
+                  </>
+                )}
+              </div>
+              
+              {/* Negative Streaks */}
+              <div className="space-y-4">
+                {streaksNormalized && (
+                  <>
+                    <PowerSlider
+                      label="Losing"
+                      value={streaksNormalized.losingStreak.value}
+                      percentage={streaksNormalized.losingStreak.percentage}
+                      leagueAverage={streaksNormalized.losingStreak.leagueAverage}
+                      contextText={streaksNormalized.losingStreak.dates}
+                      variant="negative"
+                      hasVariance={streaksNormalized.losingStreak.hasVariance}
+                      showPercentage={false}
+                      showValue={true}
+                    />
+                    
+                    <PowerSlider
+                      label="Winless"
+                      value={streaksNormalized.winlessStreak.value}
+                      percentage={streaksNormalized.winlessStreak.percentage}
+                      leagueAverage={streaksNormalized.winlessStreak.leagueAverage}
+                      contextText={streaksNormalized.winlessStreak.dates}
+                      variant="negative"
+                      hasVariance={streaksNormalized.winlessStreak.hasVariance}
+                      showPercentage={false}
+                      showValue={true}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -403,30 +535,41 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 selectedStat === 'Goals' ? 'goals scored' : 
                 selectedStat === 'MPG' ? 'minutes per goal' : 
                 selectedStat === 'PPG' ? 'points per game' : 
-                'fantasy points'
+                'performance data'
               } over time
             </p>
             <div className="h-[250px] sm:h-[300px] md:h-[350px]">
-              <Chart
-                title=""
-                data={yearlyPerformanceData || []}
-                type="line"
-                dataKey={
-                  selectedStat === 'Games' ? 'games_played' : 
-                  selectedStat === 'Goals' ? 'goals_scored' : 
-                  selectedStat === 'MPG' ? 'minutes_per_goal' : 
-                  selectedStat === 'PPG' ? 'points_per_game' : 
-                  'fantasy_points'
-                }
-                gradient={{ from: 'purple-700', to: 'pink-500' }}
-                reverseYAxis={selectedStat === 'MPG'}
-              />
+              {yearlyPerformanceData && yearlyPerformanceData.length > 0 ? (
+                <Chart
+                  title=""
+                  data={yearlyPerformanceData || []}
+                  type={selectedStat === 'Games' || selectedStat === 'Goals' ? 'bar' : 'line'}
+                  dataKey={
+                    selectedStat === 'Games' ? 'games_played' : 
+                    selectedStat === 'Goals' ? 'goals_scored' : 
+                    selectedStat === 'MPG' ? 'minutes_per_goal' : 
+                    selectedStat === 'PPG' ? 'points_per_game' : 
+                    'points_per_game'
+                  }
+                  gradient={{ from: 'purple-700', to: 'pink-500' }}
+                  reverseYAxis={selectedStat === 'MPG'}
+                  leagueAverages={leagueAverages}
+                  selectedMetric={selectedStat}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                  <div className="text-center">
+                    <p className="text-lg mb-2">No performance history</p>
+                    <p className="text-sm">Performance data will appear after playing matches</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Add MatchPerformance component here */}
+      {/* Match Performance Dots - Keep As-Is */}
       {id && availableYearsForMatchPerformance.length > 0 && (
         <div className="w-full max-w-full px-3 mt-6">
           <div className="mx-auto">
@@ -438,104 +581,136 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
         </div>
       )}
 
-      {/* Teammate Statistics */}
-      <div className="w-full max-w-full px-3 mt-6 mb-6 lg:mb-0 lg:w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Most Played With */}
-          <Card className="shadow-soft-xl">
-            <CardHeader>
-              <CardTitle>Most Played With</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {teammate_frequency_top5 && teammate_frequency_top5.length > 0 ? (
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell className="font-semibold text-slate-500">Player</TableCell>
-                      <TableCell className="font-semibold text-slate-500 text-right">Games</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {teammate_frequency_top5.map((tm, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{tm.name}</TableCell>
-                        <TableCell className="text-right">{tm.games_played_with}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-slate-500 text-center py-4">No teammate data available.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Best Chemistry */}
-          <Card className="shadow-soft-xl">
-            <CardHeader>
-              <div className="flex items-baseline">
-                <CardTitle>Best Chemistry</CardTitle>
-                <p className="text-xs text-slate-500 ml-2">(min 5 games played together)</p>
+      {/* NEW: Teammate Chemistry Scatter Plot */}
+      <div className="w-full max-w-full px-3 mt-6 mb-6">
+        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+          <div className="p-6 pb-0">
+            <h6 className="mb-4 text-lg font-semibold text-slate-700">Teammate Chemistry (Min 5 games played)</h6>
+          </div>
+          <div className="p-6 pt-0">
+            {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.frequent.length > 0) ? (
+              <div style={{ width: '100%', height: 350 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis 
+                      type="number" 
+                      dataKey="games" 
+                      name="Games Together"
+                      domain={[5, 'dataMax']}
+                      className="text-sm"
+                      tick={{ fontSize: 12, fill: '#64748b' }}
+                      axisLine={{ stroke: '#cbd5e1' }}
+                      label={{ value: 'Games Played Together', position: 'insideBottom', offset: -10, style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b' } }}
+                    />
+                    <YAxis 
+                      type="number" 
+                      dataKey="performance" 
+                      name="Performance"
+                      domain={['dataMin - 2', 'dataMax + 2']}
+                      className="text-sm"
+                      tick={{ fontSize: 12, fill: '#64748b' }}
+                      axisLine={{ stroke: '#cbd5e1' }}
+                      label={{ value: 'Avg Fantasy Points Together', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b' } }}
+                    />
+                    <Tooltip 
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                              <p className="font-semibold text-slate-700">{data.name}</p>
+                              <p className="text-sm text-slate-600">
+                                {data.games} games together
+                              </p>
+                              <p className="text-sm text-slate-600">
+                                {data.performance?.toFixed(1)} avg fantasy points
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    
+                    {/* League Average Reference Line */}
+                    <ReferenceLine 
+                      y={profile ? profile.fantasy_points / (profile.games_played || 1) : 0} 
+                      stroke="#9ca3af" 
+                      strokeDasharray="5 5" 
+                      strokeWidth={1}
+                      label={{ value: "Player Average", position: "insideTopRight" }}
+                    />
+                    
+                    {/* Best Chemistry - Green dots */}
+                    {teammateScatterData.best.length > 0 && (
+                      <Scatter 
+                        name="Best Chemistry" 
+                        data={teammateScatterData.best} 
+                        fill="#10b981"
+                        strokeWidth={2}
+                        stroke="#059669"
+                      />
+                    )}
+                    
+                    {/* Worst Chemistry - Red dots */}
+                    {teammateScatterData.worst.length > 0 && (
+                      <Scatter 
+                        name="Worst Chemistry" 
+                        data={teammateScatterData.worst} 
+                        fill="#ef4444"
+                        strokeWidth={2}
+                        stroke="#dc2626"
+                      />
+                    )}
+                    
+                    {/* Most Frequent - Blue dots */}
+                    {teammateScatterData.frequent.length > 0 && (
+                      <Scatter 
+                        name="Most Frequent" 
+                        data={teammateScatterData.frequent} 
+                        fill="#3b82f6"
+                        strokeWidth={2}
+                        stroke="#2563eb"
+                      />
+                    )}
+                  </ScatterChart>
+                </ResponsiveContainer>
               </div>
-            </CardHeader>
-            <CardContent>
-              {teammate_performance_high_top5 && teammate_performance_high_top5.length > 0 ? (
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell className="font-semibold text-slate-500">Player</TableCell>
-                      <TableCell className="font-semibold text-slate-500 text-right">Avg. FP</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {teammate_performance_high_top5.map((tm, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{tm.name}</TableCell>
-                        <TableCell className="text-right">{tm.average_fantasy_points_with?.toFixed(1)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-slate-500 text-center py-4">No chemistry data available.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Worst Chemistry */}
-          <Card className="shadow-soft-xl">
-            <CardHeader>
-              <div className="flex items-baseline">
-                <CardTitle>Worst Chemistry</CardTitle>
-                <p className="text-xs text-slate-500 ml-2">(min 5 games played together)</p>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                <p>No teammate chemistry data available</p>
+                <p className="text-sm">Requires at least 5 games played together</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              {teammate_performance_low_top5 && teammate_performance_low_top5.length > 0 ? (
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell className="font-semibold text-slate-500">Player</TableCell>
-                      <TableCell className="font-semibold text-slate-500 text-right">Avg. FP</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {teammate_performance_low_top5.map((tm, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{tm.name}</TableCell>
-                        <TableCell className="text-right">{tm.average_fantasy_points_with?.toFixed(1)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-slate-500 text-center py-4">No chemistry data available.</p>
-              )}
-            </CardContent>
-          </Card>
+            )}
+            
+            {/* Legend */}
+            {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.frequent.length > 0) && (
+              <div className="flex justify-center mt-4 space-x-6 text-sm">
+                {teammateScatterData.best.length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2 border border-green-600"></div>
+                    <span>Best Chemistry</span>
+                  </div>
+                )}
+                {teammateScatterData.worst.length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2 border border-red-600"></div>
+                    <span>Worst Chemistry</span>
+                  </div>
+                )}
+                {teammateScatterData.frequent.length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2 border border-blue-600"></div>
+                    <span>Most Frequent</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
     </div>
   );
 };
