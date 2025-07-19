@@ -40,7 +40,7 @@ This phase collects all necessary data from the database at the moment of execut
     - Missing goal threat/defensive shield: Use calculated league averages
 
 **Data Sources:**
-- All three metrics are calculated and stored via the `update_aggregated_player_power_rating.sql` function
+- All three metrics are calculated and stored via the `update_half_and_full_season_stats.sql` function
 - Values are derived from historical match performance data
 
 ### **Phase 2: League Average Calculation**
@@ -186,7 +186,7 @@ This phase calculates the final balance quality and saves the optimized teams.
 - `GAP_THRESHOLD = 1.0`: Acceptable balance gap for early termination
 
 ### **Data Generation:**
-All performance metrics are calculated by the `update_aggregated_player_power_rating.sql` function:
+All performance metrics are calculated by the `update_half_and_full_season_stats.sql` function:
 - **Rating:** Fantasy points-based with Bayesian smoothing
 - **Goal Threat:** Weighted goals per game
 - **Defensive Shield:** Inverse of goals conceded relative to league average

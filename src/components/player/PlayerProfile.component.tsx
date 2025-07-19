@@ -480,7 +480,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           <div className="p-4 lg:p-6 pb-0">
             {/* Player Name and Club Logo */}
             {profile.name && (
-              <div className="flex items-center justify-center mb-6">
+              <div className="flex items-center justify-center mb-10">
                 {clubInfo && clubInfo.filename && (
                   <img
                     src={`/club-logos/${clubInfo.filename}`}
@@ -504,7 +504,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               </div>
             ) : trendData ? (
               <>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-1">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-0">
                 {/* Power Rating */}
                 <div className="flex flex-col items-center">
                   <PowerRatingGauge 
@@ -535,7 +535,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
               {/* Trend Sparklines Section */}
               {trendData && trendData.sparkline_data && trendData.sparkline_data.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-3">
                   {/* Power Rating Sparkline */}
                   <div className="flex flex-col items-center">
                     <div className="w-full max-w-[250px] h-[60px] border border-gray-200 rounded bg-gray-50">

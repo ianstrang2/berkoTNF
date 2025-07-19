@@ -647,7 +647,7 @@ $edgeFunctionNames = @(
     "call-update-recent-performance",
     "call-update-season-honours-and-records",
     "call-update-personal-bests",
-    "call-update-player-power-rating",
+    // "call-update-player-power-rating", // Removed - replaced by update_half_and_full_season_stats
     "call-update-player-profile-stats",
     "call-update-season-race-data"  # ADD THIS LINE
 )
@@ -665,7 +665,7 @@ $sqlDeploymentOrder = @(
     "update_aggregated_season_honours_and_records.sql",
     "update_half_and_full_season_stats.sql",
     "update_aggregated_personal_bests.sql",
-    "update_aggregated_player_power_rating.sql",
+    // "update_aggregated_player_power_rating.sql", // REMOVED - replaced by update_half_and_full_season_stats
     "update_aggregated_player_profile_stats.sql",
     "update_aggregated_season_race_data.sql"  # ADD THIS LINE
 )

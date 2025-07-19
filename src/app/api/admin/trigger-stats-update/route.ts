@@ -12,7 +12,7 @@ const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> 
   { name: 'call-update-season-honours-and-records', tag: CACHE_TAGS.HONOUR_ROLL },
   { name: 'call-update-match-report-cache', tag: CACHE_TAGS.MATCH_REPORT },
   { name: 'call-update-personal-bests', tag: CACHE_TAGS.PERSONAL_BESTS },
-  // RETIRED: call-update-player-power-rating - now handled by call-update-half-and-full-season-stats
+  // Removed update_aggregated_player_power_rating as it's replaced by update_half_and_full_season_stats
   { name: 'call-update-player-profile-stats', tag: CACHE_TAGS.PLAYER_PROFILE },
   { name: 'call-update-season-race-data', tag: CACHE_TAGS.SEASON_RACE_DATA }
 ];

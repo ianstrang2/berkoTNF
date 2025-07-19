@@ -91,19 +91,37 @@ const PowerRatingGauge: React.FC<PowerRatingGaugeProps> = ({
           />
         </svg>
         
-        {/* Center Text */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pt-4">
-          <span className={`font-bold text-slate-800 ${config.textSize}`}>
-            {Math.round(clampedRating)}%
-          </span>
+        {/* Center Content Container */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {/* Percentage */}
+          <div style={{ marginTop: '12px', marginBottom: '8px' }}>
+            <span 
+              style={{ 
+                fontSize: '20px', 
+                lineHeight: '28px', 
+                color: 'rgb(52, 71, 103)', 
+                fontWeight: 700 
+              }}
+            >
+              {Math.round(clampedRating)}%
+            </span>
+          </div>
+          
+          {/* Label */}
+          <div>
+            <p 
+              style={{ 
+                fontSize: '14px', 
+                lineHeight: '24px', 
+                color: 'rgb(52, 71, 103)', 
+                fontWeight: 500,
+                margin: 0
+              }}
+            >
+              {label}
+            </p>
+          </div>
         </div>
-      </div>
-      
-      {/* Label */}
-      <div className="mt-2 text-center">
-        <p className={`font-medium text-slate-600 ${config.labelSize}`}>
-          {label}
-        </p>
       </div>
     </div>
   );

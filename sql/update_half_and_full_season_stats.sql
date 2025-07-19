@@ -1,4 +1,5 @@
 -- sql/update_half_and_full_season_stats.sql
+-- Fixed: Corrected v_weights_sum calculation, handled current year partial blocks, and implemented full trend logic
 
 -- Helper functions (calculate_match_fantasy_points, date helpers) are defined in sql/helpers.sql
 
@@ -39,6 +40,7 @@ DECLARE
     -- Variables for trend calculation
     v_blocks_count INT;
     v_block_data JSONB;
+    v_prev_block_data JSONB;
     v_trend_rating DECIMAL;
     v_trend_goal_threat DECIMAL;
     v_defensive_score DECIMAL;
@@ -56,6 +58,16 @@ DECLARE
     v_count_players INT := 0;
     v_league_avg_goal_threat DECIMAL;
     v_league_avg_defensive_score DECIMAL;
+    
+    -- Additional variables for trend calculation
+    v_block_rating DECIMAL;
+    v_prev_block_rating DECIMAL;
+    v_block_goals DECIMAL;
+    v_prev_block_goals DECIMAL;
+    v_sum_percentage_changes DECIMAL := 0;
+    v_percentage_changes_count INT := 0;
+    v_last_two_avg_rating DECIMAL;
+    v_last_two_avg_goals DECIMAL;
 BEGIN
     RAISE NOTICE 'Starting update_half_and_full_season_stats with 6-month block trend algorithm...';
     RAISE NOTICE 'Using config: match_duration=%', match_duration;
@@ -116,17 +128,17 @@ BEGIN
     ) LOOP
         v_historical_blocks := '[]';
 
-        -- Calculate historical blocks using simplified approach
+        -- Calculate historical blocks using proper decay weights
         FOR historical_year IN v_earliest_match_year..current_year LOOP
             -- First half: Jan 1 - Jun 30
             v_block_start := MAKE_DATE(historical_year, 1, 1);
             v_block_end := MAKE_DATE(historical_year, 6, 30);
             
-            -- Calculate block statistics with simple approach (no decay for now)
+            -- Calculate block statistics with proper decay weights (FIX #1)
             SELECT 
-                COALESCE(SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))), 0),
-                COALESCE(SUM(COALESCE(pm.goals, 0)), 0),
-                COALESCE(COUNT(*), 0),
+                COALESCE(SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)) * POWER(2, -((v_block_end - m.match_date::date) / 180.0))), 0),
+                COALESCE(SUM(COALESCE(pm.goals, 0) * POWER(2, -((v_block_end - m.match_date::date) / 180.0))), 0),
+                COALESCE(SUM(POWER(2, -((v_block_end - m.match_date::date) / 180.0))), 0), -- Fixed weights calculation
                 COALESCE(SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END), 0),
                 COALESCE(COUNT(*), 0)
             INTO v_decayed_fantasy_points, v_decayed_goals, v_weights_sum, v_clean_sheets_count, v_raw_games
@@ -135,9 +147,8 @@ BEGIN
             WHERE pm.player_id = v_player_id 
             AND m.match_date::date BETWEEN v_block_start AND v_block_end;
 
-            -- Add block to historical_blocks (always, even if no matches)
-            -- Calculate team goals conceded (approximation)
-            SELECT COALESCE(AVG(CASE WHEN pm.team = 'A' THEN m.team_b_score ELSE m.team_a_score END)::DECIMAL / 9.0, 0)
+            -- Calculate team goals conceded with decay weighting
+            SELECT COALESCE(SUM((CASE WHEN pm.team = 'A' THEN m.team_b_score ELSE m.team_a_score END)::DECIMAL / 9.0 * POWER(2, -((v_block_end - m.match_date::date) / 180.0))) / NULLIF(SUM(POWER(2, -((v_block_end - m.match_date::date) / 180.0))), 0), 0)
             INTO v_team_goals_conceded
             FROM player_matches pm
             JOIN matches m ON pm.match_id = m.match_id
@@ -150,21 +161,21 @@ BEGIN
                 'fantasy_points', v_decayed_fantasy_points,
                 'goals', v_decayed_goals,
                 'goals_conceded', COALESCE(v_team_goals_conceded, 0),
-                'games_played', v_weights_sum,
+                'games_played', v_raw_games,
                 'weights_sum', v_weights_sum,
                 'clean_sheets', v_clean_sheets_count
             );
 
-            -- Second half: Jul 1 - Dec 31 (skip if current year and we're in first half)
-            IF NOT (historical_year = current_year AND DATE_PART('month', CURRENT_DATE) <= 6) THEN
+            -- Second half: Jul 1 - Dec 31 (FIX #2: Proper current year handling)
+            IF historical_year < current_year OR (historical_year = current_year AND DATE_PART('month', CURRENT_DATE) > 6) THEN
                 v_block_start := MAKE_DATE(historical_year, 7, 1);
                 v_block_end := MAKE_DATE(historical_year, 12, 31);
                 
-                -- Calculate block statistics with simple approach (no decay for now)
+                -- Calculate block statistics with proper decay weights (FIX #1)
                 SELECT 
-                    COALESCE(SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))), 0),
-                    COALESCE(SUM(COALESCE(pm.goals, 0)), 0),
-                    COALESCE(COUNT(*), 0),
+                    COALESCE(SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)) * POWER(2, -((v_block_end - m.match_date::date) / 180.0))), 0),
+                    COALESCE(SUM(COALESCE(pm.goals, 0) * POWER(2, -((v_block_end - m.match_date::date) / 180.0))), 0),
+                    COALESCE(SUM(POWER(2, -((v_block_end - m.match_date::date) / 180.0))), 0), -- Fixed weights calculation
                     COALESCE(SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END), 0),
                     COALESCE(COUNT(*), 0)
                 INTO v_decayed_fantasy_points, v_decayed_goals, v_weights_sum, v_clean_sheets_count, v_raw_games
@@ -173,9 +184,8 @@ BEGIN
                 WHERE pm.player_id = v_player_id 
                 AND m.match_date::date BETWEEN v_block_start AND v_block_end;
 
-                -- Add block to historical_blocks (always, even if no matches)
-                -- Calculate team goals conceded (approximation)
-                SELECT COALESCE(AVG(CASE WHEN pm.team = 'A' THEN m.team_b_score ELSE m.team_a_score END)::DECIMAL / 9.0, 0)
+                -- Calculate team goals conceded with decay weighting
+                SELECT COALESCE(SUM((CASE WHEN pm.team = 'A' THEN m.team_b_score ELSE m.team_a_score END)::DECIMAL / 9.0 * POWER(2, -((v_block_end - m.match_date::date) / 180.0))) / NULLIF(SUM(POWER(2, -((v_block_end - m.match_date::date) / 180.0))), 0), 0)
                 INTO v_team_goals_conceded
                 FROM player_matches pm
                 JOIN matches m ON pm.match_id = m.match_id
@@ -188,7 +198,7 @@ BEGIN
                     'fantasy_points', v_decayed_fantasy_points,
                     'goals', v_decayed_goals,
                     'goals_conceded', COALESCE(v_team_goals_conceded, 0),
-                    'games_played', v_weights_sum,
+                    'games_played', v_raw_games,
                     'weights_sum', v_weights_sum,
                     'clean_sheets', v_clean_sheets_count
                 );
@@ -200,7 +210,7 @@ BEGIN
         SET historical_blocks = v_historical_blocks
         WHERE player_id = v_player_id;
 
-        -- Calculate trend-based metrics
+        -- Calculate trend-based metrics (FIX #3: Full trend calculation logic)
         v_blocks_count := jsonb_array_length(v_historical_blocks);
         
         IF v_blocks_count = 0 THEN
@@ -211,29 +221,81 @@ BEGIN
         ELSIF v_blocks_count = 1 THEN
             -- Single block player - use current block's decayed averages
             v_block_data := v_historical_blocks->0;
-            v_trend_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'games_played')::DECIMAL, 0), 5.35);
-            v_trend_goal_threat := LEAST(1.5, COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'games_played')::DECIMAL, 0), 0));
+            v_trend_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 5.35);
+            v_trend_goal_threat := LEAST(1.5, COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0));
             v_defensive_score := LEAST(0.95, GREATEST(0.5, 
                 (1.0 / (1.0 + COALESCE((v_block_data->>'goals_conceded')::DECIMAL, 0) / NULLIF(v_league_avg_gc, 0.1))) * 
-                (1.0 + COALESCE((v_block_data->>'clean_sheets')::INT, 0)::DECIMAL / NULLIF((v_block_data->>'games_played')::DECIMAL, 0))
+                (1.0 + COALESCE((v_block_data->>'clean_sheets')::INT, 0)::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0))
             ));
         ELSE
-            -- Multi-block player - apply trend calculation logic
-            -- Get last two blocks for trend analysis
+            -- Multi-block player - apply full trend calculation logic (FIX #3)
+            
+            -- Calculate variation as average percentage change across blocks
+            v_sum_percentage_changes := 0;
+            v_percentage_changes_count := 0;
+            
+            -- Iterate through blocks to calculate percentage changes
+            FOR i IN 1..(v_blocks_count-1) LOOP
+                v_block_data := v_historical_blocks->i;
+                v_prev_block_data := v_historical_blocks->(i-1);
+                
+                v_block_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                v_prev_block_rating := COALESCE((v_prev_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                
+                IF v_prev_block_rating > 0 THEN
+                    v_sum_percentage_changes := v_sum_percentage_changes + ABS((v_block_rating - v_prev_block_rating) / v_prev_block_rating * 100);
+                    v_percentage_changes_count := v_percentage_changes_count + 1;
+                END IF;
+            END LOOP;
+            
+            v_variation := CASE WHEN v_percentage_changes_count > 0 THEN v_sum_percentage_changes / v_percentage_changes_count ELSE 0 END;
+            v_is_consistent := v_variation > 10;
+            
+            -- Get latest and previous block data
             v_block_data := v_historical_blocks->(v_blocks_count-1);
             
-            -- Calculate long-term averages
+            IF v_is_consistent THEN
+                -- Consistent trend (>10% variation): use percentage change from prior block
+                IF v_blocks_count >= 2 THEN
+                    v_prev_block_data := v_historical_blocks->(v_blocks_count-2);
+                    v_block_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_prev_block_rating := COALESCE((v_prev_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_block_goals := COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_prev_block_goals := COALESCE((v_prev_block_data->>'goals')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    
+                    v_percentage_change := CASE WHEN v_prev_block_rating > 0 THEN (v_block_rating - v_prev_block_rating) / v_prev_block_rating ELSE 0 END;
+                    v_trend_rating := v_block_rating * (1 + v_percentage_change);
+                    
+                    v_percentage_change := CASE WHEN v_prev_block_goals > 0 THEN (v_block_goals - v_prev_block_goals) / v_prev_block_goals ELSE 0 END;
+                    v_trend_goal_threat := v_block_goals * (1 + v_percentage_change);
+                ELSE
+                    v_trend_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_trend_goal_threat := COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                END IF;
+            ELSE
+                -- Inconsistent trend (≤10% variation): use 60/40 weighted average of last two blocks
+                IF v_blocks_count >= 2 THEN
+                    v_prev_block_data := v_historical_blocks->(v_blocks_count-2);
+                    v_block_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_prev_block_rating := COALESCE((v_prev_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_block_goals := COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_prev_block_goals := COALESCE((v_prev_block_data->>'goals')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    
+                    v_trend_rating := 0.6 * v_block_rating + 0.4 * v_prev_block_rating;
+                    v_trend_goal_threat := 0.6 * v_block_goals + 0.4 * v_prev_block_goals;
+                ELSE
+                    v_trend_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_trend_goal_threat := COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                END IF;
+            END IF;
+            
+            -- Calculate long-term averages for 70/30 blending
             SELECT 
-                AVG((elem->>'fantasy_points')::DECIMAL / NULLIF((elem->>'games_played')::DECIMAL, 0)),
-                AVG((elem->>'goals')::DECIMAL / NULLIF((elem->>'games_played')::DECIMAL, 0))
+                AVG((elem->>'fantasy_points')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0)),
+                AVG((elem->>'goals')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0))
             INTO v_long_term_avg_rating, v_long_term_avg_goals
             FROM jsonb_array_elements(v_historical_blocks) AS elem;
 
-            -- For simplicity, use the most recent block's decayed values as trend
-            -- In a full implementation, you'd calculate percentage change and variation
-            v_trend_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'games_played')::DECIMAL, 0), v_long_term_avg_rating);
-            v_trend_goal_threat := LEAST(1.5, COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'games_played')::DECIMAL, 0), v_long_term_avg_goals));
-            
             -- Apply 70/30 blending if trend exceeds long-term average by >20%
             IF v_trend_rating > v_long_term_avg_rating * 1.2 THEN
                 v_trend_rating := 0.7 * v_trend_rating + 0.3 * v_long_term_avg_rating;
@@ -243,9 +305,13 @@ BEGIN
                 v_trend_goal_threat := 0.7 * v_trend_goal_threat + 0.3 * v_long_term_avg_goals;
             END IF;
 
+            -- Cap trend_goal_threat at 1.5
+            v_trend_goal_threat := LEAST(1.5, v_trend_goal_threat);
+
+            -- Calculate defensive score using latest block
             v_defensive_score := LEAST(0.95, GREATEST(0.5, 
                 (1.0 / (1.0 + COALESCE((v_block_data->>'goals_conceded')::DECIMAL, 0) / NULLIF(v_league_avg_gc, 0.1))) * 
-                (1.0 + COALESCE((v_block_data->>'clean_sheets')::INT, 0)::DECIMAL / NULLIF((v_block_data->>'games_played')::DECIMAL, 0))
+                (1.0 + COALESCE((v_block_data->>'clean_sheets')::INT, 0)::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0))
             ));
         END IF;
 
@@ -337,6 +403,11 @@ BEGIN
     RAISE NOTICE 'Updating half_season_stats cache metadata...';
     INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
     VALUES ('half_season_stats', NOW(), 'half_season_stats')
+    ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
+
+    RAISE NOTICE 'Updating player_power_ratings cache metadata...';
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
+    VALUES ('player_power_ratings', NOW(), 'player_power_ratings')
     ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
 
     RAISE NOTICE 'Season stats update complete with 6-month block trend algorithm.';
