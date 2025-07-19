@@ -91,14 +91,14 @@ const MatchPerformance: React.FC<MatchPerformanceProps> = ({ playerId, available
   }
 
   return (
-    <div className="max-w-[1000px] p-4 bg-white dark:bg-gray-950 shadow-soft-xl rounded-2xl">
-      <h6 className="text-base font-semibold text-gray-700 dark:text-white mb-4">Match Performance</h6>
+    <div className="w-full p-4 lg:p-6 bg-white dark:bg-gray-950 shadow-soft-xl rounded-2xl">
+      <h6 className="mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Match Performance</h6>
 
       {loading && <div className="text-center text-gray-600 dark:text-gray-300 py-4">Loading all performance data...</div>}
       {error && <div className="text-center text-red-500 py-4">Error: {error}</div>}
 
       {!loading && !error && (
-        <div className="space-y-6 max-h-[35vh] overflow-y-auto pr-2"> {/* Halved max-height and kept overflow + padding-right */} 
+                  <div className="space-y-6"> {/* Removed height restriction and overflow to allow natural expansion */} 
           {sortedYears.map(year => {
             const yearData = groupedByYearAndHalf[year] || { H1: [], H2: [] };
             const hasMatchesInH1 = yearData.H1.length > 0;

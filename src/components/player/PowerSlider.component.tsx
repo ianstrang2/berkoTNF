@@ -56,17 +56,12 @@ const PowerSlider: React.FC<PowerSliderProps> = ({
   const currentVariant = variantClasses[variant];
   
   return (
-    <div className={`relative p-4 ${className}`}>
-      {/* Label and Value */}
+    <div className={`relative p-4 ${className}`} title={showTooltip && tooltipText ? tooltipText : undefined}>
+      {/* Label Only */}
       <div className="flex items-center justify-between mb-2">
         <h4 className={`text-sm font-medium ${hasVariance ? 'text-slate-700' : 'text-gray-500'}`}>
           {label}
         </h4>
-        {showValue && (
-          <span className={`text-lg font-bold ${currentVariant.accent}`}>
-            {hasVariance ? value : '--'}
-          </span>
-        )}
       </div>
       
       {/* Slider Track */}
@@ -84,20 +79,17 @@ const PowerSlider: React.FC<PowerSliderProps> = ({
                 {Math.round(clampedPercentage)}%
               </span>
             )}
+            
+            {/* Value at end of bar for streaks (same positioning as percentage) */}
+            {showValue && hasVariance && value > 0 && (
+              <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-semibold text-white">
+                {value}
+              </span>
+            )}
           </div>
         </div>
         
-        {/* League Average Marker - only show if there's variance */}
-        {hasVariance && clampedLeagueAvg !== undefined && (
-          <div 
-            className="absolute top-0 h-4 w-0.5 bg-slate-600 transform -translate-x-0.5 opacity-70"
-            style={{ left: `${clampedLeagueAvg}%` }}
-            title={`League Average: ${clampedLeagueAvg}%`}
-          >
-            {/* Dashed line indicator */}
-            <div className="absolute top-4 w-0.5 h-2 bg-slate-600 opacity-50"></div>
-          </div>
-        )}
+
       </div>
       
       {/* Context Text (dates for streaks) */}
@@ -109,14 +101,7 @@ const PowerSlider: React.FC<PowerSliderProps> = ({
         </div>
       )}
       
-      {/* Optional Tooltip */}
-      {showTooltip && tooltipText && (
-        <div className="mt-1">
-          <p className={`text-xs italic ${hasVariance ? 'text-slate-400' : 'text-gray-400'}`}>
-            {tooltipText}
-          </p>
-        </div>
-      )}
+
     </div>
   );
 };

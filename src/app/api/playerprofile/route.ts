@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     console.log('Fetching aggregated profile for ID:', numericId);
 
     // Fetch profile data and power ratings in parallel
-    const [profile, powerRatings, leagueStats, currentStreaks] = await Promise.all([
+    const [profile, powerRatings, leagueStats, currentStreaks, records] = await Promise.all([
       // Existing profile query
       prisma.aggregated_player_profile_stats.findUnique({
         where: { player_id: numericId },
@@ -93,6 +93,13 @@ export async function GET(request: Request) {
          orderBy: {
            match_date: 'desc'
          }
+       }),
+
+       // Fetch aggregated_records for max values
+       prisma.aggregated_records.findFirst({
+         select: {
+           records: true
+         }
        })
     ]);
 
@@ -152,9 +159,18 @@ export async function GET(request: Request) {
     const currentStreakData = currentStreaks?.streaks as any[] || [];
     const currentGoalStreakData = currentStreaks?.goal_streaks as any[] || [];
     
-    // Extract current streaks for this player
+    console.log(`Debug: All available goal streaks:`, currentGoalStreakData);
+    console.log(`Debug: Looking for player name: "${profile.name}"`);
+    
+    // Extract current streaks for this player  
     const playerCurrentStreaks = currentStreakData.find(s => s.name === profile.name);
     const playerCurrentGoalStreak = currentGoalStreakData.find(gs => gs.name === profile.name);
+    
+    console.log(`Debug: Found for ${profile.name}:`, {
+      playerCurrentStreaks,
+      playerCurrentGoalStreak,
+      scoring_value: playerCurrentGoalStreak?.matches_with_goals
+    });
     
     // Create current streaks object
     const current_streaks = {
@@ -164,6 +180,21 @@ export async function GET(request: Request) {
       winless: playerCurrentStreaks?.streak_type === 'winless' ? playerCurrentStreaks.streak_count : 0,
       scoring: playerCurrentGoalStreak?.matches_with_goals || 0,
       attendance: 0 // TODO: Calculate current attendance streak if needed
+    };
+    
+    // DEBUG logging
+    console.log(`Debug: attendance_streak_dates for ${profile.name}:`, (profile as any).attendance_streak_dates);
+    console.log(`Debug: current_streaks for ${profile.name}:`, current_streaks);
+
+    // Process records data for max values
+    const recordsData = records?.records as any || {};
+    const streakRecords = {
+      winStreak: recordsData.streaks?.['Win Streak']?.holders?.[0]?.streak || leagueNormalization.streaks.winStreak.max,
+      undefeatedStreak: recordsData.streaks?.['Undefeated Streak']?.holders?.[0]?.streak || leagueNormalization.streaks.undefeatedStreak.max,
+      losingStreak: recordsData.streaks?.['Losing Streak']?.holders?.[0]?.streak || leagueNormalization.streaks.losingStreak.max,
+      winlessStreak: recordsData.streaks?.['Winless Streak']?.holders?.[0]?.streak || leagueNormalization.streaks.winlessStreak.max,
+      attendanceStreak: recordsData.attendance_streak?.[0]?.streak || leagueNormalization.streaks.attendanceStreak.max,
+      scoringStreak: recordsData.consecutive_goals_streak?.[0]?.streak || 10 // Default fallback
     };
 
     // The component expects `yearly_stats` as an array.
@@ -187,12 +218,13 @@ export async function GET(request: Request) {
         undefeated_streak_dates: profile.undefeated_streak_dates,
         winless_streak: profile.winless_streak,
         winless_streak_dates: profile.winless_streak_dates,
+        scoring_streak: (profile as any).scoring_streak, // New field
+        scoring_streak_dates: (profile as any).scoring_streak_dates, // New field
         attendance_streak: profile.attendance_streak, // New field
+        attendance_streak_dates: (profile as any).attendance_streak_dates, // New field
         selected_club: profile.selected_club, // Should be JSON object
         yearly_stats: yearlyStatsArray, // Ensured to be an array
-        teammate_frequency_top5: profile.teammate_frequency_top5, // New field, expect JSON array
-        teammate_performance_high_top5: profile.teammate_performance_high_top5, // New field, expect JSON array
-        teammate_performance_low_top5: profile.teammate_performance_low_top5, // New field, expect JSON array
+        teammate_chemistry_all: (profile as any).teammate_chemistry_all, // New comprehensive teammate data
         last_updated: profile.last_updated,
         
         // NEW: Power ratings data
@@ -205,6 +237,9 @@ export async function GET(request: Request) {
         
         // NEW: League normalization data for frontend
         league_normalization: leagueNormalization,
+        
+        // NEW: Streak records for max values
+        streak_records: streakRecords,
         
         // NEW: Current streaks data
         current_streaks: current_streaks

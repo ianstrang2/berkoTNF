@@ -164,6 +164,9 @@ export function normalizeStreaks(
     winlessStreak: number;
     winlessStreakDates: string | null;
     attendanceStreak: number;
+    attendanceStreakDates?: string | null;
+    scoringStreak?: number;
+    scoringStreakDates?: string | null;
   },
   leagueData: {
     winStreak: NormalizationData;
@@ -171,84 +174,74 @@ export function normalizeStreaks(
     losingStreak: NormalizationData;
     winlessStreak: NormalizationData;
     attendanceStreak: NormalizationData;
+  },
+  streakRecords?: {
+    winStreak: number;
+    undefeatedStreak: number;
+    losingStreak: number;
+    winlessStreak: number;
+    attendanceStreak: number;
+    scoringStreak: number;
   }
 ) {
+  // Use streak records as max values when available
+  const normalizeWithRecords = (value: number, type: keyof typeof leagueData) => {
+    const recordsMax = streakRecords ? streakRecords[type as keyof typeof streakRecords] : undefined;
+    const max = recordsMax || leagueData[type].max;
+    const min = leagueData[type].min;
+    return normalizeToPercentage(value, min, max);
+  };
+
   // Check variance for each streak type
   const hasVariance = {
     winStreak: leagueData.winStreak.max !== leagueData.winStreak.min,
     undefeatedStreak: leagueData.undefeatedStreak.max !== leagueData.undefeatedStreak.min,
     losingStreak: leagueData.losingStreak.max !== leagueData.losingStreak.min,
     winlessStreak: leagueData.winlessStreak.max !== leagueData.winlessStreak.min,
-    attendanceStreak: leagueData.attendanceStreak.max !== leagueData.attendanceStreak.min
+    attendanceStreak: leagueData.attendanceStreak.max !== leagueData.attendanceStreak.min,
+    scoringStreak: true // Always show scoring streak if available
   };
   
   return {
     // Positive streaks
     winStreak: {
       value: playerStreaks.winStreak,
-      percentage: normalizeToPercentage(playerStreaks.winStreak, leagueData.winStreak.min, leagueData.winStreak.max),
-      leagueAverage: normalizeToPercentage(leagueData.winStreak.average, leagueData.winStreak.min, leagueData.winStreak.max),
+      percentage: normalizeWithRecords(playerStreaks.winStreak, 'winStreak'),
       dates: formatStreakDates(playerStreaks.winStreakDates),
-      context: getContextText(
-        normalizeToPercentage(playerStreaks.winStreak, leagueData.winStreak.min, leagueData.winStreak.max),
-        normalizeToPercentage(leagueData.winStreak.average, leagueData.winStreak.min, leagueData.winStreak.max),
-        'positive',
-        hasVariance.winStreak
-      ),
       hasVariance: hasVariance.winStreak
     },
     undefeatedStreak: {
       value: playerStreaks.undefeatedStreak,
-      percentage: normalizeToPercentage(playerStreaks.undefeatedStreak, leagueData.undefeatedStreak.min, leagueData.undefeatedStreak.max),
-      leagueAverage: normalizeToPercentage(leagueData.undefeatedStreak.average, leagueData.undefeatedStreak.min, leagueData.undefeatedStreak.max),
+      percentage: normalizeWithRecords(playerStreaks.undefeatedStreak, 'undefeatedStreak'),
       dates: formatStreakDates(playerStreaks.undefeatedStreakDates),
-      context: getContextText(
-        normalizeToPercentage(playerStreaks.undefeatedStreak, leagueData.undefeatedStreak.min, leagueData.undefeatedStreak.max),
-        normalizeToPercentage(leagueData.undefeatedStreak.average, leagueData.undefeatedStreak.min, leagueData.undefeatedStreak.max),
-        'positive',
-        hasVariance.undefeatedStreak
-      ),
       hasVariance: hasVariance.undefeatedStreak
     },
     attendanceStreak: {
       value: playerStreaks.attendanceStreak,
-      percentage: normalizeToPercentage(playerStreaks.attendanceStreak, leagueData.attendanceStreak.min, leagueData.attendanceStreak.max),
-      leagueAverage: normalizeToPercentage(leagueData.attendanceStreak.average, leagueData.attendanceStreak.min, leagueData.attendanceStreak.max),
-      dates: '', // No dates for attendance streak
-      context: getContextText(
-        normalizeToPercentage(playerStreaks.attendanceStreak, leagueData.attendanceStreak.min, leagueData.attendanceStreak.max),
-        normalizeToPercentage(leagueData.attendanceStreak.average, leagueData.attendanceStreak.min, leagueData.attendanceStreak.max),
-        'positive',
-        hasVariance.attendanceStreak
-      ),
+      percentage: normalizeWithRecords(playerStreaks.attendanceStreak, 'attendanceStreak'),
+      dates: playerStreaks.attendanceStreakDates || 'No dates available',
       hasVariance: hasVariance.attendanceStreak
+    },
+    
+    // Scoring streak
+    scoringStreak: {
+      value: playerStreaks.scoringStreak || 0,
+      percentage: streakRecords ? normalizeToPercentage(playerStreaks.scoringStreak || 0, 0, streakRecords.scoringStreak) : 0,
+      dates: formatStreakDates(playerStreaks.scoringStreakDates || null),
+      hasVariance: hasVariance.scoringStreak
     },
     
     // Negative streaks
     losingStreak: {
       value: playerStreaks.losingStreak,
-      percentage: normalizeToPercentage(playerStreaks.losingStreak, leagueData.losingStreak.min, leagueData.losingStreak.max),
-      leagueAverage: normalizeToPercentage(leagueData.losingStreak.average, leagueData.losingStreak.min, leagueData.losingStreak.max),
+      percentage: normalizeWithRecords(playerStreaks.losingStreak, 'losingStreak'),
       dates: formatStreakDates(playerStreaks.losingStreakDates),
-      context: getContextText(
-        normalizeToPercentage(playerStreaks.losingStreak, leagueData.losingStreak.min, leagueData.losingStreak.max),
-        normalizeToPercentage(leagueData.losingStreak.average, leagueData.losingStreak.min, leagueData.losingStreak.max),
-        'negative',
-        hasVariance.losingStreak
-      ),
       hasVariance: hasVariance.losingStreak
     },
     winlessStreak: {
       value: playerStreaks.winlessStreak,
-      percentage: normalizeToPercentage(playerStreaks.winlessStreak, leagueData.winlessStreak.min, leagueData.winlessStreak.max),
-      leagueAverage: normalizeToPercentage(leagueData.winlessStreak.average, leagueData.winlessStreak.min, leagueData.winlessStreak.max),
+      percentage: normalizeWithRecords(playerStreaks.winlessStreak, 'winlessStreak'),
       dates: formatStreakDates(playerStreaks.winlessStreakDates),
-      context: getContextText(
-        normalizeToPercentage(playerStreaks.winlessStreak, leagueData.winlessStreak.min, leagueData.winlessStreak.max),
-        normalizeToPercentage(leagueData.winlessStreak.average, leagueData.winlessStreak.min, leagueData.winlessStreak.max),
-        'negative',
-        hasVariance.winlessStreak
-      ),
       hasVariance: hasVariance.winlessStreak
     }
   };

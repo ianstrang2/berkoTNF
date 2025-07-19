@@ -39,6 +39,13 @@ interface TeammateStat {
   average_fantasy_points_with?: number;
 }
 
+interface TeammateChemistryStat {
+  player_id: number;
+  name: string;
+  games_played_with: number;
+  average_fantasy_points_with: number;
+}
+
 interface PowerRatings {
   rating: number;
   goal_threat: number;
@@ -57,6 +64,15 @@ interface LeagueNormalization {
     winlessStreak: { min: number; max: number; average: number };
     attendanceStreak: { min: number; max: number; average: number };
   };
+}
+
+interface StreakRecords {
+  winStreak: number;
+  undefeatedStreak: number;
+  losingStreak: number;
+  winlessStreak: number;
+  attendanceStreak: number;
+  scoringStreak: number;
 }
 
 interface ProfileData {
@@ -78,12 +94,11 @@ interface ProfileData {
   selected_club?: any;
   yearly_stats: YearlyStats[];
   attendance_streak?: number;
-  teammate_frequency_top5?: TeammateStat[];
-  teammate_performance_high_top5?: TeammateStat[];
-  teammate_performance_low_top5?: TeammateStat[];
+  teammate_chemistry_all?: TeammateChemistryStat[];
   last_updated?: string;
   power_ratings?: PowerRatings | null;
   league_normalization?: LeagueNormalization;
+  streak_records?: StreakRecords;
 }
 
 interface YearlyPerformanceData {
@@ -213,85 +228,51 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
         losingStreakDates: profile.losing_streak_dates,
         winlessStreak: profile.winless_streak || 0,
         winlessStreakDates: profile.winless_streak_dates,
-        attendanceStreak: profile.attendance_streak || 0
+        attendanceStreak: profile.attendance_streak || 0,
+        attendanceStreakDates: (profile as any).attendance_streak_dates,
+        scoringStreak: (profile as any).scoring_streak || 0,
+        scoringStreakDates: (profile as any).scoring_streak_dates
       },
-      profile.league_normalization.streaks
+      profile.league_normalization.streaks,
+      profile.streak_records
     ) : null;
+
+  // Helper function to create tooltip text for streaks
+  const createStreakTooltip = (playerValue: number, allTimeRecord: number | undefined) => {
+    return `Player Streak: ${playerValue}\nAll-Time Record: ${allTimeRecord || 'N/A'}`;
+  };
 
   // Process teammate chemistry scatter plot data
   const teammateScatterData = React.useMemo(() => {
-    if (!profile?.teammate_frequency_top5 || !profile?.teammate_performance_high_top5 || !profile?.teammate_performance_low_top5) {
-      return { best: [], worst: [], frequent: [] };
+    if (!profile?.teammate_chemistry_all || !Array.isArray(profile.teammate_chemistry_all) || profile.teammate_chemistry_all.length === 0) {
+      return { best: [], worst: [], regular: [] };
     }
 
-    // Create maps for easy lookup
-    const frequencyMap = new Map();
-    profile.teammate_frequency_top5.forEach(tm => {
-      frequencyMap.set(tm.player_id, { name: tm.name, games: tm.games_played_with || 0 });
-    });
+    // All teammates with 10+ games, sorted by performance (already sorted by SQL)
+    const allTeammates = profile.teammate_chemistry_all.map(tm => ({
+      name: tm.name,
+      games: tm.games_played_with,
+      performance: tm.average_fantasy_points_with,
+      player_id: tm.player_id
+    }));
 
-    const bestChemistry: any[] = [];
-    const worstChemistry: any[] = [];
-    const mostFrequent: any[] = [];
+    // Identify top 5 and bottom 5 by performance
+    const totalCount = allTeammates.length;
+    const top5Count = Math.min(5, totalCount);
+    const bottom5Count = Math.min(5, totalCount);
+
+    const bestChemistry = allTeammates.slice(0, top5Count);
+    const worstChemistry = allTeammates.slice(-bottom5Count);
     
-    // Process high chemistry teammates (green dots)
-    profile.teammate_performance_high_top5.forEach(tm => {
-      if (tm.average_fantasy_points_with !== undefined) {
-        const freqData = frequencyMap.get(tm.player_id);
-        const games = freqData?.games || 5; // Default minimum if not found
-        
-        if (games >= 5) {
-          bestChemistry.push({
-            name: tm.name,
-            games: games,
-            performance: tm.average_fantasy_points_with,
-            player_id: tm.player_id
-          });
-        }
-      }
-    });
-
-    // Process low chemistry teammates (red dots)
-    profile.teammate_performance_low_top5.forEach(tm => {
-      if (tm.average_fantasy_points_with !== undefined) {
-        const freqData = frequencyMap.get(tm.player_id);
-        const games = freqData?.games || 5; // Default minimum if not found
-        
-        if (games >= 5) {
-          worstChemistry.push({
-            name: tm.name,
-            games: games,
-            performance: tm.average_fantasy_points_with,
-            player_id: tm.player_id
-          });
-        }
-      }
-    });
-
-    // Process most frequent teammates (blue dots) - only if not already in high/low
-    profile.teammate_frequency_top5.forEach(tm => {
-      if (tm.games_played_with && tm.games_played_with >= 5) {
-        const alreadyInBest = bestChemistry.some(point => point.player_id === tm.player_id);
-        const alreadyInWorst = worstChemistry.some(point => point.player_id === tm.player_id);
-        
-        if (!alreadyInBest && !alreadyInWorst) {
-          // For frequent teammates without explicit performance data, assume neutral performance
-          const avgPerformance = profile.fantasy_points / (profile.games_played || 1); // Use player's own average as baseline
-          
-          mostFrequent.push({
-            name: tm.name,
-            games: tm.games_played_with,
-            performance: avgPerformance, // Use player's average as neutral baseline
-            player_id: tm.player_id
-          });
-        }
-      }
-    });
+    // Regular (purple) dots - everyone else not in top/bottom 5
+    const regularChemistry = totalCount > 10 
+      ? allTeammates.slice(top5Count, totalCount - bottom5Count)
+      : []; // If 10 or fewer teammates, only show best/worst
 
     return { 
       best: bestChemistry,
       worst: worstChemistry, 
-      frequent: mostFrequent 
+      regular: regularChemistry 
     };
   }, [profile]);
 
@@ -388,40 +369,38 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       {/* NEW: Power Rating Section */}
       <div className="w-full max-w-full px-3 mb-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left: Power Rating Gauge */}
-              <div className="flex justify-center items-center">
-                <PowerRatingGauge 
-                  rating={powerRatingsNormalized?.rating || 50}
-                  size="lg"
-                />
-              </div>
+          <div className="p-4 lg:p-6">
+            {/* Power Rating Gauge - Centered */}
+            <div className="flex justify-center items-center mb-6">
+              <PowerRatingGauge 
+                rating={powerRatingsNormalized?.rating || 50}
+                size="lg"
+              />
+            </div>
+            
+            {/* Goal Threat and Defensive Shield Sliders - Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+              <PowerSlider
+                label="Goal Threat"
+                value={profile.power_ratings?.goal_threat || 0}
+                percentage={powerRatingsNormalized?.goalThreat || 50}
+                leagueAverage={powerRatingsNormalized ? 50 : undefined}
+                variant="neutral"
+                hasVariance={powerRatingsNormalized?.hasVariance.goalThreat !== false}
+                showPercentage={true}
+                showValue={false}
+              />
               
-              {/* Right: Goal Threat and Defensive Shield Sliders */}
-              <div className="space-y-4">
-                <PowerSlider
-                  label="Goal Threat"
-                  value={profile.power_ratings?.goal_threat || 0}
-                  percentage={powerRatingsNormalized?.goalThreat || 50}
-                  leagueAverage={powerRatingsNormalized ? 50 : undefined}
-                  variant="neutral"
-                  hasVariance={powerRatingsNormalized?.hasVariance.goalThreat !== false}
-                  showPercentage={true}
-                  showValue={false}
-                />
-                
-                <PowerSlider
-                  label="Defensive Shield"
-                  value={profile.power_ratings?.defensive_shield || 0}
-                  percentage={powerRatingsNormalized?.defensiveShield || 50}
-                  leagueAverage={powerRatingsNormalized ? 50 : undefined}
-                  variant="neutral"
-                  hasVariance={powerRatingsNormalized?.hasVariance.defensiveShield !== false}
-                  showPercentage={true}
-                  showValue={false}
-                />
-              </div>
+              <PowerSlider
+                label="Defensive Shield"
+                value={profile.power_ratings?.defensive_shield || 0}
+                percentage={powerRatingsNormalized?.defensiveShield || 50}
+                leagueAverage={powerRatingsNormalized ? 50 : undefined}
+                variant="neutral"
+                hasVariance={powerRatingsNormalized?.hasVariance.defensiveShield !== false}
+                showPercentage={true}
+                showValue={false}
+              />
             </div>
           </div>
         </div>
@@ -430,84 +409,110 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       {/* NEW: Streaks Section */}
       <div className="w-full max-w-full px-3 mb-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="p-6 pb-0">
-            <h6 className="mb-4 text-lg font-semibold text-slate-700">Streaks</h6>
+          <div className="p-4 lg:p-6 pb-0">
+            <h6 className="mb-3 lg:mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Streaks</h6>
           </div>
-          <div className="p-6 pt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Positive Streaks */}
-              <div className="space-y-4">
-                {streaksNormalized && (
-                  <>
-                    <PowerSlider
-                      label="Attendance"
-                      value={streaksNormalized.attendanceStreak.value}
-                      percentage={streaksNormalized.attendanceStreak.percentage}
-                      leagueAverage={streaksNormalized.attendanceStreak.leagueAverage}
-                      contextText={streaksNormalized.attendanceStreak.dates}
-                      variant="positive"
-                      hasVariance={streaksNormalized.attendanceStreak.hasVariance}
-                      showPercentage={false}
-                      showValue={true}
-                    />
-                    
-                    <PowerSlider
-                      label="Win"
-                      value={streaksNormalized.winStreak.value}
-                      percentage={streaksNormalized.winStreak.percentage}
-                      leagueAverage={streaksNormalized.winStreak.leagueAverage}
-                      contextText={streaksNormalized.winStreak.dates}
-                      variant="positive"
-                      hasVariance={streaksNormalized.winStreak.hasVariance}
-                      showPercentage={false}
-                      showValue={true}
-                    />
-                    
-                    <PowerSlider
-                      label="Unbeaten"
-                      value={streaksNormalized.undefeatedStreak.value}
-                      percentage={streaksNormalized.undefeatedStreak.percentage}
-                      leagueAverage={streaksNormalized.undefeatedStreak.leagueAverage}
-                      contextText={streaksNormalized.undefeatedStreak.dates}
-                      variant="positive"
-                      hasVariance={streaksNormalized.undefeatedStreak.hasVariance}
-                      showPercentage={false}
-                      showValue={true}
-                    />
-                  </>
-                )}
-              </div>
-              
-              {/* Negative Streaks */}
-              <div className="space-y-4">
-                {streaksNormalized && (
-                  <>
-                    <PowerSlider
-                      label="Losing"
-                      value={streaksNormalized.losingStreak.value}
-                      percentage={streaksNormalized.losingStreak.percentage}
-                      leagueAverage={streaksNormalized.losingStreak.leagueAverage}
-                      contextText={streaksNormalized.losingStreak.dates}
-                      variant="negative"
-                      hasVariance={streaksNormalized.losingStreak.hasVariance}
-                      showPercentage={false}
-                      showValue={true}
-                    />
-                    
-                    <PowerSlider
-                      label="Winless"
-                      value={streaksNormalized.winlessStreak.value}
-                      percentage={streaksNormalized.winlessStreak.percentage}
-                      leagueAverage={streaksNormalized.winlessStreak.leagueAverage}
-                      contextText={streaksNormalized.winlessStreak.dates}
-                      variant="negative"
-                      hasVariance={streaksNormalized.winlessStreak.hasVariance}
-                      showPercentage={false}
-                      showValue={true}
-                    />
-                  </>
-                )}
-              </div>
+          <div className="p-4 lg:p-6 pt-0">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+              {streaksNormalized && (
+                <>
+                  <PowerSlider
+                    label="Attendance"
+                    value={streaksNormalized.attendanceStreak.value}
+                    percentage={streaksNormalized.attendanceStreak.percentage}
+                    contextText={streaksNormalized.attendanceStreak.dates || 'No dates available'}
+                    variant="positive"
+                    hasVariance={streaksNormalized.attendanceStreak.hasVariance}
+                    showPercentage={false}
+                    showValue={true}
+                    showTooltip={true}
+                    tooltipText={createStreakTooltip(
+                      streaksNormalized.attendanceStreak.value,
+                      profile.streak_records?.attendanceStreak || profile.league_normalization?.streaks.attendanceStreak.max
+                    )}
+                  />
+                  
+                  <PowerSlider
+                    label="Unbeaten"
+                    value={streaksNormalized.undefeatedStreak.value}
+                    percentage={streaksNormalized.undefeatedStreak.percentage}
+                    contextText={streaksNormalized.undefeatedStreak.dates}
+                    variant="positive"
+                    hasVariance={streaksNormalized.undefeatedStreak.hasVariance}
+                    showPercentage={false}
+                    showValue={true}
+                    showTooltip={true}
+                    tooltipText={createStreakTooltip(
+                      streaksNormalized.undefeatedStreak.value,
+                      profile.streak_records?.undefeatedStreak || profile.league_normalization?.streaks.undefeatedStreak.max
+                    )}
+                  />
+                  
+                  <PowerSlider
+                    label="Win"
+                    value={streaksNormalized.winStreak.value}
+                    percentage={streaksNormalized.winStreak.percentage}
+                    contextText={streaksNormalized.winStreak.dates}
+                    variant="positive"
+                    hasVariance={streaksNormalized.winStreak.hasVariance}
+                    showPercentage={false}
+                    showValue={true}
+                    showTooltip={true}
+                    tooltipText={createStreakTooltip(
+                      streaksNormalized.winStreak.value,
+                      profile.streak_records?.winStreak || profile.league_normalization?.streaks.winStreak.max
+                    )}
+                  />
+                  
+                  <PowerSlider
+                    label="Scoring"
+                    value={streaksNormalized.scoringStreak.value}
+                    percentage={streaksNormalized.scoringStreak.percentage}
+                    contextText={streaksNormalized.scoringStreak.dates || 'Current streak'}
+                    variant="positive"
+                    hasVariance={streaksNormalized.scoringStreak.hasVariance}
+                    showPercentage={false}
+                    showValue={true}
+                    showTooltip={true}
+                    tooltipText={createStreakTooltip(
+                      streaksNormalized.scoringStreak.value,
+                      profile.streak_records?.scoringStreak
+                    )}
+                  />
+
+                  <PowerSlider
+                    label="Losing"
+                    value={streaksNormalized.losingStreak.value}
+                    percentage={streaksNormalized.losingStreak.percentage}
+                    contextText={streaksNormalized.losingStreak.dates}
+                    variant="negative"
+                    hasVariance={streaksNormalized.losingStreak.hasVariance}
+                    showPercentage={false}
+                    showValue={true}
+                    showTooltip={true}
+                    tooltipText={createStreakTooltip(
+                      streaksNormalized.losingStreak.value,
+                      profile.streak_records?.losingStreak || profile.league_normalization?.streaks.losingStreak.max
+                    )}
+                  />
+
+                  <PowerSlider
+                    label="Winless"
+                    value={streaksNormalized.winlessStreak.value}
+                    percentage={streaksNormalized.winlessStreak.percentage}
+                    contextText={streaksNormalized.winlessStreak.dates}
+                    variant="negative"
+                    hasVariance={streaksNormalized.winlessStreak.hasVariance}
+                    showPercentage={false}
+                    showValue={true}
+                    showTooltip={true}
+                    tooltipText={createStreakTooltip(
+                      streaksNormalized.winlessStreak.value,
+                      profile.streak_records?.winlessStreak || profile.league_normalization?.streaks.winlessStreak.max
+                    )}
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -515,9 +520,9 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
       {/* Performance Chart */}
       <div className="w-full max-w-full px-3">
-        <div className="relative z-20 flex flex-col min-w-0 break-words bg-white border-0 border-solid dark:bg-gray-950 border-black-125 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border mx-auto">
+        <div className="relative z-20 flex flex-col min-w-0 break-words bg-white border-0 border-solid dark:bg-gray-950 border-black-125 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border">
           <div className="p-6 pb-0">
-            <h6 className="dark:text-white mb-4">Performance Overview</h6>
+            <h6 className="mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Performance Overview</h6>
             <NavPills
               className="mb-6"
               items={statOptions.map(stat => ({
@@ -540,19 +545,19 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
             </p>
             <div className="h-[250px] sm:h-[300px] md:h-[350px]">
               {yearlyPerformanceData && yearlyPerformanceData.length > 0 ? (
-                <Chart
-                  title=""
-                  data={yearlyPerformanceData || []}
+              <Chart
+                title=""
+                data={yearlyPerformanceData || []}
                   type={selectedStat === 'Games' || selectedStat === 'Goals' ? 'bar' : 'line'}
-                  dataKey={
-                    selectedStat === 'Games' ? 'games_played' : 
-                    selectedStat === 'Goals' ? 'goals_scored' : 
-                    selectedStat === 'MPG' ? 'minutes_per_goal' : 
-                    selectedStat === 'PPG' ? 'points_per_game' : 
+                dataKey={
+                  selectedStat === 'Games' ? 'games_played' : 
+                  selectedStat === 'Goals' ? 'goals_scored' : 
+                  selectedStat === 'MPG' ? 'minutes_per_goal' : 
+                  selectedStat === 'PPG' ? 'points_per_game' : 
                     'points_per_game'
-                  }
-                  gradient={{ from: 'purple-700', to: 'pink-500' }}
-                  reverseYAxis={selectedStat === 'MPG'}
+                }
+                gradient={{ from: 'purple-700', to: 'pink-500' }}
+                reverseYAxis={selectedStat === 'MPG'}
                   leagueAverages={leagueAverages}
                   selectedMetric={selectedStat}
                 />
@@ -569,124 +574,114 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
         </div>
       </div>
 
-      {/* Match Performance Dots - Keep As-Is */}
-      {id && availableYearsForMatchPerformance.length > 0 && (
-        <div className="w-full max-w-full px-3 mt-6">
-          <div className="mx-auto">
-            <MatchPerformance 
-              playerId={id} 
-              availableYears={availableYearsForMatchPerformance} 
-            />
-          </div>
-        </div>
-      )}
+
 
       {/* NEW: Teammate Chemistry Scatter Plot */}
       <div className="w-full max-w-full px-3 mt-6 mb-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="p-6 pb-0">
-            <h6 className="mb-4 text-lg font-semibold text-slate-700">Teammate Chemistry (Min 5 games played)</h6>
+            <h6 className="mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Teammate Chemistry</h6>
           </div>
           <div className="p-6 pt-0">
-            {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.frequent.length > 0) ? (
+            {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.regular.length > 0) ? (
               <div style={{ width: '100%', height: 350 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis 
+                                        <XAxis 
                       type="number" 
                       dataKey="games" 
                       name="Games Together"
-                      domain={[5, 'dataMax']}
+                      domain={[10, 'dataMax']}
                       className="text-sm"
                       tick={{ fontSize: 12, fill: '#64748b' }}
                       axisLine={{ stroke: '#cbd5e1' }}
                       label={{ value: 'Games Played Together', position: 'insideBottom', offset: -10, style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b' } }}
                     />
-                    <YAxis 
-                      type="number" 
-                      dataKey="performance" 
-                      name="Performance"
-                      domain={['dataMin - 2', 'dataMax + 2']}
-                      className="text-sm"
-                      tick={{ fontSize: 12, fill: '#64748b' }}
-                      axisLine={{ stroke: '#cbd5e1' }}
-                      label={{ value: 'Avg Fantasy Points Together', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b' } }}
+                  <YAxis 
+                    type="number" 
+                    dataKey="performance" 
+                    name="Performance"
+                    domain={['dataMin - 2', 'dataMax + 2']}
+                    className="text-sm"
+                    tick={{ fontSize: 12, fill: '#64748b' }}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    label={{ value: 'Avg Fantasy Points Together', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b' } }}
+                  />
+                  <Tooltip 
+                    cursor={{ strokeDasharray: '3 3' }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                            <p className="font-semibold text-slate-700">{data.name}</p>
+                            <p className="text-sm text-slate-600">
+                              {data.games} games together
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              {data.performance?.toFixed(1)} avg fantasy points
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  
+                  {/* Player Average Reference Line */}
+                  <ReferenceLine 
+                    y={profile ? profile.fantasy_points / (profile.games_played || 1) : 0} 
+                    stroke="#9ca3af" 
+                    strokeDasharray="5 5" 
+                    strokeWidth={1}
+                    label={{ value: "Avg", position: "insideTopRight", style: { fontSize: '12px', fill: '#64748b' } }}
+                  />
+                  
+                  {/* Best Chemistry - Green dots */}
+                  {teammateScatterData.best.length > 0 && (
+                    <Scatter 
+                      name="Best Chemistry" 
+                      data={teammateScatterData.best} 
+                      fill="#10b981"
+                      strokeWidth={2}
+                      stroke="#059669"
                     />
-                    <Tooltip 
-                      cursor={{ strokeDasharray: '3 3' }}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                              <p className="font-semibold text-slate-700">{data.name}</p>
-                              <p className="text-sm text-slate-600">
-                                {data.games} games together
-                              </p>
-                              <p className="text-sm text-slate-600">
-                                {data.performance?.toFixed(1)} avg fantasy points
-                              </p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
+                  )}
+                  
+                  {/* Worst Chemistry - Red dots */}
+                  {teammateScatterData.worst.length > 0 && (
+                    <Scatter 
+                      name="Worst Chemistry" 
+                      data={teammateScatterData.worst} 
+                      fill="#ef4444"
+                      strokeWidth={2}
+                      stroke="#dc2626"
                     />
-                    
-                    {/* League Average Reference Line */}
-                    <ReferenceLine 
-                      y={profile ? profile.fantasy_points / (profile.games_played || 1) : 0} 
-                      stroke="#9ca3af" 
-                      strokeDasharray="5 5" 
-                      strokeWidth={1}
-                      label={{ value: "Player Average", position: "insideTopRight" }}
+                  )}
+                  
+                  {/* Regular Chemistry - Purple dots */}
+                  {teammateScatterData.regular.length > 0 && (
+                    <Scatter 
+                      name="Regular Chemistry" 
+                      data={teammateScatterData.regular} 
+                      fill="#8b5cf6"
+                      strokeWidth={2}
+                      stroke="#7c3aed"
                     />
-                    
-                    {/* Best Chemistry - Green dots */}
-                    {teammateScatterData.best.length > 0 && (
-                      <Scatter 
-                        name="Best Chemistry" 
-                        data={teammateScatterData.best} 
-                        fill="#10b981"
-                        strokeWidth={2}
-                        stroke="#059669"
-                      />
-                    )}
-                    
-                    {/* Worst Chemistry - Red dots */}
-                    {teammateScatterData.worst.length > 0 && (
-                      <Scatter 
-                        name="Worst Chemistry" 
-                        data={teammateScatterData.worst} 
-                        fill="#ef4444"
-                        strokeWidth={2}
-                        stroke="#dc2626"
-                      />
-                    )}
-                    
-                    {/* Most Frequent - Blue dots */}
-                    {teammateScatterData.frequent.length > 0 && (
-                      <Scatter 
-                        name="Most Frequent" 
-                        data={teammateScatterData.frequent} 
-                        fill="#3b82f6"
-                        strokeWidth={2}
-                        stroke="#2563eb"
-                      />
-                    )}
+                  )}
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <p>No teammate chemistry data available</p>
-                <p className="text-sm">Requires at least 5 games played together</p>
+                <p className="text-sm">Requires at least 10 games played together</p>
               </div>
             )}
             
             {/* Legend */}
-            {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.frequent.length > 0) && (
+            {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.regular.length > 0) && (
               <div className="flex justify-center mt-4 space-x-6 text-sm">
                 {teammateScatterData.best.length > 0 && (
                   <div className="flex items-center">
@@ -700,10 +695,10 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     <span>Worst Chemistry</span>
                   </div>
                 )}
-                {teammateScatterData.frequent.length > 0 && (
+                {teammateScatterData.regular.length > 0 && (
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2 border border-blue-600"></div>
-                    <span>Most Frequent</span>
+                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2 border border-purple-600"></div>
+                    <span>Regular Chemistry</span>
                   </div>
                 )}
               </div>
@@ -711,6 +706,18 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           </div>
         </div>
       </div>
+
+      {/* Match Performance Dots - Keep As-Is */}
+      {id && availableYearsForMatchPerformance.length > 0 && (
+        <div className="w-full max-w-full px-3 mt-6">
+          <div className="mx-auto">
+            <MatchPerformance 
+              playerId={id} 
+              availableYears={availableYearsForMatchPerformance} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

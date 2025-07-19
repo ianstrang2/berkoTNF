@@ -15,9 +15,9 @@ BEGIN
         most_game_goals_date, most_season_goals, most_season_goals_year,
         win_streak, win_streak_dates, losing_streak, losing_streak_dates,
         undefeated_streak, undefeated_streak_dates, winless_streak,
-        winless_streak_dates, attendance_streak, selected_club, yearly_stats,
-        teammate_frequency_top5, teammate_performance_high_top5,
-        teammate_performance_low_top5, last_updated
+        winless_streak_dates, scoring_streak, scoring_streak_dates,
+        attendance_streak, attendance_streak_dates, selected_club, yearly_stats, 
+        teammate_chemistry_all, last_updated
     )
     WITH
     -- 1. Aggregate base match stats for all non-ringer players
@@ -123,28 +123,82 @@ BEGIN
         FROM max_streaks
         GROUP BY player_id
     ),
-    -- 5. All-time best attendance streak
+    -- 5. All-time best scoring streak (with dates)
+    player_scoring_streak AS (
+        WITH numbered_goal_matches AS (
+            SELECT
+                pm.player_id, m.match_date, m.match_id, pm.goals,
+                ROW_NUMBER() OVER (PARTITION BY pm.player_id ORDER BY m.match_date, m.match_id) as match_num
+            FROM public.player_matches pm 
+            JOIN public.matches m ON pm.match_id = m.match_id
+            JOIN public.players p ON pm.player_id = p.player_id
+            WHERE p.is_ringer = FALSE
+        ),
+        scoring_groups AS (
+            SELECT 
+                player_id, match_date, goals,
+                match_num - ROW_NUMBER() OVER (PARTITION BY player_id, CASE WHEN goals > 0 THEN 1 ELSE 0 END ORDER BY match_date, match_id) as scoring_group
+            FROM numbered_goal_matches
+        ),
+        scoring_streaks AS (
+            SELECT 
+                player_id, 
+                COUNT(*) as streak_len,
+                MIN(match_date) as start_date,
+                MAX(match_date) as end_date
+            FROM scoring_groups 
+            WHERE goals > 0
+            GROUP BY player_id, scoring_group
+        ),
+        max_scoring_streaks AS (
+            SELECT 
+                player_id, 
+                streak_len as max_scoring_streak,
+                start_date::text || ' to ' || end_date::text as scoring_streak_dates,
+                ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY streak_len DESC, end_date DESC) as rn
+            FROM scoring_streaks
+        )
+        SELECT player_id, max_scoring_streak, scoring_streak_dates
+        FROM max_scoring_streaks WHERE rn = 1
+    ),
+    
+    -- 6. All-time best attendance streak (with dates)
     player_attendance_streak AS (
         WITH all_matches AS (
             SELECT match_id, match_date, ROW_NUMBER() OVER (ORDER BY match_date, match_id) as seq
             FROM public.matches
         ),
         player_attendance AS (
-            SELECT p.player_id, am.seq, (pm.player_id IS NOT NULL) as attended
+            SELECT p.player_id, am.seq, am.match_date, (pm.player_id IS NOT NULL) as attended
             FROM public.players p
             CROSS JOIN all_matches am
             LEFT JOIN public.player_matches pm ON p.player_id = pm.player_id AND am.match_id = pm.match_id
             WHERE p.is_ringer = FALSE
         ),
         attendance_groups AS (
-            SELECT player_id, attended, seq - ROW_NUMBER() OVER (PARTITION BY player_id, attended ORDER BY seq) as grp
+            SELECT player_id, attended, seq, match_date, seq - ROW_NUMBER() OVER (PARTITION BY player_id, attended ORDER BY seq) as grp
             FROM player_attendance
         ),
-        streaks AS (
-            SELECT player_id, COUNT(*) as streak_len FROM attendance_groups WHERE attended = TRUE GROUP BY player_id, grp
+        streaks_with_dates AS (
+            SELECT 
+                player_id, 
+                COUNT(*) as streak_len,
+                MIN(match_date) as start_date,
+                MAX(match_date) as end_date
+            FROM attendance_groups 
+            WHERE attended = TRUE 
+            GROUP BY player_id, grp
+        ),
+        max_streaks AS (
+            SELECT 
+                player_id, 
+                streak_len as max_attendance_streak,
+                start_date::text || ' to ' || end_date::text as attendance_streak_dates,
+                ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY streak_len DESC, end_date DESC) as rn
+            FROM streaks_with_dates
         )
-        SELECT player_id, MAX(streak_len) as max_attendance_streak
-        FROM streaks GROUP BY player_id
+        SELECT player_id, max_attendance_streak, attendance_streak_dates
+        FROM max_streaks WHERE rn = 1
     ),
     -- 6. Yearly stats aggregated into a JSON array
     player_yearly_stats AS (
@@ -190,23 +244,21 @@ BEGIN
         JOIN public.players p_teammate ON pm_teammate.player_id = p_teammate.player_id
         WHERE p_teammate.is_ringer = FALSE AND p_teammate.is_retired = FALSE
         GROUP BY pm_player.player_id, pm_teammate.player_id, p_teammate.name
-        HAVING COUNT(DISTINCT m.match_id) >= 5
-    ),
-    teammate_ranked AS (
-        SELECT
-            player_id, teammate_id, teammate_name, games_played_with, player_avg_fp_with_teammate,
-            ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY games_played_with DESC, teammate_name ASC) as freq_rn,
-            ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY player_avg_fp_with_teammate DESC, games_played_with DESC, teammate_name ASC) as perf_high_rn,
-            ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY player_avg_fp_with_teammate ASC, games_played_with DESC, teammate_name ASC) as perf_low_rn
-        FROM teammate_data WHERE player_avg_fp_with_teammate IS NOT NULL
+        HAVING COUNT(DISTINCT m.match_id) >= 10
     ),
     teammate_stats_json AS (
         SELECT
             player_id,
-            COALESCE(json_agg(json_build_object('player_id', teammate_id, 'name', teammate_name, 'games_played_with', games_played_with)) FILTER (WHERE freq_rn <= 5), '[]'::json) as freq_json,
-            COALESCE(json_agg(json_build_object('player_id', teammate_id, 'name', teammate_name, 'average_fantasy_points_with', ROUND(player_avg_fp_with_teammate::numeric, 2))) FILTER (WHERE perf_high_rn <= 5), '[]'::json) as perf_high_json,
-            COALESCE(json_agg(json_build_object('player_id', teammate_id, 'name', teammate_name, 'average_fantasy_points_with', ROUND(player_avg_fp_with_teammate::numeric, 2))) FILTER (WHERE perf_low_rn <= 5), '[]'::json) as perf_low_json
-        FROM teammate_ranked
+            COALESCE(json_agg(
+                json_build_object(
+                    'player_id', teammate_id, 
+                    'name', teammate_name, 
+                    'games_played_with', games_played_with,
+                    'average_fantasy_points_with', ROUND(player_avg_fp_with_teammate::numeric, 2)
+                ) ORDER BY player_avg_fp_with_teammate DESC
+            ), '[]'::json) as teammate_chemistry_all
+        FROM teammate_data 
+        WHERE player_avg_fp_with_teammate IS NOT NULL
         GROUP BY player_id
     )
     -- Final SELECT to join all CTEs
@@ -219,17 +271,17 @@ BEGIN
         COALESCE(ps.losing_streak, 0), ps.losing_streak_dates,
         COALESCE(ps.undefeated_streak, 0), ps.undefeated_streak_dates,
         COALESCE(ps.winless_streak, 0), ps.winless_streak_dates,
-        COALESCE(pas.max_attendance_streak, 0),
+        COALESCE(pss.max_scoring_streak, 0), pss.scoring_streak_dates,
+        COALESCE(pas.max_attendance_streak, 0), pas.attendance_streak_dates,
         pms.selected_club,
         COALESCE(pys.yearly_stats_json, '[]'::json),
-        COALESCE(tsj.freq_json, '[]'::json),
-        COALESCE(tsj.perf_high_json, '[]'::json),
-        COALESCE(tsj.perf_low_json, '[]'::json),
+        COALESCE(tsj.teammate_chemistry_all, '[]'::json),
         NOW() -- last_updated
     FROM player_match_stats pms
     LEFT JOIN player_most_goals_game pmgg ON pms.player_id = pmgg.player_id
     LEFT JOIN player_most_goals_season pmgs ON pms.player_id = pmgs.player_id
     LEFT JOIN player_streaks ps ON pms.player_id = ps.player_id
+    LEFT JOIN player_scoring_streak pss ON pms.player_id = pss.player_id
     LEFT JOIN player_attendance_streak pas ON pms.player_id = pas.player_id
     LEFT JOIN player_yearly_stats pys ON pms.player_id = pys.player_id
     LEFT JOIN teammate_stats_json tsj ON pms.player_id = tsj.player_id;

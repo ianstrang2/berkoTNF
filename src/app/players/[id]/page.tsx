@@ -14,7 +14,7 @@ export default function SpecificPlayerPage() {
 
   return (
     <MainLayout>
-      <div className="py-6 max-w-screen-xl mx-auto">
+      <div className="py-6 max-w-[1000px]">
         <div className="bg-white rounded-xl shadow-card p-6">
           <ErrorBoundary>
             <PlayerProfile id={finalPlayerId} />
