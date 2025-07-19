@@ -504,137 +504,146 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               </div>
             ) : trendData ? (
               <>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-0">
+                <div className="grid grid-cols-3 gap-1 sm:gap-3 lg:gap-6 mb-0 px-2 sm:px-0">
                 {/* Power Rating */}
                 <div className="flex flex-col items-center">
-                  <PowerRatingGauge 
-                    rating={trendData.current_metrics.power_rating_percentile}
-                    size="lg"
-                    label="Power Rating"
-                  />
+                  <div className="scale-75 sm:scale-90 lg:scale-100 transform">
+                    <PowerRatingGauge 
+                      rating={trendData.current_metrics.power_rating_percentile}
+                      size="md"
+                      label="Power Rating"
+                    />
+                  </div>
                 </div>
 
                 {/* Goal Threat */}
                 <div className="flex flex-col items-center">
-                  <PowerRatingGauge 
-                    rating={trendData.current_metrics.goal_threat_percentile}
-                    size="lg"
-                    label="Goal Threat"
-                  />
+                  <div className="scale-75 sm:scale-90 lg:scale-100 transform">
+                    <PowerRatingGauge 
+                      rating={trendData.current_metrics.goal_threat_percentile}
+                      size="md"
+                      label="Goal Threat"
+                    />
+                  </div>
                 </div>
 
-                {/* Defensive Solidity */}
+                {/* Defensive Shield */}
                 <div className="flex flex-col items-center">
-                  <PowerRatingGauge 
-                    rating={trendData.current_metrics.defensive_percentile}
-                    size="lg"
-                    label="Defensive Shield"
-                  />
+                  <div className="scale-75 sm:scale-90 lg:scale-100 transform">
+                    <PowerRatingGauge 
+                      rating={trendData.current_metrics.defensive_percentile}
+                      size="md"
+                      label="Defensive Shield"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Trend Sparklines Section */}
               {trendData && trendData.sparkline_data && trendData.sparkline_data.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-3">
+                <div className="grid grid-cols-3 gap-1 sm:gap-3 lg:gap-6 mt-3 px-2 sm:px-0">
                   {/* Power Rating Sparkline */}
                   <div className="flex flex-col items-center">
-                    <div className="w-full max-w-[250px] h-[60px] border border-gray-200 rounded bg-gray-50">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
-                          <Line 
-                            type="monotone" 
-                            dataKey="power_rating_percentile" 
-                            stroke="#6B48FF" 
-                            strokeWidth={2}
-                            dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
-                            activeDot={{ r: 4, fill: '#A880FF' }}
-                          />
-                          <YAxis domain={[0, 100]} hide />
-                          <Tooltip 
-                            content={({ active, payload }) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload;
-                                return (
-                                  <div className="bg-white p-2 border rounded shadow-sm text-xs">
-                                    <p className="font-medium">{data.period}</p>
-                                    <p>Rating: {data.power_rating_percentile}% ({data.power_rating.toFixed(2)})</p>
-                                    <p>Games: {data.games_played.toFixed(1)}</p>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="scale-75 sm:scale-90 lg:scale-100 transform w-full flex justify-center">
+                      <div className="w-[160px] h-[60px] border border-gray-200 rounded bg-gray-50">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
+                            <Line 
+                              type="monotone" 
+                              dataKey="power_rating_percentile" 
+                              stroke="#6B48FF" 
+                              strokeWidth={2}
+                              dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
+                              activeDot={{ r: 4, fill: '#A880FF' }}
+                            />
+                            <YAxis domain={[0, 100]} hide />
+                            <Tooltip 
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload;
+                                  return (
+                                    <div className="bg-white p-1.5 border rounded shadow-sm text-xs" style={{ fontSize: '10px !important', lineHeight: '1.2' }}>
+                                      <p className="font-medium text-xs" style={{ fontSize: '10px !important' }}>{data.period}</p>
+                                      <p className="text-xs" style={{ fontSize: '10px !important' }}>Rating: {data.power_rating_percentile}%</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
 
                   {/* Goal Threat Sparkline */}
                   <div className="flex flex-col items-center">
-                    <div className="w-full max-w-[250px] h-[60px] border border-gray-200 rounded bg-gray-50">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
-                          <Line 
-                            type="monotone" 
-                            dataKey="goal_threat_percentile" 
-                            stroke="#6B48FF" 
-                            strokeWidth={2}
-                            dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
-                            activeDot={{ r: 4, fill: '#A880FF' }}
-                          />
-                          <YAxis domain={[0, 100]} hide />
-                          <Tooltip 
-                            content={({ active, payload }) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload;
-                                return (
-                                  <div className="bg-white p-2 border rounded shadow-sm text-xs">
-                                    <p className="font-medium">{data.period}</p>
-                                    <p>Threat: {data.goal_threat_percentile}% ({data.goal_threat.toFixed(2)})</p>
-                                    <p>Games: {data.games_played.toFixed(1)}</p>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="scale-75 sm:scale-90 lg:scale-100 transform w-full flex justify-center">
+                      <div className="w-[160px] h-[60px] border border-gray-200 rounded bg-gray-50">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
+                            <Line 
+                              type="monotone" 
+                              dataKey="goal_threat_percentile" 
+                              stroke="#6B48FF" 
+                              strokeWidth={2}
+                              dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
+                              activeDot={{ r: 4, fill: '#A880FF' }}
+                            />
+                            <YAxis domain={[0, 100]} hide />
+                            <Tooltip 
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload;
+                                  return (
+                                    <div className="bg-white p-1.5 border rounded shadow-sm text-xs" style={{ fontSize: '10px !important', lineHeight: '1.2' }}>
+                                      <p className="font-medium text-xs" style={{ fontSize: '10px !important' }}>{data.period}</p>
+                                      <p className="text-xs" style={{ fontSize: '10px !important' }}>Threat: {data.goal_threat_percentile}%</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Defensive Solidity Sparkline */}
+                  {/* Defensive Shield Sparkline */}
                   <div className="flex flex-col items-center">
-                    <div className="w-full max-w-[250px] h-[60px] border border-gray-200 rounded bg-gray-50">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
-                          <Line 
-                            type="monotone" 
-                            dataKey="defensive_score_percentile" 
-                            stroke="#6B48FF" 
-                            strokeWidth={2}
-                            dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
-                            activeDot={{ r: 4, fill: '#A880FF' }}
-                          />
-                          <YAxis domain={[0, 100]} hide />
-                          <Tooltip 
-                            content={({ active, payload }) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload;
-                                return (
-                                  <div className="bg-white p-2 border rounded shadow-sm text-xs">
-                                    <p className="font-medium">{data.period}</p>
-                                    <p>Defense: {data.defensive_score_percentile}% ({data.defensive_score.toFixed(2)})</p>
-                                    <p>Games: {data.games_played.toFixed(1)}</p>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="scale-75 sm:scale-90 lg:scale-100 transform w-full flex justify-center">
+                      <div className="w-[160px] h-[60px] border border-gray-200 rounded bg-gray-50">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
+                            <Line 
+                              type="monotone" 
+                              dataKey="defensive_score_percentile" 
+                              stroke="#6B48FF" 
+                              strokeWidth={2}
+                              dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
+                              activeDot={{ r: 4, fill: '#A880FF' }}
+                            />
+                            <YAxis domain={[0, 100]} hide />
+                            <Tooltip 
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload;
+                                  return (
+                                    <div className="bg-white p-1.5 border rounded shadow-sm text-xs" style={{ fontSize: '10px !important', lineHeight: '1.2' }}>
+                                      <p className="font-medium text-xs" style={{ fontSize: '10px !important' }}>{data.period}</p>
+                                      <p className="text-xs" style={{ fontSize: '10px !important' }}>Defense: {data.defensive_score_percentile}%</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
                 </div>
