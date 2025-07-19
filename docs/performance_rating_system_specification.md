@@ -1,8 +1,15 @@
 # BerkoTNF Performance Rating System Specification
 
-**Version:** 2.0  
-**Last Updated:** July 2025  
+**Version:** 2.3  
+**Last Updated:** January 2025  
 **Status:** Production Implementation
+
+**Latest Changes:**
+- Added outlier protection for established players
+- Implemented catastrophic rating drop prevention for championship-level performers
+- Switched from 90th percentile to qualified maximum scaling (15+ games only)
+- Added 100% UI capping to prevent confusing >100% displays
+- Fixed small-sample outlier bias completely
 
 ## Table of Contents
 
@@ -12,10 +19,11 @@
 4. [Historical Blocks Framework](#historical-blocks-framework)
 5. [Trend Calculation Engine](#trend-calculation-engine)
 6. [Confidence Weighting System](#confidence-weighting-system)
-7. [Edge Case Handling](#edge-case-handling)
-8. [Real-World Example: Pete Hay Case Study](#real-world-example-pete-hay-case-study)
-9. [Technical Implementation](#technical-implementation)
-10. [Validation & Testing](#validation--testing)
+7. [User Interface Percentage Scaling](#user-interface-percentage-scaling)
+8. [Edge Case Handling](#edge-case-handling)
+9. [Real-World Example: Pete Hay Case Study](#real-world-example-pete-hay-case-study)
+10. [Technical Implementation](#technical-implementation)
+11. [Validation & Testing](#validation--testing)
 
 ---
 
@@ -170,6 +178,76 @@ For players with only one qualifying block:
 - Use that block's metrics directly
 - Apply tier-appropriate minimum rating floors
 - Ensure non-negative goal threat values
+
+### Outlier Protection for Established Players
+
+**Problem**: Exceptional performers like championship winners can have their ratings catastrophically impacted by single poor periods, ignoring years of excellence.
+
+**Solution**: For ESTABLISHED players only, the system applies outlier capping to prevent statistical anomalies from dominating the trend calculation.
+
+#### Outlier Detection Threshold
+```
+outlier_threshold = long_term_average × 0.4  // For power rating
+goal_outlier_threshold = long_term_average × 0.3  // For goal threat (more lenient)
+```
+
+#### Capping Logic
+```sql
+-- If any block rating falls below the threshold, cap it
+capped_block_rating = MAX(actual_block_rating, outlier_threshold)
+capped_goal_threat = MAX(actual_goal_threat, goal_outlier_threshold)
+```
+
+#### Example: Sean McKay Case Study
+- **Long-term Average**: 6.87 power rating (championship level)
+- **2024-07 Block**: -2.88 (disaster period)
+- **Without Protection**: Final rating = 3.03 ❌
+- **With Protection**: -2.88 capped to 2.75 (6.87 × 0.4) ✅
+- **Result**: Protects championship legacy while acknowledging poor form
+
+#### Rationale
+- **Acknowledges Reality**: Poor periods still impact the rating, but proportionally
+- **Prevents Catastrophic Impact**: One bad stretch can't destroy years of proven excellence
+- **Maintains Integrity**: If a player truly declines, multiple capped periods will still show the downward trend
+- **Tier-Specific**: Only applies to players with 75+ total games who have proven their ability
+
+## User Interface Percentage Scaling
+
+### Problem with Absolute Maximums
+
+Early implementations used absolute league maximums (highest individual ratings) for 100% scaling. This created several issues:
+
+- **Small-sample outliers** (players with 5-10 games getting lucky) would set unrealistic maximums
+- **Established champions** would show artificially low percentages despite proven excellence
+- **Scale distortion** where one anomalous performance affected all other players' perceived ratings
+
+### Solution: Qualified Maximum Scaling
+
+The system now uses **qualified maximum** values as the 100% benchmark - only players with proven sample sizes (15+ games) are considered when setting the scale ceiling.
+
+#### Implementation
+```javascript
+// Filter to only established players (15+ games)
+const qualifiedPlayers = leagueStats.filter(s => s.effective_games >= 15);
+
+// Use their maximum values as 100% benchmarks
+power_rating_100 = Math.max(...qualifiedPlayers.map(s => s.trend_rating))
+goal_threat_100 = Math.max(...qualifiedPlayers.map(s => s.trend_goal_threat))  
+defensive_100 = Math.max(...qualifiedPlayers.map(s => s.defensive_score))
+
+// Player percentage = MIN(100%, (player_value / qualified_max) × 100)
+```
+
+#### Benefits
+- **Prevents outlier distortion**: Small-sample flukes (e.g., 6-game winning streaks) don't break everyone else's scale
+- **Proven performance benchmark**: 100% = "best established player", not "luckiest newcomer"
+- **Clean UI**: No percentages exceed 100% (capped for display)
+- **Realistic scaling**: Champions show appropriate percentages without outlier inflation
+
+#### Example Impact
+**Sean McKay (Multiple Champion) vs Dave Wates (6-game newcomer)**:
+- **Old Absolute Maximum**: 8.2 ÷ 27.9 = 29% ❌ (Dave's 6-game fluke ruins Sean's scale)
+- **New Qualified Maximum**: 8.2 ÷ ~12.0 = 68% ✅ (Dave excluded, Sean shows appropriate strength)
 
 ---
 

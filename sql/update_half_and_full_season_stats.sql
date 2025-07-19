@@ -332,9 +332,39 @@ BEGIN
                 v_block_goals := COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
                 v_recent_block_games := (v_block_data->>'games_played')::INT;
                 
+                -- Calculate long-term average for outlier detection (established players only)
+                IF v_player_tier = 'ESTABLISHED' THEN
+                    SELECT 
+                        AVG((elem->>'fantasy_points')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0)),
+                        AVG((elem->>'goals')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0))
+                    INTO v_long_term_avg_rating, v_long_term_avg_goals
+                    FROM jsonb_array_elements(v_historical_blocks) AS elem
+                    WHERE (elem->>'weights_sum')::DECIMAL > 0
+                    AND (elem->>'games_played')::INT >= 6; -- Use more blocks for long-term average
+                    
+                    -- Apply outlier capping for established players
+                    -- Cap any block below 40% of long-term average to prevent catastrophic impact
+                    IF v_long_term_avg_rating IS NOT NULL AND v_long_term_avg_rating > 0 THEN
+                        v_block_rating := GREATEST(v_block_rating, v_long_term_avg_rating * 0.4);
+                    END IF;
+                    
+                    IF v_long_term_avg_goals IS NOT NULL AND v_long_term_avg_goals > 0 THEN
+                        v_block_goals := GREATEST(v_block_goals, v_long_term_avg_goals * 0.3); -- More lenient for goals
+                    END IF;
+                END IF;
+                
                 IF v_prev_block_data IS NOT NULL THEN
                     v_prev_block_rating := COALESCE((v_prev_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
                     v_prev_block_goals := COALESCE((v_prev_block_data->>'goals')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    
+                    -- Apply outlier capping to previous block as well (established players only)
+                    IF v_player_tier = 'ESTABLISHED' AND v_long_term_avg_rating IS NOT NULL AND v_long_term_avg_rating > 0 THEN
+                        v_prev_block_rating := GREATEST(v_prev_block_rating, v_long_term_avg_rating * 0.4);
+                        
+                        IF v_long_term_avg_goals IS NOT NULL AND v_long_term_avg_goals > 0 THEN
+                            v_prev_block_goals := GREATEST(v_prev_block_goals, v_long_term_avg_goals * 0.3);
+                        END IF;
+                    END IF;
                     
                     -- Calculate variation with improved logic
                     IF v_prev_block_rating > 0 THEN

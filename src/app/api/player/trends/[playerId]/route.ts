@@ -48,7 +48,7 @@ export async function GET(
     
     const { data: powerRatings, error: powerError } = await supabase
       .from('aggregated_player_power_ratings')
-      .select('*')
+      .select('trend_rating,trend_goal_threat,defensive_score,league_avg_goal_threat,league_avg_defensive_score')
       .eq('player_id', playerId)
       .single();
 
@@ -60,7 +60,7 @@ export async function GET(
     // Fetch league distribution data for percentile calculations
     const { data: leagueStats, error: leagueError } = await supabase
       .from('aggregated_player_power_ratings')
-      .select('trend_rating,trend_goal_threat,defensive_score')
+      .select('trend_rating,trend_goal_threat,defensive_score,effective_games')
       .not('trend_rating', 'is', null);
 
     let leagueDistribution = {
@@ -100,7 +100,25 @@ export async function GET(
       }
     }
 
-    // Note: Removed old calculatePercentile function - now using actual percentile ranks
+    // Note: Using qualified maximum scaling (players with 15+ games only) to avoid small-sample outliers
+    
+    // Calculate qualified maximums for robust scaling (avoids small-sample outliers)
+
+    // Use "qualified maximum" - only players with proven sample sizes (15+ games) set the 100% benchmark
+    // This prevents statistical flukes from small samples from breaking the scale for everyone
+    const MIN_GAMES_FOR_SCALE = 15;
+    
+    // Get qualified players only (15+ games)
+    const qualifiedStats = leagueStats?.filter(s => {
+      const effectiveGames = s.effective_games || 0;
+      return effectiveGames >= MIN_GAMES_FOR_SCALE;
+    }) || [];
+
+    const leagueMaximums = qualifiedStats.length > 0 ? {
+      power_rating: Math.max(...qualifiedStats.map(s => s.trend_rating || 0)),
+      goal_threat: Math.max(...qualifiedStats.map(s => s.trend_goal_threat || 0)),
+      defensive_score: Math.max(...qualifiedStats.map(s => s.defensive_score || 0))
+    } : { power_rating: 15, goal_threat: 1.0, defensive_score: 0.8 }; // Fallback values
 
     // Process historical blocks for sparkline data
     const historicalBlocks = trendData?.historical_blocks || [];
@@ -142,18 +160,15 @@ export async function GET(
         (1.0 + cleanSheets / Math.max(gamesPlayed, 1))
       ));
 
-      // Calculate actual percentile ranks for sparkline data
-      const powerRatingPercentile = leagueStats && leagueStats.length > 0 ? 
-        Math.round((leagueStats.filter(s => s.trend_rating !== null && s.trend_rating < powerRating).length / 
-          leagueStats.filter(s => s.trend_rating !== null).length) * 100) : 50;
+      // Calculate absolute percentages for sparkline data (based on qualified maximums, capped at 100%)
+      const powerRatingPercentile = leagueMaximums.power_rating > 0 ? 
+        Math.min(100, Math.round((powerRating / leagueMaximums.power_rating) * 100)) : 0;
 
-      const goalThreatPercentile = leagueStats && leagueStats.length > 0 ? 
-        Math.round((leagueStats.filter(s => s.trend_goal_threat !== null && s.trend_goal_threat < goalThreat).length / 
-          leagueStats.filter(s => s.trend_goal_threat !== null).length) * 100) : 50;
+      const goalThreatPercentile = leagueMaximums.goal_threat > 0 ? 
+        Math.min(100, Math.round((goalThreat / leagueMaximums.goal_threat) * 100)) : 0;
 
-      const defensiveScorePercentile = leagueStats && leagueStats.length > 0 ? 
-        Math.round((leagueStats.filter(s => s.defensive_score !== null && s.defensive_score < defensiveScore).length / 
-          leagueStats.filter(s => s.defensive_score !== null).length) * 100) : 50;
+      const defensiveScorePercentile = leagueMaximums.defensive_score > 0 ? 
+        Math.min(100, Math.round((defensiveScore / leagueMaximums.defensive_score) * 100)) : 0;
 
       // Handle date processing
       let period = 'Unknown';
@@ -194,18 +209,17 @@ export async function GET(
       league_avg_defensive_score: powerRatings?.league_avg_defensive_score || 0.7
     };
 
-    // Calculate actual percentile ranks (percentage of players below this player)
-    const powerRatingPercentile = leagueStats && leagueStats.length > 0 ? 
-      Math.round((leagueStats.filter(s => s.trend_rating !== null && s.trend_rating < currentMetrics.power_rating).length / 
-        leagueStats.filter(s => s.trend_rating !== null).length) * 100) : 50;
 
-    const goalThreatPercentile = leagueStats && leagueStats.length > 0 ? 
-      Math.round((leagueStats.filter(s => s.trend_goal_threat !== null && s.trend_goal_threat < currentMetrics.goal_threat).length / 
-        leagueStats.filter(s => s.trend_goal_threat !== null).length) * 100) : 50;
 
-    const defensivePercentile = leagueStats && leagueStats.length > 0 ? 
-      Math.round((leagueStats.filter(s => s.defensive_score !== null && s.defensive_score < currentMetrics.defensive_score).length / 
-        leagueStats.filter(s => s.defensive_score !== null).length) * 100) : 50;
+    // Calculate absolute percentages based on qualified maximums (capped at 100%)
+    const powerRatingPercentile = leagueMaximums.power_rating > 0 ? 
+      Math.min(100, Math.round((currentMetrics.power_rating / leagueMaximums.power_rating) * 100)) : 0;
+
+    const goalThreatPercentile = leagueMaximums.goal_threat > 0 ? 
+      Math.min(100, Math.round((currentMetrics.goal_threat / leagueMaximums.goal_threat) * 100)) : 0;
+
+    const defensivePercentile = leagueMaximums.defensive_score > 0 ? 
+      Math.min(100, Math.round((currentMetrics.defensive_score / leagueMaximums.defensive_score) * 100)) : 0;
 
     return NextResponse.json({
       success: true,
