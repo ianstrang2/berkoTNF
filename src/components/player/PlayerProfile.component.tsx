@@ -577,14 +577,14 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
 
       {/* NEW: Teammate Chemistry Scatter Plot */}
-      <div className="w-full max-w-full px-3 mt-6 mb-6">
+      <div className="w-full max-w-full px-3 mb-6 mt-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="p-6 pb-0">
             <h6 className="mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Teammate Chemistry</h6>
           </div>
-          <div className="p-6 pt-0">
+          <div className="flex-auto p-6 pt-0">
             {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.regular.length > 0) ? (
-              <div style={{ width: '100%', height: 350 }}>
+              <div className="h-[350px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -602,7 +602,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     type="number" 
                     dataKey="performance" 
                     name="Performance"
-                    domain={['dataMin - 2', 'dataMax + 2']}
+                    domain={['dataMin', 'dataMax']}
                     className="text-sm"
                     tick={{ fontSize: 12, fill: '#64748b' }}
                     axisLine={{ stroke: '#cbd5e1' }}
@@ -709,13 +709,11 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
       {/* Match Performance Dots - Keep As-Is */}
       {id && availableYearsForMatchPerformance.length > 0 && (
-        <div className="w-full max-w-full px-3 mt-6">
-          <div className="mx-auto">
-            <MatchPerformance 
-              playerId={id} 
-              availableYears={availableYearsForMatchPerformance} 
-            />
-          </div>
+        <div className="w-full max-w-full px-3 mb-6">
+          <MatchPerformance 
+            playerId={id} 
+            availableYears={availableYearsForMatchPerformance} 
+          />
         </div>
       )}
     </div>
