@@ -140,14 +140,11 @@ BEGIN
         WHERE rnk = 1 -- Get all joint record holders
     ),
     attendance_streaks AS (
-        -- FIXED: Real consecutive attendance streak calculation
+        -- FIXED: Calculate ALL-TIME maximum attendance streaks (not just current ones)
         WITH all_matches AS (
             SELECT match_id, match_date, 
                    ROW_NUMBER() OVER (ORDER BY match_date, match_id) as match_sequence
             FROM matches
-        ),
-        latest_match AS (
-            SELECT MAX(match_sequence) as latest_sequence FROM all_matches
         ),
         player_attendance AS (
             SELECT 
@@ -181,39 +178,36 @@ BEGIN
                 player_id,
                 name,
                 COUNT(*) as streak_length,
-                MIN(match_sequence) as start_sequence,
-                MAX(match_sequence) as end_sequence,
                 MIN(match_date) as streak_start,
                 MAX(match_date) as streak_end
             FROM attendance_groups
             WHERE attended = true  -- Only count consecutive attended matches
             GROUP BY player_id, name, attendance_group
         ),
-        -- Only get CURRENT attendance streaks (must extend to latest match)
-        current_attendance_streaks AS (
+        -- Get the MAXIMUM attendance streak for each player (all-time record)
+        max_attendance_streaks AS (
             SELECT 
-                as_calc.player_id,
-                as_calc.name,
-                as_calc.streak_length,
-                as_calc.streak_start,
-                as_calc.streak_end,
-                as_calc.end_sequence
-            FROM attendance_streaks_calc as_calc
-            CROSS JOIN latest_match lm
-            WHERE as_calc.end_sequence = lm.latest_sequence  -- Must extend to latest match
+                player_id,
+                name,
+                streak_length,
+                streak_start,
+                streak_end,
+                ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY streak_length DESC, streak_end DESC) as rn
+            FROM attendance_streaks_calc
+            WHERE streak_length >= min_streak_length
         ),
-        ranked_current_streaks AS (
+        ranked_max_streaks AS (
             SELECT 
                 name,
                 streak_length as streak,
                 streak_start,
                 streak_end,
                 DENSE_RANK() OVER (ORDER BY streak_length DESC) as rnk
-            FROM current_attendance_streaks
-            WHERE streak_length >= min_streak_length
+            FROM max_attendance_streaks
+            WHERE rn = 1 -- Only the maximum streak per player
         )
         SELECT name, streak, streak_start, streak_end
-        FROM ranked_current_streaks 
+        FROM ranked_max_streaks 
         WHERE rnk = 1 -- Get all joint record holders
     ),
     streaks AS (
