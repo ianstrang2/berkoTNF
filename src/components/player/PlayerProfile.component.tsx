@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ScatterChart, Scatter, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ScatterChart, Scatter, ReferenceLine, LabelList } from 'recharts';
 import Card from '@/components/ui-kit/Card.component';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 import { CardHeader, CardTitle, CardContent } from '@/components/ui-kit/Card.component';
@@ -75,6 +75,36 @@ interface StreakRecords {
   scoringStreak: number;
 }
 
+interface TrendData {
+  current_metrics: {
+    power_rating: number;
+    goal_threat: number;
+    defensive_score: number;
+    power_rating_percentile: number;
+    goal_threat_percentile: number;
+    defensive_percentile: number;
+  };
+  sparkline_data: Array<{
+    period: string;
+    start_date: string;
+    end_date: string;
+    power_rating: number;
+    goal_threat: number;
+    defensive_score: number;
+    power_rating_percentile: number;
+    goal_threat_percentile: number;
+    defensive_score_percentile: number;
+    games_played: number;
+  }>;
+  league_distribution: {
+    power_rating: { p10: number; p90: number; avg: number };
+    goal_threat: { p10: number; p90: number; avg: number };
+    defensive_score: { p10: number; p90: number; avg: number };
+  };
+  blocks_count: number;
+  has_trend_data: boolean;
+}
+
 interface ProfileData {
   name: string;
   games_played: number;
@@ -114,6 +144,13 @@ interface PlayerProfileProps {
   id?: number;
 }
 
+// Helper function to calculate percentiles for display
+const calculatePercentile = (value: number, min: number, max: number): number => {
+  if (max <= min) return 50; // Default to 50% if no range
+  const percentile = ((value - min) / (max - min)) * 100;
+  return Math.max(0, Math.min(100, percentile));
+};
+
 const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +158,8 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedStat, setSelectedStat] = useState<string>('PPG');
   const [leagueAverages, setLeagueAverages] = useState<any[]>([]);
+  const [trendData, setTrendData] = useState<TrendData | null>(null);
+  const [trendLoading, setTrendLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -182,6 +221,36 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
     fetchLeagueAverages();
   }, []);
+
+  // Fetch trend data for 6-month block analysis
+  useEffect(() => {
+    const fetchTrendData = async () => {
+      if (!id) return;
+      
+      setTrendLoading(true);
+      try {
+        const response = await fetch(`/api/player/trends/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            console.log('Trend data received:', data.data);
+            console.log('Sparkline data:', data.data.sparkline_data);
+            setTrendData(data.data);
+          } else {
+            console.error('Trend API returned error:', data.error);
+          }
+        } else {
+          console.error('Trend API response not ok:', response.status);
+        }
+      } catch (err) {
+        console.error('Error fetching trend data:', err);
+      } finally {
+        setTrendLoading(false);
+      }
+    };
+
+    fetchTrendData();
+  }, [id]);
 
   const statOptions: string[] = [
     'Games',
@@ -345,8 +414,9 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
   return (
     <div className="flex flex-wrap -mx-3">
+      {/* COMMENTED OUT - Legacy Components */}
       {/* Player Name and Club Logo */}
-      {profile.name && (
+      {/* {profile.name && (
         <div className="w-full max-w-full px-3 mb-6">
           <div className="mx-auto">
             <div className="flex items-center">
@@ -364,13 +434,12 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
-      {/* NEW: Power Rating Section */}
-      <div className="w-full max-w-full px-3 mb-6">
+      {/* COMMENTED OUT - Legacy Power Rating Section */}
+      {/* <div className="w-full max-w-full px-3 mb-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="p-4 lg:p-6">
-            {/* Power Rating Gauge - Centered */}
             <div className="flex justify-center items-center mb-6">
               <PowerRatingGauge 
                 rating={powerRatingsNormalized?.rating || 50}
@@ -378,7 +447,6 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               />
             </div>
             
-            {/* Goal Threat and Defensive Shield Sliders - Grid Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
               <PowerSlider
                 label="Goal Threat"
@@ -402,6 +470,183 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 showValue={false}
               />
             </div>
+          </div>
+        </div>
+      </div> */}
+
+      {/* NEW: Player Profile with Trend Analysis */}
+      <div className="w-full max-w-full px-3 mb-6">
+        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+          <div className="p-4 lg:p-6 pb-0">
+            {/* Player Name and Club Logo */}
+            {profile.name && (
+              <div className="flex items-center justify-center mb-6">
+                {clubInfo && clubInfo.filename && (
+                  <img
+                    src={`/club-logos/${clubInfo.filename}`}
+                    alt={clubInfo.name ? `${clubInfo.name} logo` : 'Club logo'}
+                    className="h-12 w-12 mr-4"
+                    style={{ objectFit: 'contain' }}
+                  />
+                )}
+                <h2 className="text-2xl font-semibold text-slate-700 font-sans">
+                  {profile.name}
+                </h2>
+              </div>
+            )}
+          </div>
+          <div className="p-4 lg:p-6 pt-0">
+            {trendLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                </div>
+              </div>
+            ) : trendData ? (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-1">
+                {/* Power Rating */}
+                <div className="flex flex-col items-center">
+                  <PowerRatingGauge 
+                    rating={trendData.current_metrics.power_rating_percentile}
+                    size="lg"
+                    label="Power Rating"
+                  />
+                </div>
+
+                {/* Goal Threat */}
+                <div className="flex flex-col items-center">
+                  <PowerRatingGauge 
+                    rating={trendData.current_metrics.goal_threat_percentile}
+                    size="lg"
+                    label="Goal Threat"
+                  />
+                </div>
+
+                {/* Defensive Solidity */}
+                <div className="flex flex-col items-center">
+                  <PowerRatingGauge 
+                    rating={trendData.current_metrics.defensive_percentile}
+                    size="lg"
+                    label="Defensive Shield"
+                  />
+                </div>
+              </div>
+
+              {/* Trend Sparklines Section */}
+              {trendData && trendData.sparkline_data && trendData.sparkline_data.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
+                  {/* Power Rating Sparkline */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-full max-w-[250px] h-[60px] border border-gray-200 rounded bg-gray-50">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
+                          <Line 
+                            type="monotone" 
+                            dataKey="power_rating_percentile" 
+                            stroke="#6B48FF" 
+                            strokeWidth={2}
+                            dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
+                            activeDot={{ r: 4, fill: '#A880FF' }}
+                          />
+                          <YAxis domain={[0, 100]} hide />
+                          <Tooltip 
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                  <div className="bg-white p-2 border rounded shadow-sm text-xs">
+                                    <p className="font-medium">{data.period}</p>
+                                    <p>Rating: {data.power_rating_percentile}% ({data.power_rating.toFixed(2)})</p>
+                                    <p>Games: {data.games_played.toFixed(1)}</p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Goal Threat Sparkline */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-full max-w-[250px] h-[60px] border border-gray-200 rounded bg-gray-50">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
+                          <Line 
+                            type="monotone" 
+                            dataKey="goal_threat_percentile" 
+                            stroke="#6B48FF" 
+                            strokeWidth={2}
+                            dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
+                            activeDot={{ r: 4, fill: '#A880FF' }}
+                          />
+                          <YAxis domain={[0, 100]} hide />
+                          <Tooltip 
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                  <div className="bg-white p-2 border rounded shadow-sm text-xs">
+                                    <p className="font-medium">{data.period}</p>
+                                    <p>Threat: {data.goal_threat_percentile}% ({data.goal_threat.toFixed(2)})</p>
+                                    <p>Games: {data.games_played.toFixed(1)}</p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Defensive Solidity Sparkline */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-full max-w-[250px] h-[60px] border border-gray-200 rounded bg-gray-50">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
+                          <Line 
+                            type="monotone" 
+                            dataKey="defensive_score_percentile" 
+                            stroke="#6B48FF" 
+                            strokeWidth={2}
+                            dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
+                            activeDot={{ r: 4, fill: '#A880FF' }}
+                          />
+                          <YAxis domain={[0, 100]} hide />
+                          <Tooltip 
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                  <div className="bg-white p-2 border rounded shadow-sm text-xs">
+                                    <p className="font-medium">{data.period}</p>
+                                    <p>Defense: {data.defensive_score_percentile}% ({data.defensive_score.toFixed(2)})</p>
+                                    <p>Games: {data.games_played.toFixed(1)}</p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">No trend data available</p>
+                <p className="text-xs mt-1">Trend analysis requires match history</p>
+              </div>
+            )}
+
           </div>
         </div>
       </div>

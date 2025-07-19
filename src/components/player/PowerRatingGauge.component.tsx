@@ -5,12 +5,14 @@ interface PowerRatingGaugeProps {
   rating: number; // 0-100 percentage
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  label?: string;
 }
 
 const PowerRatingGauge: React.FC<PowerRatingGaugeProps> = ({
   rating,
   className = '',
-  size = 'md'
+  size = 'md',
+  label = 'Power Rating'
 }) => {
   // Clamp rating to 0-100 range
   const clampedRating = Math.max(0, Math.min(100, rating));
@@ -100,7 +102,7 @@ const PowerRatingGauge: React.FC<PowerRatingGaugeProps> = ({
       {/* Label */}
       <div className="mt-2 text-center">
         <p className={`font-medium text-slate-600 ${config.labelSize}`}>
-          Power Rating
+          {label}
         </p>
       </div>
     </div>

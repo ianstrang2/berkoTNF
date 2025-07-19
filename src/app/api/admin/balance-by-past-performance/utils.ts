@@ -1,12 +1,17 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Define types for player data and ratings
+// Define types for player data and ratings with new trend-based metrics
 export interface PlayerRating {
   player_id: number;
   rating: number | null;
   variance: number | null;
   goal_threat: number | null;
   defensive_shield: number | null;
+  trend_rating: number | null;
+  trend_goal_threat: number | null;
+  defensive_score: number | null;
+  league_avg_goal_threat: number | null;
+  league_avg_defensive_score: number | null;
 }
 
 export interface PlayerWithScore extends PlayerRating {
@@ -19,26 +24,22 @@ export interface TeamResult {
   balancePercent: number;
 }
 
-// Supabase client initialization
-// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-// const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-const ALPHA = 0.6; // attack weight
-const BETA = 0.4;  // defence weight
+// Updated algorithm constants per specification
 const DEFAULT_RATING = 5.35; // league prior mean for rating
 const DEFAULT_VARIANCE = 0.10;
-const MAX_HILL_CLIMB_ITERATIONS = 2000;
-const GAP_THRESHOLD = 1.0;
+const MAX_HILL_CLIMB_ITERATIONS = 3000; // Increased from 2000
+const GAP_THRESHOLD = 0.5; // Reduced from 1.0 for tighter balance
+const EXTRA_ITERATIONS_THRESHOLD = 500; // For final validation
+const IMBALANCE_THRESHOLD = 0.05; // 5% difference triggers extra iterations
 
 export async function balanceByPastPerformance(
-  supabaseClient: SupabaseClient, // Accept SupabaseClient as the first argument
+  supabaseClient: SupabaseClient,
   playerIds: number[]
 ): Promise<TeamResult> {
-  // Fetch ratings from Supabase
+  // Fetch trend-adjusted ratings from Supabase
   const { data: fetchedRatings, error: fetchError } = await supabaseClient
     .from('aggregated_player_power_ratings')
-    .select('player_id,rating,variance,goal_threat,defensive_shield')
+    .select('player_id,rating,variance,goal_threat,defensive_shield,trend_rating,trend_goal_threat,defensive_score,league_avg_goal_threat,league_avg_defensive_score')
     .in('player_id', playerIds);
 
   if (fetchError) {
@@ -48,62 +49,90 @@ export async function balanceByPastPerformance(
 
   const allPlayersWithRatings: PlayerRating[] = fetchedRatings || [];
 
-  // Calculate league averages for goal_threat and defensive_shield from fetched data
-  let sumGoalThreat = 0;
-  let countGoalThreat = 0;
-  let sumDefensiveShield = 0;
-  let countDefensiveShield = 0;
+  // Calculate league averages for trend_goal_threat and defensive_score from fetched data
+  // Use precomputed values if available, otherwise calculate from current player pool
+  let leagueAvgGoalThreat = 0;
+  let leagueAvgDefensiveScore = 0;
+  
+  // Try to use precomputed league averages first
+  const firstPlayerWithAverages = allPlayersWithRatings.find(p => 
+    p.league_avg_goal_threat !== null && p.league_avg_defensive_score !== null
+  );
+  
+  if (firstPlayerWithAverages) {
+    leagueAvgGoalThreat = firstPlayerWithAverages.league_avg_goal_threat!;
+    leagueAvgDefensiveScore = firstPlayerWithAverages.league_avg_defensive_score!;
+  } else {
+    // Fallback: calculate from current player pool
+    let sumGoalThreat = 0;
+    let countGoalThreat = 0;
+    let sumDefensiveScore = 0;
+    let countDefensiveScore = 0;
 
-  allPlayersWithRatings.forEach(p => {
-    if (p.goal_threat !== null) {
-      sumGoalThreat += p.goal_threat;
-      countGoalThreat++;
-    }
-    if (p.defensive_shield !== null) {
-      sumDefensiveShield += p.defensive_shield;
-      countDefensiveShield++;
-    }
-  });
+    allPlayersWithRatings.forEach(p => {
+      if (p.trend_goal_threat !== null) {
+        sumGoalThreat += p.trend_goal_threat;
+        countGoalThreat++;
+      }
+      if (p.defensive_score !== null) {
+        sumDefensiveScore += p.defensive_score;
+        countDefensiveScore++;
+      }
+    });
 
-  const leagueAvgGoalThreat = countGoalThreat > 0 ? sumGoalThreat / countGoalThreat : 0;
-  const leagueAvgDefensiveShield = countDefensiveShield > 0 ? sumDefensiveShield / countDefensiveShield : 0;
+    leagueAvgGoalThreat = countGoalThreat > 0 ? sumGoalThreat / countGoalThreat : 0.5;
+    leagueAvgDefensiveScore = countDefensiveScore > 0 ? sumDefensiveScore / countDefensiveScore : 0.7;
+  }
 
-  // Prepare player data, applying defaults for missing rows or null values
+  // Prepare player data with NEW COMPOSITE SCORE FORMULA
   const playersData: PlayerWithScore[] = playerIds.map(id => {
     const ratingData = allPlayersWithRatings.find(p => p.player_id === id);
-    const rating = ratingData?.rating ?? DEFAULT_RATING;
-    const variance = ratingData?.variance ?? DEFAULT_VARIANCE; // Not used in score but fetched
-    const goal_threat = ratingData?.goal_threat ?? leagueAvgGoalThreat;
-    const defensive_shield = ratingData?.defensive_shield ?? leagueAvgDefensiveShield;
+    
+    // Use trend-adjusted metrics, fallback to original metrics, then defaults
+    const trendRating = ratingData?.trend_rating ?? ratingData?.rating ?? DEFAULT_RATING;
+    const trendGoalThreat = ratingData?.trend_goal_threat ?? ratingData?.goal_threat ?? leagueAvgGoalThreat;
+    const defensiveScore = ratingData?.defensive_score ?? ratingData?.defensive_shield ?? leagueAvgDefensiveScore;
+    const variance = ratingData?.variance ?? DEFAULT_VARIANCE;
 
-    const score = rating +
-                  ALPHA * (goal_threat - leagueAvgGoalThreat) +
-                  BETA * (defensive_shield - leagueAvgDefensiveShield);
+    // NEW COMPOSITE SCORE FORMULA per specification:
+    // score = trend_rating + 0.6 * (trend_goal_threat - league_avg_goal_threat) + 0.4 * (defensive_score - league_avg_defensive_score)
+    const score = trendRating +
+                  0.6 * (trendGoalThreat - leagueAvgGoalThreat) +
+                  0.4 * (defensiveScore - leagueAvgDefensiveScore);
+
     return {
       player_id: id,
-      rating,
+      rating: ratingData?.rating ?? DEFAULT_RATING,
       variance,
-      goal_threat,
-      defensive_shield,
+      goal_threat: ratingData?.goal_threat ?? leagueAvgGoalThreat,
+      defensive_shield: ratingData?.defensive_shield ?? leagueAvgDefensiveScore,
+      trend_rating: trendRating,
+      trend_goal_threat: trendGoalThreat,
+      defensive_score: defensiveScore,
+      league_avg_goal_threat: leagueAvgGoalThreat,
+      league_avg_defensive_score: leagueAvgDefensiveScore,
       score
     };
   });
 
-  // Sort players by score in descending order
+  // Sort players by composite score in descending order
   playersData.sort((a, b) => b.score - a.score);
 
-  // Perform snake draft
+  // Perform MODIFIED SNAKE DRAFT (4-position cycle per specification)
   let teamA_ids: number[] = [];
   let teamB_ids: number[] = [];
+  
   playersData.forEach((player, index) => {
-    if (index % 4 === 0 || index % 4 === 3) { // 1st (0), 4th (3), 5th (4), 8th (7) ...
+    // Modified snake draft: 1st(0), 4th(3), 5th(4), 8th(7) → Team A
+    //                      2nd(1), 3rd(2), 6th(5), 7th(6) → Team B
+    if (index % 4 === 0 || index % 4 === 3) {
       teamA_ids.push(player.player_id);
-    } else { // 2nd (1), 3rd (2), 6th (5), 7th (6) ...
+    } else {
       teamB_ids.push(player.player_id);
     }
   });
 
-  // Hill-climbing improvement
+  // ENHANCED HILL-CLIMBING OPTIMIZATION
   const calculateTeamScore = (teamPlayerIds: number[]): number => {
     return teamPlayerIds.reduce((totalScore, playerId) => {
       const playerData = playersData.find(p => p.player_id === playerId);
@@ -114,14 +143,23 @@ export async function balanceByPastPerformance(
   let currentTeamA = [...teamA_ids];
   let currentTeamB = [...teamB_ids];
   let currentGap = Math.abs(calculateTeamScore(currentTeamA) - calculateTeamScore(currentTeamB));
+  let iterationsWithoutImprovement = 0;
 
+  // Main optimization loop with enhanced termination conditions
   for (let i = 0; i < MAX_HILL_CLIMB_ITERATIONS; i++) {
+    // Enhanced termination conditions
     if (currentGap < GAP_THRESHOLD) {
+      console.log(`Hill-climbing terminated early at iteration ${i} with gap ${currentGap.toFixed(3)}`);
+      break;
+    }
+    
+    if (iterationsWithoutImprovement >= 500) {
+      console.log(`Hill-climbing terminated after ${i} iterations with ${iterationsWithoutImprovement} iterations without improvement`);
       break;
     }
 
     // Select random players to swap from each team
-    if (currentTeamA.length === 0 || currentTeamB.length === 0) break; // Avoid error if a team is empty
+    if (currentTeamA.length === 0 || currentTeamB.length === 0) break;
     const playerAIndex = Math.floor(Math.random() * currentTeamA.length);
     const playerBIndex = Math.floor(Math.random() * currentTeamB.length);
 
@@ -140,28 +178,72 @@ export async function balanceByPastPerformance(
       currentTeamA = nextTeamA;
       currentTeamB = nextTeamB;
       currentGap = newGap;
+      iterationsWithoutImprovement = 0; // Reset counter on improvement
+    } else {
+      iterationsWithoutImprovement++;
     }
   }
 
-  // Calculate balancePercent
+  // VALIDATION: Check if teams differ by >5% and add extra iterations if needed
+  const totalA = calculateTeamScore(currentTeamA);
+  const totalB = calculateTeamScore(currentTeamB);
+  const imbalanceRatio = Math.abs(totalA - totalB) / ((totalA + totalB) / 2);
+  
+  if (imbalanceRatio > IMBALANCE_THRESHOLD) {
+    console.log(`Teams differ by ${(imbalanceRatio * 100).toFixed(1)}%, running ${EXTRA_ITERATIONS_THRESHOLD} extra iterations`);
+    
+    // Run additional iterations for final optimization
+    for (let i = 0; i < EXTRA_ITERATIONS_THRESHOLD; i++) {
+      if (currentGap < GAP_THRESHOLD) break;
+      if (currentTeamA.length === 0 || currentTeamB.length === 0) break;
+
+      const playerAIndex = Math.floor(Math.random() * currentTeamA.length);
+      const playerBIndex = Math.floor(Math.random() * currentTeamB.length);
+
+      const playerAId = currentTeamA[playerAIndex];
+      const playerBId = currentTeamB[playerBIndex];
+
+      const nextTeamA = [...currentTeamA];
+      const nextTeamB = [...currentTeamB];
+      nextTeamA[playerAIndex] = playerBId;
+      nextTeamB[playerBIndex] = playerAId;
+
+      const newGap = Math.abs(calculateTeamScore(nextTeamA) - calculateTeamScore(nextTeamB));
+
+      if (newGap < currentGap) {
+        currentTeamA = nextTeamA;
+        currentTeamB = nextTeamB;
+        currentGap = newGap;
+      }
+    }
+  }
+
+  // Calculate final balance percentage with ENHANCED FORMULA
   const playerMap = playersData.reduce((map, player) => {
     map[player.player_id] = player;
     return map;
   }, {} as Record<number, PlayerWithScore>);
 
-  const totalA  = currentTeamA.reduce((s,id)=>s + (playerMap[id]?.score || 0) ,0);
-  const totalB  = currentTeamB.reduce((s,id)=>s + (playerMap[id]?.score || 0) ,0);
+  const finalTotalA = calculateTeamScore(currentTeamA);
+  const finalTotalB = calculateTeamScore(currentTeamB);
   
   let balancePercent = 0;
-  if (currentTeamA.length > 0 || currentTeamB.length > 0) { // Avoid division by zero if teams are empty
-    const meanAB  = (totalA + totalB) / 2;
-    if (meanAB !== 0) { // Avoid division by zero if meanAB is 0
-        const gap = Math.abs(totalA - totalB);
-        balancePercent = Math.max(0, Math.min(100, 100 - (gap / meanAB) * 100));
-    } else if (totalA === 0 && totalB === 0) { // If both sums are 0, teams are perfectly balanced in terms of score sum
-        balancePercent = 100;
+  if (currentTeamA.length > 0 || currentTeamB.length > 0) {
+    const meanAB = (finalTotalA + finalTotalB) / 2;
+    if (meanAB !== 0) {
+      const gap = Math.abs(finalTotalA - finalTotalB);
+      // Enhanced balance percentage formula: balancePercent = 100 - (ABS(totalA - totalB) / ((totalA + totalB) / 2) * 100)
+      balancePercent = Math.max(0, Math.min(100, 100 - (gap / meanAB) * 100));
+    } else if (finalTotalA === 0 && finalTotalB === 0) {
+      balancePercent = 100;
     }
   }
 
-  return { teamA: currentTeamA, teamB: currentTeamB, balancePercent };
+  console.log(`Final balance: Team A: ${finalTotalA.toFixed(2)}, Team B: ${finalTotalB.toFixed(2)}, Gap: ${currentGap.toFixed(3)}, Balance: ${balancePercent.toFixed(1)}%`);
+
+  return { 
+    teamA: currentTeamA, 
+    teamB: currentTeamB, 
+    balancePercent: Math.round(balancePercent * 10) / 10 // Round to 1 decimal place
+  };
 } 
