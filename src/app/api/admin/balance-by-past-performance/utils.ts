@@ -1,45 +1,54 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-// Define types for player data and ratings with new trend-based metrics
-export interface PlayerRating {
+// Player rating interface for Supabase data
+interface PlayerRating {
   player_id: number;
   rating: number | null;
   variance: number | null;
   goal_threat: number | null;
-  defensive_shield: number | null;
   trend_rating: number | null;
   trend_goal_threat: number | null;
-  defensive_score: number | null;
   league_avg_goal_threat: number | null;
-  league_avg_defensive_score: number | null;
 }
 
-export interface PlayerWithScore extends PlayerRating {
-  score: number;
+// Player data with 2-metric scores
+interface PlayerWithScore {
+  player_id: number;
+  rating: number;
+  variance: number;
+  goal_threat: number;
+  trend_rating: number;
+  trend_goal_threat: number;
+  league_avg_goal_threat: number;
 }
 
-export interface TeamResult {
+// Team result interface
+interface TeamResult {
   teamA: number[];
   teamB: number[];
   balancePercent: number;
+  totalA: number;
+  totalB: number;
+  powerGap: number;
+  goalGap: number;
 }
 
-// Updated algorithm constants per specification
+// Updated algorithm constants for 2-metric system
 const DEFAULT_RATING = 5.35; // league prior mean for rating
 const DEFAULT_VARIANCE = 0.10;
-const MAX_HILL_CLIMB_ITERATIONS = 3000; // Increased from 2000
-const GAP_THRESHOLD = 0.5; // Reduced from 1.0 for tighter balance
-const EXTRA_ITERATIONS_THRESHOLD = 500; // For final validation
-const IMBALANCE_THRESHOLD = 0.05; // 5% difference triggers extra iterations
+const MAX_HILL_CLIMB_ITERATIONS = 3000;
+const COMBINED_LOSS_THRESHOLD = 1.0; // Target combined normalized loss
+const EXTRA_ITERATIONS_THRESHOLD = 500;
+const IMPROVEMENT_THRESHOLD = 0.95; // 95% confidence threshold for accepting improvements
 
 export async function balanceByPastPerformance(
   supabaseClient: SupabaseClient,
   playerIds: number[]
 ): Promise<TeamResult> {
-  // Fetch trend-adjusted ratings from Supabase
+  // Fetch trend-adjusted ratings from Supabase (2-metric system)
   const { data: fetchedRatings, error: fetchError } = await supabaseClient
     .from('aggregated_player_power_ratings')
-    .select('player_id,rating,variance,goal_threat,defensive_shield,trend_rating,trend_goal_threat,defensive_score,league_avg_goal_threat,league_avg_defensive_score')
+    .select('player_id,rating,variance,goal_threat,trend_rating,trend_goal_threat,league_avg_goal_threat')
     .in('player_id', playerIds);
 
   if (fetchError) {
@@ -49,82 +58,56 @@ export async function balanceByPastPerformance(
 
   const allPlayersWithRatings: PlayerRating[] = fetchedRatings || [];
 
-  // Calculate league averages for trend_goal_threat and defensive_score from fetched data
-  // Use precomputed values if available, otherwise calculate from current player pool
+  // Calculate league average for goal threat from fetched data
   let leagueAvgGoalThreat = 0;
-  let leagueAvgDefensiveScore = 0;
   
-  // Try to use precomputed league averages first
-  const firstPlayerWithAverages = allPlayersWithRatings.find(p => 
-    p.league_avg_goal_threat !== null && p.league_avg_defensive_score !== null
+  // Use precomputed league average if available
+  const firstPlayerWithAverage = allPlayersWithRatings.find(p => 
+    p.league_avg_goal_threat !== null
   );
   
-  if (firstPlayerWithAverages) {
-    leagueAvgGoalThreat = firstPlayerWithAverages.league_avg_goal_threat!;
-    leagueAvgDefensiveScore = firstPlayerWithAverages.league_avg_defensive_score!;
+  if (firstPlayerWithAverage && firstPlayerWithAverage.league_avg_goal_threat !== null) {
+    leagueAvgGoalThreat = firstPlayerWithAverage.league_avg_goal_threat;
   } else {
-    // Fallback: calculate from current player pool
-    let sumGoalThreat = 0;
-    let countGoalThreat = 0;
-    let sumDefensiveScore = 0;
-    let countDefensiveScore = 0;
-
-    allPlayersWithRatings.forEach(p => {
-      if (p.trend_goal_threat !== null) {
-        sumGoalThreat += p.trend_goal_threat;
-        countGoalThreat++;
-      }
-      if (p.defensive_score !== null) {
-        sumDefensiveScore += p.defensive_score;
-        countDefensiveScore++;
-      }
-    });
-
-    leagueAvgGoalThreat = countGoalThreat > 0 ? sumGoalThreat / countGoalThreat : 0.5;
-    leagueAvgDefensiveScore = countDefensiveScore > 0 ? sumDefensiveScore / countDefensiveScore : 0.7;
+    // Calculate from current player pool
+    const validGoalThreats = allPlayersWithRatings
+      .map(p => p.trend_goal_threat ?? p.goal_threat)
+      .filter(gt => gt !== null) as number[];
+    
+    leagueAvgGoalThreat = validGoalThreats.length > 0 
+      ? validGoalThreats.reduce((sum, gt) => sum + gt, 0) / validGoalThreats.length 
+      : 0.5; // Default fallback
   }
 
-  // Prepare player data with NEW COMPOSITE SCORE FORMULA
+  // Prepare player data with 2-metric system
   const playersData: PlayerWithScore[] = playerIds.map(id => {
     const ratingData = allPlayersWithRatings.find(p => p.player_id === id);
     
     // Use trend-adjusted metrics, fallback to original metrics, then defaults
     const trendRating = ratingData?.trend_rating ?? ratingData?.rating ?? DEFAULT_RATING;
     const trendGoalThreat = ratingData?.trend_goal_threat ?? ratingData?.goal_threat ?? leagueAvgGoalThreat;
-    const defensiveScore = ratingData?.defensive_score ?? ratingData?.defensive_shield ?? leagueAvgDefensiveScore;
     const variance = ratingData?.variance ?? DEFAULT_VARIANCE;
-
-    // NEW COMPOSITE SCORE FORMULA per specification:
-    // score = trend_rating + 0.6 * (trend_goal_threat - league_avg_goal_threat) + 0.4 * (defensive_score - league_avg_defensive_score)
-    const score = trendRating +
-                  0.6 * (trendGoalThreat - leagueAvgGoalThreat) +
-                  0.4 * (defensiveScore - leagueAvgDefensiveScore);
 
     return {
       player_id: id,
       rating: ratingData?.rating ?? DEFAULT_RATING,
       variance,
       goal_threat: ratingData?.goal_threat ?? leagueAvgGoalThreat,
-      defensive_shield: ratingData?.defensive_shield ?? leagueAvgDefensiveScore,
       trend_rating: trendRating,
       trend_goal_threat: trendGoalThreat,
-      defensive_score: defensiveScore,
-      league_avg_goal_threat: leagueAvgGoalThreat,
-      league_avg_defensive_score: leagueAvgDefensiveScore,
-      score
+      league_avg_goal_threat: leagueAvgGoalThreat
     };
   });
 
-  // Sort players by composite score in descending order
-  playersData.sort((a, b) => b.score - a.score);
+  // Sort players by power rating in descending order (primary metric)
+  playersData.sort((a, b) => b.trend_rating - a.trend_rating);
 
-  // Perform MODIFIED SNAKE DRAFT (4-position cycle per specification)
+  // Initial team assignment using snake draft
   let teamA_ids: number[] = [];
   let teamB_ids: number[] = [];
   
   playersData.forEach((player, index) => {
-    // Modified snake draft: 1st(0), 4th(3), 5th(4), 8th(7) → Team A
-    //                      2nd(1), 3rd(2), 6th(5), 7th(6) → Team B
+    // Snake draft: 1st, 4th, 5th, 8th → Team A; 2nd, 3rd, 6th, 7th → Team B
     if (index % 4 === 0 || index % 4 === 3) {
       teamA_ids.push(player.player_id);
     } else {
@@ -132,24 +115,78 @@ export async function balanceByPastPerformance(
     }
   });
 
-  // ENHANCED HILL-CLIMBING OPTIMIZATION
-  const calculateTeamScore = (teamPlayerIds: number[]): number => {
-    return teamPlayerIds.reduce((totalScore, playerId) => {
-      const playerData = playersData.find(p => p.player_id === playerId);
-      return totalScore + (playerData?.score || 0);
+  // Multi-objective range normalization functions
+  const calculateTeamTotals = (teamPlayerIds: number[]) => {
+    const powerTotal = teamPlayerIds.reduce((sum, playerId) => {
+      const player = playersData.find(p => p.player_id === playerId);
+      return sum + (player?.trend_rating || 0);
     }, 0);
+    
+    const goalTotal = teamPlayerIds.reduce((sum, playerId) => {
+      const player = playersData.find(p => p.player_id === playerId);
+      return sum + (player?.trend_goal_threat || 0);
+    }, 0);
+    
+    return { powerTotal, goalTotal };
   };
 
+  const calculateRangeNormalizationLoss = (teamA: number[], teamB: number[]) => {
+    const totalsA = calculateTeamTotals(teamA);
+    const totalsB = calculateTeamTotals(teamB);
+    
+    // Calculate ranges (max - min) for normalization
+    const powerRange = Math.max(
+      Math.abs(totalsA.powerTotal - totalsB.powerTotal),
+      0.1 // Minimum range to prevent division by zero
+    );
+    
+    const goalRange = Math.max(
+      Math.abs(totalsA.goalTotal - totalsB.goalTotal),
+      0.01 // Minimum range for goals
+    );
+    
+    // Get min and max for range calculation
+    const powerMin = Math.min(totalsA.powerTotal, totalsB.powerTotal);
+    const powerMax = Math.max(totalsA.powerTotal, totalsB.powerTotal);
+    const goalMin = Math.min(totalsA.goalTotal, totalsB.goalTotal);
+    const goalMax = Math.max(totalsA.goalTotal, totalsB.goalTotal);
+    
+    // Calculate actual ranges across the pool for normalization
+    const allPowerRatings = playersData.map(p => p.trend_rating);
+    const allGoalThreats = playersData.map(p => p.trend_goal_threat);
+    
+    const powerPoolRange = Math.max(...allPowerRatings) - Math.min(...allPowerRatings);
+    const goalPoolRange = Math.max(...allGoalThreats) - Math.min(...allGoalThreats);
+    
+    // Range normalization: gap / pool_range
+    const powerGapNormalized = powerPoolRange > 0 ? powerRange / powerPoolRange : 0;
+    const goalGapNormalized = goalPoolRange > 0 ? goalRange / goalPoolRange : 0;
+    
+    // Combined loss function (equal weighting)
+    const combinedLoss = powerGapNormalized + goalGapNormalized;
+    
+    return {
+      combinedLoss,
+      powerGapNormalized,
+      goalGapNormalized,
+      rawPowerGap: powerRange,
+      rawGoalGap: goalRange
+    };
+  };
+
+  // Hill-climbing optimization with multi-objective approach
   let currentTeamA = [...teamA_ids];
   let currentTeamB = [...teamB_ids];
-  let currentGap = Math.abs(calculateTeamScore(currentTeamA) - calculateTeamScore(currentTeamB));
+  let currentLoss = calculateRangeNormalizationLoss(currentTeamA, currentTeamB);
   let iterationsWithoutImprovement = 0;
 
-  // Main optimization loop with enhanced termination conditions
+  console.log(`Initial balance - Combined Loss: ${currentLoss.combinedLoss.toFixed(3)}, Power Gap: ${currentLoss.rawPowerGap.toFixed(2)}, Goal Gap: ${currentLoss.rawGoalGap.toFixed(3)}`);
+
+  // Main optimization loop
   for (let i = 0; i < MAX_HILL_CLIMB_ITERATIONS; i++) {
-    // Enhanced termination conditions
-    if (currentGap < GAP_THRESHOLD) {
-      console.log(`Hill-climbing terminated early at iteration ${i} with gap ${currentGap.toFixed(3)}`);
+    // Termination conditions
+    if (currentLoss.combinedLoss < COMBINED_LOSS_THRESHOLD) {
+      console.log(`Hill-climbing terminated early at iteration ${i} with combined loss ${currentLoss.combinedLoss.toFixed(3)}`);
       break;
     }
     
@@ -166,35 +203,36 @@ export async function balanceByPastPerformance(
     const playerAId = currentTeamA[playerAIndex];
     const playerBId = currentTeamB[playerBIndex];
 
-    // Create new potential teams
+    // Create potential new teams
     const nextTeamA = [...currentTeamA];
     const nextTeamB = [...currentTeamB];
     nextTeamA[playerAIndex] = playerBId;
     nextTeamB[playerBIndex] = playerAId;
 
-    const newGap = Math.abs(calculateTeamScore(nextTeamA) - calculateTeamScore(nextTeamB));
+    const newLoss = calculateRangeNormalizationLoss(nextTeamA, nextTeamB);
 
-    if (newGap < currentGap) {
+    // Accept improvement if combined loss decreases
+    if (newLoss.combinedLoss < currentLoss.combinedLoss) {
       currentTeamA = nextTeamA;
       currentTeamB = nextTeamB;
-      currentGap = newGap;
-      iterationsWithoutImprovement = 0; // Reset counter on improvement
+      currentLoss = newLoss;
+      iterationsWithoutImprovement = 0;
+      
+      // Log significant improvements
+      if (i % 500 === 0 || newLoss.combinedLoss < currentLoss.combinedLoss * 0.9) {
+        console.log(`Iteration ${i}: Improved to combined loss ${newLoss.combinedLoss.toFixed(3)}`);
+      }
     } else {
       iterationsWithoutImprovement++;
     }
   }
 
-  // VALIDATION: Check if teams differ by >5% and add extra iterations if needed
-  const totalA = calculateTeamScore(currentTeamA);
-  const totalB = calculateTeamScore(currentTeamB);
-  const imbalanceRatio = Math.abs(totalA - totalB) / ((totalA + totalB) / 2);
-  
-  if (imbalanceRatio > IMBALANCE_THRESHOLD) {
-    console.log(`Teams differ by ${(imbalanceRatio * 100).toFixed(1)}%, running ${EXTRA_ITERATIONS_THRESHOLD} extra iterations`);
+  // Additional iterations if balance is still poor
+  if (currentLoss.combinedLoss > COMBINED_LOSS_THRESHOLD * 1.5) {
+    console.log(`Running ${EXTRA_ITERATIONS_THRESHOLD} extra iterations - combined loss still ${currentLoss.combinedLoss.toFixed(3)}`);
     
-    // Run additional iterations for final optimization
     for (let i = 0; i < EXTRA_ITERATIONS_THRESHOLD; i++) {
-      if (currentGap < GAP_THRESHOLD) break;
+      if (currentLoss.combinedLoss < COMBINED_LOSS_THRESHOLD) break;
       if (currentTeamA.length === 0 || currentTeamB.length === 0) break;
 
       const playerAIndex = Math.floor(Math.random() * currentTeamA.length);
@@ -208,42 +246,36 @@ export async function balanceByPastPerformance(
       nextTeamA[playerAIndex] = playerBId;
       nextTeamB[playerBIndex] = playerAId;
 
-      const newGap = Math.abs(calculateTeamScore(nextTeamA) - calculateTeamScore(nextTeamB));
+      const newLoss = calculateRangeNormalizationLoss(nextTeamA, nextTeamB);
 
-      if (newGap < currentGap) {
+      if (newLoss.combinedLoss < currentLoss.combinedLoss) {
         currentTeamA = nextTeamA;
         currentTeamB = nextTeamB;
-        currentGap = newGap;
+        currentLoss = newLoss;
       }
     }
   }
 
-  // Calculate final balance percentage with ENHANCED FORMULA
-  const playerMap = playersData.reduce((map, player) => {
-    map[player.player_id] = player;
-    return map;
-  }, {} as Record<number, PlayerWithScore>);
-
-  const finalTotalA = calculateTeamScore(currentTeamA);
-  const finalTotalB = calculateTeamScore(currentTeamB);
+  // Calculate final metrics for response
+  const finalTotalsA = calculateTeamTotals(currentTeamA);
+  const finalTotalsB = calculateTeamTotals(currentTeamB);
   
-  let balancePercent = 0;
-  if (currentTeamA.length > 0 || currentTeamB.length > 0) {
-    const meanAB = (finalTotalA + finalTotalB) / 2;
-    if (meanAB !== 0) {
-      const gap = Math.abs(finalTotalA - finalTotalB);
-      // Enhanced balance percentage formula: balancePercent = 100 - (ABS(totalA - totalB) / ((totalA + totalB) / 2) * 100)
-      balancePercent = Math.max(0, Math.min(100, 100 - (gap / meanAB) * 100));
-    } else if (finalTotalA === 0 && finalTotalB === 0) {
-      balancePercent = 100;
-    }
-  }
+  // Balance percentage based on combined loss (lower loss = higher percentage)
+  const balancePercent = Math.max(0, Math.min(100, 
+    100 - (currentLoss.combinedLoss * 50) // Scale combined loss to percentage
+  ));
 
-  console.log(`Final balance: Team A: ${finalTotalA.toFixed(2)}, Team B: ${finalTotalB.toFixed(2)}, Gap: ${currentGap.toFixed(3)}, Balance: ${balancePercent.toFixed(1)}%`);
+  console.log(`Final balance - Combined Loss: ${currentLoss.combinedLoss.toFixed(3)}, Balance: ${balancePercent.toFixed(1)}%`);
+  console.log(`Power totals - Team A: ${finalTotalsA.powerTotal.toFixed(2)}, Team B: ${finalTotalsB.powerTotal.toFixed(2)}, Gap: ${currentLoss.rawPowerGap.toFixed(2)}`);
+  console.log(`Goal totals - Team A: ${finalTotalsA.goalTotal.toFixed(3)}, Team B: ${finalTotalsB.goalTotal.toFixed(3)}, Gap: ${currentLoss.rawGoalGap.toFixed(3)}`);
 
-  return { 
-    teamA: currentTeamA, 
-    teamB: currentTeamB, 
-    balancePercent: Math.round(balancePercent * 10) / 10 // Round to 1 decimal place
+  return {
+    teamA: currentTeamA,
+    teamB: currentTeamB,
+    balancePercent,
+    totalA: finalTotalsA.powerTotal,
+    totalB: finalTotalsB.powerTotal,
+    powerGap: currentLoss.rawPowerGap,
+    goalGap: currentLoss.rawGoalGap
   };
 } 

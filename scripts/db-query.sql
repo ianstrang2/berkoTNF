@@ -1,1 +1,0 @@
-SELECT * FROM app_config WHERE config_key LIKE '%team%' OR config_key LIKE '%default%'; 

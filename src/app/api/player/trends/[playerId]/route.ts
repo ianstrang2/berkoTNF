@@ -43,69 +43,63 @@ export async function GET(
       );
     }
 
-    // Fetch current trend-adjusted metrics from power ratings
-    // NOTE: Using SELECT * because specific field selection returns wrong values
-    
+    // Fetch current trend-adjusted metrics from power ratings (2-metric system)
     const { data: powerRatings, error: powerError } = await supabase
       .from('aggregated_player_power_ratings')
-      .select('trend_rating,trend_goal_threat,defensive_score,league_avg_goal_threat,league_avg_defensive_score')
+      .select('trend_rating,trend_goal_threat,league_avg_goal_threat')
       .eq('player_id', playerId)
       .single();
 
     if (powerError) {
       console.error('Error fetching power ratings:', powerError);
-      // Continue without power ratings - new player scenario
+      return NextResponse.json(
+        { success: false, error: 'No trend data available - player may be retired or inactive' },
+        { status: 404 }
+      );
     }
 
-    // Fetch league distribution data for percentile calculations
+    // Fetch league distribution data for percentile calculations (2-metric system)
     const { data: leagueStats, error: leagueError } = await supabase
       .from('aggregated_player_power_ratings')
-      .select('trend_rating,trend_goal_threat,defensive_score,effective_games')
+      .select('trend_rating,trend_goal_threat,effective_games')
       .not('trend_rating', 'is', null);
 
     let leagueDistribution = {
       power_rating: { p10: 3.0, p90: 8.0, avg: 5.35 },
       goal_threat: { p10: 0.2, p90: 1.0, avg: 0.5 },
-      defensive_score: { p10: 0.5, p90: 0.95, avg: 0.7 }
+      participation: { p10: 30, p90: 95, avg: 75 }
     };
 
     if (!leagueError && leagueStats && leagueStats.length > 0) {
-      // Calculate actual percentiles from league data
-      const powerRatings = leagueStats.map(s => s.trend_rating).filter(r => r !== null).sort((a, b) => a - b);
-      const goalThreats = leagueStats.map(s => s.trend_goal_threat).filter(g => g !== null).sort((a, b) => a - b);
-      const defensiveScores = leagueStats.map(s => s.defensive_score).filter(d => d !== null).sort((a, b) => a - b);
+      const ratings = leagueStats.map(s => s.trend_rating || 0).filter(r => r > 0);
+      const goalThreats = leagueStats.map(s => s.trend_goal_threat || 0);
 
-      if (powerRatings.length > 0) {
+      if (ratings.length > 0) {
+        ratings.sort((a, b) => a - b);
+        const p10Index = Math.floor(ratings.length * 0.1);
+        const p90Index = Math.floor(ratings.length * 0.9);
+        
         leagueDistribution.power_rating = {
-          p10: powerRatings[Math.floor(powerRatings.length * 0.1)],
-          p90: powerRatings[Math.floor(powerRatings.length * 0.9)],
-          avg: powerRatings.reduce((a, b) => a + b, 0) / powerRatings.length
+          p10: ratings[p10Index],
+          p90: ratings[p90Index],
+          avg: ratings.reduce((sum, r) => sum + r, 0) / ratings.length
         };
       }
 
       if (goalThreats.length > 0) {
+        goalThreats.sort((a, b) => a - b);
+        const p10Index = Math.floor(goalThreats.length * 0.1);
+        const p90Index = Math.floor(goalThreats.length * 0.9);
+        
         leagueDistribution.goal_threat = {
-          p10: goalThreats[Math.floor(goalThreats.length * 0.1)],
-          p90: goalThreats[Math.floor(goalThreats.length * 0.9)],
-          avg: goalThreats.reduce((a, b) => a + b, 0) / goalThreats.length
-        };
-      }
-
-      if (defensiveScores.length > 0) {
-        leagueDistribution.defensive_score = {
-          p10: defensiveScores[Math.floor(defensiveScores.length * 0.1)],
-          p90: defensiveScores[Math.floor(defensiveScores.length * 0.9)],
-          avg: defensiveScores.reduce((a, b) => a + b, 0) / defensiveScores.length
+          p10: goalThreats[p10Index],
+          p90: goalThreats[p90Index],
+          avg: goalThreats.reduce((sum, gt) => sum + gt, 0) / goalThreats.length
         };
       }
     }
 
-    // Note: Using qualified maximum scaling (players with 15+ games only) to avoid small-sample outliers
-    
-    // Calculate qualified maximums for robust scaling (avoids small-sample outliers)
-
-    // Use "qualified maximum" - only players with proven sample sizes (15+ games) set the 100% benchmark
-    // This prevents statistical flukes from small samples from breaking the scale for everyone
+    // Minimum games for qualified scaling
     const MIN_GAMES_FOR_SCALE = 15;
     
     // Get qualified players only (15+ games)
@@ -114,11 +108,15 @@ export async function GET(
       return effectiveGames >= MIN_GAMES_FOR_SCALE;
     }) || [];
 
-    const leagueMaximums = qualifiedStats.length > 0 ? {
+    const leagueMaximums = qualifiedStats.length > 0 && leagueStats ? {
       power_rating: Math.max(...qualifiedStats.map(s => s.trend_rating || 0)),
       goal_threat: Math.max(...qualifiedStats.map(s => s.trend_goal_threat || 0)),
-      defensive_score: Math.max(...qualifiedStats.map(s => s.defensive_score || 0))
-    } : { power_rating: 15, goal_threat: 1.0, defensive_score: 0.8 }; // Fallback values
+      participation: 100 // Participation is naturally 0-100%
+    } : { 
+      power_rating: 15, 
+      goal_threat: 1.0, 
+      participation: 100 
+    }; // Fallback values
 
     // Process historical blocks for sparkline data
     const historicalBlocks = trendData?.historical_blocks || [];
@@ -128,10 +126,10 @@ export async function GET(
       end_date: string;
       power_rating: number;
       goal_threat: number;
-      defensive_score: number;
+      participation: number;
       power_rating_percentile: number;
       goal_threat_percentile: number;
-      defensive_score_percentile: number;
+      participation_percentile: number;
       games_played: number;
     }> = [];
 
@@ -146,19 +144,12 @@ export async function GET(
       
       const fantasyPoints = Number(block.fantasy_points) || 0;
       const goals = Number(block.goals) || 0;
+      const gamesPossible = Number(block.games_possible) || gamesPlayed;
       
       // Calculate raw metrics
-      const powerRating = fantasyPoints / gamesPlayed;
-      const goalThreat = Math.min(1.5, goals / gamesPlayed);
-      
-      // Calculate defensive score using the same formula as SQL
-      const goalsConceeded = Number(block.goals_conceded) || 0;
-      const cleanSheets = Number(block.clean_sheets) || 0;
-      const leagueAvgGc = 0.5; // Default fallback
-      const defensiveScore = Math.min(0.95, Math.max(0.5,
-        (1.0 / (1.0 + goalsConceeded / Math.max(leagueAvgGc, 0.1))) *
-        (1.0 + cleanSheets / Math.max(gamesPlayed, 1))
-      ));
+      const powerRating = fantasyPoints / Math.max(gamesPlayed, 1);
+      const goalThreat = Math.min(1.5, goals / Math.max(gamesPlayed, 1));
+      const participation = (gamesPlayed / Math.max(gamesPossible, 1)) * 100;
 
       // Calculate absolute percentages for sparkline data (based on qualified maximums, capped at 100%)
       const powerRatingPercentile = leagueMaximums.power_rating > 0 ? 
@@ -167,8 +158,7 @@ export async function GET(
       const goalThreatPercentile = leagueMaximums.goal_threat > 0 ? 
         Math.min(100, Math.round((goalThreat / leagueMaximums.goal_threat) * 100)) : 0;
 
-      const defensiveScorePercentile = leagueMaximums.defensive_score > 0 ? 
-        Math.min(100, Math.round((defensiveScore / leagueMaximums.defensive_score) * 100)) : 0;
+      const participationPercentile = Math.min(100, Math.round(participation));
 
       // Handle date processing
       let period = 'Unknown';
@@ -180,70 +170,80 @@ export async function GET(
         console.error('Date processing error:', e, block.start_date);
       }
 
-      const sparklineEntry = {
+      sparklineData.push({
         period,
         start_date: block.start_date,
         end_date: block.end_date,
         power_rating: Math.round(powerRating * 100) / 100,
-        goal_threat: Math.round(goalThreat * 100) / 100,
-        defensive_score: Math.round(defensiveScore * 100) / 100,
-        power_rating_percentile: Math.round(powerRatingPercentile),
-        goal_threat_percentile: Math.round(goalThreatPercentile),
-        defensive_score_percentile: Math.round(defensiveScorePercentile),
-        games_played: Math.round(gamesPlayed * 100) / 100
-      };
-      
-      sparklineData.push(sparklineEntry);
+        goal_threat: Math.round(goalThreat * 1000) / 1000,
+        participation: Math.round(participation * 10) / 10,
+        power_rating_percentile: powerRatingPercentile,
+        goal_threat_percentile: goalThreatPercentile,
+        participation_percentile: participationPercentile,
+        games_played: gamesPlayed
+      });
     }
 
-    // Calculate percentiles for current metrics
-    if (powerError) {
-      console.error('Error fetching power ratings:', powerError);
-    }
+    // Current metric percentiles (for display)
+    const currentTrendRating = powerRatings?.trend_rating || 0;
+    const currentTrendGoalThreat = powerRatings?.trend_goal_threat || 0;
     
-    const currentMetrics = {
-      power_rating: powerRatings?.trend_rating || 5.35,
-      goal_threat: powerRatings?.trend_goal_threat || 0.5,
-      defensive_score: powerRatings?.defensive_score || 0.7,
-      league_avg_goal_threat: powerRatings?.league_avg_goal_threat || 0.5,
-      league_avg_defensive_score: powerRatings?.league_avg_defensive_score || 0.7
+    // Calculate current participation from most recent block
+    let currentParticipation = 50; // Default
+    if (sparklineData.length > 0) {
+      currentParticipation = sparklineData[sparklineData.length - 1].participation;
+    }
+
+    const currentPercentiles = {
+      power_rating: leagueMaximums.power_rating > 0 ? 
+        Math.min(100, Math.round((currentTrendRating / leagueMaximums.power_rating) * 100)) : 0,
+      goal_threat: leagueMaximums.goal_threat > 0 ? 
+        Math.min(100, Math.round((currentTrendGoalThreat / leagueMaximums.goal_threat) * 100)) : 0,
+      participation: Math.min(100, Math.round(currentParticipation))
     };
 
-
-
-    // Calculate absolute percentages based on qualified maximums (capped at 100%)
-    const powerRatingPercentile = leagueMaximums.power_rating > 0 ? 
-      Math.min(100, Math.round((currentMetrics.power_rating / leagueMaximums.power_rating) * 100)) : 0;
-
-    const goalThreatPercentile = leagueMaximums.goal_threat > 0 ? 
-      Math.min(100, Math.round((currentMetrics.goal_threat / leagueMaximums.goal_threat) * 100)) : 0;
-
-    const defensivePercentile = leagueMaximums.defensive_score > 0 ? 
-      Math.min(100, Math.round((currentMetrics.defensive_score / leagueMaximums.defensive_score) * 100)) : 0;
+    console.log(`Player ${playerId} trends:`, {
+      current_trend_rating: currentTrendRating,
+      current_goal_threat: currentTrendGoalThreat,
+      current_participation: currentParticipation,
+      percentiles: currentPercentiles,
+      sparkline_points: sparklineData.length
+    });
 
     return NextResponse.json({
       success: true,
       data: {
-        player_id: playerId,
+        // Current metrics (2-metric system + participation)
         current_metrics: {
-          power_rating: Math.round(currentMetrics.power_rating * 100) / 100,
-          goal_threat: Math.round(currentMetrics.goal_threat * 100) / 100,
-          defensive_score: Math.round(currentMetrics.defensive_score * 100) / 100,
-          power_rating_percentile: Math.round(powerRatingPercentile),
-          goal_threat_percentile: Math.round(goalThreatPercentile),
-          defensive_percentile: Math.round(defensivePercentile)
+          trend_rating: currentTrendRating,
+          trend_goal_threat: currentTrendGoalThreat,
+          participation_percentage: currentParticipation,
+          league_avg_goal_threat: powerRatings?.league_avg_goal_threat || 0
         },
+        
+        // Current percentiles for display
+        current_percentiles: currentPercentiles,
+        
+        // Historical sparkline data
         sparkline_data: sparklineData,
+        
+        // League context for frontend calculations
         league_distribution: leagueDistribution,
-        blocks_count: historicalBlocks.length,
-        has_trend_data: historicalBlocks.length > 0 && sparklineData.length > 0
+        league_maximums: leagueMaximums,
+        
+        // Metadata
+        data_quality: {
+          historical_blocks_count: historicalBlocks.length,
+          sparkline_points: sparklineData.length,
+          qualified_players_in_league: qualifiedStats.length
+        }
       }
     });
 
-  } catch (error: any) {
-    console.error('Error in player trends API:', error);
+  } catch (error) {
+    console.error('Unexpected error in player trends API:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error' },
+      { success: false, error: 'An unexpected error occurred while fetching trend data' },
       { status: 500 }
     );
   }
