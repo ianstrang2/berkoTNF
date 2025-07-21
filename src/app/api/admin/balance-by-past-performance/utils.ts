@@ -1,4 +1,4 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+import { prisma } from '@/lib/prisma';
 
 // Player rating interface for Supabase data
 interface PlayerRating {
@@ -42,21 +42,39 @@ const EXTRA_ITERATIONS_THRESHOLD = 500;
 const IMPROVEMENT_THRESHOLD = 0.95; // 95% confidence threshold for accepting improvements
 
 export async function balanceByPastPerformance(
-  supabaseClient: SupabaseClient,
+  _unused_supabaseClient: any, // Keep parameter for compatibility but don't use
   playerIds: number[]
 ): Promise<TeamResult> {
-  // Fetch trend-adjusted ratings from Supabase (2-metric system)
-  const { data: fetchedRatings, error: fetchError } = await supabaseClient
-    .from('aggregated_player_power_ratings')
-    .select('player_id,rating,variance,goal_threat,trend_rating,trend_goal_threat,league_avg_goal_threat')
-    .in('player_id', playerIds);
+  // FIXED: Use Prisma for fresh data instead of Supabase (prevents stale data issues)
+  const fetchedRatings = await prisma.aggregated_player_power_ratings.findMany({
+    where: {
+      player_id: { in: playerIds }
+    },
+    select: {
+      player_id: true,
+      rating: true,
+      variance: true,
+      goal_threat: true,
+      trend_rating: true,
+      trend_goal_threat: true,
+      league_avg_goal_threat: true
+    } as any
+  });
 
-  if (fetchError) {
-    console.error('Error fetching player ratings:', fetchError);
+  if (!fetchedRatings) {
+    console.error('Error fetching player ratings: No data returned');
     throw new Error('Failed to fetch player ratings for balancing.');
   }
 
-  const allPlayersWithRatings: PlayerRating[] = fetchedRatings || [];
+  const allPlayersWithRatings: PlayerRating[] = fetchedRatings.map(rating => ({
+    player_id: rating.player_id,
+    rating: (rating as any).rating,
+    variance: (rating as any).variance,
+    goal_threat: (rating as any).goal_threat,
+    trend_rating: (rating as any).trend_rating,
+    trend_goal_threat: (rating as any).trend_goal_threat,
+    league_avg_goal_threat: (rating as any).league_avg_goal_threat
+  }));
 
   // Calculate league average for goal threat from fetched data
   let leagueAvgGoalThreat = 0;

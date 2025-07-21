@@ -403,7 +403,9 @@ model aggregated_player_power_ratings {
   goal_threat             Decimal? @db.Decimal
   trend_rating            Decimal? @db.Decimal
   trend_goal_threat       Decimal? @db.Decimal
+  trend_participation     Decimal? @db.Decimal
   league_avg_goal_threat  Decimal? @db.Decimal
+  league_avg_participation Decimal? @db.Decimal
   players                 players  @relation(fields: [player_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([rating(sort: Desc)], map: "idx_power_rating_desc")

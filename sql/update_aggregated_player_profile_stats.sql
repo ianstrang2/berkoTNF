@@ -99,9 +99,9 @@ BEGIN
             UNION ALL
             SELECT player_id, 'loss' as type, COUNT(*) as streak, MIN(match_date) as start_date, MAX(match_date) as end_date FROM streak_groups WHERE result = 'loss' GROUP BY player_id, result_group
             UNION ALL
-            SELECT player_id, 'undefeated' as type, COUNT(*) as streak, MIN(match_date) as start_date, MAX(match_date) as end_date FROM streak_groups GROUP BY player_id, undefeated_group
+            SELECT player_id, 'undefeated' as type, COUNT(*) as streak, MIN(match_date) as start_date, MAX(match_date) as end_date FROM streak_groups WHERE result != 'loss' GROUP BY player_id, undefeated_group
             UNION ALL
-            SELECT player_id, 'winless' as type, COUNT(*) as streak, MIN(match_date) as start_date, MAX(match_date) as end_date FROM streak_groups GROUP BY player_id, winless_group
+            SELECT player_id, 'winless' as type, COUNT(*) as streak, MIN(match_date) as start_date, MAX(match_date) as end_date FROM streak_groups WHERE result != 'win' GROUP BY player_id, winless_group
         ),
         max_streaks AS (
             SELECT player_id, type, streak, start_date::text || ' to ' || end_date::text as dates

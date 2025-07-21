@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: true
----
 # BerkoTNF Project Rules
 
 ## File Organization
@@ -45,6 +40,37 @@ src/
 ├── types/                 # TypeScript type definitions
 └── utils/                 # Utility functions
 ```
+
+## Database Access Patterns
+
+### API Routes - Use Prisma for Fresh Data
+- **ALWAYS use Prisma** for API routes that read application data
+- **Supabase client causes stale data issues** due to connection pooling/caching
+- Use `import { prisma } from '@/lib/prisma';`
+
+**✅ Correct Pattern:**
+```typescript
+// API routes - use Prisma for fresh data
+const playerData = await prisma.aggregated_player_power_ratings.findUnique({
+  where: { player_id: playerId },
+  select: { trend_rating: true, trend_goal_threat: true } as any
+});
+```
+
+**❌ Avoid in API Routes:**
+```typescript
+// Causes stale data issues
+const supabase = createClient(url, key);
+const { data } = await supabase.from('aggregated_player_power_ratings')...
+```
+
+### Edge Functions - Use Supabase Client
+- **Supabase Edge Functions** in `supabase/functions/` should use Supabase client
+- **SQL scripts** in `sql/` use direct PostgreSQL
+
+### Type Safety
+- Use `as any` for Prisma selects with newer schema fields not yet in generated types
+- Follow existing working API patterns (see `playerprofile/route.ts`)
 
 ## App Router Flow
 - Pages in `/app` should be minimal - just import and render components
@@ -92,5 +118,4 @@ To ensure consistency and type safety, all player-related data across the applic
 -   **Contextual Types:** Use extended types like `PlayerInPool` or `PlayerWithStats` for specific use cases (e.g., match management, statistics).
 -   **API Boundary:** The API layer is responsible for transforming raw database results (snake_case) into these camelCase canonical types using the helpers in `src/lib/transform/player.transform.ts`. Frontend components should expect to receive data in this clean format.
 -   **Deprecation:** Avoid using or creating any local, one-off player types (e.g., `MatchPlayer`, `PlayerWithNameAndId`). Always import from the canonical types file.
-
 -   **ID Convention:** The canonical frontend type `PlayerProfile` uses `id: string` for consistency with component keys and other browser APIs. The database uses `player_id: number`. The transformation helpers in `src/lib/transform/player.transform.ts` are responsible for converting the numeric ID from the database to a string. Conversely, API routes must parse string IDs from the frontend back into numbers before performing database operations.

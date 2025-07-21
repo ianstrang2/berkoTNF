@@ -34,13 +34,15 @@ export async function GET(request: Request) {
         where: { player_id: numericId },
       }),
       
-      // Power ratings query (2-metric system)
+      // Power ratings query (3-metric system with sophisticated participation)
       prisma.aggregated_player_power_ratings.findUnique({
         where: { player_id: numericId },
         select: {
           trend_rating: true,
           trend_goal_threat: true,
+          trend_participation: true,
           league_avg_goal_threat: true,
+          league_avg_participation: true,
           updated_at: true
         } as any
       }),
@@ -160,25 +162,25 @@ export async function GET(request: Request) {
     };
 
     // Process streak records from aggregated_records
-    let streakRecords = {
-      winStreak: { max: 10, holders: [] },
-      losingStreak: { max: 5, holders: [] },
-      undefeatedStreak: { max: 15, holders: [] },
-      winlessStreak: { max: 8, holders: [] },
-      scoringStreak: { max: 8, holders: [] },
-      attendanceStreak: { max: 25, holders: [] }
-    };
+    let streakRecords: any = null;
 
     if (records && records.records) {
       const recordData = records.records as any;
+      
       if (recordData.streaks) {
+        // Extract max streak values from holders arrays
+        const getMaxStreak = (streakData: any) => {
+          if (!streakData || !streakData.holders || !Array.isArray(streakData.holders)) return null;
+          return Math.max(...streakData.holders.map((h: any) => h.streak));
+        };
+
         streakRecords = {
-          winStreak: recordData.streaks.win_streak || streakRecords.winStreak,
-          losingStreak: recordData.streaks.losing_streak || streakRecords.losingStreak,
-          undefeatedStreak: recordData.streaks.undefeated_streak || streakRecords.undefeatedStreak,
-          winlessStreak: recordData.streaks.winless_streak || streakRecords.winlessStreak,
-          scoringStreak: recordData.streaks.scoring_streak || streakRecords.scoringStreak,
-          attendanceStreak: recordData.streaks.attendance_streak || streakRecords.attendanceStreak
+          winStreak: { max: getMaxStreak(recordData.streaks["Win Streak"]) },
+          losingStreak: { max: getMaxStreak(recordData.streaks["Losing Streak"]) },
+          undefeatedStreak: { max: getMaxStreak(recordData.streaks["Undefeated Streak"]) },
+          winlessStreak: { max: getMaxStreak(recordData.streaks["Winless Streak"]) },
+          scoringStreak: { max: getMaxStreak(recordData.streaks["Games Scoring"]) },
+          attendanceStreak: { max: getMaxStreak(recordData.streaks["Attendance Streak"]) }
         };
       }
     }
@@ -251,18 +253,20 @@ export async function GET(request: Request) {
         teammate_chemistry_all: (profile as any).teammate_chemistry_all, // New comprehensive teammate data
         last_updated: profile.last_updated,
         
-        // NEW: 2-metric power ratings + participation
+        // NEW: 3-metric power ratings (sophisticated trend calculation for all metrics)
         power_ratings: powerRatings ? {
-          trend_rating: Number((powerRatings as any).trend_rating || 0),
-          trend_goal_threat: Number((powerRatings as any).trend_goal_threat || 0),
-          participation_percentage: participationPercentage,
+          trend_rating: (powerRatings as any).trend_rating ? Number((powerRatings as any).trend_rating) : null,
+          trend_goal_threat: (powerRatings as any).trend_goal_threat ? Number((powerRatings as any).trend_goal_threat) : null,
+          trend_participation: (powerRatings as any).trend_participation ? Number((powerRatings as any).trend_participation) : participationPercentage,
           league_avg_goal_threat: Number((powerRatings as any).league_avg_goal_threat || 0),
+          league_avg_participation: Number((powerRatings as any).league_avg_participation || 75),
           updated_at: powerRatings.updated_at
         } : {
-          trend_rating: 0,
-          trend_goal_threat: 0,
-          participation_percentage: participationPercentage,
+          trend_rating: null,
+          trend_goal_threat: null,
+          trend_participation: participationPercentage,
           league_avg_goal_threat: 0,
+          league_avg_participation: 75,
           updated_at: null
         },
         

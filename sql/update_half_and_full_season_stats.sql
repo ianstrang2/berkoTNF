@@ -1,6 +1,6 @@
 -- sql/update_half_and_full_season_stats.sql
--- Updated for 2-metric system: Removed defensive calculations, added participation tracking
--- Version 3.0: Power Rating + Goal Threat + Participation (display only)
+-- Updated for 3-metric system: Power Rating + Goal Threat + Participation (all with sophisticated trending)
+-- Version 3.1: Enhanced participation calculation with same sophistication as power rating and goal threat
 
 -- Helper functions (calculate_match_fantasy_points, date helpers) are defined in sql/helpers.sql
 
@@ -44,8 +44,10 @@ DECLARE
     v_prev_block_data JSONB;
     v_trend_rating DECIMAL;
     v_trend_goal_threat DECIMAL;
+    v_trend_participation DECIMAL;
     v_long_term_avg_rating DECIMAL;
     v_long_term_avg_goals DECIMAL;
+    v_long_term_avg_participation DECIMAL;
     v_percentage_change DECIMAL;
     v_variation DECIMAL;
     v_is_consistent BOOLEAN;
@@ -53,14 +55,18 @@ DECLARE
     -- Variables for league averages
     v_sum_trend_rating DECIMAL := 0;
     v_sum_trend_goal_threat DECIMAL := 0;
+    v_sum_trend_participation DECIMAL := 0;
     v_count_players INT := 0;
     v_league_avg_goal_threat DECIMAL;
+    v_league_avg_participation DECIMAL;
     
     -- Additional variables for trend calculation
     v_block_rating DECIMAL;
     v_prev_block_rating DECIMAL;
     v_block_goals DECIMAL;
     v_prev_block_goals DECIMAL;
+    v_block_participation DECIMAL;
+    v_prev_block_participation DECIMAL;
     v_sum_percentage_changes DECIMAL := 0;
     v_percentage_changes_count INT := 0;
     v_last_two_avg_rating DECIMAL;
@@ -233,9 +239,10 @@ BEGIN
         FROM jsonb_array_elements(v_historical_blocks) AS elem;
         
         IF v_valid_blocks_count = 0 THEN
-            -- New player with no historical data - use league averages
-            v_trend_rating := 5.35; -- Default rating
-            v_trend_goal_threat := 0.5; -- Will be updated with league average later
+            -- New player with no historical data - return NULL (no fake data)
+            v_trend_rating := NULL;
+            v_trend_goal_threat := NULL;
+            v_trend_participation := NULL;
         ELSIF v_valid_blocks_count = 1 THEN
             -- Single valid block player - use that block's decayed averages
             SELECT elem INTO v_block_data
@@ -243,9 +250,9 @@ BEGIN
             WHERE (elem->>'weights_sum')::DECIMAL > 0
             LIMIT 1;
             
-            v_trend_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 5.35);
-            v_trend_rating := GREATEST(1.0, v_trend_rating); -- Ensure minimum 1.0
+            v_trend_rating := (v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0);
             v_trend_goal_threat := LEAST(1.5, COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0));
+            v_trend_participation := COALESCE((v_block_data->>'participation_rate')::DECIMAL * 100, NULL);
         ELSE
             -- FIX #3: Multi-tiered adaptive trend calculation system
                 -- Determine player tier and minimum block size
@@ -308,79 +315,102 @@ BEGIN
                 -- Calculate base trend metrics from the selected blocks
                 v_block_rating := COALESCE((v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
                 v_block_goals := COALESCE((v_block_data->>'goals')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                v_block_participation := COALESCE((v_block_data->>'participation_rate')::DECIMAL * 100, 75.0);
                 v_recent_block_games := (v_block_data->>'games_played')::INT;
                 
                 -- Calculate long-term average for outlier detection (established players only)
                 IF v_player_tier = 'ESTABLISHED' THEN
                     SELECT 
                         AVG((elem->>'fantasy_points')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0)),
-                        AVG((elem->>'goals')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0))
-                    INTO v_long_term_avg_rating, v_long_term_avg_goals
+                        AVG((elem->>'goals')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0)),
+                        AVG((elem->>'participation_rate')::DECIMAL * 100)
+                    INTO v_long_term_avg_rating, v_long_term_avg_goals, v_long_term_avg_participation
                     FROM jsonb_array_elements(v_historical_blocks) AS elem
                     WHERE (elem->>'weights_sum')::DECIMAL > 0
                     AND (elem->>'games_played')::INT >= 6; -- Use more blocks for long-term average
                     
-                    -- Apply outlier capping for established players
-                    -- Cap any block below 40% of long-term average to prevent catastrophic impact
-                    IF v_long_term_avg_rating IS NOT NULL AND v_long_term_avg_rating > 0 THEN
-                        v_block_rating := GREATEST(v_block_rating, v_long_term_avg_rating * 0.4);
-                    END IF;
+                    -- REMOVED: Outlier capping to allow natural aging decline
+                    -- Players can genuinely decline with age - don't artificially boost them
                     
-                    IF v_long_term_avg_goals IS NOT NULL AND v_long_term_avg_goals > 0 THEN
-                        v_block_goals := GREATEST(v_block_goals, v_long_term_avg_goals * 0.3); -- More lenient for goals
+                    -- Keep participation bounds only (0-100% is natural range)
+                    IF v_long_term_avg_participation IS NOT NULL AND v_long_term_avg_participation > 0 THEN
+                        v_block_participation := GREATEST(v_block_participation, v_long_term_avg_participation * 0.3); -- Allow 70% drops (e.g. 80% -> 24%)
+                        v_block_participation := LEAST(v_block_participation, 100.0); -- Cap at 100%
                     END IF;
                 END IF;
                 
                 IF v_prev_block_data IS NOT NULL THEN
                     v_prev_block_rating := COALESCE((v_prev_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
                     v_prev_block_goals := COALESCE((v_prev_block_data->>'goals')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
+                    v_prev_block_participation := COALESCE((v_prev_block_data->>'participation_rate')::DECIMAL * 100, NULL);
                     
-                    -- Apply outlier capping to previous block as well (established players only)
-                    IF v_player_tier = 'ESTABLISHED' AND v_long_term_avg_rating IS NOT NULL AND v_long_term_avg_rating > 0 THEN
-                        v_prev_block_rating := GREATEST(v_prev_block_rating, v_long_term_avg_rating * 0.4);
-                        
-                        IF v_long_term_avg_goals IS NOT NULL AND v_long_term_avg_goals > 0 THEN
-                            v_prev_block_goals := GREATEST(v_prev_block_goals, v_long_term_avg_goals * 0.3);
-                        END IF;
+                    -- REMOVED: Previous block outlier capping to allow natural aging decline
+                    -- Keep participation bounds only (0-100% is natural range)
+                    IF v_player_tier = 'ESTABLISHED' AND v_long_term_avg_participation IS NOT NULL AND v_long_term_avg_participation > 0 THEN
+                        v_prev_block_participation := GREATEST(v_prev_block_participation, v_long_term_avg_participation * 0.3);
+                        v_prev_block_participation := LEAST(v_prev_block_participation, 100.0);
                     END IF;
-                    
-                    -- Calculate variation with improved logic
-                    IF v_prev_block_rating > 0 THEN
-                        v_variation := ABS((v_block_rating - v_prev_block_rating) / v_prev_block_rating * 100);
-                    ELSE
-                        v_variation := 0;
-                    END IF;
-                    
-                    v_is_consistent := v_variation > 10;
-                    
-                    IF v_is_consistent THEN
-                        -- Consistent trend: use percentage change with safeguards
-                        v_percentage_change := CASE WHEN v_prev_block_rating > 0 THEN (v_block_rating - v_prev_block_rating) / v_prev_block_rating ELSE 0 END;
-                        
-                        -- Apply tier-specific percentage change limits
-                        CASE v_player_tier
-                            WHEN 'NEW' THEN 
-                                v_percentage_change := GREATEST(-0.3, LEAST(0.3, v_percentage_change)); -- ±30% for new players
-                            WHEN 'DEVELOPING' THEN 
-                                v_percentage_change := GREATEST(-0.4, LEAST(0.4, v_percentage_change)); -- ±40% for developing
-                            ELSE 
-                                v_percentage_change := GREATEST(-0.5, LEAST(0.5, v_percentage_change)); -- ±50% for established
-                        END CASE;
-                        
-                        v_trend_rating := v_block_rating * (1 + v_percentage_change);
-                        
-                        v_percentage_change := CASE WHEN v_prev_block_goals > 0 THEN (v_block_goals - v_prev_block_goals) / v_prev_block_goals ELSE 0 END;
-                        v_percentage_change := GREATEST(-0.4, LEAST(0.4, v_percentage_change)); -- ±40% for goals
-                        v_trend_goal_threat := v_block_goals * (1 + v_percentage_change);
-                    ELSE
-                        -- Inconsistent trend: use weighted average
-                        v_trend_rating := 0.6 * v_block_rating + 0.4 * v_prev_block_rating;
-                        v_trend_goal_threat := 0.6 * v_block_goals + 0.4 * v_prev_block_goals;
-                    END IF;
+                END IF;
+                
+                -- Calculate variation with improved logic (FIXED: handle negative ratings)
+                IF v_prev_block_rating > 0 THEN
+                    v_variation := ABS((v_block_rating - v_prev_block_rating) / v_prev_block_rating * 100);
+                ELSIF v_prev_block_rating < 0 AND v_block_rating > 0 THEN
+                    -- Negative to positive transition: always treat as consistent upward trend
+                    v_variation := 100; -- Force consistent trend path
+                ELSIF v_prev_block_rating < 0 AND v_block_rating < 0 THEN
+                    -- Both negative: calculate variation based on absolute values
+                    v_variation := ABS((v_block_rating - v_prev_block_rating) / ABS(v_prev_block_rating) * 100);
                 ELSE
-                    -- Only one qualifying block available
-                    v_trend_rating := v_block_rating;
-                    v_trend_goal_threat := v_block_goals;
+                    -- Edge case: zero or other unusual values
+                    v_variation := 0;
+                END IF;
+                
+                v_is_consistent := v_variation > 10;
+                
+                IF v_is_consistent THEN
+                    -- Consistent trend: use percentage change with safeguards
+                    IF v_prev_block_rating > 0 THEN
+                        v_percentage_change := (v_block_rating - v_prev_block_rating) / v_prev_block_rating;
+                    ELSIF v_prev_block_rating < 0 AND v_block_rating > 0 THEN
+                        -- Negative to positive: treat as significant positive change (capped)
+                        v_percentage_change := 0.5; -- 50% improvement (will be capped by tier limits)
+                    ELSIF v_prev_block_rating < 0 AND v_block_rating < 0 THEN
+                        -- Both negative: calculate change based on absolute values
+                        v_percentage_change := (ABS(v_block_rating) - ABS(v_prev_block_rating)) / ABS(v_prev_block_rating);
+                        -- Flip sign if getting more negative
+                        IF v_block_rating < v_prev_block_rating THEN
+                            v_percentage_change := -v_percentage_change;
+                        END IF;
+                    ELSE
+                        v_percentage_change := 0;
+                    END IF;
+                    
+                    -- Apply tier-specific percentage change limits
+                    CASE v_player_tier
+                        WHEN 'NEW' THEN 
+                            v_percentage_change := GREATEST(-0.3, LEAST(0.3, v_percentage_change)); -- ±30% for new players
+                        WHEN 'DEVELOPING' THEN 
+                            v_percentage_change := GREATEST(-0.4, LEAST(0.4, v_percentage_change)); -- ±40% for developing
+                        ELSE 
+                            v_percentage_change := GREATEST(-0.5, LEAST(0.5, v_percentage_change)); -- ±50% for established
+                    END CASE;
+                    
+                    v_trend_rating := v_block_rating * (1 + v_percentage_change);
+                    
+                    v_percentage_change := CASE WHEN v_prev_block_goals > 0 THEN (v_block_goals - v_prev_block_goals) / v_prev_block_goals ELSE 0 END;
+                    v_percentage_change := GREATEST(-0.4, LEAST(0.4, v_percentage_change)); -- ±40% for goals
+                    v_trend_goal_threat := v_block_goals * (1 + v_percentage_change);
+                    
+                    -- Participation trend: more conservative change limits (attendance is generally more stable)
+                    v_percentage_change := CASE WHEN v_prev_block_participation > 0 THEN (v_block_participation - v_prev_block_participation) / v_prev_block_participation ELSE 0 END;
+                    v_percentage_change := GREATEST(-0.25, LEAST(0.25, v_percentage_change)); -- ±25% for participation
+                    v_trend_participation := v_block_participation * (1 + v_percentage_change);
+                ELSE
+                    -- Inconsistent trend: use weighted average
+                    v_trend_rating := 0.6 * v_block_rating + 0.4 * v_prev_block_rating;
+                    v_trend_goal_threat := 0.6 * v_block_goals + 0.4 * v_prev_block_goals;
+                    v_trend_participation := 0.6 * v_block_participation + 0.4 * v_prev_block_participation;
                 END IF;
                 
                 -- Calculate confidence weight based on recent block sample size
@@ -389,8 +419,9 @@ BEGIN
                 -- Apply confidence weighting with long-term averages
                 SELECT 
                     AVG((elem->>'fantasy_points')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0)),
-                    AVG((elem->>'goals')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0))
-                INTO v_long_term_avg_rating, v_long_term_avg_goals
+                    AVG((elem->>'goals')::DECIMAL / NULLIF((elem->>'weights_sum')::DECIMAL, 0)),
+                    AVG((elem->>'participation_rate')::DECIMAL * 100)
+                INTO v_long_term_avg_rating, v_long_term_avg_goals, v_long_term_avg_participation
                 FROM jsonb_array_elements(v_historical_blocks) AS elem
                 WHERE (elem->>'weights_sum')::DECIMAL > 0
                 AND (elem->>'games_played')::INT >= CASE 
@@ -399,42 +430,40 @@ BEGIN
                     ELSE 6
                 END;
                 
-                -- Blend with long-term average based on confidence and tier
+                -- Blend with long-term average based on confidence and tier (FIXED: logical ratios)
                 IF v_long_term_avg_rating IS NOT NULL THEN
                     CASE v_player_tier
                         WHEN 'NEW' THEN
-                            -- New players: heavy blending with long-term average
-                            v_trend_rating := (0.4 * v_confidence_weight * v_trend_rating) + 
-                                            (0.6 * v_long_term_avg_rating) + 
-                                            ((1 - v_confidence_weight) * 5.35); -- Default for very small samples
-                            v_trend_goal_threat := (0.4 * v_confidence_weight * v_trend_goal_threat) + 
-                                                 (0.6 * COALESCE(v_long_term_avg_goals, 0.2));
+                            -- New players: trust recent form (we don't know their history yet)
+                            v_trend_rating := (0.9 * v_confidence_weight * v_trend_rating) + 
+                                            (0.1 * v_long_term_avg_rating);
+                            v_trend_goal_threat := (0.9 * v_confidence_weight * v_trend_goal_threat) + 
+                                                 (0.1 * COALESCE(v_long_term_avg_goals, 0));
+                            v_trend_participation := (0.9 * v_confidence_weight * v_trend_participation) + 
+                                                    (0.1 * COALESCE(v_long_term_avg_participation, 0));
                         WHEN 'DEVELOPING' THEN
-                            -- Developing players: moderate blending
+                            -- Developing players: moderate trust in recent form
                             v_trend_rating := (0.7 * v_confidence_weight * v_trend_rating) + 
                                             ((1 - 0.7 * v_confidence_weight) * v_long_term_avg_rating);
                             v_trend_goal_threat := (0.7 * v_confidence_weight * v_trend_goal_threat) + 
                                                  ((1 - 0.7 * v_confidence_weight) * COALESCE(v_long_term_avg_goals, 0));
+                            v_trend_participation := (0.7 * v_confidence_weight * v_trend_participation) + 
+                                                    ((1 - 0.7 * v_confidence_weight) * COALESCE(v_long_term_avg_participation, 0));
                         ELSE
-                            -- Established players: minimal blending, but protect against extreme outliers
-                            IF v_trend_rating > v_long_term_avg_rating * 1.5 OR v_trend_rating < v_long_term_avg_rating * 0.5 THEN
-                                v_trend_rating := (0.8 * v_confidence_weight * v_trend_rating) + 
-                                                ((1 - 0.8 * v_confidence_weight) * v_long_term_avg_rating);
-                            END IF;
-                            
-                            IF v_trend_goal_threat > v_long_term_avg_goals * 1.5 OR v_trend_goal_threat < v_long_term_avg_goals * 0.5 THEN
-                                v_trend_goal_threat := (0.8 * v_confidence_weight * v_trend_goal_threat) + 
-                                                      ((1 - 0.8 * v_confidence_weight) * COALESCE(v_long_term_avg_goals, 0));
-                            END IF;
+                            -- Established players: trust historical performance (we know who they are)
+                            v_trend_rating := (0.3 * v_confidence_weight * v_trend_rating) + 
+                                            (0.7 * v_long_term_avg_rating);
+                            v_trend_goal_threat := (0.3 * v_confidence_weight * v_trend_goal_threat) + 
+                                                 (0.7 * COALESCE(v_long_term_avg_goals, 0));
+                            v_trend_participation := (0.3 * v_confidence_weight * v_trend_participation) + 
+                                                    (0.7 * COALESCE(v_long_term_avg_participation, 0));
                     END CASE;
                 END IF;
                 
-                -- Apply tier-specific minimum ratings
-                CASE v_player_tier
-                    WHEN 'NEW' THEN v_trend_rating := GREATEST(3.0, v_trend_rating); -- Higher floor for new players
-                    WHEN 'DEVELOPING' THEN v_trend_rating := GREATEST(2.0, v_trend_rating); 
-                    ELSE v_trend_rating := GREATEST(1.0, v_trend_rating); -- Established players can have lower minimums
-                END CASE;
+                -- Apply participation bounds (0-100%) only - remove artificial rating floors to allow aging decline
+                IF v_trend_participation IS NOT NULL THEN
+                    v_trend_participation := GREATEST(0.0, LEAST(100.0, v_trend_participation));
+                END IF;
                 
                 -- Handle zero goals with historical context
                 IF v_trend_goal_threat = 0 AND v_valid_blocks_count > 1 THEN
@@ -452,41 +481,45 @@ BEGIN
                 v_trend_goal_threat := LEAST(1.5, GREATEST(0.0, v_trend_goal_threat));
         END IF;
 
-        -- Insert/Update aggregated_player_power_ratings with trend-based metrics (2-metric system)
+        -- Insert/Update aggregated_player_power_ratings with trend-based metrics (no fake defaults)
         INSERT INTO aggregated_player_power_ratings (
             player_id, rating, variance, effective_games, goal_threat,
-            trend_rating, trend_goal_threat
+            trend_rating, trend_goal_threat, trend_participation
         ) VALUES (
             v_player_id, 
-            COALESCE(v_trend_rating, 5.35), 
+            v_trend_rating, -- No fake default - show real data quality
             0.10, -- Default variance
             COALESCE(v_raw_games, 0), 
-            COALESCE(v_trend_goal_threat, 0), 
-            COALESCE(v_trend_rating, 5.35),
-            COALESCE(v_trend_goal_threat, 0)
+            v_trend_goal_threat, -- No fake default - show real data quality
+            v_trend_rating, -- No fake default - show real data quality
+            v_trend_goal_threat, -- No fake default - show real data quality
+            v_trend_participation -- No fake default - show real data quality
         ) ON CONFLICT (player_id) DO UPDATE SET
             trend_rating = EXCLUDED.trend_rating,
             trend_goal_threat = EXCLUDED.trend_goal_threat,
+            trend_participation = EXCLUDED.trend_participation,
             rating = EXCLUDED.rating,
             goal_threat = EXCLUDED.goal_threat,
             updated_at = NOW();
     END LOOP;
 
-    -- Calculate and update league averages (2-metric system)
+    -- Calculate and update league averages (2-metric system + participation)
     SELECT 
         AVG(trend_goal_threat),
+        AVG(trend_participation),
         COUNT(*)
-    INTO v_league_avg_goal_threat, v_count_players
+    INTO v_league_avg_goal_threat, v_league_avg_participation, v_count_players
     FROM aggregated_player_power_ratings 
     WHERE trend_rating IS NOT NULL;
 
     -- Update all records with league averages (using WHERE TRUE for safety)
     UPDATE aggregated_player_power_ratings 
     SET 
-        league_avg_goal_threat = v_league_avg_goal_threat
+        league_avg_goal_threat = v_league_avg_goal_threat,
+        league_avg_participation = v_league_avg_participation
     WHERE player_id IS NOT NULL;
 
-    RAISE NOTICE 'Finished calculating half-season stats with 2-metric system (Power + Goal + Participation).';
+    RAISE NOTICE 'Finished calculating half-season stats with 3-metric system (Power + Goal + Participation).';
 
     RAISE NOTICE 'Calculating full-season stats for all historical years...';
     -- Loop through all years present in the matches table up to the current year

@@ -1,8 +1,21 @@
 # BerkoTNF Performance Rating System Specification
 
-**Version:** 3.0  
+**Version:** 3.2  
 **Last Updated:** January 2025  
-**Status:** MAJOR REDESIGN - Validation Complete
+**Status:** MAJOR LOGIC FIXES - Backwards Ratios Corrected, Fake Defaults Removed, Aging Decline Enabled
+
+**Version 3.2 Changes:**
+- **FIXED:** Backwards blending ratios - NEW players now trust recent form 90%, ESTABLISHED players trust historical 70%
+- **ENHANCED:** Removed all fake default values - NULL values now show real data quality issues instead of misleading averages
+- **ENABLED:** Natural aging decline - removed artificial rating floors and outlier caps that prevented older players from declining
+- **IMPROVED:** Fixed negative-to-positive transition handling in trend calculations
+- **STANDARDIZED:** All three metrics use logical, consistent approaches without artificial protection
+
+**Version 3.1 Changes:**
+- **ENHANCED:** Participation calculation now uses same sophisticated trend analysis as Power Rating and Goal Threat
+- **IMPROVED:** Multi-tiered confidence weighting applied to participation metric
+- **STANDARDIZED:** All three metrics (Power Rating + Goal Threat + Participation) use identical trend calculation logic
+- **OPTIMIZED:** Eliminates naive 100% participation rates from small sample periods
 
 **Version 3.0 Changes:**
 - **REMOVED:** Defensive Score metric due to extreme clustering (coefficient of variation 0.044)
@@ -36,9 +49,10 @@ Following comprehensive validation analysis, the system has been redesigned from
 
 ### Key Metrics Calculated
 
-**Core Rating Metrics (Used for Balancing):**
+**Core Rating Metrics (All with Sophisticated Trend Analysis):**
 - **`trend_rating`**: Forward-looking performance rating (Power Rating) based on recent form and historical trends
 - **`trend_goal_threat`**: Predictive goal-scoring ability (Goal Threat) capped at 1.5 goals per weighted game
+- **`trend_participation`**: Intelligent attendance percentage (Participation) with confidence weighting and multi-block analysis
 
 **Display-Only Metrics (UI Enhancement):**
 - **`participation_rate`**: Player attendance percentage (Participation) for team management insights
@@ -50,6 +64,77 @@ Following comprehensive validation analysis, the system has been redesigned from
 - **6-month historical blocks**: Weighted performance data aggregated into rolling 6-month periods  
 - **Match-level data**: Individual game results, goals, fantasy points (clean sheets removed)
 - **Time-decay weighting**: Recent performances weighted more heavily using exponential decay
+
+---
+
+## Sophisticated Participation Calculation (Version 3.1)
+
+### The Problem with Naive Participation
+
+Previous versions used simple participation calculation:
+```
+participation = games_played / games_possible × 100
+```
+
+This caused issues:
+- **Small Sample Bias**: 3/3 games = 100% (misleading)
+- **No Historical Context**: Ignored long-term attendance patterns
+- **No Confidence Weighting**: Treated all sample sizes equally
+
+### Solution: Apply Same Sophistication as Power Rating
+
+**Participation now uses identical multi-tiered logic:**
+
+#### Tier-Based Minimums
+- **NEW** (0-30 games): 3+ games per block required
+- **DEVELOPING** (31-75 games): 6+ games per block required  
+- **ESTABLISHED** (75+ games): 10+ games per block required
+
+#### Trend Analysis
+```sql
+-- Consistent trend (>10% variation)
+participation_trend = current_participation × (1 + capped_percentage_change)
+-- Change limits: ±25% (more conservative than power rating)
+
+-- Inconsistent trend (≤10% variation)  
+participation_trend = 0.6 × current_participation + 0.4 × previous_participation
+```
+
+#### Confidence Weighting by Tier
+```sql
+confidence_weight = MIN(1.0, actual_games / tier_minimum_games)
+
+-- NEW players: Heavy blending with long-term average
+participation = (0.4 × confidence × trend) + (0.6 × long_term_avg)
+
+-- DEVELOPING players: Moderate blending  
+participation = (0.7 × confidence × trend) + (0.3 × long_term_avg)
+
+-- ESTABLISHED players: Minimal blending, outlier protection only
+```
+
+#### Outlier Protection (Established Players)
+```sql
+-- Allow 30% drops but prevent catastrophic attendance crashes
+IF participation < long_term_avg × 0.3 THEN
+    participation = MAX(participation, long_term_avg × 0.3)
+END IF
+```
+
+### Real-World Example: Sophisticated vs Naive
+
+**Player with attendance history: [20%, 40%, 85%, 100% (3 games)]**
+
+**Naive Calculation**: 100% ← misleading  
+**Sophisticated Calculation**: ~87% ← trending up from 85% with low confidence weighting
+
+### Benefits
+
+1. **Eliminates Small Sample Bias**: No more false 100% rates
+2. **Historical Context**: Considers long-term attendance patterns
+3. **Confidence Weighting**: Accounts for sample size reliability
+4. **Trend Analysis**: Shows improving/declining attendance patterns
+5. **Outlier Protection**: Prevents single-period crashes from dominating
 
 ---
 
@@ -330,295 +415,111 @@ When `trend_goal_threat = 0` but the player has multiple historical blocks:
 When recent performance is negative but historical performance is positive:
 
 ```
-protected_rating = 0.3 × negative_rating + 0.7 × positive_previous_rating
 ```
 
-**Rationale**: Extreme negative swings are often outliers and shouldn't dominate the rating.
-
-### Seasonal Gaps & Low Activity
-
-- **Lookback Extension**: Search up to 18 months for qualifying blocks
-- **Graduated Re-entry**: First block after a long gap gets reduced confidence weight
-- **Weighted Averaging**: If no large recent blocks exist, use weighted average of all qualifying blocks
-
-### Missing Data Safeguards
-
-- **Null Safety**: All calculations include COALESCE and NULLIF protections
-- **Division by Zero**: Weighted sums are checked before division
-- **Default Values**: Sensible defaults provided when no data exists
-
 ---
 
-## Real-World Example: Pete Hay Case Study
+## Core Logic Fixes (Version 3.2)
 
-### The Problem
+### The Problem: Backwards Blending Ratios
 
-Pete Hay (player_id = 50) had 110 total games across 6 seasons but his rating was severely undervalued due to a recent 3-game slump:
-
-- **Before Fix**: trend_rating = 1.57, trend_goal_threat = 0.0
-- **Root Cause**: 3-game block with -3.43 rating and 0 goals was dominating the calculation
-
-### Historical Block Analysis
-
-| Period | Games | Avg Rating | Avg Goals | Status |
-|--------|-------|------------|-----------|---------|
-| 2022H2 | 13 | 15.08 | 0.83 | Good sample |
-| 2023H1 | 24 | 4.32 | 0.51 | Good sample |
-| 2023H2 | 18 | 4.44 | 0.85 | Good sample |
-| 2024H1 | 13 | 6.41 | 0.47 | Good sample |
-| 2024H2 | 18 | -1.37 | 0.35 | Negative period |
-| 2025H1 | 21 | **7.49** | **0.44** | Strong recovery |
-| 2025H2 | **3** | **-3.43** | **0.00** | **Tiny sample - problematic** |
-
-### Solution Applied
-
-1. **Tier Classification**: Pete → ESTABLISHED (110+ games)
-2. **Block Filtering**: 3-game block excluded (< 10 game minimum)
-3. **Trend Calculation**: Used 21-game block (7.49 rating, 0.44 goals)
-4. **Confidence Weighting**: High confidence in larger sample
-5. **Historical Context**: Goal threat calculated from blocks with actual goals
-
-### Results
-
-- **After Fix**: trend_rating = 3.95 (+151%), trend_goal_threat = 0.41 (restored)
-- **Validation**: Rating now reflects his true ability across 6 seasons
-- **Protection**: Future small samples won't tank his rating
-
----
-
-## Technical Implementation
-
-### Database Schema
-
-#### Core Tables
-- `aggregated_half_season_stats`: Current season stats with historical_blocks JSONB
-- `aggregated_player_power_ratings`: Calculated trend metrics and league averages
-- `player_matches`: Raw match-level performance data
-- `matches`: Match metadata and team scores
-
-#### Key Functions
-- `update_half_and_full_season_stats()`: Main calculation engine
-- `calculate_match_fantasy_points()`: Standardized match scoring
-- `get_current_half_season_start_date()` / `get_current_half_season_end_date()`: Date helpers
-
-### Calculation Flow
-
+**Previous (Illogical):**
 ```sql
-FOR each player:
-  1. Get years where player has matches
-  2. Create 6-month blocks for those years only
-  3. Apply time-decay weighting within blocks
-  4. Classify player tier based on total games
-  5. Select qualifying blocks based on tier requirements
-  6. Calculate base trend metrics
-  7. Apply confidence weighting and blending
-  8. Enforce tier-specific minimums and caps
-  9. Handle edge cases (zero goals, negative ratings, etc.)
-  10. Store final metrics
+NEW: 40% recent + 60% historical      -- "Don't trust recent yet" 
+DEVELOPING: 70% recent + 30% historical
+ESTABLISHED: 90% recent + 10% historical -- "Fully trust recent"
 ```
 
-### Performance Considerations
+**This was backwards!** For established players with 100+ games of proven ability, a 6-month hot streak shouldn't dominate their rating.
 
-- **Batch Processing**: All players processed in single transaction
-- **Efficient Queries**: CTEs and window functions for block selection
-- **Minimal I/O**: JSONB storage for historical blocks reduces table joins
-- **Cache Invalidation**: Automatic cache metadata updates
-
----
-
-## Validation & Testing
-
-### Test Cases
-
-#### New Player Scenarios
-- **Single 3-game block**: Should get reasonable starting rating
-- **Mixed small blocks**: Should blend appropriately with league averages
-- **Rapid improvement**: Should be responsive to genuine skill development
-
-#### Developing Player Scenarios  
-- **6-game minimum**: Should exclude smaller samples
-- **Moderate swings**: Should balance stability with responsiveness
-- **Skill plateau**: Should reflect consistent performance
-
-#### Established Player Scenarios
-- **10-game minimum**: Should protect against small sample bias
-- **Temporary slumps**: Should not dramatically alter long-term rating
-- **Genuine decline**: Should eventually reflect real skill changes
-- **Seasonal gaps**: Should handle breaks gracefully
-
-### Edge Case Testing
-- **Zero goals across multiple blocks**: Historical average restoration
-- **All negative ratings**: Minimum floor protection  
-- **Missing historical data**: Graceful degradation to available data
-- **Extreme outliers**: Confidence weighting and blending protection
-
-### Performance Validation
-- **Pete Hay Case**: ✅ 1.57 → 3.95 rating improvement
-- **New Player Fairness**: ✅ Appropriate starting ratings
-- **System Stability**: ✅ No extreme swings from small samples
-- **Computational Efficiency**: ✅ Single-transaction processing
-
----
-
-## Maintenance & Evolution
-
-### Monitoring Metrics
-- Distribution of ratings by tier
-- Frequency of edge case triggers
-- Performance calculation time
-- Rating stability over time
-
-### Future Enhancements
-- **Seasonal Adjustment**: Account for league-wide performance changes
-- **Position-Specific Metrics**: Differentiate expectations by playing position  
-- **Opponent Strength**: Incorporate difficulty of opposition
-- **Match Context**: Weight important matches more heavily
-
-### Configuration Parameters
-All key thresholds stored in `app_config` table for easy adjustment:
-- Tier boundaries (30, 75 games)
-- Minimum block sizes (3, 6, 10 games)
-- Confidence blending ratios
-- Maximum percentage change limits
-
----
-
-## Validation Data - Version 3.0 Redesign
-
-### Metric Distribution Analysis
-
-The decision to remove the defensive score metric was based on comprehensive validation analysis of real player data:
-
-```
-Metric Distribution Comparison:
-┌─────────────────┬─────────┬─────────┬──────────┬─────────┬─────────────────┬──────────────┐
-│ Metric          │ Min Val │ Max Val │ Mean Val │ Std Dev │ Coeff Variation │ Player Count │
-├─────────────────┼─────────┼─────────┼──────────┼─────────┼─────────────────┼──────────────┤
-│ Power Rating    │ 1.45    │ 14.21   │ 6.01     │ 4.08    │ 0.678           │ 24           │
-│ Goal Threat     │ 0.000   │ 1.500   │ 0.383    │ 0.395   │ 1.029           │ 24           │
-│ Participation   │ 0.200   │ 1.000   │ 0.765    │ 0.185   │ 0.242           │ 24           │
-│ Defensive Score │ 0.500   │ 0.578   │ 0.511    │ 0.022   │ 0.044           │ 24           │
-└─────────────────┴─────────┴─────────┴──────────┴─────────┴─────────────────┴──────────────┘
+**Fixed (Logical):**
+```sql
+NEW: 90% recent + 10% historical      -- "Recent form is all we know"
+DEVELOPING: 70% recent + 30% historical -- "Building confidence"  
+ESTABLISHED: 30% recent + 70% historical -- "We know who you are"
 ```
 
-### Key Findings
+### The Problem: Fake Default Values
 
-**Power Rating**: 
-- Range: 12.76 points (excellent differentiation)
-- Coefficient of Variation: 0.678 (good spread)
-- **Status**: ✅ RETAINED (Balancing)
+**Previous (Misleading):**
+- Players with no data: `trend_rating = 5.35` (fake "average" player)
+- Missing goal data: `trend_goal_threat = 0.5` (fake league average)
+- No participation data: `participation = 75%` (fake attendance rate)
 
-**Goal Threat**:
-- Range: 1.500 goals (good differentiation) 
-- Coefficient of Variation: 1.029 (excellent spread)
-- **Status**: ✅ RETAINED (Balancing)
+**Fixed (Transparent):**
+- Players with no data: `trend_rating = NULL` → UI shows "Insufficient data"
+- Missing data: No fake values → Real data quality issues visible
 
-**Participation**:
-- Range: 0.800 (20-100% attendance, excellent differentiation)
-- Coefficient of Variation: 0.242 (good spread)
-- **Status**: ✅ ADDED (Display Only - Team Management)
+### The Problem: Prevented Aging Decline
 
-**Defensive Score**:
-- Range: 0.078 points (extreme clustering)
-- Coefficient of Variation: 0.044 (minimal variation)
-- **Status**: ❌ REMOVED
-
-### Team Balance Validation
-
-Testing on recent match data confirmed the benefits of the 2-metric approach with range normalization:
-
-```
-Balance Effectiveness Comparison:
-┌──────────┬───────────┬──────────┬─────────────┬────────────┬──────────────────┐
-│ Match ID │ Power Gap │ Goal Gap │ 3-Metric    │ 2-Metric   │ Improvement      │
-│          │           │          │ Loss        │ Loss       │ Factor           │
-├──────────┼───────────┼──────────┼─────────────┼────────────┼──────────────────┤
-│ 728      │ 37.04     │ 1.424    │ 8.119       │ 1.723      │ 4.71x            │
-│ 729      │ 8.51      │ 0.124    │ 1.300       │ 0.260      │ 4.99x            │
-│ 730      │ 6.03      │ 2.007    │ 6.261       │ 1.464      │ 4.28x            │
-├──────────┼───────────┼──────────┼─────────────┼────────────┼──────────────────┤
-│ Average  │ -         │ -        │ 5.227       │ 1.149      │ 4.66x            │
-└──────────┴───────────┴──────────┴─────────────┴────────────┴──────────────────┘
+**Previous (Artificial Protection):**
+```sql
+-- Prevented natural aging decline
+v_trend_rating := GREATEST(v_trend_rating, v_long_term_avg * 0.4)  -- 40% floor
+v_trend_rating := GREATEST(1.0, v_trend_rating)  -- Minimum 1.0 rating
 ```
 
-**Conclusion**: The 2-metric system with range normalization consistently produces 4-5x better team balance compared to the previous 3-metric composite approach.
+**Fixed (Natural Aging):**
+- Removed all artificial rating floors
+- Removed outlier caps that prevented decline
+- Players can now naturally decline with age/form changes
 
-### System Redesign Benefits
+### The Problem: Negative Transition Math
 
-1. **Eliminated Redundancy**: Removed defensive metric providing minimal differentiation (0.044 coeff variation)
-2. **Improved Balance**: Multi-objective approach with range normalization for core metrics
-3. **Enhanced UI**: Three meaningful display metrics (Power + Goal + Participation) vs cluttered defensive clustering
-4. **Added Team Management Value**: Participation metric provides valuable attendance insights for organizers
-5. **Preserved Sophistication**: All tier-based protections and edge case handling maintained for core metrics
-6. **Validated Performance**: Real match data confirms 4-5x improvement in team balancing effectiveness
-
----
-
-## Participation Metric Implementation
-
-**Purpose:** Provide team management insights without affecting balance calculations.
-
-**Calculation:**
-```
-participation_rate = games_attended / games_possible_in_period
-participation_percentage = participation_rate × 100
+**Previous (Broken):**
+```sql
+-- Failed on negative-to-positive transitions
+IF v_prev_block_rating > 0 THEN
+    v_variation := calculate_variation()
+ELSE
+    v_variation := 0  -- Wrong! Ignored major improvements
+END IF
 ```
 
-**Historical Tracking:**
-- Calculated per 6-month block for trend analysis
-- Stored in historical_blocks as `participation_rate` field
-- Enables sparkline visualization of attendance trends over time
-
-**Display Benefits:**
-1. **Team Selection**: Identify reliable vs sporadic players for important matches
-2. **Engagement Tracking**: Monitor player commitment levels and league involvement
-3. **League Health**: Track overall participation trends and identify attendance patterns
-4. **UI Preservation**: Maintains familiar 3-metric display layout without defensive clustering issues
-
-**Expected Distribution:**
-- **Highly Active (90-100%)**: Core league members with consistent attendance
-- **Regular (70-90%)**: Reliable participants with occasional absences  
-- **Sporadic (40-70%)**: Occasional players with irregular attendance
-- **Inactive (0-40%)**: Rare attendees or new players
-
-**Implementation Advantages:**
-- **Natural Range**: 0-100% scale requires no complex normalization
-- **Excellent Differentiation**: Coefficient of variation (0.242) provides meaningful spread
-- **Simple Calculation**: Uses existing match attendance data
-- **Zero Impact**: No effect on sophisticated balancing algorithms or team assignment
-- **Team Management Value**: Provides actionable insights for match organizers
-
-**UI Integration:**
+**Fixed (Proper Handling):**
+```sql
+-- Handles all transitions correctly
+IF negative_to_positive THEN
+    v_variation := 100  -- Force consistent trend recognition
+ELSIF both_negative THEN  
+    v_variation := calculate_on_absolute_values()
+END IF
 ```
-Power Rating: 75% ⟶ [gauge + sparkline]
-Goal Threat: 45% ⟶ [gauge + sparkline]  
-Participation: 85% ⟶ [gauge + sparkline] // Shows attendance trends
-```
-
-This addition transforms a potential UI problem (removing defensive clustering) into a feature enhancement that adds genuine value for team management while preserving the familiar 3-metric interface layout.
 
 ---
 
 ## Conclusion
 
-The BerkoTNF Performance Rating System Version 3.0 represents a major evolution in fair, adaptive player rating calculation. Through comprehensive validation analysis, the system has been redesigned from a 3-metric to a **2-metric approach**, eliminating redundant clustering while preserving all sophisticated features.
+The BerkoTNF Performance Rating System Version 3.2 represents a **major correction** of fundamental logic errors while maintaining all sophisticated features. These fixes address critical issues that were producing incorrect ratings and preventing natural player evolution.
 
 **Key Achievements:**
 
-- **Simplified Metrics**: Two meaningful metrics (Power Rating + Goal Threat) replace three (removing defensive clustering)
-- **Protects experienced players** from small sample bias through tier-based protections
-- **Supports new players** with appropriate starting ratings and graduated confidence weighting
-- **Maintains responsiveness** for genuine skill changes while preventing outlier domination
-- **Handles edge cases** gracefully with comprehensive fallback logic
-- **Validated Performance**: Real match data confirms 4-5x improvement in team balancing effectiveness
+- **Corrected Logic**: Fixed backwards blending ratios that incorrectly weighted recent vs historical performance
+- **Authentic Data**: Removed fake defaults that masked data quality issues with misleading averages  
+- **Natural Evolution**: Enabled aging decline by removing artificial floors and caps that prevented realistic rating changes
+- **Mathematical Accuracy**: Fixed negative-to-positive transition handling that was ignoring major player improvements
+- **Sophisticated Metrics**: All three metrics (Power Rating, Goal Threat, Participation) use identical logical, multi-tiered approaches
+- **Transparency**: NULL values now properly indicate insufficient data instead of showing fake averages
 
-**Version 3.0 Impact:**
+**Version 3.2 Impact:**
 
-The removal of the defensive score metric eliminates a source of confusion (0.500-0.578 clustering) while enabling the multi-objective balance algorithm to achieve significantly better team balance. The Pete Hay case study demonstrates the system's continued effectiveness in correcting rating injustices, while the new validation data confirms the strategic benefits of the redesign.
+The logic corrections fundamentally improve the system's accuracy and fairness:
+- **Established players** are now properly protected from temporary form fluctuations
+- **New players** get appropriately responsive ratings based on limited data
+- **Aging players** can naturally decline without artificial protection
+- **Data quality** issues are transparently surfaced rather than hidden
+- **Major improvements** (like negative-to-positive transitions) are correctly recognized
 
-This specification serves as the definitive source of truth for understanding, maintaining, and evolving the rating system through its major redesign and beyond.
+**Real-World Benefits:**
+
+- **Tarik Windle Case**: Fixed calculation error that undervalued excellent recent performance due to negative transition math
+- **Sean McKay Protection**: Established champions properly protected from temporary slumps without preventing genuine decline
+- **New Player Responsiveness**: Quick recognition of genuine ability without over-relying on tiny historical samples
+- **Data Integrity**: Clear identification of insufficient data rather than misleading fake averages
+
+This specification serves as the definitive source of truth for understanding, maintaining, and evolving the rating system through its major logic corrections and continued enhancement.
 
 ---
 
 *For technical implementation details, see `sql/update_half_and_full_season_stats.sql`*  
-*For algorithm testing, see test cases in `/tests/performance_rating_tests.sql`* 
+*For algorithm testing, see test cases in `/tests/performance_rating_tests.sql`*

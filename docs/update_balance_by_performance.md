@@ -16,8 +16,8 @@ This document specifies an updated version of the Balance by Performance algorit
 2.0 Core Principles
 6-Month Block Analysis: Performance data is segmented into 6-month periods (Jan 1–Jun 30, Jul 1–Dec 31) to track trends over time, stored in aggregated_half_season_stats with a historical_blocks JSONB column.
 Hybrid Trend-Based Scoring: Combines 180-day half-life decay within blocks with a long-term raw average baseline to predict performance, accounting for improvement, deterioration, or flukes.
-Balanced Metrics: Integrates trend-adjusted power rating, goal threat, and defensive solidity into a composite score for team balancing.
-Fair Distribution: Uses a modified snake draft and optimized hill-climbing to ensure balanced teams in terms of goal threat, defensive solidity, and fantasy points.
+Balanced Metrics: Integrates trend-adjusted power rating and goal threat in a 2-metric multi-objective optimization for team balancing.
+Fair Distribution: Uses a modified snake draft and range normalization hill-climbing to ensure balanced teams using power rating and goal threat metrics.
 3.0 Algorithm Phases
 Phase 1: Data Segmentation and Trend Calculation
 Process:
@@ -81,9 +81,9 @@ Defensive Score: MIN(0.95, 1 / (1 + (team_goals_conceded_rate / NULLIF(league_av
 Metrics:
 Power Rating: Hybrid trend-adjusted rating, 0–100% percentile.
 Goal Threat: Capped trend_goal_threat, 0–100% percentile.
-Defensive Solidity: defensive_score, 0–100% percentile.
+Participation: Attendance percentage based on games played vs possible, 0–100% scale.
 Visualization: Sliders with sparklines showing the last 3–6 half-seasons’ trends from historical_blocks; tooltips with exact values and ranks.
-Example: Power Rating 45%, Goal Threat 35%, Defensive Solidity 60%, with trend indicators.
+Example: Power Rating 45%, Goal Threat 35%, Participation 78%, with trend indicators.
 8.0 Implementation Notes
 Extend aggregated_half_season_stats to include a historical_blocks JSONB column (default []) to store all historical 6-month periods as {start_date, end_date, fantasy_points, goals, goals_conceded, games_played, weights_sum} objects, with precomputed decayed values.
 Update update_half_and_full_season_stats.sql to:

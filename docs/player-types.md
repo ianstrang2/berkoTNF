@@ -187,7 +187,9 @@ A few other player-related types exist on the backend, further confirming the so
     rating: number | null;
     variance: number | null;
     goal_threat: number | null;
-    defensive_shield: number | null;
+    trend_rating: number | null;
+    trend_goal_threat: number | null;
+    league_avg_goal_threat: number | null;
   }
   ```
 - **Analysis:**

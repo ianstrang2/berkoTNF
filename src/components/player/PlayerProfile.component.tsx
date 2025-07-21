@@ -47,23 +47,23 @@ interface TeammateChemistryStat {
 }
 
 interface PowerRatings {
-  rating: number;
-  goal_threat: number;
-  defensive_shield: number;
-  updated_at: string;
+  trend_rating: number | null;
+  trend_goal_threat: number | null;
+  trend_participation: number | null;
+  league_avg_goal_threat: number;
+  league_avg_participation: number;
+  updated_at: string | null;
 }
 
 interface LeagueNormalization {
   powerRating: { min: number; max: number; average: number };
   goalThreat: { min: number; max: number; average: number };
-  defensiveShield: { min: number; max: number; average: number };
-  streaks: {
-    winStreak: { min: number; max: number; average: number };
-    undefeatedStreak: { min: number; max: number; average: number };
-    losingStreak: { min: number; max: number; average: number };
-    winlessStreak: { min: number; max: number; average: number };
-    attendanceStreak: { min: number; max: number; average: number };
-  };
+  participation: { min: number; max: number; average: number };
+  winStreak: { min: number; max: number; average: number };
+  undefeatedStreak: { min: number; max: number; average: number };
+  losingStreak: { min: number; max: number; average: number };
+  winlessStreak: { min: number; max: number; average: number };
+  attendanceStreak: { min: number; max: number; average: number };
 }
 
 interface StreakRecords {
@@ -77,12 +77,16 @@ interface StreakRecords {
 
 interface TrendData {
   current_metrics: {
-    power_rating: number;
-    goal_threat: number;
-    defensive_score: number;
-    power_rating_percentile: number;
-    goal_threat_percentile: number;
-    defensive_percentile: number;
+    trend_rating: number | null;
+    trend_goal_threat: number | null;
+    trend_participation: number | null;
+    league_avg_goal_threat: number;
+    league_avg_participation: number;
+  };
+  current_percentiles: {
+    power_rating: number | null;
+    goal_threat: number | null;
+    participation: number | null;
   };
   sparkline_data: Array<{
     period: string;
@@ -90,19 +94,27 @@ interface TrendData {
     end_date: string;
     power_rating: number;
     goal_threat: number;
-    defensive_score: number;
+    participation: number;
     power_rating_percentile: number;
     goal_threat_percentile: number;
-    defensive_score_percentile: number;
+    participation_percentile: number;
     games_played: number;
   }>;
   league_distribution: {
     power_rating: { p10: number; p90: number; avg: number };
     goal_threat: { p10: number; p90: number; avg: number };
-    defensive_score: { p10: number; p90: number; avg: number };
+    participation: { p10: number; p90: number; avg: number };
   };
-  blocks_count: number;
-  has_trend_data: boolean;
+  league_maximums: {
+    power_rating: number;
+    goal_threat: number;
+    participation: number;
+  };
+  data_quality: {
+    historical_blocks_count: number;
+    sparkline_points: number;
+    qualified_players_in_league: number;
+  };
 }
 
 interface ProfileData {
@@ -177,13 +189,11 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           throw new Error(`Failed to fetch profile: ${response.statusText} for player ID ${id}`);
         }
         const data = await response.json();
-        console.log("[PlayerProfile] API Response Data:", data);
-        if (data && data.profile) {
+        if (data && data.success && data.data) {
           const profileData: ProfileData = {
-            ...data.profile,
-            yearly_stats: data.profile.yearly_stats || [],
+            ...data.data,
+            yearly_stats: data.data.yearly_stats || [],
           };
-          console.log("[PlayerProfile] Processed Profile Data:", profileData);
           setProfile(profileData);
           if (profileData.yearly_stats.length > 0) {
             setSelectedYear(profileData.yearly_stats[0].year);
@@ -193,7 +203,6 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           throw new Error('Invalid data structure: profile not found in response');
         }
       } catch (err) {
-        console.error('[PlayerProfile] Error fetching profile:', err);
         setError((err as Error).message);
         setProfile(null);
       } finally {
@@ -214,7 +223,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           setLeagueAverages(data.averages || []);
         }
       } catch (err) {
-        console.error('Error fetching league averages:', err);
+        // League averages fetch failed - not critical
         setLeagueAverages([]);
       }
     };
@@ -225,7 +234,9 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   // Fetch trend data for 6-month block analysis
   useEffect(() => {
     const fetchTrendData = async () => {
-      if (!id) return;
+      if (!id) {
+        return;
+      }
       
       setTrendLoading(true);
       try {
@@ -233,17 +244,11 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            console.log('Trend data received:', data.data);
-            console.log('Sparkline data:', data.data.sparkline_data);
             setTrendData(data.data);
-          } else {
-            console.error('Trend API returned error:', data.error);
           }
-        } else {
-          console.error('Trend API response not ok:', response.status);
         }
       } catch (err) {
-        console.error('Error fetching trend data:', err);
+        // Fail silently for trends - not critical for profile display
       } finally {
         setTrendLoading(false);
       }
@@ -276,13 +281,13 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   // Process power ratings and streaks if available
   const powerRatingsNormalized = profile?.power_ratings && profile?.league_normalization ? 
     normalizePowerRatings(
-      decimalToNumber(profile.power_ratings.rating),
-      decimalToNumber(profile.power_ratings.goal_threat),
-      decimalToNumber(profile.power_ratings.defensive_shield),
+      decimalToNumber(profile.power_ratings.trend_rating),
+      decimalToNumber(profile.power_ratings.trend_goal_threat),
+      decimalToNumber(profile.power_ratings.trend_participation),
       {
         rating: profile.league_normalization.powerRating,
         goalThreat: profile.league_normalization.goalThreat,
-        defensiveShield: profile.league_normalization.defensiveShield
+        participation: profile.league_normalization.participation
       }
     ) : null;
 
@@ -302,7 +307,13 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
         scoringStreak: (profile as any).scoring_streak || 0,
         scoringStreakDates: (profile as any).scoring_streak_dates
       },
-      profile.league_normalization.streaks,
+      {
+        winStreak: profile.league_normalization.winStreak,
+        undefeatedStreak: profile.league_normalization.undefeatedStreak,
+        losingStreak: profile.league_normalization.losingStreak,
+        winlessStreak: profile.league_normalization.winlessStreak,
+        attendanceStreak: profile.league_normalization.attendanceStreak
+      },
       profile.streak_records
     ) : null;
 
@@ -404,7 +415,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           filename: parsedClub.filename || ''
         };
       } catch (e) {
-        console.error("[PlayerProfile] Failed to parse selected_club JSON:", e);
+        // Failed to parse club data - use fallback
       }
     }
   }
@@ -460,12 +471,12 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               />
               
               <PowerSlider
-                label="Defensive Shield"
-                value={profile.power_ratings?.defensive_shield || 0}
-                percentage={powerRatingsNormalized?.defensiveShield || 50}
+                label="Participation"
+                value={profile.power_ratings?.trend_participation || 0}
+                percentage={powerRatingsNormalized?.participation || 50}
                 leagueAverage={powerRatingsNormalized ? 50 : undefined}
                 variant="neutral"
-                hasVariance={powerRatingsNormalized?.hasVariance.defensiveShield !== false}
+                hasVariance={powerRatingsNormalized?.hasVariance.participation !== false}
                 showPercentage={true}
                 showValue={false}
               />
@@ -509,7 +520,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 <div className="flex flex-col items-center">
                   <div className="scale-75 sm:scale-90 lg:scale-100 transform">
                     <PowerRatingGauge 
-                      rating={trendData.current_metrics.power_rating_percentile}
+                      rating={trendData.current_percentiles.power_rating ?? 0}
                       size="md"
                       label="Power Rating"
                     />
@@ -520,20 +531,20 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 <div className="flex flex-col items-center">
                   <div className="scale-75 sm:scale-90 lg:scale-100 transform">
                     <PowerRatingGauge 
-                      rating={trendData.current_metrics.goal_threat_percentile}
+                      rating={trendData.current_percentiles.goal_threat ?? 0}
                       size="md"
                       label="Goal Threat"
                     />
                   </div>
                 </div>
 
-                {/* Defensive Shield */}
+                {/* Participation */}
                 <div className="flex flex-col items-center">
                   <div className="scale-75 sm:scale-90 lg:scale-100 transform">
                     <PowerRatingGauge 
-                      rating={trendData.current_metrics.defensive_percentile}
+                      rating={trendData.current_percentiles.participation ?? 0}
                       size="md"
-                      label="Defensive Shield"
+                      label="Participation"
                     />
                   </div>
                 </div>
@@ -612,7 +623,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     </div>
                   </div>
 
-                  {/* Defensive Shield Sparkline */}
+                  {/* Participation Sparkline */}
                   <div className="flex flex-col items-center">
                     <div className="scale-75 sm:scale-90 lg:scale-100 transform w-full flex justify-center">
                       <div className="w-[160px] h-[60px] border border-gray-200 rounded bg-gray-50">
@@ -620,7 +631,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                           <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
                             <Line 
                               type="monotone" 
-                              dataKey="defensive_score_percentile" 
+                              dataKey="participation_percentile" 
                               stroke="#6B48FF" 
                               strokeWidth={2}
                               dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
@@ -634,7 +645,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                                   return (
                                     <div className="bg-white p-1.5 border rounded shadow-sm text-xs" style={{ fontSize: '10px !important', lineHeight: '1.2' }}>
                                       <p className="font-medium text-xs" style={{ fontSize: '10px !important' }}>{data.period}</p>
-                                      <p className="text-xs" style={{ fontSize: '10px !important' }}>Defense: {data.defensive_score_percentile}%</p>
+                                      <p className="text-xs" style={{ fontSize: '10px !important' }}>Participation: {data.participation_percentile}%</p>
                                     </div>
                                   );
                                 }
@@ -682,7 +693,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     showTooltip={true}
                     tooltipText={createStreakTooltip(
                       streaksNormalized.attendanceStreak.value,
-                      profile.streak_records?.attendanceStreak || profile.league_normalization?.streaks.attendanceStreak.max
+                      (profile.streak_records?.attendanceStreak as any)?.max
                     )}
                   />
                   
@@ -698,7 +709,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     showTooltip={true}
                     tooltipText={createStreakTooltip(
                       streaksNormalized.undefeatedStreak.value,
-                      profile.streak_records?.undefeatedStreak || profile.league_normalization?.streaks.undefeatedStreak.max
+                      (profile.streak_records?.undefeatedStreak as any)?.max
                     )}
                   />
                   
@@ -714,7 +725,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     showTooltip={true}
                     tooltipText={createStreakTooltip(
                       streaksNormalized.winStreak.value,
-                      profile.streak_records?.winStreak || profile.league_normalization?.streaks.winStreak.max
+                      (profile.streak_records?.winStreak as any)?.max
                     )}
                   />
                   
@@ -730,7 +741,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     showTooltip={true}
                     tooltipText={createStreakTooltip(
                       streaksNormalized.scoringStreak.value,
-                      profile.streak_records?.scoringStreak
+                      (profile.streak_records?.scoringStreak as any)?.max
                     )}
                   />
 
@@ -746,7 +757,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     showTooltip={true}
                     tooltipText={createStreakTooltip(
                       streaksNormalized.losingStreak.value,
-                      profile.streak_records?.losingStreak || profile.league_normalization?.streaks.losingStreak.max
+                      (profile.streak_records?.losingStreak as any)?.max
                     )}
                   />
 
@@ -762,7 +773,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                     showTooltip={true}
                     tooltipText={createStreakTooltip(
                       streaksNormalized.winlessStreak.value,
-                      profile.streak_records?.winlessStreak || profile.league_normalization?.streaks.winlessStreak.max
+                      (profile.streak_records?.winlessStreak as any)?.max
                     )}
                   />
                 </>

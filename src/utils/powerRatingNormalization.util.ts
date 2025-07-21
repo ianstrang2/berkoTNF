@@ -98,27 +98,27 @@ export function formatStreakDates(dates: string | null): string {
 
 /**
  * Normalizes power rating data from database
- * Updated to use correct SQL field names: rating_numeric, goal_threat_numeric, defensive_shield_numeric
+ * Updated to use 2-metric system: trend_rating, trend_goal_threat, participation_percentage
  */
 export function normalizePowerRatings(
   playerRating: number,
   playerGoalThreat: number,
-  playerDefensiveShield: number,
+  playerParticipation: number,
   leagueData: {
     rating: NormalizationData;
     goalThreat: NormalizationData;
-    defensiveShield: NormalizationData;
+    participation: NormalizationData;
   }
 ) {
   // Check for data variance
   const ratingHasVariance = leagueData.rating.max !== leagueData.rating.min;
   const goalThreatHasVariance = leagueData.goalThreat.max !== leagueData.goalThreat.min;
-  const defensiveShieldHasVariance = leagueData.defensiveShield.max !== leagueData.defensiveShield.min;
+  const participationHasVariance = leagueData.participation.max !== leagueData.participation.min;
   
   return {
     rating: normalizeToPercentage(playerRating, leagueData.rating.min, leagueData.rating.max),
     goalThreat: normalizeToPercentage(playerGoalThreat, leagueData.goalThreat.min, leagueData.goalThreat.max),
-    defensiveShield: normalizeToPercentage(playerDefensiveShield, leagueData.defensiveShield.min, leagueData.defensiveShield.max),
+    participation: normalizeToPercentage(playerParticipation, leagueData.participation.min, leagueData.participation.max),
     
     // Context text with variance checking
     ratingContext: getContextText(
@@ -133,18 +133,18 @@ export function normalizePowerRatings(
       'positive',
       goalThreatHasVariance
     ),
-    defensiveShieldContext: getContextText(
-      normalizeToPercentage(playerDefensiveShield, leagueData.defensiveShield.min, leagueData.defensiveShield.max),
-      normalizeToPercentage(leagueData.defensiveShield.average, leagueData.defensiveShield.min, leagueData.defensiveShield.max),
+    participationContext: getContextText(
+      normalizeToPercentage(playerParticipation, leagueData.participation.min, leagueData.participation.max),
+      normalizeToPercentage(leagueData.participation.average, leagueData.participation.min, leagueData.participation.max),
       'positive',
-      defensiveShieldHasVariance
+      participationHasVariance
     ),
     
     // Variance flags for UI handling
     hasVariance: {
       rating: ratingHasVariance,
       goalThreat: goalThreatHasVariance,
-      defensiveShield: defensiveShieldHasVariance
+      participation: participationHasVariance
     }
   };
 }
@@ -186,7 +186,7 @@ export function normalizeStreaks(
 ) {
   // Use streak records as max values when available
   const normalizeWithRecords = (value: number, type: keyof typeof leagueData) => {
-    const recordsMax = streakRecords ? streakRecords[type as keyof typeof streakRecords] : undefined;
+    const recordsMax = streakRecords ? (streakRecords[type as keyof typeof streakRecords] as any)?.max : undefined;
     const max = recordsMax || leagueData[type].max;
     const min = leagueData[type].min;
     return normalizeToPercentage(value, min, max);
@@ -226,7 +226,7 @@ export function normalizeStreaks(
     // Scoring streak
     scoringStreak: {
       value: playerStreaks.scoringStreak || 0,
-      percentage: streakRecords ? normalizeToPercentage(playerStreaks.scoringStreak || 0, 0, streakRecords.scoringStreak) : 0,
+      percentage: streakRecords ? normalizeToPercentage(playerStreaks.scoringStreak || 0, 0, (streakRecords.scoringStreak as any)?.max || 10) : 0,
       dates: formatStreakDates(playerStreaks.scoringStreakDates || null),
       hasVariance: hasVariance.scoringStreak
     },
