@@ -50,15 +50,16 @@ export async function GET(request: Request) {
       // League normalization data (for power ratings and streaks) - 2-metric system
       prisma.$queryRaw`
         SELECT 
-          -- Power rating stats (trend-adjusted)
+          -- Power rating stats (trend-adjusted) - FILTERED for qualified players only
           MIN(trend_rating::numeric) as power_rating_min,
-          MAX(trend_rating::numeric) as power_rating_max,
+          PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY trend_rating::numeric) as power_rating_max,  -- Use P90 instead of MAX
           AVG(trend_rating::numeric) as power_rating_avg,
           MIN(trend_goal_threat::numeric) as goal_threat_min,
-          MAX(trend_goal_threat::numeric) as goal_threat_max,
+          PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY trend_goal_threat::numeric) as goal_threat_max,  -- Use P90 instead of MAX
           AVG(trend_goal_threat::numeric) as goal_threat_avg
         FROM aggregated_player_power_ratings
-        WHERE trend_rating IS NOT NULL
+        WHERE trend_rating IS NOT NULL 
+        AND effective_games >= 15  -- FIXED: Filter out low-sample outliers like Dave Wates
         UNION ALL
         SELECT 
           -- Streak stats

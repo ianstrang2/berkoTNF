@@ -329,8 +329,31 @@ BEGIN
                     WHERE (elem->>'weights_sum')::DECIMAL > 0
                     AND (elem->>'games_played')::INT >= 6; -- Use more blocks for long-term average
                     
-                    -- REMOVED: Outlier capping to allow natural aging decline
-                    -- Players can genuinely decline with age - don't artificially boost them
+                    -- NEW: Enhanced outlier detection with proportional capping
+                    -- Detect extreme outliers that would disproportionately affect trend calculation
+                    IF v_long_term_avg_rating IS NOT NULL AND v_long_term_avg_rating > 0 THEN
+                        -- Power rating outlier detection and capping
+                        IF v_block_rating < (v_long_term_avg_rating * 0.45) THEN
+                            -- Extreme negative outlier: cap to 60% of historical average
+                            v_block_rating := v_long_term_avg_rating * 0.6;
+                            RAISE NOTICE 'Player %: Capped negative power rating outlier from % to %', 
+                                v_player_id, (v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), v_block_rating;
+                        ELSIF v_block_rating > (v_long_term_avg_rating * 2.5) THEN
+                            -- Extreme positive outlier: cap to 160% of historical average  
+                            v_block_rating := v_long_term_avg_rating * 1.6;
+                            RAISE NOTICE 'Player %: Capped positive power rating outlier from % to %', 
+                                v_player_id, (v_block_data->>'fantasy_points')::DECIMAL / NULLIF((v_block_data->>'weights_sum')::DECIMAL, 0), v_block_rating;
+                        END IF;
+                    END IF;
+                    
+                    IF v_long_term_avg_goals IS NOT NULL AND v_long_term_avg_goals > 0 THEN
+                        -- Goal threat outlier detection and capping (more lenient thresholds)
+                        IF v_block_goals < (v_long_term_avg_goals * 0.3) THEN
+                            v_block_goals := v_long_term_avg_goals * 0.5;
+                        ELSIF v_block_goals > (v_long_term_avg_goals * 3.0) THEN
+                            v_block_goals := v_long_term_avg_goals * 2.0;
+                        END IF;
+                    END IF;
                     
                     -- Keep participation bounds only (0-100% is natural range)
                     IF v_long_term_avg_participation IS NOT NULL AND v_long_term_avg_participation > 0 THEN
@@ -344,11 +367,31 @@ BEGIN
                     v_prev_block_goals := COALESCE((v_prev_block_data->>'goals')::DECIMAL / NULLIF((v_prev_block_data->>'weights_sum')::DECIMAL, 0), 0);
                     v_prev_block_participation := COALESCE((v_prev_block_data->>'participation_rate')::DECIMAL * 100, NULL);
                     
-                    -- REMOVED: Previous block outlier capping to allow natural aging decline
-                    -- Keep participation bounds only (0-100% is natural range)
-                    IF v_player_tier = 'ESTABLISHED' AND v_long_term_avg_participation IS NOT NULL AND v_long_term_avg_participation > 0 THEN
-                        v_prev_block_participation := GREATEST(v_prev_block_participation, v_long_term_avg_participation * 0.3);
-                        v_prev_block_participation := LEAST(v_prev_block_participation, 100.0);
+                    -- Apply same outlier detection to previous block for ESTABLISHED players
+                    IF v_player_tier = 'ESTABLISHED' THEN
+                        -- Previous block power rating outlier detection and capping
+                        IF v_long_term_avg_rating IS NOT NULL AND v_long_term_avg_rating > 0 THEN
+                            IF v_prev_block_rating < (v_long_term_avg_rating * 0.45) THEN
+                                v_prev_block_rating := v_long_term_avg_rating * 0.6;
+                            ELSIF v_prev_block_rating > (v_long_term_avg_rating * 2.5) THEN
+                                v_prev_block_rating := v_long_term_avg_rating * 1.6;
+                            END IF;
+                        END IF;
+                        
+                        -- Previous block goal threat outlier detection and capping
+                        IF v_long_term_avg_goals IS NOT NULL AND v_long_term_avg_goals > 0 THEN
+                            IF v_prev_block_goals < (v_long_term_avg_goals * 0.3) THEN
+                                v_prev_block_goals := v_long_term_avg_goals * 0.5;
+                            ELSIF v_prev_block_goals > (v_long_term_avg_goals * 3.0) THEN
+                                v_prev_block_goals := v_long_term_avg_goals * 2.0;
+                            END IF;
+                        END IF;
+                        
+                        -- Keep participation bounds only (0-100% is natural range)  
+                        IF v_long_term_avg_participation IS NOT NULL AND v_long_term_avg_participation > 0 THEN
+                            v_prev_block_participation := GREATEST(v_prev_block_participation, v_long_term_avg_participation * 0.3);
+                            v_prev_block_participation := LEAST(v_prev_block_participation, 100.0);
+                        END IF;
                     END IF;
                 END IF;
                 
@@ -398,13 +441,28 @@ BEGIN
                     
                     v_trend_rating := v_block_rating * (1 + v_percentage_change);
                     
+                    -- Goal threat trend: apply same tier-based percentage change limits
                     v_percentage_change := CASE WHEN v_prev_block_goals > 0 THEN (v_block_goals - v_prev_block_goals) / v_prev_block_goals ELSE 0 END;
-                    v_percentage_change := GREATEST(-0.4, LEAST(0.4, v_percentage_change)); -- ±40% for goals
+                    CASE v_player_tier
+                        WHEN 'NEW' THEN 
+                            v_percentage_change := GREATEST(-0.3, LEAST(0.3, v_percentage_change)); -- ±30% for new players
+                        WHEN 'DEVELOPING' THEN 
+                            v_percentage_change := GREATEST(-0.4, LEAST(0.4, v_percentage_change)); -- ±40% for developing
+                        ELSE 
+                            v_percentage_change := GREATEST(-0.5, LEAST(0.5, v_percentage_change)); -- ±50% for established
+                    END CASE;
                     v_trend_goal_threat := v_block_goals * (1 + v_percentage_change);
                     
-                    -- Participation trend: more conservative change limits (attendance is generally more stable)
+                    -- Participation trend: apply same tier-based percentage change limits
                     v_percentage_change := CASE WHEN v_prev_block_participation > 0 THEN (v_block_participation - v_prev_block_participation) / v_prev_block_participation ELSE 0 END;
-                    v_percentage_change := GREATEST(-0.25, LEAST(0.25, v_percentage_change)); -- ±25% for participation
+                    CASE v_player_tier
+                        WHEN 'NEW' THEN 
+                            v_percentage_change := GREATEST(-0.3, LEAST(0.3, v_percentage_change)); -- ±30% for new players
+                        WHEN 'DEVELOPING' THEN 
+                            v_percentage_change := GREATEST(-0.4, LEAST(0.4, v_percentage_change)); -- ±40% for developing
+                        ELSE 
+                            v_percentage_change := GREATEST(-0.5, LEAST(0.5, v_percentage_change)); -- ±50% for established
+                    END CASE;
                     v_trend_participation := v_block_participation * (1 + v_percentage_change);
                 ELSE
                     -- Inconsistent trend: use weighted average

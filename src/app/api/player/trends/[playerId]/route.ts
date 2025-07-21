@@ -48,10 +48,11 @@ export async function GET(
       );
     }
 
-    // Use Prisma for league stats too - get all qualified players
+    // Use Prisma for league stats too - get all qualified players (STRICTER FILTERING)
     const leagueStats = await prisma.aggregated_player_power_ratings.findMany({
       where: {
-        trend_rating: { not: null }
+        trend_rating: { not: null },
+        effective_games: { gte: 15 }  // FIXED: Apply minimum games filter at database level
       } as any,
       select: {
         trend_rating: true,
@@ -95,25 +96,37 @@ export async function GET(
       }
     }
 
-    // Minimum games for qualified scaling
-    const MIN_GAMES_FOR_SCALE = 15;
-    
-    // Get qualified players only (15+ games) and ensure we use them for scaling
-    const qualifiedStats = leagueStats?.filter(s => {
-      const effectiveGames = (s as any).effective_games || 0;
-      return effectiveGames >= MIN_GAMES_FOR_SCALE && (s as any).trend_rating !== null;
-    }) || [];
-
-    const leagueMaximums = qualifiedStats.length > 0 ? {
-      power_rating: Math.max(...qualifiedStats.map(s => (s as any).trend_rating || 0)),
-      goal_threat: Math.max(...qualifiedStats.map(s => (s as any).trend_goal_threat || 0)),
+    // FIXED: Use P90 instead of MAX to prevent outlier contamination
+    const leagueMaximums = leagueStats.length > 0 ? {
+      power_rating: leagueDistribution.power_rating.p90, // Use P90 instead of MAX
+      goal_threat: leagueDistribution.goal_threat.p90,   // Use P90 instead of MAX
       participation: 100 // Participation is naturally 0-100%
     } : { 
-      // Fallback if no qualified players (shouldn't happen in practice)
       power_rating: 15, 
       goal_threat: 1.0, 
       participation: 100 
     };
+
+    // Determine player tier for consistent minimum game requirements
+    const playerPowerData = await prisma.aggregated_player_power_ratings.findUnique({
+      where: { player_id: playerId },
+      select: { effective_games: true } as any
+    });
+    
+    const totalCareerGames = Number((playerPowerData as any)?.effective_games || 0);
+    let playerTier: string;
+    let tierMinGames: number;
+    
+    if (totalCareerGames <= 30) {
+      playerTier = 'NEW';
+      tierMinGames = 3;
+    } else if (totalCareerGames <= 75) {
+      playerTier = 'DEVELOPING'; 
+      tierMinGames = 6;
+    } else {
+      playerTier = 'ESTABLISHED';
+      tierMinGames = 10;
+    }
 
     // Process historical blocks for sparkline data
     const historicalBlocks = ((trendData as any)?.historical_blocks as any[]) || [];
@@ -123,12 +136,65 @@ export async function GET(
       end_date: string;
       power_rating: number;
       goal_threat: number;
-      participation: number;
+      participation: number | null;  // Allow null for insufficient data
       power_rating_percentile: number;
-      goal_threat_percentile: number;
-      participation_percentile: number;
+      goal_threat_percentile: number | null;  // FIXED: Allow null for insufficient data (consistent with participation)
+      participation_percentile: number | null;  // Allow null for insufficient data
       games_played: number;
     }> = [];
+
+    // NEW: Function to calculate period-specific percentiles
+    const calculatePeriodPercentile = async (blockStartDate: string, powerRating: number, goalThreat: number): Promise<{powerPercentile: number, goalPercentile: number}> => {
+      try {
+        // Get all players' data for this specific period
+        const allPlayersData = await prisma.aggregated_half_season_stats.findMany({
+          select: { historical_blocks: true } as any
+        });
+
+        const periodRatings: number[] = [];
+        const periodGoals: number[] = [];
+
+        for (const player of allPlayersData) {
+          const blocks = (player as any).historical_blocks || [];
+          const matchingBlock = blocks.find((block: any) => 
+            block.start_date === blockStartDate && 
+            (block.games_played || 0) >= 10  // Minimum games for period comparison
+          );
+
+          if (matchingBlock) {
+            const blockRating = (matchingBlock.fantasy_points || 0) / Math.max(matchingBlock.games_played || 1, 1);
+            const blockGoals = Math.min(1.5, (matchingBlock.goals || 0) / Math.max(matchingBlock.games_played || 1, 1));
+            
+            periodRatings.push(blockRating);
+            periodGoals.push(blockGoals);
+          }
+        }
+
+        if (periodRatings.length === 0) {
+          return { powerPercentile: 50, goalPercentile: 50 }; // Fallback
+        }
+
+        // Calculate percentile rank within this period
+        periodRatings.sort((a, b) => a - b);
+        periodGoals.sort((a, b) => a - b);
+
+        const powerRank = periodRatings.filter(r => r <= powerRating).length;
+        const goalRank = periodGoals.filter(g => g <= goalThreat).length;
+
+        return {
+          powerPercentile: Math.round((powerRank / periodRatings.length) * 100),
+          goalPercentile: Math.round((goalRank / periodGoals.length) * 100)
+        };
+
+      } catch (error) {
+        console.warn('Failed to calculate period-specific percentile:', error);
+        // Fallback to current method if period calculation fails
+        return {
+          powerPercentile: Math.min(100, Math.round((powerRating / leagueMaximums.power_rating) * 100)),
+          goalPercentile: Math.min(100, Math.round((goalThreat / leagueMaximums.goal_threat) * 100))
+        };
+      }
+    };
 
     // Get last 6 blocks maximum for sparklines
     const recentBlocks = historicalBlocks.slice(-6);
@@ -147,25 +213,24 @@ export async function GET(
       const powerRating = fantasyPoints / Math.max(gamesPlayed, 1);
       const goalThreat = Math.min(1.5, goals / Math.max(gamesPlayed, 1));
       
-      // TEMPORARY FIX: Detect and correct games_possible undercount
-      let participation = (gamesPlayed / Math.max(gamesPossible, 1)) * 100;
+      // Apply tier-based minimum games consistently across all metrics
+      let participation: number | null = null;
+      let participationPercentile: number | null = null;
+      let goalThreatPercentile: number | null = null;
       
-      // If participation is suspiciously high (>95%) and it's a current period,
-      // estimate more realistic games_possible based on typical match frequency
-      if (participation > 95 && gamesPossible < 10) {
-        // Estimate ~25 games per 6-month period based on historical data
-        const estimatedGamesPossible = 25;
-        participation = (gamesPlayed / estimatedGamesPossible) * 100;
+      if (gamesPlayed >= tierMinGames) {
+        // Only calculate percentiles if player meets tier minimum games requirement
+        participation = (gamesPlayed / Math.max(gamesPossible, 1)) * 100;
+        participationPercentile = Math.min(100, Math.round(participation));
+        
+        // FIXED: Calculate goal threat percentile only with sufficient games (like participation)
+        const periodPercentiles = await calculatePeriodPercentile(block.start_date, powerRating, goalThreat);
+        goalThreatPercentile = periodPercentiles.goalPercentile;
       }
+      // If insufficient games for tier, leave both participation and goal threat as null
 
-      // Calculate absolute percentages for sparkline data (based on qualified maximums, capped at 100%)
-      const powerRatingPercentile = leagueMaximums.power_rating > 0 ? 
-        Math.min(100, Math.round((powerRating / leagueMaximums.power_rating) * 100)) : 0;
-
-      const goalThreatPercentile = leagueMaximums.goal_threat > 0 ? 
-        Math.min(100, Math.round((goalThreat / leagueMaximums.goal_threat) * 100)) : 0;
-
-      const participationPercentile = Math.min(100, Math.round(participation));
+      // Power rating percentile is always calculated (it drives the main rating)
+      const powerPercentiles = await calculatePeriodPercentile(block.start_date, powerRating, goalThreat);
 
       // Handle date processing
       let period = 'Unknown';
@@ -183,15 +248,15 @@ export async function GET(
         end_date: block.end_date,
         power_rating: Math.round(powerRating * 100) / 100,
         goal_threat: Math.round(goalThreat * 1000) / 1000,
-        participation: Math.round(participation * 10) / 10,
-        power_rating_percentile: powerRatingPercentile,
+        participation: participation !== null ? Math.round(participation * 10) / 10 : null,
+        power_rating_percentile: powerPercentiles.powerPercentile,
         goal_threat_percentile: goalThreatPercentile,
         participation_percentile: participationPercentile,
         games_played: gamesPlayed
       });
     }
 
-    // Current metric percentiles (for display)
+    // Current metric percentiles (for display) - use P90 scaling
     const currentTrendRating = (freshPowerRatings as any)?.trend_rating || null;
     const currentTrendGoalThreat = (freshPowerRatings as any)?.trend_goal_threat || null;
     const currentTrendParticipation = (freshPowerRatings as any)?.trend_participation || null;
@@ -202,11 +267,23 @@ export async function GET(
       currentParticipation = sparklineData[sparklineData.length - 1].participation;
     }
 
+    // FIXED: Use percentile ranking for all metrics instead of ratio-to-max for consistency
+    const calculateCurrentPercentile = (playerValue: number, allValues: number[]): number => {
+      if (allValues.length === 0) return 50; // Fallback
+      allValues.sort((a, b) => a - b);
+      const rank = allValues.filter(v => v <= playerValue).length;
+      return Math.round((rank / allValues.length) * 100);
+    };
+
+    // Get all qualified player values for percentile calculation
+    const allPowerRatings = leagueStats.map(s => (s as any).trend_rating || 0).filter(r => r > 0);
+    const allGoalThreats = leagueStats.map(s => (s as any).trend_goal_threat || 0);
+
     const currentPercentiles = {
-      power_rating: leagueMaximums.power_rating > 0 && currentTrendRating ? 
-        Math.min(100, Math.round((currentTrendRating / leagueMaximums.power_rating) * 100)) : null,
-      goal_threat: leagueMaximums.goal_threat > 0 && currentTrendGoalThreat ? 
-        Math.min(100, Math.round((currentTrendGoalThreat / leagueMaximums.goal_threat) * 100)) : null,
+      power_rating: currentTrendRating ? 
+        calculateCurrentPercentile(currentTrendRating, allPowerRatings) : null,
+      goal_threat: currentTrendGoalThreat ? 
+        calculateCurrentPercentile(currentTrendGoalThreat, allGoalThreats) : null,
       participation: currentParticipation ? Math.min(100, Math.round(currentParticipation)) : null
     };
 
@@ -222,18 +299,18 @@ export async function GET(
           league_avg_participation: (freshPowerRatings as any)?.league_avg_participation || 75
         },
         
-        // Current percentiles calculated from qualified players only
+        // Current percentiles calculated from qualified players only (using P90 scaling)
         current_percentiles: currentPercentiles,
         
         // League distribution for context
         league_distribution: leagueDistribution,
         
-        // Sparkline data for trends visualization
+        // FIXED: Sparkline data now uses period-specific percentiles
         sparkline_data: sparklineData,
         
         // Qualified player count for transparency
-        qualified_players_count: qualifiedStats.length,
-        total_players_count: leagueStats?.length || 0
+        qualified_players_count: leagueStats.length,
+        total_players_count: leagueStats.length
       }
     });
 
