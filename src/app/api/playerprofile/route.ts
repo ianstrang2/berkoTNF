@@ -207,6 +207,7 @@ export async function GET(request: Request) {
 
     // Fetch participation data from historical blocks (for 3rd metric)
     let participationPercentage = 50; // Default fallback
+    let historicalBlocks: any[] = []; // Store for response
     
     try {
       const halfSeasonData = await prisma.aggregated_half_season_stats.findUnique({
@@ -215,6 +216,9 @@ export async function GET(request: Request) {
       }) as any;
 
       if (halfSeasonData?.historical_blocks && Array.isArray(halfSeasonData.historical_blocks)) {
+        // Store the historical blocks for the response
+        historicalBlocks = halfSeasonData.historical_blocks;
+        
         // Get the most recent block with participation data
         const recentBlocks = halfSeasonData.historical_blocks as any[];
         const latestBlock = recentBlocks
@@ -253,6 +257,9 @@ export async function GET(request: Request) {
         yearly_stats: yearlyStatsArray, // Ensured to be an array
         teammate_chemistry_all: (profile as any).teammate_chemistry_all, // New comprehensive teammate data
         last_updated: profile.last_updated,
+        
+        // Historical blocks for debugging and display
+        historical_blocks: historicalBlocks,
         
         // NEW: 3-metric power ratings (sophisticated trend calculation for all metrics)
         power_ratings: powerRatings ? {

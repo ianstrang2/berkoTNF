@@ -75,4 +75,14 @@ export interface PlayerWithGoalStats extends PlayerProfile {
   minutesPerGoal: number;
   lastFiveGames: string;
   maxGoalsInGame: number;
+}
+
+export interface PlayerWithTrend extends PlayerProfile {
+  trend_rating: number | null;
+  trend_goal_threat: number | null;
+  trend_participation: number | null;
+  power_rating_percentile: number | null;
+  goal_threat_percentile: number | null;
+  participation_percentile: number | null;
+  sparkline_data: any[]; // Add sparkline_data to the type
 } 

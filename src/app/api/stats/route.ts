@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
-import { toPlayerWithStats, toPlayerWithGoalStats } from '@/lib/transform/player.transform';
+import { toPlayerWithStats } from '@/lib/transform/player.transform';
 
 interface RecentGame {
   goals: number;
@@ -14,72 +14,82 @@ interface RecentGame {
 const getFullSeasonStats = unstable_cache(
   async (startDate: string, endDate: string) => {
     console.log(`Cache miss, fetching fresh data for ${startDate} to ${endDate}`);
-    const dbTimeout = 5000;
 
-    const latestStatsPromise = prisma.aggregated_season_stats.findFirst({
-      where: { season_start_date: new Date(startDate) },
-      orderBy: { season_end_date: 'desc' },
-      select: { season_end_date: true }
-    });
-
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timed out')), dbTimeout);
-    });
-
-    const latestStats = await Promise.race([latestStatsPromise, timeoutPromise]) as any;
-
-    if (!latestStats) {
-      console.log('No stats found for period');
-      return { seasonStats: [], goalStats: [], formData: [] };
-    }
-
-    const preAggregatedDataPromise = prisma.aggregated_season_stats.findMany({
+    const preAggregatedData = await prisma.aggregated_season_stats.findMany({
       where: {
         season_start_date: new Date(startDate),
-        season_end_date: latestStats.season_end_date
+        player: {
+          is_ringer: false
+        }
       },
-      include: { player: { select: { name: true, selected_club: true, player_id: true } } }
+      include: {
+        player: {
+          select: {
+            name: true,
+            selected_club: true
+          }
+        }
+      }
     });
-
-    const preAggregatedData = await Promise.race([preAggregatedDataPromise, new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Season stats query timed out')), dbTimeout);
-    })]) as any[];
-
-    const recentPerformancePromise = prisma.aggregated_recent_performance.findMany({
-      include: { player: { select: { name: true, selected_club: true, player_id: true } } }
+    
+    const recentPerformance = await prisma.aggregated_recent_performance.findMany({
+      include: {
+        player: {
+          select: { name: true, selected_club: true, player_id: true }
+        }
+      }
     });
-
-    const recentPerformance = await Promise.race([recentPerformancePromise, new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Recent performance query timed out')), dbTimeout);
-    })]) as any[];
 
     const seasonStats = preAggregatedData.map(stat => {
-      const dbPlayer = { 
-        ...stat, 
-        ...stat.player,
-        id: stat.player_id  // Use player_id as the canonical ID, not the auto-increment id
+      const dbPlayer = {
+        id: stat.player_id,
+        player_id: stat.player_id,
+        name: stat.player?.name,
+        selected_club: stat.player?.selected_club,
+        games_played: stat.games_played || 0,
+        wins: stat.wins || 0,
+        draws: stat.draws || 0,
+        losses: stat.losses || 0,
+        goals: stat.goals || 0,
+        heavy_wins: stat.heavy_wins || 0,
+        heavy_losses: stat.heavy_losses || 0,
+        clean_sheets: stat.clean_sheets || 0,
+        win_percentage: Number(stat.win_percentage || 0),
+        fantasy_points: Number(stat.fantasy_points || 0),
+        points_per_game: Number(stat.points_per_game || 0)
       };
       return toPlayerWithStats(dbPlayer);
     }).sort((a, b) => b.fantasyPoints - a.fantasyPoints);
-
-    const goalStats = seasonStats.map(player => {
-      const recentPerf = recentPerformance.find(perf => perf.player.name === player.name);
-      const last5Goals = recentPerf?.last_5_games ? (recentPerf.last_5_games as RecentGame[]).map(g => g.goals).reverse().join(',') : '0,0,0,0,0';
-      const dbPlayer = {
-        id: player.id,
-        player_id: player.id,
-        name: player.name,
-        selected_club: player.club,
-        total_goals: player.goals,
-        minutes_per_goal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
-        last_five_games: last5Goals,
-        max_goals_in_game: recentPerf?.last_5_games ? Math.max(...(recentPerf.last_5_games as RecentGame[] || []).map(g => g.goals)) : 0,
-      };
-      return toPlayerWithGoalStats(dbPlayer);
-    }).filter(player => player.totalGoals > 0)
+    
+    const goalStats = seasonStats.map(player => ({
+      id: player.id,
+      name: player.name,
+      club: player.club,
+      totalGoals: player.goals,
+      minutesPerGoal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
+      lastFiveGames: recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games 
+        ? (recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games as RecentGame[])
+            .map(g => g.goals)
+            .reverse()
+            .join(',') 
+        : '0,0,0,0,0',
+      maxGoalsInGame: recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games 
+        ? Math.max(...(recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games as RecentGame[] || [])
+            .map(g => g.goals)) 
+        : 0
+    })).filter(player => player.totalGoals > 0)
       .sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
 
-    return { seasonStats, goalStats, formData: [] };
+    const formData = recentPerformance.map(perf => ({
+      name: perf.player.name,
+      last_5_games: perf.last_5_games ? (perf.last_5_games as RecentGame[]).map(g => {
+        if (g.heavy_win) return 'HW';
+        if (g.heavy_loss) return 'HL';
+        return g.result.toUpperCase().charAt(0);
+      }).reverse().join(', ') : ''
+    })).sort((a, b) => a.name.localeCompare(b.name));
+
+    return { seasonStats, goalStats, formData };
   },
   ['full_season_stats'], // Base key for the cache
   {

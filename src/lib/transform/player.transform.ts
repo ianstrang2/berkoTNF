@@ -1,4 +1,10 @@
-import { PlayerProfile, PlayerInPool, PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
+import {
+  PlayerProfile,
+  PlayerInPool,
+  PlayerWithStats,
+  PlayerWithTrend,
+  Club,
+} from '@/types/player.types';
 
 /**
  * Transforms a database club object (or JSON string) into a canonical Club object.
@@ -93,15 +99,17 @@ export const toPlayerWithStats = (dbPlayer: any): PlayerWithStats => {
   };
 };
 
-/**
- * Converts a raw database player object to the canonical PlayerWithGoalStats type.
- */
-export const toPlayerWithGoalStats = (dbPlayer: any): PlayerWithGoalStats => {
-    return {
-        ...transformBasePlayerFromDb(dbPlayer),
-        totalGoals: dbPlayer.total_goals ?? 0,
-        minutesPerGoal: dbPlayer.minutes_per_goal ?? 0,
-        lastFiveGames: dbPlayer.last_five_games ?? '',
-        maxGoalsInGame: dbPlayer.max_goals_in_game ?? 0,
-    };
-}; 
+// New transformer for the simplified Player Trend API
+export function toPlayerWithTrend(dbPlayer: any): PlayerWithTrend {
+  const playerProfile = toPlayerProfile(dbPlayer);
+
+  return {
+    ...playerProfile,
+    trend_rating: dbPlayer.trend_rating ? parseFloat(dbPlayer.trend_rating) : null,
+    trend_goal_threat: dbPlayer.trend_goal_threat ? parseFloat(dbPlayer.trend_goal_threat) : null,
+    trend_participation: dbPlayer.trend_participation ? parseFloat(dbPlayer.trend_participation) : null,
+    power_rating_percentile: dbPlayer.power_rating_percentile ? parseFloat(dbPlayer.power_rating_percentile) : null,
+    goal_threat_percentile: dbPlayer.goal_threat_percentile ? parseFloat(dbPlayer.goal_threat_percentile) : null,
+    participation_percentile: dbPlayer.participation_percentile ? parseFloat(dbPlayer.participation_percentile) : null,
+  };
+} 

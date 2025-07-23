@@ -5,6 +5,7 @@ import { CACHE_TAGS } from '@/lib/cache/constants';
 
 // Define the list of Edge Functions to call and their associated cache tags
 const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> = [
+  { name: 'call-update-power-ratings', tag: CACHE_TAGS.PLAYER_POWER_RATING },
   { name: 'call-update-all-time-stats', tag: CACHE_TAGS.ALL_TIME_STATS },
   { name: 'call-update-half-and-full-season-stats', tags: [CACHE_TAGS.SEASON_STATS, CACHE_TAGS.HALF_SEASON_STATS] },
   { name: 'call-update-hall-of-fame', tag: CACHE_TAGS.HALL_OF_FAME },

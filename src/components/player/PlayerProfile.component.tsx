@@ -76,18 +76,9 @@ interface StreakRecords {
 }
 
 interface TrendData {
-  current_metrics: {
-    trend_rating: number | null;
-    trend_goal_threat: number | null;
-    trend_participation: number | null;
-    league_avg_goal_threat: number;
-    league_avg_participation: number;
-  };
-  current_percentiles: {
-    power_rating: number | null;
-    goal_threat: number | null;
-    participation: number | null;
-  };
+  power_rating_percentile: number | null;
+  goal_threat_percentile: number | null;
+  participation_percentile: number | null;
   sparkline_data: Array<{
     period: string;
     start_date: string;
@@ -520,7 +511,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 <div className="flex flex-col items-center">
                   <div className="scale-75 sm:scale-90 lg:scale-100 transform">
                     <PowerRatingGauge 
-                      rating={trendData.current_percentiles.power_rating ?? 0}
+                      rating={trendData.power_rating_percentile ?? 0}
                       size="md"
                       label="Power Rating"
                     />
@@ -531,7 +522,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 <div className="flex flex-col items-center">
                   <div className="scale-75 sm:scale-90 lg:scale-100 transform">
                     <PowerRatingGauge 
-                      rating={trendData.current_percentiles.goal_threat ?? 0}
+                      rating={trendData.goal_threat_percentile ?? 0}
                       size="md"
                       label="Goal Threat"
                     />
@@ -542,7 +533,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 <div className="flex flex-col items-center">
                   <div className="scale-75 sm:scale-90 lg:scale-100 transform">
                     <PowerRatingGauge 
-                      rating={trendData.current_percentiles.participation ?? 0}
+                      rating={trendData.participation_percentile ?? 0}
                       size="md"
                       label="Participation"
                     />

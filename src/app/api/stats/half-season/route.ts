@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
-import { toPlayerWithStats, toPlayerWithGoalStats } from '@/lib/transform/player.transform';
+import { toPlayerWithStats } from '@/lib/transform/player.transform';
 
 interface RecentGame {
   goals: number;
@@ -15,14 +15,21 @@ const getHalfSeasonStats = unstable_cache(
   async () => {
     console.log('Cache miss, fetching fresh half-season data');
 
-    const preAggregatedData = await prisma.$queryRaw<any[]>`
-      SELECT hs.player_id as id, hs.player_id, hs.games_played, hs.wins, hs.draws, 
-             hs.losses, hs.goals, hs.heavy_wins, hs.heavy_losses, hs.clean_sheets, 
-             hs.win_percentage, hs.fantasy_points, hs.points_per_game,
-             p.name, p.selected_club
-      FROM aggregated_half_season_stats hs
-      JOIN players p ON hs.player_id = p.player_id
-    `;
+    const preAggregatedData = await prisma.aggregated_half_season_stats.findMany({
+      where: {
+        player: {
+          is_ringer: false
+        }
+      },
+      include: {
+        player: {
+          select: {
+            name: true,
+            selected_club: true
+          }
+        }
+      }
+    });
     
     const recentPerformance = await prisma.aggregated_recent_performance.findMany({
       include: {
@@ -32,22 +39,44 @@ const getHalfSeasonStats = unstable_cache(
       }
     });
 
-    const seasonStats = preAggregatedData.map(toPlayerWithStats).sort((a, b) => b.fantasyPoints - a.fantasyPoints);
-    
-    const goalStats = seasonStats.map(player => {
-      const recentPerf = recentPerformance.find(perf => perf.player.name === player.name);
+    const seasonStats = preAggregatedData.map(stat => {
       const dbPlayer = {
-        id: player.id,
-        player_id: player.id,
-        name: player.name,
-        selected_club: player.club,
-        total_goals: player.goals,
-        minutes_per_goal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
-        last_five_games: recentPerf?.last_5_games ? (recentPerf.last_5_games as RecentGame[]).map(g => g.goals).reverse().join(',') : '0,0,0,0,0',
-        max_goals_in_game: recentPerf?.last_5_games ? Math.max(...(recentPerf.last_5_games as RecentGame[] || []).map(g => g.goals)) : 0,
+        id: stat.player_id,
+        player_id: stat.player_id,
+        name: stat.player?.name,
+        selected_club: stat.player?.selected_club,
+        games_played: stat.games_played || 0,
+        wins: stat.wins || 0,
+        draws: stat.draws || 0,
+        losses: stat.losses || 0,
+        goals: stat.goals || 0,
+        heavy_wins: stat.heavy_wins || 0,
+        heavy_losses: stat.heavy_losses || 0,
+        clean_sheets: stat.clean_sheets || 0,
+        win_percentage: Number(stat.win_percentage || 0),
+        fantasy_points: Number(stat.fantasy_points || 0),
+        points_per_game: Number(stat.points_per_game || 0)
       };
-      return toPlayerWithGoalStats(dbPlayer);
-    }).filter(player => player.totalGoals > 0)
+      return toPlayerWithStats(dbPlayer);
+    }).sort((a, b) => b.fantasyPoints - a.fantasyPoints);
+    
+    const goalStats = seasonStats.map(player => ({
+      id: player.id,
+      name: player.name,
+      club: player.club,
+      totalGoals: player.goals,
+      minutesPerGoal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
+      lastFiveGames: recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games 
+        ? (recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games as RecentGame[])
+            .map(g => g.goals)
+            .reverse()
+            .join(',') 
+        : '0,0,0,0,0',
+      maxGoalsInGame: recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games 
+        ? Math.max(...(recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games as RecentGame[] || [])
+            .map(g => g.goals)) 
+        : 0
+    })).filter(player => player.totalGoals > 0)
       .sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
 
     const formData = recentPerformance.map(perf => ({

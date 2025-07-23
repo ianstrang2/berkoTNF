@@ -1,0 +1,239 @@
+-- Backup created before performance rating system refactor
+-- Original file: update_power_ratings.sql
+-- Date: 2025-07-22
+
+CREATE OR REPLACE FUNCTION update_power_ratings()
+RETURNS void AS $$
+DECLARE
+    v_player_id integer;
+    v_historical_blocks jsonb;
+    v_trend_rating decimal;
+    v_trend_goal_threat decimal;
+    v_trend_participation integer;
+    v_power_rating_percentile integer;
+    v_goal_threat_percentile integer;
+BEGIN
+    -- Step 0: Ensure all players have rows in aggregated_half_season_stats
+    INSERT INTO aggregated_half_season_stats (player_id, historical_blocks)
+    SELECT p.player_id, '[]'::jsonb
+    FROM players p
+    LEFT JOIN aggregated_half_season_stats ahs ON ahs.player_id = p.player_id
+    WHERE ahs.player_id IS NULL  -- Only insert for missing players
+    AND p.is_ringer = false;
+
+    -- Step 1: Calculate and store historical blocks
+    WITH match_periods AS (
+        SELECT 
+            m.match_id,
+            EXTRACT(YEAR FROM m.match_date)::int as year,
+            EXTRACT(MONTH FROM m.match_date)::int as month,
+            CASE WHEN EXTRACT(MONTH FROM m.match_date) <= 6 THEN 1 ELSE 2 END as half,
+            m.match_date
+        FROM matches m
+    ),
+    period_boundaries AS (
+        SELECT DISTINCT
+            year,
+            half,
+            MAKE_DATE(year, CASE WHEN half = 1 THEN 1 ELSE 7 END, 1) as period_start,
+            MAKE_DATE(year, CASE WHEN half = 1 THEN 6 ELSE 12 END, CASE WHEN half = 1 THEN 30 ELSE 31 END) as period_end,
+            COUNT(*) OVER (PARTITION BY year, half) as total_games_in_period
+        FROM match_periods
+    ),
+    player_period_stats AS (
+        SELECT 
+            pm.player_id,
+            pb.year,
+            pb.half,
+            pb.period_start,
+            pb.period_end,
+            pb.total_games_in_period,
+            COUNT(*) as games_played,
+            SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet)) as total_fantasy_points,
+            SUM(COALESCE(pm.goals, 0)) as total_goals
+        FROM player_matches pm
+        JOIN match_periods mp ON pm.match_id = mp.match_id
+        JOIN period_boundaries pb ON mp.year = pb.year AND mp.half = pb.half
+        JOIN players p ON pm.player_id = p.player_id
+        WHERE p.is_ringer = false
+        GROUP BY pm.player_id, pb.year, pb.half, pb.period_start, pb.period_end, pb.total_games_in_period
+        HAVING COUNT(*) >= 3
+    ),
+    player_period_rates AS (
+        SELECT 
+            player_id,
+            year,
+            half,
+            period_start,
+            period_end,
+            games_played,
+            total_games_in_period,
+            total_fantasy_points,
+            total_goals,
+            ROUND(total_fantasy_points::numeric / games_played, 2) as power_rating,
+            ROUND(LEAST(1.5, total_goals::numeric / games_played), 3) as goal_threat
+        FROM player_period_stats
+    ),
+    period_percentiles AS (
+        SELECT 
+            player_id,
+            year,
+            half,
+            period_start,
+            period_end,
+            games_played,
+            total_games_in_period,
+            power_rating,
+            goal_threat,
+            total_fantasy_points,
+            total_goals,
+            GREATEST(1, LEAST(99, ROUND(PERCENT_RANK() OVER (
+                PARTITION BY period_start 
+                ORDER BY power_rating DESC
+            ) * 100)::integer)) as power_rating_percentile,
+            GREATEST(1, LEAST(99, ROUND(PERCENT_RANK() OVER (
+                PARTITION BY period_start 
+                ORDER BY goal_threat DESC
+            ) * 100)::integer)) as goal_threat_percentile,
+            GREATEST(1, LEAST(99, ROUND((games_played::numeric / total_games_in_period * 100))::integer)) as participation_percentile
+        FROM player_period_rates
+        WHERE games_played > 0
+    ),
+    player_blocks AS (
+        SELECT 
+            player_id,
+            jsonb_agg(
+                jsonb_build_object(
+                    'start_date', period_start,
+                    'end_date', period_end,
+                    'games_played', games_played,
+                    'power_rating', power_rating,
+                    'goal_threat', goal_threat,
+                    'power_rating_percentile', power_rating_percentile,
+                    'goal_threat_percentile', goal_threat_percentile,
+                    'participation_percentile', participation_percentile,
+                    'total_fantasy_points', total_fantasy_points,
+                    'total_goals', total_goals
+                )
+                ORDER BY period_start DESC
+            ) as blocks
+        FROM period_percentiles
+        GROUP BY player_id
+    )
+    UPDATE aggregated_half_season_stats ahs
+    SET historical_blocks = COALESCE(pb.blocks, '[]'::jsonb)
+    FROM player_blocks pb
+    WHERE ahs.player_id = pb.player_id;
+
+    -- Step 2: Calculate trend-adjusted ratings for each player
+    FOR v_player_id IN (SELECT player_id FROM players WHERE is_ringer = FALSE) LOOP
+        -- Get historical blocks for this player
+        SELECT historical_blocks INTO v_historical_blocks
+        FROM aggregated_half_season_stats
+        WHERE player_id = v_player_id;
+
+        -- Calculate trends using the historical blocks
+        WITH period_data AS (
+            SELECT 
+                (elem->>'power_rating')::DECIMAL as period_rating,
+                (elem->>'goal_threat')::DECIMAL as period_goals,
+                (elem->>'participation_percentile')::INTEGER as period_participation,
+                (elem->>'games_played')::INTEGER as games_played,
+                ROW_NUMBER() OVER (ORDER BY (elem->>'end_date')::DATE DESC) as period_rank
+            FROM jsonb_array_elements(v_historical_blocks) AS elem
+        ),
+        trend_calc AS (
+            SELECT
+                -- 70/30 weighted rating (70% recent floor, 30% trend)
+                ROUND(
+                    0.7 * MIN(period_rating) + 
+                    0.3 * AVG(period_rating)
+                , 2) as trend_rating,
+                
+                -- Goal threat uses same 70/30 weighting
+                ROUND(
+                    0.7 * MIN(period_goals) + 
+                    0.3 * AVG(period_goals)
+                , 3) as trend_goal_threat,
+                
+                -- Participation trend (simple average of recent periods)
+                ROUND(AVG(period_participation)) as trend_participation
+            FROM period_data
+            WHERE period_rank <= 3  -- Only consider last 3 periods
+            HAVING COUNT(*) >= 2    -- Need at least 2 periods for trend
+        )
+        SELECT 
+            trend_rating,
+            trend_goal_threat,
+            trend_participation
+        INTO 
+            v_trend_rating,
+            v_trend_goal_threat,
+            v_trend_participation
+        FROM trend_calc;
+
+        -- Calculate current percentiles
+        WITH current_ratings AS (
+            SELECT 
+                player_id,
+                COALESCE(
+                    (historical_blocks->0->>'power_rating')::DECIMAL,
+                    0
+                ) as current_rating,
+                COALESCE(
+                    (historical_blocks->0->>'goal_threat')::DECIMAL,
+                    0
+                ) as current_goal_threat
+            FROM aggregated_half_season_stats
+            WHERE historical_blocks != '[]'::jsonb
+        )
+        SELECT 
+            GREATEST(1, LEAST(99, ROUND(PERCENT_RANK() OVER (
+                ORDER BY COALESCE(v_trend_rating, current_rating) DESC
+            ) * 100)::integer)) as power_pct,
+            GREATEST(1, LEAST(99, ROUND(PERCENT_RANK() OVER (
+                ORDER BY COALESCE(v_trend_goal_threat, current_goal_threat) DESC
+            ) * 100)::integer)) as goal_pct
+        INTO
+            v_power_rating_percentile,
+            v_goal_threat_percentile
+        FROM current_ratings;
+
+        -- Update the player's trend-adjusted ratings
+        UPDATE aggregated_player_power_ratings
+        SET 
+            trend_rating = COALESCE(v_trend_rating, 0),
+            trend_goal_threat = COALESCE(v_trend_goal_threat, 0),
+            trend_participation = COALESCE(v_trend_participation, 1),
+            power_rating_percentile = COALESCE(v_power_rating_percentile, 50),
+            goal_threat_percentile = COALESCE(v_goal_threat_percentile, 50),
+            updated_at = NOW()
+        WHERE player_id = v_player_id;
+
+        -- If no record exists, insert one
+        IF NOT FOUND THEN
+            INSERT INTO aggregated_player_power_ratings (
+                player_id,
+                trend_rating,
+                trend_goal_threat,
+                trend_participation,
+                power_rating_percentile,
+                goal_threat_percentile,
+                created_at,
+                updated_at
+            ) VALUES (
+                v_player_id,
+                COALESCE(v_trend_rating, 0),
+                COALESCE(v_trend_goal_threat, 0),
+                COALESCE(v_trend_participation, 1),
+                COALESCE(v_power_rating_percentile, 50),
+                COALESCE(v_goal_threat_percentile, 50),
+                NOW(),
+                NOW()
+            );
+        END IF;
+    END LOOP;
+
+    RAISE NOTICE 'Updated power ratings and historical blocks for all players';
+END;
+$$ LANGUAGE plpgsql; 

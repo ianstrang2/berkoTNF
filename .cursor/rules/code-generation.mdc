@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # BerkoTNF Project Rules
 
 ## File Organization
@@ -119,3 +123,161 @@ To ensure consistency and type safety, all player-related data across the applic
 -   **API Boundary:** The API layer is responsible for transforming raw database results (snake_case) into these camelCase canonical types using the helpers in `src/lib/transform/player.transform.ts`. Frontend components should expect to receive data in this clean format.
 -   **Deprecation:** Avoid using or creating any local, one-off player types (e.g., `MatchPlayer`, `PlayerWithNameAndId`). Always import from the canonical types file.
 -   **ID Convention:** The canonical frontend type `PlayerProfile` uses `id: string` for consistency with component keys and other browser APIs. The database uses `player_id: number`. The transformation helpers in `src/lib/transform/player.transform.ts` are responsible for converting the numeric ID from the database to a string. Conversely, API routes must parse string IDs from the frontend back into numbers before performing database operations.
+---
+# General Code Generation Rules
+
+## SQL Query Handling
+- **NEVER** create standalone .sql files in the project.
+- **NEVER** use tools to execute exploratory SQL queries.
+- **ALWAYS** provide SQL code in markdown blocks for manual user execution.
+- Only use database tools for essential, pre-approved operations like migrations.
+
+## File Creation
+- Only create new files when explicitly requested by the user.
+- Prefer editing existing files over creating new ones.
+- Clean up any temporary or test files created during development.
+
+## Database Operations
+- Provide all SQL queries as copyable code blocks.
+- The user will execute the query and provide the results.
+- Use the provided results for subsequent analysis and recommendations.
+- **DO NOT** attempt to run database migrations (e.g., `prisma migrate`). The user will handle this. # BerkoTNF Project Rules
+
+## File Organization
+- Organize code by feature, not by type
+- Use App Router (Next.js 13+) - pages in `/app`, components in `/components`
+- Backend assets: Supabase Edge Functions in `supabase/functions/`, SQL scripts in `sql/`
+
+## Naming Conventions
+- Components: `{ComponentName}.component.tsx`
+- Pages: `{PageName}.page.tsx`  
+- Layouts: `{LayoutName}.layout.tsx`
+- Hooks: `use{HookName}.hook.ts`
+- Utilities: `{utilName}.util.ts`
+- Services: `{ServiceName}.service.ts`
+
+## Import Conventions
+- Use absolute imports with `@/` prefix
+- Import UI components individually, avoid barrel exports
+- Example: `import Button from '@/components/ui-kit/Button.component';`
+
+## React Conventions
+- Add `'use client'` directive for client-side components
+- Use functional components with hooks
+- Use TypeScript interfaces for props
+- Prefer explicit prop types over `React.FC<Props>`
+
+## Directory Structure
+```
+src/
+├── app/                    # App Router pages and layouts
+├── components/            # React components by feature
+│   ├── admin/             # Admin-related components
+│   ├── dashboard/         # Dashboard widgets
+│   ├── layout/            # Layout components
+│   ├── navigation/        # Navigation components
+│   ├── ui-kit/            # Reusable UI components
+├── contexts/              # React Context providers
+├── hooks/                 # Custom React hooks
+├── services/              # Business logic and API services
+├── types/                 # TypeScript type definitions
+└── utils/                 # Utility functions
+```
+
+## Database Access Patterns
+
+### API Routes - Use Prisma for Fresh Data
+- **ALWAYS use Prisma** for API routes that read application data
+- **Supabase client causes stale data issues** due to connection pooling/caching
+- Use `import { prisma } from '@/lib/prisma';`
+
+**✅ Correct Pattern:**
+```typescript
+// API routes - use Prisma for fresh data
+const playerData = await prisma.aggregated_player_power_ratings.findUnique({
+  where: { player_id: playerId },
+  select: { trend_rating: true, trend_goal_threat: true } as any
+});
+```
+
+**❌ Avoid in API Routes:**
+```typescript
+// Causes stale data issues
+const supabase = createClient(url, key);
+const { data } = await supabase.from('aggregated_player_power_ratings')...
+```
+
+### Edge Functions - Use Supabase Client
+- **Supabase Edge Functions** in `supabase/functions/` should use Supabase client
+- **SQL scripts** in `sql/` use direct PostgreSQL
+
+### Type Safety
+- Use `as any` for Prisma selects with newer schema fields not yet in generated types
+- Follow existing working API patterns (see `playerprofile/route.ts`)
+
+## App Router Flow
+- Pages in `/app` should be minimal - just import and render components
+- Business logic and UI should live in `/components`
+- Example pattern:
+```typescript
+// /app/some-route/page.tsx
+import { SomeComponent } from '@/components/feature';
+export default function SomePage() {
+  return <SomeComponent />;
+}
+```
+
+## Component Template
+```typescript
+'use client';
+import React from 'react';
+
+interface ComponentProps {
+  children: React.ReactNode;
+  // other props
+}
+
+const ComponentName = ({ children }: ComponentProps) => {
+  return (
+    // component JSX
+  );
+};
+
+export default ComponentName;
+```
+
+## Key Feature Directories
+- `/components/dashboard/` - Dashboard widgets (PersonalBests, Milestones, MatchReport)
+- `/components/records/` - All-time records (LeaderboardStats, Legends, Feats)  
+- `/components/tables/` - Season standings (CurrentHalfSeason, OverallSeasonPerformance)
+
+- `/components/ui-kit/` - Reusable UI components
+
+### Canonical Player Data Types
+
+To ensure consistency and type safety, all player-related data across the application must conform to the canonical types defined in `src/types/player.types.ts`.
+
+-   **Primary Type:** `PlayerProfile` is the base interface for any player.
+-   **Contextual Types:** Use extended types like `PlayerInPool` or `PlayerWithStats` for specific use cases (e.g., match management, statistics).
+-   **API Boundary:** The API layer is responsible for transforming raw database results (snake_case) into these camelCase canonical types using the helpers in `src/lib/transform/player.transform.ts`. Frontend components should expect to receive data in this clean format.
+-   **Deprecation:** Avoid using or creating any local, one-off player types (e.g., `MatchPlayer`, `PlayerWithNameAndId`). Always import from the canonical types file.
+-   **ID Convention:** The canonical frontend type `PlayerProfile` uses `id: string` for consistency with component keys and other browser APIs. The database uses `player_id: number`. The transformation helpers in `src/lib/transform/player.transform.ts` are responsible for converting the numeric ID from the database to a string. Conversely, API routes must parse string IDs from the frontend back into numbers before performing database operations.
+---
+# General Code Generation Rules
+
+## SQL Query Handling
+- **NEVER** create standalone .sql files in the project.
+- **NEVER** use tools to execute exploratory SQL queries.
+- **ALWAYS** provide SQL code in markdown blocks for manual user execution.
+- Only use database tools for essential, pre-approved operations like migrations.
+
+## File Creation
+- Only create new files when explicitly requested by the user.
+- Prefer editing existing files over creating new ones.
+- Clean up any temporary or test files created during development.
+
+## Database Operations
+- Provide all SQL queries as copyable code blocks.
+- The user will execute the query and provide the results.
+- Use the provided results for subsequent analysis and recommendations.
+- **DO NOT** attempt to run database migrations (e.g., `prisma migrate`). The user will handle this. 
