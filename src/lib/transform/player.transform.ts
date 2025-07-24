@@ -111,5 +111,6 @@ export function toPlayerWithTrend(dbPlayer: any): PlayerWithTrend {
     power_rating_percentile: dbPlayer.power_rating_percentile ? parseFloat(dbPlayer.power_rating_percentile) : null,
     goal_threat_percentile: dbPlayer.goal_threat_percentile ? parseFloat(dbPlayer.goal_threat_percentile) : null,
     participation_percentile: dbPlayer.participation_percentile ? parseFloat(dbPlayer.participation_percentile) : null,
+    sparkline_data: dbPlayer.sparkline_data || [],
   };
 } 
