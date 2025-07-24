@@ -18,7 +18,7 @@ const getPlayerTrends = unstable_cache(
     const [trendData, historicalData] = await Promise.all([
       prisma.aggregated_player_power_ratings.findUnique({
         where: { player_id: playerId },
-        include: { players: { select: { name: true, is_retired: true, selected_club: true } } },
+        include: { players: { select: { name: true, is_retired: true, is_ringer: true, selected_club: true } } },
       }),
       prisma.aggregated_half_season_stats.findUnique({
         where: { player_id: playerId },
@@ -28,12 +28,13 @@ const getPlayerTrends = unstable_cache(
       }) as Promise<HistoricalData | null>,
     ]);
 
-    if (!trendData || !historicalData) {
+    // Only require trend data - historical data is optional (missing for ringers)
+    if (!trendData) {
       return null;
     }
 
-    // Process historical blocks into sparkline data
-    const blocks = historicalData.historical_blocks || [];
+    // Process historical blocks into sparkline data (empty array if no historical data)
+    const blocks = historicalData?.historical_blocks || [];
     const sparklineData = blocks.slice(-6).map((block: any) => {
         if (!block || block.games_played < 3) {
             return null;
@@ -57,7 +58,7 @@ const getPlayerTrends = unstable_cache(
       sparkline_data: sparklineData,
     };
   },
-  ['player_trends'],
+  ['player_trends_v4'], // Updated cache key for ringer fix
   {
     tags: [CACHE_TAGS.PLAYER_POWER_RATING],
   }

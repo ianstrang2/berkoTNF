@@ -44,7 +44,7 @@ BEGIN
             )) as fantasy_points
         FROM player_matches pm
         JOIN players p ON pm.player_id = p.player_id
-        WHERE p.is_ringer = false
+        WHERE p.is_retired = false
         GROUP BY pm.player_id
         HAVING SUM(calculate_match_fantasy_points(pm.result, COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))) IS NOT NULL
            AND COUNT(*) >= min_games_for_hof -- Add this condition

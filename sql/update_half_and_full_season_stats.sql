@@ -37,7 +37,7 @@ BEGIN
     FROM player_matches pm
     JOIN matches m ON pm.match_id = m.match_id
     JOIN players p ON pm.player_id = p.player_id
-    WHERE p.is_ringer = false AND m.match_date::date BETWEEN half_season_start_date AND half_season_end_date
+    WHERE p.is_retired = false AND m.match_date::date BETWEEN half_season_start_date AND half_season_end_date
     GROUP BY pm.player_id;
     RAISE NOTICE 'Finished calculating half-season stats.';
 
@@ -74,7 +74,7 @@ BEGIN
         FROM player_matches pm
         JOIN matches m ON pm.match_id = m.match_id
         JOIN players p ON pm.player_id = p.player_id
-        WHERE p.is_ringer = false AND EXTRACT(YEAR FROM m.match_date::date) = historical_year
+        WHERE p.is_retired = false AND EXTRACT(YEAR FROM m.match_date::date) = historical_year
         GROUP BY pm.player_id;
     END LOOP;
 

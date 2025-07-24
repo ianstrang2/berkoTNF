@@ -1,4 +1,4 @@
--- sql/update_power_ratings.sql  (refactored 2025-07-23)
+-- sql/update_power_ratings.sql  (refactored 2025-07-24)
 -- Calculates historical 6-month blocks + current trend ratings in one pass
 -- Requirements:
 --   • dynamic games-played qualifier  (25 % of avg, min 3, max 6)
@@ -6,14 +6,24 @@
 --   • raw values power_rating / goal_threat / participation
 --   • percentiles only for display (width_bucket 1-99)
 --   • single CTE pipeline – no temp tables, no loops
+--   • universal coverage: all non-retired players get rows (prevents 404s)
+--   • exclude ringers from stats calculation to prevent data anomalies
 
 CREATE OR REPLACE FUNCTION update_power_ratings()
 RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
     -------------------------------------------------------------------------
-    -- 1.  Period-level raw stats (6-month half-seasons)
+    -- 1.  All non-retired players (ensures universal coverage, including ringers with defaults)
     -------------------------------------------------------------------------
-    WITH grouped AS (
+    WITH all_players AS (
+        SELECT player_id
+        FROM players
+        WHERE is_retired = false  -- Include ringers for row existence, exclude retired from debugging
+    ),
+    -------------------------------------------------------------------------
+    -- 2.  Period-level raw stats (6-month half-seasons) - include ringers for trend calculation
+    -------------------------------------------------------------------------
+    grouped AS (
         SELECT
             pm.player_id,
             EXTRACT(YEAR  FROM m.match_date)::int                        AS yr,
@@ -21,11 +31,11 @@ BEGIN
             COUNT(*)                                                    AS games_played,
             SUM(calculate_match_fantasy_points(pm.result, pm.heavy_win,
                                                pm.heavy_loss, pm.clean_sheet)) AS total_fantasy_points,
-            COUNT(*) FILTER (WHERE COALESCE(pm.goals,0) > 0)            AS total_goals
+            SUM(COALESCE(pm.goals,0))                                   AS total_goals
         FROM player_matches pm
         JOIN matches m   ON m.match_id   = pm.match_id
         JOIN players p   ON p.player_id  = pm.player_id
-        WHERE p.is_ringer = false
+        WHERE p.is_retired = false  -- Include ringers for trend calculation, exclude retired
         GROUP BY pm.player_id, yr, hf
     ),
     period_stats AS (
@@ -39,15 +49,16 @@ BEGIN
             g.total_goals,
             -- total officially-scheduled games in that half-season
             (
-              SELECT COUNT(*) FROM matches mm
-              WHERE EXTRACT(YEAR  FROM mm.match_date) = g.yr
-                AND (CASE WHEN EXTRACT(MONTH FROM mm.match_date) <= 6 THEN 1 ELSE 2 END) = g.hf
-            )                                                                               AS total_games_in_period
+                SELECT COUNT(*)
+                FROM matches mm
+                WHERE EXTRACT(YEAR  FROM mm.match_date) = g.yr
+                  AND (CASE WHEN EXTRACT(MONTH FROM mm.match_date) <= 6 THEN 1 ELSE 2 END) = g.hf
+            )                                                                                 AS total_games_in_period
         FROM grouped g
     ),
-    ---------------------------------------------------------------------
-    -- 2.  Dynamic qualification threshold per player
-    ---------------------------------------------------------------------
+    -------------------------------------------------------------------------
+    -- 3.  Dynamic qualification threshold per player
+    -------------------------------------------------------------------------
     qual_thresh AS (
         SELECT
             player_id,
@@ -55,11 +66,11 @@ BEGIN
         FROM period_stats
         GROUP BY player_id
     ),
-    ---------------------------------------------------------------------
-    -- 3.  Rates for qualified periods
-    ---------------------------------------------------------------------
+    -------------------------------------------------------------------------
+    -- 4.  Rates for qualified periods
+    -------------------------------------------------------------------------
     period_rates AS (
-            SELECT 
+        SELECT
             ps.player_id,
             ps.period_start,
             ps.period_end,
@@ -67,17 +78,27 @@ BEGIN
             ps.total_fantasy_points,
             ps.total_goals,
             ps.total_games_in_period,
-            CASE WHEN ps.games_played >= qt.min_games_required THEN ROUND(ps.total_fantasy_points::numeric / ps.games_played,2) END AS power_rating,
+            CASE WHEN ps.games_played >= qt.min_games_required THEN ROUND(ps.total_fantasy_points::numeric / ps.games_played,2)          END AS power_rating,
             CASE WHEN ps.games_played >= qt.min_games_required THEN ROUND(ps.total_goals::numeric   / ps.games_played,3)          END AS goal_threat,
             CASE WHEN ps.games_played >= qt.min_games_required THEN ROUND((ps.games_played::numeric / ps.total_games_in_period)*100)::int END AS participation
         FROM period_stats ps
         JOIN qual_thresh qt ON qt.player_id = ps.player_id
     ),
-    ---------------------------------------------------------------------
-    -- 4.  Per-period percentiles (for historical blocks)
-    ---------------------------------------------------------------------
+    -------------------------------------------------------------------------
+    -- Add sequential index to qualified periods (oldest = 1, newest = max)
+    -------------------------------------------------------------------------
+    period_seq AS (
+        SELECT 
+            *,
+            ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY period_end ASC) AS period_index
+        FROM period_rates
+        WHERE power_rating IS NOT NULL
+    ),
+    -------------------------------------------------------------------------
+    -- 5.  Per-period percentiles (for historical blocks) - exclude ringers to avoid percentile calculation issues
+    -------------------------------------------------------------------------
     period_pct AS (
-                SELECT 
+        SELECT 
             pr.*,
             CASE WHEN MAX(pr.power_rating) OVER (PARTITION BY pr.period_start)
                      = MIN(pr.power_rating) OVER (PARTITION BY pr.period_start)
@@ -101,13 +122,31 @@ BEGIN
                         MAX(pr.participation) OVER (PARTITION BY pr.period_start), 99)::float
             END AS participation_pct
         FROM period_rates pr
-        WHERE pr.power_rating IS NOT NULL
+        JOIN players p ON p.player_id = pr.player_id
+        WHERE pr.power_rating IS NOT NULL 
+        AND p.is_ringer = false  -- Exclude ringers from historical blocks to avoid percentile calculation issues
     ),
-    ---------------------------------------------------------------------
-    -- 5.  Build historical JSON blocks
-    ---------------------------------------------------------------------
+    -------------------------------------------------------------------------
+    -- 6.  Global historical bounds for capping trends - exclude ringers from bounds calculation
+    -------------------------------------------------------------------------
+    historical_dist AS (
+        SELECT 
+            COALESCE(MIN(pr.power_rating), 0) AS min_power,
+            COALESCE(MAX(pr.power_rating), 0) AS max_power,
+            COALESCE(MIN(pr.goal_threat), 0) AS min_threat,
+            COALESCE(MAX(pr.goal_threat), 0) AS max_threat,
+            COALESCE(MIN(pr.participation), 0) AS min_part,
+            COALESCE(MAX(pr.participation), 100) AS max_part
+        FROM period_rates pr
+        JOIN players p ON p.player_id = pr.player_id
+        WHERE pr.power_rating IS NOT NULL
+        AND p.is_ringer = false  -- Exclude ringers from bounds calculation
+    ),
+    -------------------------------------------------------------------------
+    -- 7.  Build historical JSON blocks
+    -------------------------------------------------------------------------
     blocks AS (
-            SELECT
+        SELECT
             player_id,
             jsonb_agg(jsonb_build_object(
                 'start_date',               period_start,
@@ -125,65 +164,84 @@ BEGIN
         FROM period_pct
         GROUP BY player_id
     ),
-    ---------------------------------------------------------------------
-    -- 6.  Trend calculation (proper regression + 6-month projection)
-    ---------------------------------------------------------------------
+    blocks_full AS (
+        SELECT
+            ap.player_id,
+            COALESCE(b.block_json, '[]'::jsonb) AS block_json
+        FROM all_players ap
+        LEFT JOIN blocks b ON b.player_id = ap.player_id
+    ),
+    -------------------------------------------------------------------------
+    -- 8.  Trend calculation (regression using period sequence + 1-period projection)
+    -------------------------------------------------------------------------
     trend_core AS (
         SELECT
             player_id,
-            REGR_SLOPE(power_rating, EXTRACT(EPOCH FROM period_end)) OVER w_agg       AS rating_slope,
-            REGR_SLOPE(goal_threat , EXTRACT(EPOCH FROM period_end)) OVER w_agg       AS threat_slope,
-            REGR_SLOPE(participation, EXTRACT(EPOCH FROM period_end)) OVER w_agg      AS part_slope,
-            FIRST_VALUE(power_rating)  OVER w_first                               AS latest_rating,
-            FIRST_VALUE(goal_threat)   OVER w_first                               AS latest_threat,
-            FIRST_VALUE(participation) OVER w_first                               AS latest_part
-        FROM period_rates
-        WHERE power_rating IS NOT NULL
+            COALESCE(REGR_SLOPE(power_rating, period_index) OVER w_agg, 0)       AS rating_slope,
+            COALESCE(REGR_SLOPE(goal_threat , period_index) OVER w_agg, 0)       AS threat_slope,
+            COALESCE(REGR_SLOPE(participation, period_index) OVER w_agg, 0)      AS part_slope,
+            FIRST_VALUE(power_rating) OVER w_first   AS latest_rating,
+            FIRST_VALUE(goal_threat) OVER w_first    AS latest_threat,
+            FIRST_VALUE(participation) OVER w_first  AS latest_part
+        FROM period_seq
         WINDOW 
-            w_agg AS (PARTITION BY player_id),  -- No ORDER BY: aggregates over entire partition
+            w_agg   AS (PARTITION BY player_id),
             w_first AS (PARTITION BY player_id ORDER BY period_end DESC)
     ),
     trend_final AS (
-        SELECT DISTINCT ON (player_id)
-            player_id,
-            latest_rating + rating_slope * 15778463 AS trend_rating,
-            latest_threat + threat_slope * 15778463 AS trend_goal_threat,
-            latest_part   + part_slope   * 15778463 AS trend_participation
-        FROM trend_core
-        ORDER BY player_id  -- Make DISTINCT ON deterministic
+        SELECT DISTINCT ON (tc.player_id)
+            tc.player_id,
+            GREATEST(hd.min_power, LEAST(hd.max_power, COALESCE(tc.latest_rating, 0) + tc.rating_slope * 1)) AS trend_rating,
+            GREATEST(hd.min_threat, LEAST(hd.max_threat, COALESCE(tc.latest_threat, 0) + tc.threat_slope * 1)) AS trend_goal_threat,
+            GREATEST(hd.min_part, LEAST(hd.max_part, COALESCE(tc.latest_part, 0) + tc.part_slope * 1)) AS trend_participation
+        FROM trend_core tc
+        CROSS JOIN historical_dist hd
+        ORDER BY tc.player_id
     ),
     trend_pct AS (
         SELECT
             tf.*,
             CASE WHEN MAX(trend_rating) OVER () = MIN(trend_rating) OVER ()
                  THEN 50
-                 ELSE width_bucket(trend_rating,
-                        MIN(trend_rating) OVER (),
-                        MAX(trend_rating) OVER (), 99)::float END AS power_rating_percentile,
+                 ELSE width_bucket(trend_rating, MIN(trend_rating) OVER (), MAX(trend_rating) OVER (), 99)::float
+            END AS power_rating_percentile,
             CASE WHEN MAX(trend_goal_threat) OVER () = MIN(trend_goal_threat) OVER ()
                  THEN 50
-                 ELSE width_bucket(trend_goal_threat,
-                        MIN(trend_goal_threat) OVER (),
-                        MAX(trend_goal_threat) OVER (), 99)::float END AS goal_threat_percentile
+                 ELSE width_bucket(trend_goal_threat, MIN(trend_goal_threat) OVER (), MAX(trend_goal_threat) OVER (), 99)::float
+            END AS goal_threat_percentile
         FROM trend_final tf
+    ),
+    trend_pct_full AS (
+        SELECT
+            ap.player_id,
+            COALESCE(tp.trend_rating, 0) AS trend_rating,
+            COALESCE(tp.trend_goal_threat, 0) AS trend_goal_threat,
+            COALESCE(tp.trend_participation, 0) AS trend_participation,
+            COALESCE(tp.power_rating_percentile, 50) AS power_rating_percentile,
+            COALESCE(tp.goal_threat_percentile, 50) AS goal_threat_percentile
+        FROM all_players ap
+        LEFT JOIN trend_pct tp ON tp.player_id = ap.player_id
     ),
     upsert_trends AS (
         INSERT INTO aggregated_player_power_ratings AS apr
-               (player_id,
-                rating, variance, effective_games,        -- mandatory NOT NULL columns
-                trend_rating, trend_goal_threat, trend_participation,
-                power_rating_percentile, goal_threat_percentile,
-                updated_at)
-        SELECT player_id,
-                0          AS rating,        -- default base rating for new players
-                0          AS variance,
-                0          AS effective_games,
-                trend_rating, trend_goal_threat, trend_participation,
-                power_rating_percentile, goal_threat_percentile,
-                NOW()
-        FROM trend_pct
+            (player_id, rating, variance, effective_games, -- mandatory NOT NULL columns
+             trend_rating, trend_goal_threat, trend_participation,
+             power_rating_percentile, goal_threat_percentile, updated_at)
+        SELECT
+            player_id,
+            0 AS rating,        -- default base rating for new players
+            0 AS variance,
+            0 AS effective_games,
+            trend_rating,
+            trend_goal_threat,
+            trend_participation,
+            power_rating_percentile,
+            goal_threat_percentile,
+            NOW()
+        FROM trend_pct_full
         ON CONFLICT (player_id) DO UPDATE
-        SET trend_rating            = EXCLUDED.trend_rating,
+        SET
+            trend_rating            = EXCLUDED.trend_rating,
             trend_goal_threat       = EXCLUDED.trend_goal_threat,
             trend_participation     = EXCLUDED.trend_participation,
             power_rating_percentile = EXCLUDED.power_rating_percentile,
@@ -191,19 +249,22 @@ BEGIN
             updated_at              = NOW()
         RETURNING player_id
     )
-    ---------------------------------------------------------------------
-    -- 7.  Upsert historical blocks (and ensure trends CTE executes)
-    ---------------------------------------------------------------------
+    -------------------------------------------------------------------------
+    -- 9.  Upsert historical blocks (and ensure trends CTE executes) 
+    -------------------------------------------------------------------------
     INSERT INTO aggregated_half_season_stats AS ahs
           (player_id, historical_blocks)
-    SELECT b.player_id, b.block_json
-    FROM blocks b
-    WHERE EXISTS (SELECT 1 FROM upsert_trends ut WHERE ut.player_id = b.player_id)
-    UNION ALL
-    SELECT b.player_id, b.block_json  
-    FROM blocks b
-    WHERE NOT EXISTS (SELECT 1 FROM upsert_trends ut WHERE ut.player_id = b.player_id)
+    SELECT player_id, block_json
+    FROM blocks_full
     ON CONFLICT (player_id) DO UPDATE
     SET historical_blocks = EXCLUDED.historical_blocks;
+
+    -- Update cache metadata to track when this function last ran
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
+    VALUES ('player_power_rating', NOW(), 'function_execution')
+    ON CONFLICT (cache_key) DO UPDATE
+    SET last_invalidated = NOW(),
+        dependency_type = 'function_execution';
+
 END;
 $$; 

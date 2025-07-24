@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Select from '@/components/ui-kit/Select.component';
+// Temporarily removed Select import to avoid TypeScript issues
 
 interface Player {
   player_id: number;
@@ -58,7 +58,8 @@ export const RatingDataView: React.FC = () => {
           console.warn('No players found in response');
         }
         
-        setPlayers(playerArray.filter(p => !p.isRinger));
+        // Include ringers in debugging view - they have power rating data too
+        setPlayers(playerArray);
       } catch (err) {
         console.error('Error fetching players:', err);
         setError(err instanceof Error ? err.message : 'Failed to load players');
@@ -139,7 +140,10 @@ export const RatingDataView: React.FC = () => {
                 </th>
                 
                 {/* Period Headers */}
-                {ratingData.historical_blocks.map((block, i) => (
+                {ratingData.historical_blocks
+                  .slice()
+                  .sort((a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime())
+                  .map((block, i) => (
                   <th 
                     key={i}
                     className="px-3 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-help relative"
@@ -170,7 +174,10 @@ export const RatingDataView: React.FC = () => {
                     <h6 className="mb-0 leading-normal text-sm font-medium text-slate-700">Power Rating</h6>
                   </div>
                 </td>
-                {ratingData.historical_blocks.map((block, i) => (
+                {ratingData.historical_blocks
+                  .slice()
+                  .sort((a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime())
+                  .map((block, i) => (
                   <td key={i} className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">
                       {isPercentile 
@@ -197,7 +204,10 @@ export const RatingDataView: React.FC = () => {
                     <h6 className="mb-0 leading-normal text-sm font-medium text-slate-700">Goal Threat</h6>
                   </div>
                 </td>
-                {ratingData.historical_blocks.map((block, i) => (
+                {ratingData.historical_blocks
+                  .slice()
+                  .sort((a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime())
+                  .map((block, i) => (
                   <td key={i} className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">
                       {isPercentile 
@@ -224,7 +234,10 @@ export const RatingDataView: React.FC = () => {
                     <h6 className="mb-0 leading-normal text-sm font-medium text-slate-700">Attendance</h6>
                   </div>
                 </td>
-                {ratingData.historical_blocks.map((block, i) => (
+                {ratingData.historical_blocks
+                  .slice()
+                  .sort((a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime())
+                  .map((block, i) => (
                   <td key={i} className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                     <span className="font-normal leading-normal text-sm">
                       {isPercentile 
@@ -245,6 +258,37 @@ export const RatingDataView: React.FC = () => {
               </tr>
             </tbody>
           </table>
+        </div>
+      ) : ratingData && ratingData.trend_rating !== undefined && ratingData.trend_rating !== null ? (
+        /* Special display for ringers - current trend values only */
+        <div className="p-5">
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <h6 className="mb-2 text-sm font-semibold text-amber-800">Ringer - Current Trend Values Only</h6>
+            <p className="text-xs text-amber-700">No historical data available, but current trend values are calculated for team balancing.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h6 className="text-xs font-bold uppercase text-slate-400 mb-2">Power Rating</h6>
+              <div className="text-2xl font-bold text-slate-700">
+                {isPercentile ? `${(ratingData.power_rating_percentile || 50).toFixed(0)}%` : (ratingData.trend_rating || 0).toFixed(2)}
+              </div>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h6 className="text-xs font-bold uppercase text-slate-400 mb-2">Goal Threat</h6>
+              <div className="text-2xl font-bold text-slate-700">
+                {isPercentile ? `${(ratingData.goal_threat_percentile || 50).toFixed(0)}%` : (ratingData.trend_goal_threat || 0).toFixed(3)}
+              </div>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h6 className="text-xs font-bold uppercase text-slate-400 mb-2">Attendance</h6>
+              <div className="text-2xl font-bold text-slate-700">
+                {isPercentile ? '50%' : `${(ratingData.trend_participation || 0).toFixed(0)}%`}
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-center p-5">
@@ -269,52 +313,58 @@ export const RatingDataView: React.FC = () => {
         <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
             <div className="flex items-center gap-4">
-              <div className="w-64">
-                {error && (
+        <div className="w-64">
+          {error && (
                   <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                    Error: {error}
-                  </div>
-                )}
-                <Select
-                  label="Player"
-                  value={selectedPlayer}
-                  onChange={e => setSelectedPlayer(e.target.value)}
-                  options={players.map(p => ({ 
-                    value: p.player_id.toString(), 
-                    label: p.name 
-                  }))}
-                  isLoading={loading}
-                />
-                {players.length === 0 && !loading && !error && (
+              Error: {error}
+            </div>
+          )}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Player</label>
+            <select
+            value={selectedPlayer}
+            onChange={e => setSelectedPlayer(e.target.value)}
+              disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select a player...</option>
+              {players.map(p => (
+                <option key={p.player_id} value={p.player_id.toString()}>
+                  {p.name} {p.isRinger ? '(Ringer)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          {players.length === 0 && !loading && !error && (
                   <div className="text-slate-400 text-sm mt-1">
-                    No players found
-                  </div>
-                )}
-              </div>
+              No players found
+            </div>
+          )}
+        </div>
               
               {selectedPlayer && (
                 <div className="flex items-center text-slate-600">
                   <h5 className="mb-0 font-semibold">
                     {players.find(p => p.player_id.toString() === selectedPlayer)?.name}
                   </h5>
-                </div>
+        </div>
               )}
-            </div>
+      </div>
 
-            {dataError && (
+      {dataError && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                Error loading data: {dataError}
-              </div>
-            )}
+          Error loading data: {dataError}
+        </div>
+      )}
 
-            {dataLoading && (
+      {dataLoading && (
               <div className="mt-4 flex items-center justify-center py-4">
                 <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
                   <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
                 </div>
                 <span className="ml-2 text-slate-600">Loading player data...</span>
               </div>
-            )}
+      )}
           </div>
         </div>
       </div>

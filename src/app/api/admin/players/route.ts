@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     let players;
     
     if (includeMatchCounts) {
-      // Fetch players with match counts
+      // Fetch players with match counts - exclude retired players from admin debugging
       players = await prisma.$queryRaw`
         SELECT 
           p.*,
@@ -25,14 +25,18 @@ export async function GET(request: Request) {
           players p
         LEFT JOIN 
           player_matches pm ON p.player_id = pm.player_id
+        WHERE p.is_retired = false
         GROUP BY 
           p.player_id
         ORDER BY 
           p.name ASC
       `;
     } else {
-      // Just fetch players without match counts
+      // Just fetch players without match counts - exclude retired players from admin debugging
       players = await prisma.players.findMany({
+        where: {
+          is_retired: false,
+        },
         orderBy: {
           name: 'asc',
         },

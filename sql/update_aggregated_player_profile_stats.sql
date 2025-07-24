@@ -40,7 +40,7 @@ BEGIN
         FROM public.players p
         LEFT JOIN public.player_matches pm ON p.player_id = pm.player_id
         LEFT JOIN public.matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = FALSE
+        WHERE p.is_retired = FALSE
         GROUP BY p.player_id, p.name, p.selected_club
     ),
     -- 2. Most goals in a single game and the date it happened
@@ -132,7 +132,7 @@ BEGIN
             FROM public.player_matches pm 
             JOIN public.matches m ON pm.match_id = m.match_id
             JOIN public.players p ON pm.player_id = p.player_id
-            WHERE p.is_ringer = FALSE
+            WHERE p.is_retired = FALSE
         ),
         scoring_groups AS (
             SELECT 
@@ -173,7 +173,7 @@ BEGIN
             FROM public.players p
             CROSS JOIN all_matches am
             LEFT JOIN public.player_matches pm ON p.player_id = pm.player_id AND am.match_id = pm.match_id
-            WHERE p.is_ringer = FALSE
+            WHERE p.is_retired = FALSE
         ),
         attendance_groups AS (
             SELECT player_id, attended, seq, match_date, seq - ROW_NUMBER() OVER (PARTITION BY player_id, attended ORDER BY seq) as grp
