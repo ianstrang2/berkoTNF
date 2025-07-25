@@ -4,18 +4,19 @@ import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 
 // Define the list of Edge Functions to call and their associated cache tags
+// CRITICAL: call-update-power-ratings MUST run LAST to avoid historical_blocks being deleted
 const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> = [
-  { name: 'call-update-power-ratings', tag: CACHE_TAGS.PLAYER_POWER_RATING },
-  { name: 'call-update-all-time-stats', tag: CACHE_TAGS.ALL_TIME_STATS },
   { name: 'call-update-half-and-full-season-stats', tags: [CACHE_TAGS.SEASON_STATS, CACHE_TAGS.HALF_SEASON_STATS] },
+  { name: 'call-update-all-time-stats', tag: CACHE_TAGS.ALL_TIME_STATS },
   { name: 'call-update-hall-of-fame', tag: CACHE_TAGS.HALL_OF_FAME },
   { name: 'call-update-recent-performance', tag: CACHE_TAGS.RECENT_PERFORMANCE },
   { name: 'call-update-season-honours-and-records', tag: CACHE_TAGS.HONOUR_ROLL },
   { name: 'call-update-match-report-cache', tag: CACHE_TAGS.MATCH_REPORT },
   { name: 'call-update-personal-bests', tag: CACHE_TAGS.PERSONAL_BESTS },
-  // Removed update_aggregated_player_power_rating as it's replaced by update_half_and_full_season_stats
   { name: 'call-update-player-profile-stats', tag: CACHE_TAGS.PLAYER_PROFILE },
-  { name: 'call-update-season-race-data', tag: CACHE_TAGS.SEASON_RACE_DATA }
+  { name: 'call-update-season-race-data', tag: CACHE_TAGS.SEASON_RACE_DATA },
+  // Removed update_aggregated_player_power_rating as it's replaced by update_half_and_full_season_stats
+  { name: 'call-update-power-ratings', tag: CACHE_TAGS.PLAYER_POWER_RATING } // MUST BE LAST
 ];
 
 // Simplified direct cache revalidation function

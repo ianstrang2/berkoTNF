@@ -68,10 +68,12 @@ interface PlayerTrends {
 
 ## Percentile Calculation
 - Calculated separately for each 6-month period
-- Uses width_bucket for 1-99 range
+- Uses PERCENT_RANK for true relative percentiles that reflect actual league standings
+- Formula: `ROUND((PERCENT_RANK() OVER (PARTITION BY period ORDER BY metric ASC) * 100)::numeric, 1)`
 - Defaults to 50 when all values in a period are equal
 - Only calculated after raw values are finalized
 - Never used in trend calculations
+- **Fixed Issue**: Previously used `width_bucket()` which gave bucket positions rather than true percentile rankings
 
 ## Edge Cases
 
@@ -98,6 +100,12 @@ interface PlayerTrends {
 - No temporary tables - pure CTE pipeline
 - Proper error handling for edge cases
 - Cache invalidation on updates
+
+### Execution Dependencies
+- **Critical**: `update_power_ratings()` must run AFTER `update_half_and_full_season_stats()`
+- **Reason**: Basic stats function deletes/rebuilds `aggregated_half_season_stats`, removing `historical_blocks`
+- **Current Solution**: Execution order enforced in `trigger-stats-update` API route
+- **Future**: Architectural separation needed for robust data ownership
 
 ## Recent Fixes (v5.1)
 
@@ -160,12 +168,33 @@ interface PlayerTrends {
 - **Enhanced Ringer Display**: Added special debugging view for ringers showing current trend values in card format
 - **Validated Results**: Jude McKay (ringer) now shows trend_rating=3, trend_goal_threat=1.85, power_rating_percentile=34, goal_threat_percentile=100
 
-### Final Implementation Status (v5.4.3)
-- ✅ **Regular Players**: Full historical blocks + trend data in tabular format
+### Final Implementation Status (v5.4.4)
+- ✅ **Regular Players**: Full historical blocks + trend data with accurate percentile rankings
 - ✅ **Ringers**: Real trend values displayed in special card layout with amber warning indicator
 - ✅ **Retired Players**: Completely excluded from debugging interface
 - ✅ **Team Balancing**: Ringers now contribute meaningful data instead of zeros
-- ✅ **Data Integrity**: Historical blocks remain stable, percentile calculations unaffected by ringer anomalies
+- ✅ **Data Integrity**: Historical blocks remain stable through proper execution order
+- ✅ **Percentile Accuracy**: True rank-based percentiles using PERCENT_RANK() instead of width_bucket()
+- ⚠️ **Known Issue**: Fragile execution order dependency between update functions (architectural fix needed)
+
+## Critical Fixes (v5.4.4)
+
+### Percentile Calculation Accuracy Fix
+- **Issue**: `width_bucket()` approach gave bucket positions, not actual league percentile rankings
+- **Symptom**: Players with excellent performance (e.g., 7th out of 28) showed middle percentiles (47th)
+- **Root Cause**: `width_bucket()` divides value range into buckets, doesn't reflect rank-based standings
+- **Fix**: Replaced with `PERCENT_RANK()` for true rank-based percentiles
+- **Formula**: `ROUND((PERCENT_RANK() OVER (ORDER BY metric ASC) * 100)::numeric, 1)`
+- **Result**: 7th place out of 28 players now correctly shows ~78th percentile instead of 47th
+- **Impact**: Both historical period percentiles AND trend percentiles now accurately reflect league standings
+
+### Function Execution Order Dependency
+- **Issue**: `update_half_and_full_season_stats()` deletes all `aggregated_half_season_stats` data, including `historical_blocks` populated by `update_power_ratings()`
+- **Symptom**: Players showing as "ringers" with empty historical data after stats updates
+- **Root Cause**: `DELETE FROM aggregated_half_season_stats WHERE TRUE;` removes complex analytics data
+- **Temporary Fix**: Moved `call-update-power-ratings` to run LAST in execution order
+- **Location**: `src/app/api/admin/trigger-stats-update/route.ts` - reordered `FUNCTIONS_TO_CALL` array
+- **Future**: Requires architectural separation of basic stats vs complex analytics data
 
 ## Critical Fixes (v5.2)
 

@@ -103,23 +103,26 @@ BEGIN
             CASE WHEN MAX(pr.power_rating) OVER (PARTITION BY pr.period_start)
                      = MIN(pr.power_rating) OVER (PARTITION BY pr.period_start)
                  THEN 50
-                 ELSE width_bucket(pr.power_rating,
-                        MIN(pr.power_rating) OVER (PARTITION BY pr.period_start),
-                        MAX(pr.power_rating) OVER (PARTITION BY pr.period_start), 99)::float
+                 ELSE ROUND((PERCENT_RANK() OVER (
+                        PARTITION BY pr.period_start 
+                        ORDER BY pr.power_rating ASC
+                    ) * 100)::numeric, 1)
             END AS power_rating_pct,
             CASE WHEN MAX(pr.goal_threat) OVER (PARTITION BY pr.period_start)
                      = MIN(pr.goal_threat) OVER (PARTITION BY pr.period_start)
                  THEN 50
-                 ELSE width_bucket(pr.goal_threat,
-                        MIN(pr.goal_threat) OVER (PARTITION BY pr.period_start),
-                        MAX(pr.goal_threat) OVER (PARTITION BY pr.period_start), 99)::float
+                 ELSE ROUND((PERCENT_RANK() OVER (
+                        PARTITION BY pr.period_start 
+                        ORDER BY pr.goal_threat ASC
+                    ) * 100)::numeric, 1)
             END AS goal_threat_pct,
             CASE WHEN MAX(pr.participation) OVER (PARTITION BY pr.period_start)
                      = MIN(pr.participation) OVER (PARTITION BY pr.period_start)
                  THEN 50
-                 ELSE width_bucket(pr.participation,
-                        MIN(pr.participation) OVER (PARTITION BY pr.period_start),
-                        MAX(pr.participation) OVER (PARTITION BY pr.period_start), 99)::float
+                 ELSE ROUND((PERCENT_RANK() OVER (
+                        PARTITION BY pr.period_start 
+                        ORDER BY pr.participation ASC
+                    ) * 100)::numeric, 1)
             END AS participation_pct
         FROM period_rates pr
         JOIN players p ON p.player_id = pr.player_id
@@ -201,14 +204,8 @@ BEGIN
     trend_pct AS (
         SELECT
             tf.*,
-            CASE WHEN MAX(trend_rating) OVER () = MIN(trend_rating) OVER ()
-                 THEN 50
-                 ELSE width_bucket(trend_rating, MIN(trend_rating) OVER (), MAX(trend_rating) OVER (), 99)::float
-            END AS power_rating_percentile,
-            CASE WHEN MAX(trend_goal_threat) OVER () = MIN(trend_goal_threat) OVER ()
-                 THEN 50
-                 ELSE width_bucket(trend_goal_threat, MIN(trend_goal_threat) OVER (), MAX(trend_goal_threat) OVER (), 99)::float
-            END AS goal_threat_percentile
+            ROUND((PERCENT_RANK() OVER (ORDER BY trend_rating ASC) * 100)::numeric, 1) AS power_rating_percentile,
+            ROUND((PERCENT_RANK() OVER (ORDER BY trend_goal_threat ASC) * 100)::numeric, 1) AS goal_threat_percentile
         FROM trend_final tf
     ),
     trend_pct_full AS (

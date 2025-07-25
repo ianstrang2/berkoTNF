@@ -35,20 +35,26 @@ const getPlayerTrends = unstable_cache(
 
     // Process historical blocks into sparkline data (empty array if no historical data)
     const blocks = historicalData?.historical_blocks || [];
-    const sparklineData = blocks.slice(-6).map((block: any) => {
-        if (!block || block.games_played < 3) {
-            return null;
-        }
-        return {
-            period: block.start_date.substring(0, 7),
-            power_rating: block.power_rating,
-            goal_threat: block.goal_threat,
-            power_rating_percentile: block.power_rating_percentile,
-            goal_threat_percentile: block.goal_threat_percentile,
-            participation_percentile: block.participation_percentile,
-            games_played: block.games_played,
-        };
-    }).filter(Boolean);
+    const sparklineData = blocks
+        .map((block: any) => {
+            if (!block || block.games_played < 3) {
+                return null;
+            }
+            return {
+                period: block.start_date.substring(0, 7),
+                start_date: block.start_date,
+                end_date: block.end_date,
+                power_rating: block.power_rating,
+                goal_threat: block.goal_threat,
+                participation: block.participation,
+                power_rating_percentile: block.power_rating_percentile,
+                goal_threat_percentile: block.goal_threat_percentile,
+                participation_percentile: block.participation_percentile,
+                games_played: block.games_played,
+            };
+        })
+        .filter(Boolean)
+        .reverse(); // Reverse to show oldest-first chronological progression for sparkline
 
     const dbPlayer = { ...trendData, ...trendData.players };
     const transformedPlayer = toPlayerWithTrend(dbPlayer);
@@ -58,7 +64,7 @@ const getPlayerTrends = unstable_cache(
       sparkline_data: sparklineData,
     };
   },
-  ['player_trends_v4'], // Updated cache key for ringer fix
+  ['player_trends_v5'], // Updated cache key for percentile fix and sparkline data correction
   {
     tags: [CACHE_TAGS.PLAYER_POWER_RATING],
   }
