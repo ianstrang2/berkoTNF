@@ -686,10 +686,35 @@ BEGIN
                         pm.player_id,
                         p.name as player_name,
                         (v_streaks_json->i->>'streak_count')::int as new_value,
-                        COALESCE((current_records.records->'streaks'->'Win Streak'->0->>'streak')::int, 0) as current_record,
                         CASE 
-                            WHEN (v_streaks_json->i->>'streak_count')::int > COALESCE((current_records.records->'streaks'->'Win Streak'->0->>'streak')::int, 0) THEN 'broken'
-                            WHEN (v_streaks_json->i->>'streak_count')::int = COALESCE((current_records.records->'streaks'->'Win Streak'->0->>'streak')::int, 0) AND (v_streaks_json->i->>'streak_count')::int >= v_win_streak_threshold THEN 'equaled'
+                            WHEN jsonb_typeof(current_records.records->'streaks'->'Win Streak'->'holders') = 'array' THEN
+                                COALESCE((
+                                    SELECT MAX((streak_holder->>'streak')::int) 
+                                    FROM jsonb_array_elements(current_records.records->'streaks'->'Win Streak'->'holders') AS streak_holder
+                                ), 0)
+                            ELSE 0
+                        END as current_record,
+                        CASE 
+                            WHEN (v_streaks_json->i->>'streak_count')::int > (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'streaks'->'Win Streak'->'holders') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'streaks'->'Win Streak'->'holders') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) THEN 'broken'
+                            WHEN (v_streaks_json->i->>'streak_count')::int = (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'streaks'->'Win Streak'->'holders') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'streaks'->'Win Streak'->'holders') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) AND (v_streaks_json->i->>'streak_count')::int >= v_win_streak_threshold THEN 'equaled'
                             ELSE NULL
                         END as status
                     FROM player_matches pm
@@ -710,10 +735,35 @@ BEGIN
                         pm.player_id,
                         p.name as player_name,
                         (v_streaks_json->i->>'streak_count')::int as new_value,
-                        COALESCE((current_records.records->'streaks'->'Losing Streak'->0->>'streak')::int, 0) as current_record,
                         CASE 
-                            WHEN (v_streaks_json->i->>'streak_count')::int > COALESCE((current_records.records->'streaks'->'Losing Streak'->0->>'streak')::int, 0) THEN 'broken'
-                            WHEN (v_streaks_json->i->>'streak_count')::int = COALESCE((current_records.records->'streaks'->'Losing Streak'->0->>'streak')::int, 0) AND (v_streaks_json->i->>'streak_count')::int >= v_loss_streak_threshold THEN 'equaled'
+                            WHEN jsonb_typeof(current_records.records->'streaks'->'Losing Streak'->'holders') = 'array' THEN
+                                COALESCE((
+                                    SELECT MAX((streak_holder->>'streak')::int) 
+                                    FROM jsonb_array_elements(current_records.records->'streaks'->'Losing Streak'->'holders') AS streak_holder
+                                ), 0)
+                            ELSE 0
+                        END as current_record,
+                        CASE 
+                            WHEN (v_streaks_json->i->>'streak_count')::int > (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'streaks'->'Losing Streak'->'holders') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'streaks'->'Losing Streak'->'holders') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) THEN 'broken'
+                            WHEN (v_streaks_json->i->>'streak_count')::int = (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'streaks'->'Losing Streak'->'holders') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'streaks'->'Losing Streak'->'holders') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) AND (v_streaks_json->i->>'streak_count')::int >= v_loss_streak_threshold THEN 'equaled'
                             ELSE NULL
                         END as status
                     FROM player_matches pm
