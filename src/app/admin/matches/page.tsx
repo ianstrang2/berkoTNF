@@ -334,16 +334,7 @@ const MatchListPageContent = () => {
           {view === 'active' ? renderActiveList() : renderHistoryList()}
         </div>
       )}
-      
-      {/* Mobile FAB for creating matches - only show on active view */}
-      {view === 'active' && (
-        <Button 
-          onClick={() => setIsNewMatchModalOpen(true)}
-          className="md:hidden fixed bottom-20 right-4 z-40 rounded-full w-14 h-14 bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md flex items-center justify-center"
-        >
-          <span className="text-xl font-bold">+</span>
-        </Button>
-      )}
+
       
       {/* New Match Modal */}
       <MatchModal 
