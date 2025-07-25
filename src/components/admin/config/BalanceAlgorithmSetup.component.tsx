@@ -451,7 +451,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
     <div className="w-full">
       <div className="mb-6">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-slate-700">Balance Algorithm Settings</h2>
+          <h2 className="font-bold text-[20px] leading-[28px]" style={{ fontFamily: '"Open Sans"', color: 'rgb(52, 71, 103)' }}>Balance Algorithm Settings</h2>
           <div className="flex gap-2">
             <Button
               onClick={() => setShowResetConfirmation(true)}
@@ -516,7 +516,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
               return (
                 <div key={position} className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-medium text-slate-700">{getPositionName(position)}</h3>
+                    <h3 className="font-bold text-[20px] leading-[28px]" style={{ fontFamily: '"Open Sans"', color: 'rgb(52, 71, 103)' }}>{getPositionName(position)}</h3>
                     {isPositionGroup && (
                       <div className="text-sm text-gray-500">
                         Total: <span className={Math.abs(positionTotal! - 1) > 0.001 ? 'text-amber-500 font-medium' : 'text-gray-500'}>

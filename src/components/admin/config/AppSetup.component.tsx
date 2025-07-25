@@ -1,5 +1,5 @@
 import React from 'react';
-import BalanceAlgorithmSetup from './BalanceAlgorithmSetup.component';
+import BalanceSetupTabs from './BalanceSetupTabs.component';
 import TeamTemplates from '../team/TeamTemplates.component';
 import AppConfig from './AppConfig.component';
 
@@ -29,7 +29,7 @@ const AppSetup: React.FC<AppSetupProps> = ({ initialSection = 'general' }) => {
               pageDescription="Configure fantasy points, match report criteria, and table-related settings."
             />}
           {initialSection === 'templates' && <TeamTemplates />}
-          {initialSection === 'balancing' && <BalanceAlgorithmSetup />}
+          {initialSection === 'balancing' && <BalanceSetupTabs />}
         </div>
       </div>
     </div>

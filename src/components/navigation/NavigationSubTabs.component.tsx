@@ -54,32 +54,29 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
           ];
         
         case 'setup':
-          return [
-              {
-                  key: 'general',
-                  label: 'General',
-                  href: '/admin/setup?section=general',
-                  active: !currentView || currentView === 'general'
-              },
-              {
-                  key: 'stats',
-                  label: 'Stats',
-                  href: '/admin/setup?section=stats',
-                  active: currentView === 'stats'
-              },
-              {
-                  key: 'templates',
-                  label: 'Templates',
-                  href: '/admin/setup?section=templates',
-                  active: currentView === 'templates'
-              },
-              {
-                  key: 'balancing',
-                  label: 'Balancing',
-                  href: '/admin/setup?section=balancing',
-                  active: currentView === 'balancing'
-              }
-          ]
+          // Get the current section from search params
+          const currentSection = searchParams?.get('section') || 'general';
+          
+          // Only show tertiary navigation when in balancing section
+          if (currentSection === 'balancing') {
+            return [
+                {
+                    key: 'rating',
+                    label: 'Rating',
+                    href: '/admin/setup?section=balancing&view=rating',
+                    active: !searchParams?.get('view') || searchParams?.get('view') === 'rating'
+                },
+                {
+                    key: 'performance',
+                    label: 'Performance',
+                    href: '/admin/setup?section=balancing&view=performance',
+                    active: searchParams?.get('view') === 'performance'
+                }
+            ];
+          }
+          
+          // No tertiary navigation for other setup sections
+          return [];
 
         default:
           return [];

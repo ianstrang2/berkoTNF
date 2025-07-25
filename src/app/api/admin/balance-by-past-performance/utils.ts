@@ -44,8 +44,27 @@ const IMPROVEMENT_THRESHOLD = 0.95; // 95% confidence threshold for accepting im
 
 export async function balanceByPastPerformance(
   _unused_supabaseClient: any, // Keep parameter for compatibility but don't use
-  playerIds: number[]
+  playerIds: number[],
+  performanceWeights?: { power_weight: number; goal_weight: number }
 ): Promise<TeamResult> {
+  // Get performance weights (use provided or fetch from database)
+  let weights = performanceWeights;
+  if (!weights) {
+    try {
+      const weightsResponse = await fetch('/api/admin/performance-weights');
+      if (weightsResponse.ok) {
+        const weightsData = await weightsResponse.json();
+        if (weightsData.success) {
+          weights = weightsData.data;
+        }
+      }
+    } catch (error) {
+      console.warn('Could not fetch performance weights from API, using fallback defaults:', error);
+    }
+    // Fallback only if fetch failed (should not happen after proper setup)
+    weights = weights || { power_weight: 0.5, goal_weight: 0.5 };
+  }
+
   // UPDATED: Use new EWMA performance ratings table
   const fetchedRatings = await prisma.aggregated_performance_ratings.findMany({
     where: {
@@ -57,9 +76,7 @@ export async function balanceByPastPerformance(
       goal_threat: true,     // Direct field (no trend_goal_threat) 
       participation: true,
       is_qualified: true,
-      weighted_played: true
-    },
-    include: {
+      weighted_played: true,
       players: {
         select: {
           is_ringer: true
@@ -79,7 +96,7 @@ export async function balanceByPastPerformance(
   );
 
   const leagueAvgGoalThreat = qualifiedRatings.length > 0 
-    ? qualifiedRatings.reduce((sum, p) => sum + (p.goal_threat || 0), 0) / qualifiedRatings.length
+    ? qualifiedRatings.reduce((sum, p) => sum + Number(p.goal_threat || 0), 0) / qualifiedRatings.length
     : 0.5; // Default fallback
 
   // UPDATED: Ringer-aware data mapping with qualification logic
@@ -91,11 +108,11 @@ export async function balanceByPastPerformance(
     
     return {
       player_id: id,
-      rating: useRealValues ? ratingData.power_rating : DEFAULT_RATING,
+      rating: useRealValues && ratingData ? Number(ratingData.power_rating) : DEFAULT_RATING,
       variance: DEFAULT_VARIANCE, // EWMA provides inherent confidence
-      goal_threat: useRealValues ? ratingData.goal_threat : leagueAvgGoalThreat,
-      trend_rating: useRealValues ? ratingData.power_rating : DEFAULT_RATING,
-      trend_goal_threat: useRealValues ? ratingData.goal_threat : leagueAvgGoalThreat,
+      goal_threat: useRealValues && ratingData ? Number(ratingData.goal_threat) : leagueAvgGoalThreat,
+      trend_rating: useRealValues && ratingData ? Number(ratingData.power_rating) : DEFAULT_RATING,
+      trend_goal_threat: useRealValues && ratingData ? Number(ratingData.goal_threat) : leagueAvgGoalThreat,
       league_avg_goal_threat: leagueAvgGoalThreat
     };
   });
@@ -163,8 +180,8 @@ export async function balanceByPastPerformance(
     const powerGapNormalized = powerPoolRange > 0 ? powerRange / powerPoolRange : 0;
     const goalGapNormalized = goalPoolRange > 0 ? goalRange / goalPoolRange : 0;
     
-    // Combined loss function (equal weighting)
-    const combinedLoss = powerGapNormalized + goalGapNormalized;
+    // Combined loss function (configurable weighting)
+    const combinedLoss = (powerGapNormalized * weights.power_weight) + (goalGapNormalized * weights.goal_weight);
     
     return {
       combinedLoss,
@@ -270,9 +287,25 @@ export async function balanceByPastPerformance(
   console.log(`Power totals - Team A: ${finalTotalsA.powerTotal.toFixed(2)}, Team B: ${finalTotalsB.powerTotal.toFixed(2)}, Gap: ${currentLoss.rawPowerGap.toFixed(2)}`);
   console.log(`Goal totals - Team A: ${finalTotalsA.goalTotal.toFixed(3)}, Team B: ${finalTotalsB.goalTotal.toFixed(3)}, Gap: ${currentLoss.rawGoalGap.toFixed(3)}`);
 
+  // ENHANCED: Position players by goal threat within each team
+  // Sort each team by goal threat (ascending) so highest goal threat is in highest slot
+  const sortedTeamA = currentTeamA.sort((a, b) => {
+    const playerA = playersData.find(p => p.player_id === a);
+    const playerB = playersData.find(p => p.player_id === b);
+    return (playerA?.trend_goal_threat || 0) - (playerB?.trend_goal_threat || 0);
+  });
+
+  const sortedTeamB = currentTeamB.sort((a, b) => {
+    const playerA = playersData.find(p => p.player_id === a);
+    const playerB = playersData.find(p => p.player_id === b);
+    return (playerA?.trend_goal_threat || 0) - (playerB?.trend_goal_threat || 0);
+  });
+
+  console.log('Goal threat positioning applied - highest goal threat players in highest slots');
+
   return {
-    teamA: currentTeamA,
-    teamB: currentTeamB,
+    teamA: sortedTeamA,
+    teamB: sortedTeamB,
     balancePercent,
     totalA: finalTotalsA.powerTotal,
     totalB: finalTotalsB.powerTotal,

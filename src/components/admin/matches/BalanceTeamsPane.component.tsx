@@ -8,7 +8,8 @@ import { GripVertical, Copy, Trash2 } from 'lucide-react';
 import BalanceOptionsModal from './BalanceOptionsModal.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import TornadoChart from '@/components/team/TornadoChart.component';
-import { calculateTeamStatsFromPlayers } from '@/utils/teamStatsCalculation.util';
+import PerformanceTornadoChart from '@/components/team/PerformanceTornadoChart.component';
+import { calculateTeamStatsFromPlayers, calculatePerformanceTeamStats } from '@/utils/teamStatsCalculation.util';
 
 type Team = 'A' | 'B' | 'Unassigned';
 
@@ -171,6 +172,7 @@ const BalanceTeamsPane = ({
   
   // New state for TornadoChart integration
   const [balanceWeights, setBalanceWeights] = useState<any>(null);
+  const [performanceWeightsState, setPerformanceWeightsState] = useState<any>(null);
   const [balanceMethod, setBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(null);
   const [isTeamsModified, setIsTeamsModified] = useState<boolean>(false);
 
@@ -245,12 +247,13 @@ const BalanceTeamsPane = ({
 
   // Fetch balance weights for TornadoChart
   useEffect(() => {
-    const fetchBalanceWeights = async () => {
+    const fetchWeights = async () => {
       try {
-        const response = await fetch('/api/admin/balance-algorithm');
-        const result = await response.json();
+        // Fetch rating algorithm weights
+        const balanceResponse = await fetch('/api/admin/balance-algorithm');
+        const balanceResult = await balanceResponse.json();
         
-        if (result.success && result.data) {
+        if (balanceResult.success && balanceResult.data) {
           // Transform to TornadoChart format
           const formattedWeights = {
             defense: {},
@@ -258,7 +261,7 @@ const BalanceTeamsPane = ({
             attack: {}
           };
           
-          result.data.forEach((weight: any) => {
+          balanceResult.data.forEach((weight: any) => {
             const group = weight.description;     // ✅ Use 'description' field
             const attribute = weight.name;        // ✅ Use 'name' field
             if (group && attribute && formattedWeights[group as keyof typeof formattedWeights]) {
@@ -266,19 +269,23 @@ const BalanceTeamsPane = ({
             }
           });
           
-          // Debug logging
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Fetched balance weights:', formattedWeights);
-          }
-          
           setBalanceWeights(formattedWeights);
         }
+
+        // Fetch performance algorithm weights
+        const performanceResponse = await fetch('/api/admin/performance-weights');
+        const performanceResult = await performanceResponse.json();
+        
+        if (performanceResult.success && performanceResult.data) {
+          setPerformanceWeightsState(performanceResult.data);
+        }
+        
       } catch (error) {
-        console.error('Error fetching balance weights:', error);
+        console.error('Error fetching algorithm weights:', error);
       }
     };
     
-    fetchBalanceWeights();
+    fetchWeights();
   }, []);
 
   const { handleDragStart, handleDragOver, handleDrop } = useTeamDragAndDrop(
@@ -319,6 +326,42 @@ const BalanceTeamsPane = ({
     
     return { teamAStats, teamBStats };
   }, [isBalanced, balanceMethod, teamA, teamB, teamTemplate, teamSize, players]);
+
+  // Calculate performance-based team stats for Performance algorithm tornado chart
+  const performanceStatsData = useMemo(() => {
+    // Hide chart if teams are incomplete (players moved to pool)
+    if (teamA.length !== teamSize || teamB.length !== teamSize) {
+      return null;
+    }
+
+    // Show performance stats only for performance method
+    const shouldCalculate = balanceMethod === 'performance' || isBalanced;
+    if (!shouldCalculate || balanceMethod !== 'performance') return null;
+
+    const teamAStats = calculatePerformanceTeamStats(teamA);
+    const teamBStats = calculatePerformanceTeamStats(teamB);
+
+    return { teamAStats, teamBStats };
+  }, [isBalanced, balanceMethod, teamA, teamB, teamSize, players]);
+
+  // Performance weights - use fetched values or defaults
+  const performanceWeights = useMemo(() => {
+    if (performanceWeightsState) {
+      return {
+        performance: {
+          powerRating: performanceWeightsState.power_weight || 0.5,
+          goalThreat: performanceWeightsState.goal_weight || 0.5
+        }
+      };
+    }
+    // Default values if not loaded yet
+    return {
+      performance: {
+        powerRating: 0.5,
+        goalThreat: 0.5
+      }
+    };
+  }, [performanceWeightsState]);
 
   const handleBalanceConfirm = async (method: 'ability' | 'performance' | 'random') => {
     setIsBalanceModalOpen(false);
@@ -507,6 +550,35 @@ const BalanceTeamsPane = ({
               </Card>
             </div>
           )}
+
+          {/* Performance TornadoChart - Desktop Only (Below Player Pool) */}
+          {balanceMethod === 'performance' && performanceStatsData && (
+            <div className="hidden md:block">
+              <Card>
+                <div className="p-3 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="font-bold text-slate-700 text-lg">Performance Balance Analysis</h2>
+                    {isTeamsModified && (
+                      <span className="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded-full">
+                        ⚠️ Teams Modified
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
+                    <PerformanceTornadoChart 
+                      teamAStats={performanceStatsData.teamAStats} 
+                      teamBStats={performanceStatsData.teamBStats} 
+                      weights={performanceWeights}
+                      teamSize={teamSize}
+                      isModified={isTeamsModified}
+                    />
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Teams */}
@@ -554,6 +626,35 @@ const BalanceTeamsPane = ({
                   teamAStats={teamStatsData.teamAStats} 
                   teamBStats={teamStatsData.teamBStats} 
                   weights={balanceWeights}
+                  teamSize={teamSize}
+                  isModified={isTeamsModified}
+                />
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Performance TornadoChart Analysis - Mobile Only (Full Width at Bottom) */}
+      {balanceMethod === 'performance' && performanceStatsData && (
+        <div className="md:hidden w-full mt-6">
+          <Card>
+            <div className="p-3 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h2 className="font-bold text-slate-700 text-lg">Performance Balance Analysis</h2>
+                {isTeamsModified && (
+                  <span className="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded-full">
+                    ⚠️ Teams Modified
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
+                <PerformanceTornadoChart 
+                  teamAStats={performanceStatsData.teamAStats} 
+                  teamBStats={performanceStatsData.teamBStats} 
+                  weights={performanceWeights}
                   teamSize={teamSize}
                   isModified={isTeamsModified}
                 />

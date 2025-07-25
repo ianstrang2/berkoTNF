@@ -22,6 +22,12 @@ const defaultConfig: AppConfig = {
   goal_streak_threshold: 3,
   game_milestone_threshold: 50,
   goal_milestone_threshold: 50,
+  // Performance algorithm weights
+  performance_power_weight: 0.5,
+  performance_goal_weight: 0.5,
+  // Performance algorithm settings
+  performance_half_life_days: 730,
+  performance_qualification_threshold: 5,
   // Add other config keys and their defaults here
 };
 

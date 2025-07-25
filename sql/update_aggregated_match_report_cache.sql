@@ -29,7 +29,6 @@ DECLARE
     v_window_days INT;                  -- NEW: For configurable window
     v_min_games INT;                    -- NEW: For configurable minimum games
     -- NEW: Feat-breaking detection config variables
-    v_feat_breaking_enabled BOOLEAN;
     v_win_streak_threshold INT;
     v_unbeaten_streak_threshold INT;
     v_loss_streak_threshold INT;
@@ -48,7 +47,6 @@ BEGIN
     milestone_goal_threshold := get_config_value('goal_milestone_threshold', '25')::int;
     
     -- NEW: Fetch feat-breaking detection config (using existing config keys)
-    v_feat_breaking_enabled := get_config_value('feat_breaking_enabled', 'true')::boolean;
     v_win_streak_threshold := get_config_value('win_streak_threshold', '4')::int;
     v_unbeaten_streak_threshold := get_config_value('unbeaten_streak_threshold', '6')::int;
     v_loss_streak_threshold := get_config_value('loss_streak_threshold', '4')::int;
@@ -75,8 +73,8 @@ BEGIN
         v_min_games := 4; -- Fallback on any error
     END;
     
-    RAISE NOTICE 'Using config: game_milestone=%, goal_milestone=%, window_days=%, min_games=%, feat_breaking_enabled=%', 
-        milestone_game_threshold, milestone_goal_threshold, v_window_days, v_min_games, v_feat_breaking_enabled;
+    RAISE NOTICE 'Using config: game_milestone=%, goal_milestone=%, window_days=%, min_games=%', 
+        milestone_game_threshold, milestone_goal_threshold, v_window_days, v_min_games;
 
     -- 1. Get Latest Match
     SELECT * INTO latest_match
@@ -651,9 +649,8 @@ BEGIN
         v_season_fantasy_leaders,
         v_on_fire_player_id,
         v_grim_reaper_player_id,
-        -- NEW: Feat Breaking Detection Logic
-        CASE 
-            WHEN v_feat_breaking_enabled THEN (
+        -- NEW: Feat Breaking Detection Logic (Always Enabled)
+        (
                 WITH current_records AS (
                     SELECT records FROM aggregated_records 
                     ORDER BY last_updated DESC LIMIT 1
@@ -812,9 +809,7 @@ BEGIN
                 ), '[]'::jsonb)
                 FROM feat_breaking_candidates
                 WHERE status IS NOT NULL
-            )
-            ELSE '[]'::jsonb
-        END, -- End feat_breaking_data
+        ), -- End feat_breaking_data
         v_streaks_json,      -- NEW: Store calculated streaks
         v_goal_streaks_json, -- NEW: Store calculated goal streaks
         NOW()

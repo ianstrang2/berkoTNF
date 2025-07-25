@@ -94,6 +94,59 @@ export const calculateTeamStatsFromPlayers = (
 };
 
 /**
+ * Performance-based team stats for TornadoChart (Power Rating + Goal Threat only)
+ */
+export interface PerformanceStats {
+  powerRating: number;
+  goalThreat: number;
+}
+
+export interface PerformanceTeamStats {
+  powerRating: number;
+  goalThreat: number;
+  playerCount: number;
+}
+
+/**
+ * Calculates performance-based team statistics from PlayerInPool arrays
+ * Used for Performance algorithm tornado chart (2 metrics only)
+ * 
+ * Note: This is a placeholder for UI calculations. In production, this should fetch
+ * actual performance data from aggregated_performance_ratings table.
+ * For now, we approximate using player attributes until API integration is complete.
+ */
+export const calculatePerformanceTeamStats = (
+  players: PlayerInPool[]
+): PerformanceTeamStats => {
+  if (players.length === 0) {
+    return {
+      powerRating: 0,
+      goalThreat: 0,
+      playerCount: 0
+    };
+  }
+
+  // TODO: Replace with actual database query to aggregated_performance_ratings
+  // This is a temporary approximation using available player attributes
+  const totalPowerRating = players.reduce((sum, p) => {
+    // Simplified composite rating - closer to how the algorithm works
+    const compositePower = (p.goalscoring + p.defending + p.staminaPace + p.control + p.teamwork + p.resilience) / 6;
+    return sum + compositePower;
+  }, 0);
+
+  const totalGoalThreat = players.reduce((sum, p) => {
+    // Use goalscoring as proxy for goal threat
+    return sum + p.goalscoring;
+  }, 0);
+
+  return {
+    powerRating: totalPowerRating / players.length,
+    goalThreat: totalGoalThreat / players.length,
+    playerCount: players.length
+  };
+};
+
+/**
  * Gets position labels with counts for display
  */
 export const getPositionLabels = (teamSize: number = 9, teamTemplate?: TeamTemplate) => {

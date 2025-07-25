@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
+import { balanceByPastPerformance } from '../balance-by-past-performance/utils';
 
-// This logic is extracted from the previous balance-by-past-performance route
-// and adapted for the consolidated endpoint.
+// This logic uses the sophisticated performance algorithm with configurable weights
 
 export async function balanceByPerformance(matchId: string, playerIds: string[]) {
   const matchIdInt = parseInt(matchId, 10);
@@ -21,45 +21,60 @@ export async function balanceByPerformance(matchId: string, playerIds: string[])
     throw new Error(`Not enough players. Expected ${requiredPlayerCount}, got ${playerIdsInt.length}.`);
   }
   
-  // Fetch performance stats for the given players
-  const playerStats = await prisma.aggregated_player_power_ratings.findMany({
-      where: {
-          player_id: { in: playerIdsInt }
+  // Fetch performance weights from app config
+  const performanceConfigs = await prisma.app_config.findMany({
+    where: {
+      config_key: {
+        in: ['performance_power_weight', 'performance_goal_weight']
       }
-  });
-
-  // Sort players by rating
-  const sortedPlayers = playerStats.sort((a, b) => b.rating.toNumber() - a.rating.toNumber());
-
-  // Distribute players into teams (snake draft method)
-  const teamA: typeof sortedPlayers = [];
-  const teamB: typeof sortedPlayers = [];
-  sortedPlayers.forEach((player, index) => {
-    if (index % 2 === 0) {
-      teamA.push(player);
-    } else {
-      teamB.push(player);
     }
   });
 
+  // Convert to expected format (no hardcoded defaults - values should exist in DB)
+  const performanceWeights = {
+    power_weight: 0.5, // fallback only if DB is missing data
+    goal_weight: 0.5   // fallback only if DB is missing data
+  };
+
+  performanceConfigs.forEach(config => {
+    if (config.config_key === 'performance_power_weight') {
+      performanceWeights.power_weight = parseFloat(config.config_value);
+    } else if (config.config_key === 'performance_goal_weight') {
+      performanceWeights.goal_weight = parseFloat(config.config_value);
+    }
+  });
+
+  // Warn if we're missing configs (should not happen after setup)
+  if (performanceConfigs.length !== 2) {
+    console.warn('Missing performance weight configs in database. Expected 2, found:', performanceConfigs.length);
+  }
+
+  // Use the sophisticated performance balancing algorithm
+  const result = await balanceByPastPerformance(null, playerIdsInt, performanceWeights);
+
+  // Convert to the expected assignment format for database update
   const assignments = [
-    ...teamA.map((p, i) => ({ player_id: p.player_id, team: 'A', slot_number: i + 1 })),
-    ...teamB.map((p, i) => ({ player_id: p.player_id, team: 'B', slot_number: i + 1 + match.team_size })),
+    ...result.teamA.map((playerId, i) => ({ 
+      player_id: playerId, 
+      team: 'A', 
+      slot_number: i + 1 
+    })),
+    ...result.teamB.map((playerId, i) => ({ 
+      player_id: playerId, 
+      team: 'B', 
+      slot_number: i + 1 + match.team_size 
+    })),
   ];
 
   // Atomically update the assignments
-  await prisma.$transaction(async (tx) => {
-    await tx.upcoming_match_players.deleteMany({
+  await prisma.$transaction([
+    prisma.upcoming_match_players.deleteMany({
       where: { upcoming_match_id: matchIdInt },
-    });
-    await tx.upcoming_match_players.createMany({
+    }),
+    prisma.upcoming_match_players.createMany({
       data: assignments.map(a => ({ ...a, upcoming_match_id: matchIdInt })),
-    });
-    await tx.upcoming_matches.update({
-      where: { upcoming_match_id: matchIdInt },
-      data: { is_balanced: true },
-    });
-  });
+    }),
+  ]);
 
-  return { message: "Teams balanced by performance." };
+  return { success: true, assignments };
 } 

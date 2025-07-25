@@ -1,5 +1,9 @@
 # 🛠 Match CRUD UI Enhancement Plan
 
+_Last updated: December 2024_
+
+**✅ Recent Update**: Match editing is now available at all stages before completion (previously restricted to Draft/PoolLocked states only). Users can now edit match dates and team sizes even when at the "Enter Results" stage.
+
 ## 📋 Overview
 
 The Match Control Centre (MCC) lifecycle system is fully implemented, but critical UI components for match management are missing. Users cannot:
@@ -312,7 +316,7 @@ const handleDeleteMatch = async () => {
 
 // Update renderMoreMenu function
 const renderMoreMenu = () => {
-  const canEdit = matchData.state === 'Draft' || matchData.state === 'PoolLocked';
+  const canEdit = matchData.state !== 'Completed';
   
   if (!hasMoreActions && !canEdit) {
     return null;
@@ -484,7 +488,7 @@ setTimeout(() => setEditSuccess(false), 2000);
 - [ ] Error handling shows in modal
 
 ### **Edit Match Flow**  
-- [ ] "Edit Match" appears in dropdown for Draft/PoolLocked states
+- [ ] "Edit Match" appears in dropdown for all states except Completed
 - [ ] Uses existing `MatchModal` with `isEditing={true}`
 - [ ] Team size restrictions work when players assigned
 - [ ] Success shows 2-second flash on 3-dot button

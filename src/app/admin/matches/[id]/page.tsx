@@ -156,7 +156,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
     return <div className="p-4 text-center">Loading match data...</div>;
   }
   
-  const canEdit = matchData?.state === 'Draft' || matchData?.state === 'PoolLocked';
+  const canEdit = matchData?.state !== 'Completed';
   const hasMoreActions = can('unlockPool') || can('unlockTeams') || can('undoComplete') || canEdit;
   
   const renderMoreMenu = () => {

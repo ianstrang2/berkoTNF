@@ -6,11 +6,25 @@
 CREATE OR REPLACE FUNCTION update_power_ratings()
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-    half_life CONSTANT numeric := 730;  -- 2-year half-life
-    lambda_val CONSTANT numeric := LN(2) / half_life;
+    half_life numeric;
+    lambda_val numeric;
     prior_weight CONSTANT numeric := 5;  -- Bayesian prior strength
-    qualification_threshold CONSTANT numeric := 5;  -- Qualification threshold
+    qualification_threshold numeric;
 BEGIN
+    -- Fetch configuration values from app_config table
+    SELECT COALESCE(
+        (SELECT config_value::numeric FROM app_config WHERE config_key = 'performance_half_life_days'),
+        730  -- Default: 2-year half-life
+    ) INTO half_life;
+    
+    SELECT COALESCE(
+        (SELECT config_value::numeric FROM app_config WHERE config_key = 'performance_qualification_threshold'), 
+        5   -- Default: minimum 5 games
+    ) INTO qualification_threshold;
+    
+    -- Calculate lambda from half_life
+    lambda_val := LN(2) / half_life;
+    
     -- Main EWMA calculation pipeline
     WITH all_players AS (
         SELECT player_id FROM players WHERE is_retired = false
