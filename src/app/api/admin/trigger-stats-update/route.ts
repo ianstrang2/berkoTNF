@@ -4,7 +4,7 @@ import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 
 // Define the list of Edge Functions to call and their associated cache tags
-// CRITICAL: call-update-power-ratings MUST run LAST to avoid historical_blocks being deleted
+// UPDATED: EWMA system has no execution order dependencies
 const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> = [
   { name: 'call-update-half-and-full-season-stats', tags: [CACHE_TAGS.SEASON_STATS, CACHE_TAGS.HALF_SEASON_STATS] },
   { name: 'call-update-all-time-stats', tag: CACHE_TAGS.ALL_TIME_STATS },
@@ -15,8 +15,8 @@ const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> 
   { name: 'call-update-personal-bests', tag: CACHE_TAGS.PERSONAL_BESTS },
   { name: 'call-update-player-profile-stats', tag: CACHE_TAGS.PLAYER_PROFILE },
   { name: 'call-update-season-race-data', tag: CACHE_TAGS.SEASON_RACE_DATA },
-  // Removed update_aggregated_player_power_rating as it's replaced by update_half_and_full_season_stats
-  { name: 'call-update-power-ratings', tag: CACHE_TAGS.PLAYER_POWER_RATING } // MUST BE LAST
+  // EWMA function - no position dependency
+  { name: 'call-update-power-ratings', tag: CACHE_TAGS.PLAYER_POWER_RATING }
 ];
 
 // Simplified direct cache revalidation function

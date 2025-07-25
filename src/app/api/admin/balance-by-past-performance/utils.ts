@@ -1,14 +1,15 @@
 import { prisma } from '@/lib/prisma';
 
-// Player rating interface for Supabase data
+// Player rating interface for new EWMA data
 interface PlayerRating {
   player_id: number;
-  rating: number | null;
-  variance: number | null;
+  power_rating: number | null;
   goal_threat: number | null;
-  trend_rating: number | null;
-  trend_goal_threat: number | null;
-  league_avg_goal_threat: number | null;
+  is_qualified: boolean | null;
+  weighted_played: number | null;
+  players?: {
+    is_ringer: boolean;
+  };
 }
 
 // Player data with 2-metric scores
@@ -45,20 +46,26 @@ export async function balanceByPastPerformance(
   _unused_supabaseClient: any, // Keep parameter for compatibility but don't use
   playerIds: number[]
 ): Promise<TeamResult> {
-  // FIXED: Use Prisma for fresh data instead of Supabase (prevents stale data issues)
-  const fetchedRatings = await prisma.aggregated_player_power_ratings.findMany({
+  // UPDATED: Use new EWMA performance ratings table
+  const fetchedRatings = await prisma.aggregated_performance_ratings.findMany({
     where: {
       player_id: { in: playerIds }
     },
     select: {
       player_id: true,
-      rating: true,
-      variance: true,
-      goal_threat: true,
-      trend_rating: true,
-      trend_goal_threat: true,
-      league_avg_goal_threat: true
-    } as any
+      power_rating: true,    // Direct field (no trend_rating)
+      goal_threat: true,     // Direct field (no trend_goal_threat) 
+      participation: true,
+      is_qualified: true,
+      weighted_played: true
+    },
+    include: {
+      players: {
+        select: {
+          is_ringer: true
+        }
+      }
+    }
   });
 
   if (!fetchedRatings) {
@@ -66,53 +73,29 @@ export async function balanceByPastPerformance(
     throw new Error('Failed to fetch player ratings for balancing.');
   }
 
-  const allPlayersWithRatings: PlayerRating[] = fetchedRatings.map(rating => ({
-    player_id: rating.player_id,
-    rating: (rating as any).rating,
-    variance: (rating as any).variance,
-    goal_threat: (rating as any).goal_threat,
-    trend_rating: (rating as any).trend_rating,
-    trend_goal_threat: (rating as any).trend_goal_threat,
-    league_avg_goal_threat: (rating as any).league_avg_goal_threat
-  }));
-
-  // Calculate league average for goal threat from fetched data
-  let leagueAvgGoalThreat = 0;
-  
-  // Use precomputed league average if available
-  const firstPlayerWithAverage = allPlayersWithRatings.find(p => 
-    p.league_avg_goal_threat !== null
+  // Calculate league average from qualified non-ringer players only
+  const qualifiedRatings = fetchedRatings.filter(p => 
+    p.is_qualified && !p.players?.is_ringer
   );
-  
-  if (firstPlayerWithAverage && firstPlayerWithAverage.league_avg_goal_threat !== null) {
-    leagueAvgGoalThreat = firstPlayerWithAverage.league_avg_goal_threat;
-  } else {
-    // Calculate from current player pool
-    const validGoalThreats = allPlayersWithRatings
-      .map(p => p.trend_goal_threat ?? p.goal_threat)
-      .filter(gt => gt !== null) as number[];
-    
-    leagueAvgGoalThreat = validGoalThreats.length > 0 
-      ? validGoalThreats.reduce((sum, gt) => sum + gt, 0) / validGoalThreats.length 
-      : 0.5; // Default fallback
-  }
 
-  // Prepare player data with 2-metric system
+  const leagueAvgGoalThreat = qualifiedRatings.length > 0 
+    ? qualifiedRatings.reduce((sum, p) => sum + (p.goal_threat || 0), 0) / qualifiedRatings.length
+    : 0.5; // Default fallback
+
+  // UPDATED: Ringer-aware data mapping with qualification logic
   const playersData: PlayerWithScore[] = playerIds.map(id => {
-    const ratingData = allPlayersWithRatings.find(p => p.player_id === id);
+    const ratingData = fetchedRatings.find(p => p.player_id === id);
     
-    // Use trend-adjusted metrics, fallback to original metrics, then defaults
-    const trendRating = ratingData?.trend_rating ?? ratingData?.rating ?? DEFAULT_RATING;
-    const trendGoalThreat = ratingData?.trend_goal_threat ?? ratingData?.goal_threat ?? leagueAvgGoalThreat;
-    const variance = ratingData?.variance ?? DEFAULT_VARIANCE;
-
+    // Use EWMA values if qualified (including ringers), otherwise defaults/league averages
+    const useRealValues = ratingData?.is_qualified || false;
+    
     return {
       player_id: id,
-      rating: ratingData?.rating ?? DEFAULT_RATING,
-      variance,
-      goal_threat: ratingData?.goal_threat ?? leagueAvgGoalThreat,
-      trend_rating: trendRating,
-      trend_goal_threat: trendGoalThreat,
+      rating: useRealValues ? ratingData.power_rating : DEFAULT_RATING,
+      variance: DEFAULT_VARIANCE, // EWMA provides inherent confidence
+      goal_threat: useRealValues ? ratingData.goal_threat : leagueAvgGoalThreat,
+      trend_rating: useRealValues ? ratingData.power_rating : DEFAULT_RATING,
+      trend_goal_threat: useRealValues ? ratingData.goal_threat : leagueAvgGoalThreat,
       league_avg_goal_threat: leagueAvgGoalThreat
     };
   });

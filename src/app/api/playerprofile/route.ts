@@ -28,38 +28,42 @@ export async function GET(request: Request) {
     console.log('Fetching aggregated profile for ID:', numericId);
 
     // Fetch profile data and power ratings in parallel
-    const [profile, powerRatings, leagueStats, currentStreaks, records] = await Promise.all([
+    const [profile, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
       // Existing profile query
       prisma.aggregated_player_profile_stats.findUnique({
         where: { player_id: numericId },
       }),
       
-      // Power ratings query (3-metric system with sophisticated participation)
-      prisma.aggregated_player_power_ratings.findUnique({
+      // UPDATED: New EWMA performance ratings query
+      prisma.aggregated_performance_ratings.findUnique({
         where: { player_id: numericId },
         select: {
-          trend_rating: true,
-          trend_goal_threat: true,
-          trend_participation: true,
-          league_avg_goal_threat: true,
-          league_avg_participation: true,
+          power_rating: true,
+          goal_threat: true,
+          participation: true,
+          power_percentile: true,
+          goal_percentile: true,
+          participation_percentile: true,
+          is_qualified: true,
+          weighted_played: true,
+          first_match_date: true,
           updated_at: true
-        } as any
+        }
       }),
       
-      // League normalization data (for power ratings and streaks) - 2-metric system
+      // League normalization data (for power ratings and streaks) - EWMA system
       prisma.$queryRaw`
         SELECT 
-          -- Power rating stats (trend-adjusted) - FILTERED for qualified players only
-          MIN(trend_rating::numeric) as power_rating_min,
-          PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY trend_rating::numeric) as power_rating_max,  -- Use P90 instead of MAX
-          AVG(trend_rating::numeric) as power_rating_avg,
-          MIN(trend_goal_threat::numeric) as goal_threat_min,
-          PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY trend_goal_threat::numeric) as goal_threat_max,  -- Use P90 instead of MAX
-          AVG(trend_goal_threat::numeric) as goal_threat_avg
-        FROM aggregated_player_power_ratings
-        WHERE trend_rating IS NOT NULL 
-        AND effective_games >= 15  -- FIXED: Filter out low-sample outliers like Dave Wates
+          -- Power rating stats (EWMA) - FILTERED for qualified players only
+          MIN(power_rating::numeric) as power_rating_min,
+          PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY power_rating::numeric) as power_rating_max,  -- Use P90 instead of MAX
+          AVG(power_rating::numeric) as power_rating_avg,
+          MIN(goal_threat::numeric) as goal_threat_min,
+          PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY goal_threat::numeric) as goal_threat_max,  -- Use P90 instead of MAX
+          AVG(goal_threat::numeric) as goal_threat_avg
+        FROM aggregated_performance_ratings
+        WHERE is_qualified = true 
+        AND weighted_played >= 5  -- EWMA qualification threshold
         UNION ALL
         SELECT 
           -- Streak stats
@@ -262,19 +266,27 @@ export async function GET(request: Request) {
         historical_blocks: historicalBlocks,
         
         // NEW: 3-metric power ratings (sophisticated trend calculation for all metrics)
-        power_ratings: powerRatings ? {
-          trend_rating: (powerRatings as any).trend_rating ? Number((powerRatings as any).trend_rating) : null,
-          trend_goal_threat: (powerRatings as any).trend_goal_threat ? Number((powerRatings as any).trend_goal_threat) : null,
-          trend_participation: (powerRatings as any).trend_participation ? Number((powerRatings as any).trend_participation) : participationPercentage,
-          league_avg_goal_threat: Number((powerRatings as any).league_avg_goal_threat || 0),
-          league_avg_participation: Number((powerRatings as any).league_avg_participation || 75),
-          updated_at: powerRatings.updated_at
+        power_ratings: performanceRatings ? {
+          power_rating: (performanceRatings as any).power_rating ? Number((performanceRatings as any).power_rating) : null,
+          goal_threat: (performanceRatings as any).goal_threat ? Number((performanceRatings as any).goal_threat) : null,
+          participation: (performanceRatings as any).participation ? Number((performanceRatings as any).participation) : participationPercentage,
+          power_percentile: (performanceRatings as any).power_percentile ? Number((performanceRatings as any).power_percentile) : null,
+          goal_percentile: (performanceRatings as any).goal_percentile ? Number((performanceRatings as any).goal_percentile) : null,
+          participation_percentile: (performanceRatings as any).participation_percentile ? Number((performanceRatings as any).participation_percentile) : null,
+          is_qualified: (performanceRatings as any).is_qualified,
+          weighted_played: (performanceRatings as any).weighted_played,
+          first_match_date: (performanceRatings as any).first_match_date,
+          updated_at: performanceRatings.updated_at
         } : {
-          trend_rating: null,
-          trend_goal_threat: null,
-          trend_participation: participationPercentage,
-          league_avg_goal_threat: 0,
-          league_avg_participation: 75,
+          power_rating: null,
+          goal_threat: null,
+          participation: participationPercentage,
+          power_percentile: null,
+          goal_percentile: null,
+          participation_percentile: null,
+          is_qualified: false,
+          weighted_played: 0,
+          first_match_date: null,
           updated_at: null
         },
         

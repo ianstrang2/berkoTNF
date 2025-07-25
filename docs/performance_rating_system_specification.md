@@ -1,27 +1,47 @@
-# Performance Rating System Specification v5.4.3
+# Performance Rating System Specification v6.0.0-EWMA
+
+**Status:** ✅ EWMA SYSTEM FULLY IMPLEMENTED (January 25, 2025)  
+**Backend:** ✅ Complete | **Frontend:** ✅ Complete  
+
+## ✅ MIGRATION COMPLETE
+This system has successfully migrated from period-based calculations to **Exponentially Weighted Moving Average (EWMA)** methodology. Both backend and frontend are fully operational.
+
+### Implementation Status:
+- **Database**: ✅ `aggregated_performance_ratings` table with live EWMA data
+- **Calculation**: ✅ `update_power_ratings()` function using 2-year half-life EWMA
+- **Edge Function**: ✅ Successfully generating EWMA performance ratings
+- **Frontend**: ✅ Admin UI integrated into `/admin/info` with soft-ui styling
+
+---
 
 ## Overview
-The Performance Rating System provides player performance metrics for both team balancing and player statistics display. It uses historical data to calculate trends and provides both raw metrics for team balancing and percentile-based displays for player profiles.
+The Performance Rating System provides player performance metrics for both team balancing and player statistics display. **NEW**: Now uses exponentially weighted moving averages for smooth recency weighting instead of period-based blocks.
 
-## Core Metrics
+## Core Metrics (EWMA System)
 
 ### Power Rating
-- Based on fantasy points per game
-- Raw values used for team balancing
-- Percentiles calculated per-period for historical display
-- Trend analysis for current form
+- **Method**: Exponentially weighted fantasy points per weighted game
+- **Half-life**: 730 days (2 years) - configurable in `app_config`
+- **Bayesian Shrinkage**: New players shrunk toward league average (5-game prior weight)
+- **Usage**: Raw values for team balancing, percentiles for display
 
-### Goal Threat
-- Goals per game ratio
-- No artificial cap (removed 1.5 limit)
-- Raw values used for team balancing
-- Percentiles calculated per-period for historical display
-- Trend analysis for current form
+### Goal Threat  
+- **Method**: Exponentially weighted goals per weighted game
+- **Calculation**: Same EWMA methodology as power rating
+- **Bayesian Shrinkage**: Applied consistently with power rating
+- **Usage**: Raw values for team balancing, percentiles for display
 
-### Attendance Rate
-- Games played vs available games
-- Calculated as percentage per period
-- Uses same trend analysis as other metrics
+### Participation Rate
+- **Method**: Weighted games played / weighted games available × 100
+- **Availability**: Counted from player's first match date
+- **Display**: Percentage with percentile ranking for qualified players
+
+## Qualification System
+- **Threshold**: 5 weighted games (configurable in `app_config`)
+- **Display Logic**: Only qualified players get percentile rankings (unqualified default to 50th percentile)
+- **Team Balancing**: Uses all players (with Bayesian defaults for unqualified)  
+- **Ringer Handling**: Uses EWMA values if qualified, otherwise defaults
+- **Universal Coverage**: ALL non-retired players get EWMA ratings through Bayesian shrinkage
 
 ## Period Qualification
 - Dynamic games threshold based on player history
@@ -89,10 +109,10 @@ interface PlayerTrends {
 - Clear status indication
 
 ## Validation Tools
-- Admin data view at `/admin/data`
-- Shows raw values and percentiles for all periods
-- Allows comparison of historical data vs current trends
-- Helps validate calculation correctness
+- Admin data view at `/admin/info` (EWMA Performance Ratings section)
+- Shows EWMA power rating, goal threat, and participation with percentiles
+- Displays system metadata (weighted games, qualification status, half-life)
+- Helps validate EWMA calculation correctness
 
 ## Implementation Notes
 - All calculations performed in database

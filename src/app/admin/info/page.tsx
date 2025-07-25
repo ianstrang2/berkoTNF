@@ -34,6 +34,29 @@ interface ShowOnStatsPlayer {
   gamesPlayedThisYear: number;
 }
 
+// EWMA Rating interfaces
+interface Player {
+  player_id: number;
+  name: string;
+  isRinger: boolean;
+}
+
+interface EwmaRatingData {
+  power_rating: number;
+  goal_threat: number;
+  participation: number;
+  power_percentile: number;
+  goal_percentile: number;
+  participation_percentile: number;
+  is_qualified: boolean;
+  weighted_played: number;
+  half_life_days: number;
+}
+
+interface PlayerRatingData {
+  ewmaRatings?: EwmaRatingData | null;
+}
+
 const AdminInfoPage = () => {
   const [cacheMetadata, setCacheMetadata] = useState<CacheMetadata[]>([]);
   const [absentees, setAbsentees] = useState<AbsenteePlayer[]>([]);
@@ -48,6 +71,15 @@ const AdminInfoPage = () => {
   const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
   const [matchReportHealth, setMatchReportHealth] = useState<any>(null);
   const [showMatchReportHealth, setShowMatchReportHealth] = useState<boolean>(false);
+  
+  // EWMA Rating state
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<string>('');
+  const [ratingData, setRatingData] = useState<PlayerRatingData | null>(null);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [playersLoading, setPlayersLoading] = useState(false);
+  const [playersError, setPlayersError] = useState<string | null>(null);
 
   const fetchCacheMetadata = useCallback(async () => {
     setIsLoadingCache(true);
@@ -96,10 +128,64 @@ const AdminInfoPage = () => {
     }
   }, []);
 
+  // EWMA Rating fetch functions
+  const fetchPlayers = useCallback(async () => {
+    setPlayersLoading(true);
+    setPlayersError(null);
+    try {
+      const res = await fetch('/api/admin/players');
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const data = await res.json();
+      
+      const playerArray = Array.isArray(data) ? data : 
+                        data.players ? data.players : 
+                        data.data ? data.data : [];
+                        
+      if (playerArray.length === 0) {
+        console.warn('No players found in response');
+      }
+      
+      // Include ringers in debugging view - they have power rating data too
+      setPlayers(playerArray);
+    } catch (err) {
+      console.error('Error fetching players:', err);
+      setPlayersError(err instanceof Error ? err.message : 'Failed to load players');
+    } finally {
+      setPlayersLoading(false);
+    }
+  }, []);
+
+  const fetchPlayerData = useCallback(async (playerId: string) => {
+    setDataLoading(true);
+    setDataError(null);
+    try {
+      // Use the simplified rating-data API for EWMA-only data
+      const res = await fetch(`/api/admin/rating-data?id=${playerId}`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const data = await res.json();
+      setRatingData(data.data || null);
+    } catch (err) {
+      setDataError(err instanceof Error ? err.message : 'Failed to load rating data');
+    } finally {
+      setDataLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCacheMetadata();
     fetchInfoData();
-  }, [fetchCacheMetadata, fetchInfoData]);
+    fetchPlayers();
+  }, [fetchCacheMetadata, fetchInfoData, fetchPlayers]);
+
+  useEffect(() => {
+    if (selectedPlayer) {
+      fetchPlayerData(selectedPlayer);
+    }
+  }, [selectedPlayer, fetchPlayerData]);
 
   const fetchDebugInfo = useCallback(async () => {
     try {
@@ -179,6 +265,71 @@ const AdminInfoPage = () => {
     } finally {
       setIsUpdatingStats(false);
     }
+  };
+
+  // EWMA Rating helper functions
+  const formatNumber = (value: number | null | undefined, decimals: number = 2): string => {
+    return value ? value.toFixed(decimals) : 'N/A';
+  };
+
+  // EWMA section renderer
+  const renderEwmaComparison = () => {
+    if (!ratingData?.ewmaRatings) return null;
+    
+    const ewma = ratingData.ewmaRatings;
+    
+    return (
+             <div className="p-4">
+         {/* Main metrics grid */}
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+           <div className="bg-white p-4 rounded-lg border border-gray-200">
+             <h6 className="text-xs font-bold uppercase text-slate-400 mb-2">Power Rating</h6>
+             <div className="text-2xl font-bold text-slate-700 mb-1">
+               {formatNumber(ewma.power_rating, 2)}
+             </div>
+             <div className="text-sm text-slate-600">
+               {formatNumber(ewma.power_percentile, 1)}th percentile
+             </div>
+           </div>
+           
+           <div className="bg-white p-4 rounded-lg border border-gray-200">
+             <h6 className="text-xs font-bold uppercase text-slate-400 mb-2">Goal Threat</h6>
+             <div className="text-2xl font-bold text-slate-700 mb-1">
+               {formatNumber(ewma.goal_threat, 3)}
+             </div>
+             <div className="text-sm text-slate-600">
+               {formatNumber(ewma.goal_percentile, 1)}th percentile
+             </div>
+           </div>
+           
+           <div className="bg-white p-4 rounded-lg border border-gray-200">
+             <h6 className="text-xs font-bold uppercase text-slate-400 mb-2">Participation</h6>
+             <div className="text-2xl font-bold text-slate-700 mb-1">
+               {formatNumber(ewma.participation, 1)}%
+             </div>
+             <div className="text-sm text-slate-600">
+               {formatNumber(ewma.participation_percentile, 1)}th percentile
+             </div>
+           </div>
+         </div>
+         
+         {/* Metadata */}
+         <div className="pt-4 border-t border-gray-200 text-sm text-slate-600 bg-white border border-gray-200 rounded-lg p-4">
+           <h6 className="font-semibold mb-3 text-slate-700">EWMA System Details</h6>
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             <div>
+               <span className="font-medium">Weighted games:</span> {formatNumber(ewma.weighted_played, 1)}
+             </div>
+             <div>
+               <span className="font-medium">Qualified:</span> {ewma.is_qualified ? 'Yes' : 'No'}
+             </div>
+             <div>
+               <span className="font-medium">Half-life:</span> {ewma.half_life_days} days (2 years)
+             </div>
+           </div>
+         </div>
+       </div>
+    );
   };
 
   const renderTable = (columns: { key: string; label: string; isNumeric?: boolean; formatter?: (value: any, row: any) => React.ReactNode | string }[], data: any[]) => (
@@ -476,6 +627,77 @@ const AdminInfoPage = () => {
                     </div>
                   )}
                 </div>
+              </div>
+              
+              {/* EWMA Performance Ratings Section */}
+              <div className="break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+                <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+                  <h3 className="mb-0 text-lg font-semibold text-slate-700">EWMA Performance Ratings</h3>
+                  <p className="mb-0 text-sm text-slate-500">2-year half-life exponentially weighted moving averages</p>
+                </div>
+                
+                                 <div className="p-4 border-b border-gray-200">
+                   {playersError && (
+                     <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                       Error: {playersError}
+                     </div>
+                   )}
+                   <div className="w-64">
+                     <label className="block text-sm font-medium text-gray-700 mb-2">Player</label>
+                     <select
+                       value={selectedPlayer}
+                       onChange={e => setSelectedPlayer(e.target.value)}
+                       disabled={playersLoading}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                     >
+                       <option value="">Select a player...</option>
+                       {players.map(p => (
+                         <option key={p.player_id} value={p.player_id.toString()}>
+                           {p.name} {p.isRinger ? '(Ringer)' : ''}
+                         </option>
+                       ))}
+                     </select>
+                     {players.length === 0 && !playersLoading && !playersError && (
+                       <div className="text-slate-400 text-sm mt-1">
+                         No players found
+                       </div>
+                     )}
+                   </div>
+                 </div>
+
+                {dataError && (
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                      Error loading data: {dataError}
+                    </div>
+                  </div>
+                )}
+
+                {dataLoading && (
+                  <div className="p-4 flex items-center justify-center">
+                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                      <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                    </div>
+                    <span className="ml-2 text-slate-600">Loading player data...</span>
+                  </div>
+                )}
+                
+                {/* EWMA Performance Data Display */}
+                {ratingData && !dataLoading && ratingData.ewmaRatings ? (
+                  renderEwmaComparison()
+                ) : ratingData && !dataLoading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <div className="text-center">
+                      <div className="inline-flex items-center justify-center w-16 h-16 text-slate-400 bg-slate-100 rounded-xl mb-4">
+                        <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <h6 className="mb-1 text-lg">No EWMA data available</h6>
+                      <p className="mb-0 text-sm text-slate-400">No EWMA performance data found for this player</p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </ErrorBoundary>

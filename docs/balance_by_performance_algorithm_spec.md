@@ -3,7 +3,8 @@
 **Version:** 2.0  
 **Date:** January 2025  
 **Author:** System Documentation  
-**Status:** Validated via Real Match Data Analysis
+**Status:** Validated via Real Match Data Analysis  
+**Data Source:** EWMA Performance Ratings (2-year half-life) - Updated January 25, 2025
 
 ---
 
@@ -41,10 +42,10 @@ The balancing process is executed in six distinct phases.
 
 This phase collects all necessary data from the database at the moment of execution to ensure data freshness.
 
-1.  **Fetch Player Performance Data:** Query the `aggregated_player_power_ratings` table using the provided `playerIds` to retrieve:
-    - `trend_rating` (Power Rating) 
-    - `trend_goal_threat` (Goal Threat)
-    - `variance` (confidence in rating)
+1.  **Fetch Player Performance Data:** Query the `aggregated_performance_ratings` table using the provided `playerIds` to retrieve:
+    - `power_rating` (EWMA Power Rating) 
+    - `goal_threat` (EWMA Goal Threat)
+    - Player qualification status
 2.  **Handle Missing Data:** Apply default values for any missing performance data:
     - Default rating: 5.35 (league prior mean)
     - Default variance: 0.10

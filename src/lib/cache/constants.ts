@@ -7,7 +7,7 @@ export const CACHE_TAGS = {
   // Player-Specific
   PLAYER_PROFILE: 'player_profile_stats',
   PERSONAL_BESTS: 'personal_bests',
-  PLAYER_POWER_RATING: 'player_power_rating',
+  PLAYER_POWER_RATING: 'player_power_rating', // EWMA system uses existing key
   
   // Records & Honours
   HALL_OF_FAME: 'hall_of_fame',
@@ -29,7 +29,7 @@ export const ALL_MATCH_RELATED_TAGS = [
   CACHE_TAGS.HALF_SEASON_STATS,
   CACHE_TAGS.PLAYER_PROFILE,
   CACHE_TAGS.PERSONAL_BESTS,
-  CACHE_TAGS.PLAYER_POWER_RATING,
+  CACHE_TAGS.PLAYER_POWER_RATING, // EWMA system
   CACHE_TAGS.HALL_OF_FAME,
   CACHE_TAGS.HONOUR_ROLL,
   CACHE_TAGS.MATCH_REPORT,
