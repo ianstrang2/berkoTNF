@@ -36,8 +36,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
         player.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
         !selectedPlayers.some(p => p.id === player.id)
       )
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .slice(0, 10); // Limit to 10 results for performance
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [allPlayers, searchTerm, selectedPlayers]);
   
   // Check if we have the right number of players for the match format
@@ -107,7 +106,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
           <div className="relative">
             <input
               type="text"
-              placeholder={hasReachedMaxPlayers ? "Maximum players reached" : "Search players..."}
+              placeholder={hasReachedMaxPlayers ? "Maximum players reached" : `Search ${allPlayers.filter(p => !p.isRetired && !selectedPlayers.some(s => s.id === p.id)).length} available players...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 text-sm text-slate-600"

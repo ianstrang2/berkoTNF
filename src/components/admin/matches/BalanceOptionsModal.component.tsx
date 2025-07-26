@@ -25,8 +25,8 @@ const BalanceOptionsModal: React.FC<BalanceOptionsModalProps> = ({
   };
 
   const options = [
-    { id: 'ability', title: 'Balance by Ratings', description: "Balance players based on the ratings you've entered" },
-    { id: 'performance', title: 'Balance by Performance', description: 'Balance players based on their actual performance' },
+    { id: 'ability', title: 'Balance by your Player Ratings', description: "Balance players based on the ratings you've entered" },
+    { id: 'performance', title: 'Balance by Performance Data', description: 'Balance players based on their actual performance' },
     { id: 'random', title: 'Random Assignment', description: 'Create unpredictable teams with random player distribution' }
   ];
 
