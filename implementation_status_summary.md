@@ -5,7 +5,7 @@
 ### **✅ Major Specification Updates**
 
 **1. Balance Algorithm Specification Updated**
-- **File**: `docs/balance_by_performance_algorithm_spec.md`
+- **File**: `docs/SPEC_balance_by_performance_algorithm.md`
 - **Version**: 1.0 → 2.0
 - **Status**: ✅ COMPLETED
 
@@ -18,7 +18,7 @@
 - Added comprehensive validation section
 
 **2. Performance Rating Specification Updated**
-- **File**: `docs/performance_rating_system_specification.md`  
+- **File**: `docs/SPEC_performance_rating_system.md`  
 - **Version**: 2.4 → 3.0
 - **Status**: ✅ COMPLETED
 

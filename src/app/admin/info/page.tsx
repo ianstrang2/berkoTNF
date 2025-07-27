@@ -66,7 +66,8 @@ const AdminInfoPage = () => {
   const [isLoadingInfoData, setIsLoadingInfoData] = useState<boolean>(true);
   const [isUpdatingStats, setIsUpdatingStats] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  // Add state for button success flash
+  const [updateSuccess, setUpdateSuccess] = useState<boolean>(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
   const [matchReportHealth, setMatchReportHealth] = useState<any>(null);
@@ -218,7 +219,6 @@ const AdminInfoPage = () => {
   const handleUpdateStats = async () => {
     setIsUpdatingStats(true);
     setError(null);
-    setSuccess(null);
     try {
       const response = await fetch('/api/admin/trigger-stats-update', {
         method: 'POST',
@@ -254,8 +254,9 @@ const AdminInfoPage = () => {
         throw new Error(userMessage);
       }
       
-      // Success case
-      setSuccess(result.message || 'Stats update completed successfully!');
+      // Success case - use button flash instead of green popup
+      setUpdateSuccess(true);
+      setTimeout(() => setUpdateSuccess(false), 2000);
       
       // Refresh the cache metadata to show new timestamps
       await fetchCacheMetadata(); 
@@ -409,23 +410,7 @@ const AdminInfoPage = () => {
             </div>
           )}
 
-          {success && (
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg shadow-soft-sm">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-800">Stats Update Successful</h3>
-                  <div className="mt-2 text-sm text-green-700">
-                    <pre className="whitespace-pre-wrap font-sans">{success}</pre>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+
 
           <ErrorBoundary>
             <div className="flex flex-wrap gap-6">
@@ -443,12 +428,14 @@ const AdminInfoPage = () => {
                 <div className="p-4 border-t border-gray-200 space-y-2">
                   <div className="flex gap-2">
                     <Button 
-                      variant="secondary"
-                      className="rounded-lg shadow-soft-sm"
+                      variant={updateSuccess ? "primary" : "secondary"}
+                      className={`rounded-lg shadow-soft-sm ${
+                        updateSuccess ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : ''
+                      }`}
                       onClick={handleUpdateStats} 
                       disabled={isUpdatingStats}
                     >
-                      {isUpdatingStats ? 'Updating...' : 'Update Stats'}
+                      {isUpdatingStats ? 'Updating...' : updateSuccess ? 'Updated' : 'Update Stats'}
                     </Button>
                     <Button 
                       variant="secondary"
@@ -607,9 +594,7 @@ const AdminInfoPage = () => {
                   {isLoadingInfoData ? (
                     <p className="text-center text-sm text-slate-500">Loading absentee data...</p>
                   ) : (
-                    <div style={{ maxHeight: '330px', overflowY: 'auto' }}>
-                      {renderTable(absenteeTableColumns, absentees)}
-                    </div>
+                    renderTable(absenteeTableColumns, absentees)
                   )}
                 </div>
               </div>
@@ -622,9 +607,7 @@ const AdminInfoPage = () => {
                   {isLoadingInfoData ? (
                     <p className="text-center text-sm text-slate-500">Loading ringers data...</p>
                   ) : (
-                    <div style={{ maxHeight: '330px', overflowY: 'auto' }}>
-                      {renderTable(ringersTableColumns, ringersToConsider)}
-                    </div>
+                    renderTable(ringersTableColumns, ringersToConsider)
                   )}
                 </div>
               </div>

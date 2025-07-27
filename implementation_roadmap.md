@@ -4,7 +4,7 @@
 
 ### **2.1 Update Performance Rating System Specification**
 
-**File**: `docs/performance_rating_system_specification.md`
+**File**: `docs/SPEC_performance_rating_system.md`
 
 **Changes Required**:
 ```markdown
@@ -40,7 +40,7 @@
 
 ### **2.2 Update Balance Algorithm Specification**
 
-**File**: `docs/balance_by_performance_algorithm_spec.md`
+**File**: `docs/SPEC_balance_by_performance_algorithm.md`
 
 **Major Changes**:
 ```markdown
