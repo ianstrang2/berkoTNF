@@ -775,6 +775,152 @@ BEGIN
                     
                     UNION ALL
                     
+                    -- Unbeaten Streak Detection (using data from stored streaks)
+                    SELECT 
+                        'unbeaten_streak' as feat_type,
+                        pm.player_id,
+                        p.name as player_name,
+                        (v_streaks_json->i->>'streak_count')::int as new_value,
+                        CASE 
+                            WHEN jsonb_typeof(current_records.records->'streaks'->'Undefeated Streak'->'holders') = 'array' THEN
+                                COALESCE((
+                                    SELECT MAX((streak_holder->>'streak')::int) 
+                                    FROM jsonb_array_elements(current_records.records->'streaks'->'Undefeated Streak'->'holders') AS streak_holder
+                                ), 0)
+                            ELSE 0
+                        END as current_record,
+                        CASE 
+                            WHEN (v_streaks_json->i->>'streak_count')::int > (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'streaks'->'Undefeated Streak'->'holders') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'streaks'->'Undefeated Streak'->'holders') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) THEN 'broken'
+                            WHEN (v_streaks_json->i->>'streak_count')::int = (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'streaks'->'Undefeated Streak'->'holders') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'streaks'->'Undefeated Streak'->'holders') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) AND (v_streaks_json->i->>'streak_count')::int >= v_unbeaten_streak_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM player_matches pm
+                    JOIN players p ON pm.player_id = p.player_id
+                    CROSS JOIN current_records
+                    CROSS JOIN generate_series(0, jsonb_array_length(v_streaks_json) - 1) AS i
+                    WHERE pm.match_id = latest_match.match_id 
+                      AND p.is_ringer = false
+                      AND v_streaks_json->i->>'name' = p.name
+                      AND v_streaks_json->i->>'streak_type' = 'unbeaten'
+                      AND (v_streaks_json->i->>'streak_count')::int >= v_unbeaten_streak_threshold
+                    
+                    UNION ALL
+                    
+                    -- Winless Streak Detection (using data from stored streaks)
+                    SELECT 
+                        'winless_streak' as feat_type,
+                        pm.player_id,
+                        p.name as player_name,
+                        (v_streaks_json->i->>'streak_count')::int as new_value,
+                        CASE 
+                            WHEN jsonb_typeof(current_records.records->'streaks'->'Winless Streak'->'holders') = 'array' THEN
+                                COALESCE((
+                                    SELECT MAX((streak_holder->>'streak')::int) 
+                                    FROM jsonb_array_elements(current_records.records->'streaks'->'Winless Streak'->'holders') AS streak_holder
+                                ), 0)
+                            ELSE 0
+                        END as current_record,
+                        CASE 
+                            WHEN (v_streaks_json->i->>'streak_count')::int > (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'streaks'->'Winless Streak'->'holders') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'streaks'->'Winless Streak'->'holders') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) THEN 'broken'
+                            WHEN (v_streaks_json->i->>'streak_count')::int = (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'streaks'->'Winless Streak'->'holders') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'streaks'->'Winless Streak'->'holders') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) AND (v_streaks_json->i->>'streak_count')::int >= v_winless_streak_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM player_matches pm
+                    JOIN players p ON pm.player_id = p.player_id
+                    CROSS JOIN current_records
+                    CROSS JOIN generate_series(0, jsonb_array_length(v_streaks_json) - 1) AS i
+                    WHERE pm.match_id = latest_match.match_id 
+                      AND p.is_ringer = false
+                      AND v_streaks_json->i->>'name' = p.name
+                      AND v_streaks_json->i->>'streak_type' = 'winless'
+                      AND (v_streaks_json->i->>'streak_count')::int >= v_winless_streak_threshold
+                    
+                    UNION ALL
+                    
+                    -- Goal Streak Detection (using data from stored goal streaks)
+                    SELECT 
+                        'goal_streak' as feat_type,
+                        pm.player_id,
+                        p.name as player_name,
+                        (v_goal_streaks_json->i->>'matches_with_goals')::int as new_value,
+                        CASE 
+                            WHEN jsonb_typeof(current_records.records->'consecutive_goals_streak') = 'array' THEN
+                                COALESCE((
+                                    SELECT MAX((streak_holder->>'streak')::int) 
+                                    FROM jsonb_array_elements(current_records.records->'consecutive_goals_streak') AS streak_holder
+                                ), 0)
+                            ELSE 0
+                        END as current_record,
+                        CASE 
+                            WHEN (v_goal_streaks_json->i->>'matches_with_goals')::int > (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'consecutive_goals_streak') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'consecutive_goals_streak') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) THEN 'broken'
+                            WHEN (v_goal_streaks_json->i->>'matches_with_goals')::int = (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'consecutive_goals_streak') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'consecutive_goals_streak') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) AND (v_goal_streaks_json->i->>'matches_with_goals')::int >= v_goal_streak_threshold THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM player_matches pm
+                    JOIN players p ON pm.player_id = p.player_id
+                    CROSS JOIN current_records
+                    CROSS JOIN generate_series(0, jsonb_array_length(v_goal_streaks_json) - 1) AS i
+                    WHERE pm.match_id = latest_match.match_id 
+                      AND p.is_ringer = false
+                      AND v_goal_streaks_json->i->>'name' = p.name
+                      AND (v_goal_streaks_json->i->>'matches_with_goals')::int >= v_goal_streak_threshold
+                    
+                    UNION ALL
+                    
                     -- Biggest Victory Detection (check all match scores > 0 difference)
                     SELECT 
                         'biggest_victory' as feat_type,
@@ -791,7 +937,52 @@ BEGIN
                     CROSS JOIN current_records
                     WHERE ABS(latest_match.team_a_score - latest_match.team_b_score) > 0
                     
-                    -- NOTE: Attendance streak feat-breaking detection also temporarily disabled
+                    UNION ALL
+                    
+                    -- Attendance Streak Detection (using current attendance streaks from personal bests)
+                    SELECT 
+                        'attendance_streak' as feat_type,
+                        pm.player_id,
+                        p.name as player_name,
+                        COALESCE((pb_data.broken_pbs_data->p.name->>'attendance_streak')::int, 0) as new_value,
+                        CASE 
+                            WHEN jsonb_typeof(current_records.records->'attendance_streak') = 'array' THEN
+                                COALESCE((
+                                    SELECT MAX((streak_holder->>'streak')::int) 
+                                    FROM jsonb_array_elements(current_records.records->'attendance_streak') AS streak_holder
+                                ), 0)
+                            ELSE 0
+                        END as current_record,
+                        CASE 
+                            WHEN COALESCE((pb_data.broken_pbs_data->p.name->>'attendance_streak')::int, 0) > (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'attendance_streak') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'attendance_streak') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) THEN 'broken'
+                            WHEN COALESCE((pb_data.broken_pbs_data->p.name->>'attendance_streak')::int, 0) = (
+                                CASE 
+                                    WHEN jsonb_typeof(current_records.records->'attendance_streak') = 'array' THEN
+                                        COALESCE((
+                                            SELECT MAX((streak_holder->>'streak')::int) 
+                                            FROM jsonb_array_elements(current_records.records->'attendance_streak') AS streak_holder
+                                        ), 0)
+                                    ELSE 0
+                                END
+                            ) AND COALESCE((pb_data.broken_pbs_data->p.name->>'attendance_streak')::int, 0) >= 3 THEN 'equaled'
+                            ELSE NULL
+                        END as status
+                    FROM player_matches pm
+                    JOIN players p ON pm.player_id = p.player_id
+                    CROSS JOIN current_records
+                    LEFT JOIN aggregated_personal_bests pb_data ON pb_data.match_id = latest_match.match_id
+                    WHERE pm.match_id = latest_match.match_id 
+                      AND p.is_ringer = false
+                      AND COALESCE((pb_data.broken_pbs_data->p.name->>'attendance_streak')::int, 0) >= 3
                 )
                 SELECT COALESCE(jsonb_agg(
                     jsonb_build_object(

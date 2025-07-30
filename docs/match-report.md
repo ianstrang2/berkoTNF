@@ -41,13 +41,13 @@ All objectives have been successfully implemented and tested. The system is prod
 
 **Component Breakdown:**
 
-1. **Match Report** (Top Left) - UNCHANGED
+1. **MatchReportComponent** (Top Left) - UNCHANGED
    - Team lineups and scores
    - Player names with status icons
-   - Feat-breaking notifications when present
+   - Achievement notifications when present
    - Copy match report functionality
 
-2. **Current Form** (Top Right) - NEW
+2. **CurrentFormComponent** (Top Right) - NEW
    - Reaper/On Fire status with 200x200px images
    - Form streaks (win/loss/unbeaten/winless)
    - Goal scoring streaks
@@ -62,8 +62,8 @@ All objectives have been successfully implemented and tested. The system is prod
 4. **Records & Achievements** (Bottom Right) - ENHANCED
    - Personal bests (existing functionality)
    - Game/goal milestones (moved from left component)
-   - Feat-breaking records with visual badges
-   - Priority sorting: Feats → Personal Bests → Milestones
+   - Achievement records with visual badges
+   - Priority sorting: Personal Bests → Milestones → Achievements
 
 ### **Database Schema Changes**
 ```sql
@@ -82,89 +82,47 @@ ON aggregated_match_report USING GIN (feat_breaking_data);
 
 ---
 
-## 🎯 **Feat-Breaking Detection System**
+## 🎯 **Achievement & Milestone Detection System**
 
-### **Configuration Strategy**
-**Uses Existing Config Keys:**
-- `win_streak_threshold` (default: 4)
-- `unbeaten_streak_threshold` (default: 6) 
-- `loss_streak_threshold` (default: 4)
-- `winless_streak_threshold` (default: 6)
-- `goal_streak_threshold` (default: 3)
-- `goal_milestone_threshold` (default: 25)
-- `hall_of_fame_limit` (default: 3)
+### **Personal Bests**
+Tracks individual player achievements including:
+- Goals scored in a single match
+- Fantasy points earned
+- Match performance metrics
 
-**Added Single New Config:**
-- `feat_breaking_enabled` (master switch, default: true)
+### **Milestones**
+Celebrates significant career markers:
+- Games played milestones (every 5 games starting from 5th)
+- Goals scored milestones (every 5 goals starting from 5th)
+- Career progression tracking
 
-### **Detected Feat Types**
-1. **Most Goals in Game** - Single match goal records
-2. **Win Streaks** - Consecutive victories
-3. **Unbeaten Streaks** - Consecutive wins/draws
-4. **Loss Streaks** - Consecutive defeats
-5. **Winless Streaks** - Consecutive losses/draws
-6. **Goal Streaks** - Consecutive matches with goals
-7. **Biggest Victories** - Largest goal margins
-8. **Attendance Streaks** - Consecutive games played
+### **Record-Breaking Streak Detection**
+Automatically detects when players break or equal all-time records for:
+- **Win streaks** - Consecutive victories
+- **Loss streaks** - Consecutive defeats
+- **Unbeaten streaks** - Consecutive wins/draws (✅ IMPLEMENTED)
+- **Winless streaks** - Consecutive losses/draws (✅ IMPLEMENTED)
+- **Goal scoring streaks** - Consecutive matches with goals (✅ IMPLEMENTED)
+- **Attendance streaks** - Consecutive games played (✅ IMPLEMENTED)
+
+### **Current Performance**
+Real-time status tracking:
+- Player form states (On Fire, Grim Reaper)
+- Current streaks for all streak types above
+- Leadership positions in half/full season tables
 
 ### **SQL Implementation**
 Located in `sql/update_aggregated_match_report_cache.sql`:
-- Reads from `aggregated_records` table (updated by previous function)
-- Compares current match performance against all-time records
-- Stores results in `feat_breaking_data` JSONB column
-- Handles multiple players achieving same feat
-- Proper sorting: broken records first, then by value, then alphabetically
+- Aggregates personal best performances
+- Calculates milestone achievements
+- Tracks current form and streak data
+- **Compares current streaks against all-time records**
+- **Detects record-breaking achievements in real-time**
+- Efficiently stores results for dashboard display and copy/paste output
 
 ---
 
-## 📝 **Enhanced Copy Function**
 
-### **Reorganized Output Structure**
-
-```
-⚽️ MATCH REPORT: [Date] ⚽️
-
-FINAL SCORE: Orange 2 - 5 Green
-
---- ORANGE ---
-Players: [Player list with emojis]
-Scorers: [Goal scorers]
-
---- GREEN ---
-Players: [Player list with emojis]  
-Scorers: [Goal scorers]
-
-PERSONAL BESTS:
-- [Player]: [Achievement] - [Value] [Unit]
-
---- CURRENT FORM ---
-- [Player] is The Grim Reaper 💀
-- [Player] is On Fire! 🔥
-- [Player]: [X] game [type] streak
-- [Player]: Scored in [X] consecutive matches ([Y] goals)
-
---- CURRENT STANDINGS ---
-- [Player] leads [metric] with [value]
-- [Player] overtook [other] for [metric] with [value]
-
---- RECORDS & ACHIEVEMENTS ---
-PERSONAL BESTS:
-- [Player]: [Metric] - [Value] [Unit]
-
-MILESTONES:
-- [Player]: Played [Xth] game
-- [Player]: Scored [Xth] goal
-
-RECORD-BREAKING FEATS:
-- [Player]: [Achievement] [RECORD BROKEN/EQUALED]
-```
-
-### **Key Copy Improvements**
-- **Flattened Structure**: Removed sub-headers within sections for cleaner output
-- **Clear Metrics**: "leads Season goals with 30" instead of "leads with 30"
-- **Status Emojis**: 💀 for Grim Reaper, 🔥 for On Fire
-- **Proper Capitalization**: "On Fire!" instead of "on fire!"
-- **Combined Milestones**: Game and goal milestones under single "MILESTONES:" header
 
 ---
 
