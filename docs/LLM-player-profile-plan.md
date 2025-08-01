@@ -13,6 +13,25 @@ This document outlines the comprehensive implementation plan for adding AI-gener
 - **Ultra-Low Cost**: ~$0.009 per batch with optimized token control and Gemini 2.5 Flash-Lite
 - **Smart Generation Logic**: Rule-based system for when to generate/update/ignore profiles
 
+### 🔧 Configuration Status
+- ✅ **OpenRouter API Key**: Configured in Supabase secrets
+- ✅ **Domain Configuration**: `https://BerkoTNF.com` 
+- ✅ **Model Selected**: `google/gemini-2.5-flash-lite`
+- ✅ **Version Control**: All configuration in editable code files (`vercel.json`, `.env.local`, `/api` routes)
+- ✅ **Consistency**: Follows existing `trigger-stats-update` pattern exactly
+- ⚠️ **Ready for Implementation**: Database schema and deployment pending
+
+### 📋 Implementation Summary
+**New Files Created:**
+- `src/app/api/admin/trigger-player-profiles/route.ts` - API route following your existing pattern
+- `sql/export_league_data_for_profiles.sql` - Enhanced SQL function with multi-tenancy support  
+
+**Configuration Updates:**
+- `vercel.json` - Add new cron entry for profile generation
+- `.env.local` - Add `PROFILE_RECENT_DAYS_THRESHOLD=7` (weekly) or `=30` (monthly)
+
+**No Hidden Configs:** Everything is in version-controlled code files, no pg_cron or database-stored configuration.
+
 ## Data Sources & Player Context
 
 The LLM receives ALL aggregated data from your 14 comprehensive tables (175+ total columns):
@@ -102,9 +121,10 @@ Enhanced data export function with dynamic league inference and token optimizati
 
 ```sql
 CREATE OR REPLACE FUNCTION export_league_data_for_profiles(
-    recent_days_threshold INT DEFAULT 30,
+    recent_days_threshold INT DEFAULT 7,
     p_offset INT DEFAULT 0,
-    p_limit INT DEFAULT 50
+    p_limit INT DEFAULT 50,
+    p_league_id INT DEFAULT NULL
 )
 RETURNS JSONB LANGUAGE plpgsql AS $$
 DECLARE
@@ -186,6 +206,7 @@ BEGIN
             LEFT JOIN aggregated_recent_performance arp ON p.player_id = arp.player_id
             WHERE p.is_ringer = FALSE
             AND pps.games_played >= 5
+            AND (p_league_id IS NULL OR p.league_id = p_league_id) -- Optional league filtering
             OFFSET p_offset LIMIT p_limit -- Pagination support
         ),
         'target_players', (
@@ -207,6 +228,7 @@ BEGIN
             LEFT JOIN aggregated_player_profile_stats aps ON p.player_id = aps.player_id
             WHERE p.is_ringer = FALSE
             AND aps.games_played >= 5
+            AND (p_league_id IS NULL OR p.league_id = p_league_id) -- Optional league filtering
             OFFSET p_offset LIMIT p_limit -- Pagination support
         )
     ) INTO result;
@@ -216,9 +238,94 @@ END;
 $$;
 ```
 
-### 3. Edge Function (`supabase/functions/generate-player-profiles/index.ts`)
+### 3. API Route (`src/app/api/admin/trigger-player-profiles/route.ts`)
 
-**Bulk context implementation - sends ALL league data in single LLM call:**
+**Following your existing pattern with `trigger-stats-update` for consistency:**
+
+```typescript
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// Main profile generation logic that can be called by both GET (cron) and POST (manual)
+async function triggerProfileGeneration() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const recentDaysThreshold = parseInt(process.env.PROFILE_RECENT_DAYS_THRESHOLD || '7');
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    console.error('Supabase URL or Service Role Key is missing.');
+    return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+  console.log(`🎭 Starting profile generation with ${recentDaysThreshold}-day threshold`);
+
+  try {
+    // Call the Edge Function with retry logic
+    let attempt = 0;
+    const maxAttempts = 3;
+    let invokeError = null;
+
+    while (attempt < maxAttempts) {
+      attempt++;
+      console.log(`Attempt ${attempt} for generate-player-profiles`);
+      
+      const { data, error } = await supabase.functions.invoke('generate-player-profiles', {
+        body: { recent_days_threshold: recentDaysThreshold }
+      });
+      
+      if (!error) {
+        console.log('✅ Profile generation completed successfully');
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Profile generation completed',
+          results: data,
+          recent_days_threshold: recentDaysThreshold
+        });
+      }
+      
+      invokeError = error;
+      console.log(`Attempt ${attempt} failed for generate-player-profiles:`, error);
+      
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    console.error(`All attempts failed for generate-player-profiles:`, invokeError);
+    return NextResponse.json({ 
+      success: false, 
+      error: `Profile generation failed: ${invokeError.message}`,
+      recent_days_threshold: recentDaysThreshold
+    }, { status: 500 });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Profile generation error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: `Profile generation failed: ${errorMessage}`,
+      recent_days_threshold: recentDaysThreshold
+    }, { status: 500 });
+  }
+}
+
+// GET handler for Vercel cron jobs
+export async function GET() {
+  console.log('📅 Cron job triggered profile generation');
+  return triggerProfileGeneration();
+}
+
+// POST handler for manual admin triggers
+export async function POST() {
+  console.log('👤 Manual admin triggered profile generation');
+  return triggerProfileGeneration();
+}
+```
+
+### 4. Edge Function (`supabase/functions/generate-player-profiles/index.ts`)
+
+**Simplified Edge Function - receives parameters from API route:**
 
 ```typescript
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
@@ -226,7 +333,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
 
-const RECENT_DAYS_THRESHOLD = 30; // Configurable: 30 for monthly, 7 for weekly
 const BATCH_LIMIT = 50; // Maximum players per batch for pagination
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -239,7 +345,7 @@ async function callOpenRouterBulk(prompt: string) {
         headers: {
           Authorization: `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://your-app.com', // Replace with your domain
+          'HTTP-Referer': 'https://BerkoTNF.com',
         },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',
@@ -287,14 +393,17 @@ function parseProfilesFromResponse(response: string, targetPlayers: any[]): Reco
 serve(async (req) => {
   try {
     console.log('Starting bulk player profile generation...');
-    const { offset = 0 } = await req.json().catch(() => ({}));
+    const { recent_days_threshold = 7, offset = 0, league_id = null } = await req.json().catch(() => ({}));
+
+    console.log(`Using ${recent_days_threshold}-day threshold for profile generation`);
 
     // Get complete league dataset with pagination
     const { data: leagueData, error: dataError } = await supabase
       .rpc('export_league_data_for_profiles', { 
-        recent_days_threshold: RECENT_DAYS_THRESHOLD, 
+        recent_days_threshold, 
         p_offset: offset, 
-        p_limit: BATCH_LIMIT 
+        p_limit: BATCH_LIMIT,
+        p_league_id: league_id
       });
     
     if (dataError) throw dataError;
@@ -423,7 +532,8 @@ Generate profiles now:`;
       processed: results.length,
       successful: results.filter(r => r.status === 'success').length,
       failed: results.filter(r => r.status === 'error').length,
-      recent_days_threshold: RECENT_DAYS_THRESHOLD,
+      recent_days_threshold,
+      league_id,
       bulk_context_used: true,
       results,
       next_offset: offset + BATCH_LIMIT // Support for pagination
@@ -466,9 +576,55 @@ Simplified admin panel integration:
 
 Updated player profile screen (`PlayerProfile.component.tsx`) with:
 - **Rich Bio Display**: Formatted multi-paragraph profiles
-- **Generation Metadata**: Shows when profile was last updated
-- **Responsive Design**: Maintains existing UI consistency
-- **Fallback Handling**: Graceful display when no bio exists
+- **Strategic Placement**: Position bio section between power ratings (37%, 67%, 88%) and streaks section for optimal user flow
+- **Generation Metadata**: Shows when profile was last updated (optional, for admin/debugging)
+- **Responsive Design**: Maintains existing UI consistency with proper typography and spacing
+- **Fallback Handling**: Graceful display when no bio exists (show nothing or placeholder)
+
+**UI Integration Details:**
+```
+1. Power Ratings Section (existing)
+   ↓
+2. AI-Generated Player Bio (NEW - 2-3 paragraphs)
+   ↓
+3. Streaks Section (existing)
+   ↓
+4. Performance Overview (existing)
+```
+
+**Styling Considerations:**
+- Consistent with existing design system and soft-UI styling
+- Proper text hierarchy and readable typography
+- Subtle visual separation from surrounding sections
+- Mobile-responsive layout
+
+**Implementation Guide:**
+In `PlayerProfile.component.tsx`, add the bio section after the Power Rating sparklines (~line 640) and before the "NEW: Streaks Section" comment (~line 664):
+
+```jsx
+{/* AI-Generated Player Bio */}
+{profile.profile_text && (
+  <Card className="mb-6">
+    <CardContent className="pt-6">
+      <div className="prose prose-sm max-w-none" style={{ color: '#344767' }}>
+        {profile.profile_text.split('\n\n').map((paragraph, index) => (
+          <p key={index} className="mb-3 text-sm leading-relaxed">
+            {paragraph}
+          </p>
+        ))}
+      </div>
+      {/* Optional: Generation timestamp for admin */}
+      {profile.profile_generated_at && process.env.NODE_ENV === 'development' && (
+        <p className="text-xs text-gray-500 mt-3 border-t pt-2">
+          Profile generated: {new Date(profile.profile_generated_at).toLocaleDateString()}
+        </p>
+      )}
+    </CardContent>
+  </Card>
+)}
+
+{/* NEW: Streaks Section */}
+```
 
 ## Bulk Data Processing & LLM Input
 
@@ -518,67 +674,71 @@ With complete league context, the LLM can generate insights like:
 2. Deploy SQL function `get_players_for_bio_generation.sql` to `/sql` directory
 3. Test SQL function manually to validate rule logic and pagination
 
-### Phase 2: Edge Function Development  
-1. Create `generate-player-profiles` function following your established pattern
-2. Add `OPENROUTER_API_KEY` to Supabase secrets  
-3. Replace `your-app.com` in HTTP-Referer with your actual domain
-4. Configure `RECENT_DAYS_THRESHOLD` (30 for monthly, 7 for weekly)
-5. Test with small player batch (2-3 players first) to validate prompt quality
+### Phase 2: API Route & Edge Function Development  
+1. Create `src/app/api/admin/trigger-player-profiles/route.ts` following your existing `trigger-stats-update` pattern
+2. Create `supabase/functions/generate-player-profiles/index.ts` (simplified Edge Function)
+3. ✅ **COMPLETED**: `OPENROUTER_API_KEY` already configured in Supabase secrets
+4. ✅ **COMPLETED**: HTTP-Referer updated to `https://BerkoTNF.com`
+5. Deploy using your existing `deploy_all.ps1` script
+6. Test with small player batch (2-3 players first) to validate prompt quality
 
-### Phase 3: Cron Job Setup (Optional)
-If you want dedicated cron scheduling instead of manual triggers, add this SQL file (`sql/schedule_player_bios_cron.sql`):
+**Configuration Status:**
+- **OpenRouter API Key**: ✅ Configured in Supabase secrets as `OPENROUTER_API_KEY`
+- **Domain/Referer**: ✅ Set to `https://BerkoTNF.com`
+- **Model Access**: `google/gemini-2.5-flash-lite` (verify access in OpenRouter dashboard)
+- **Environment Variable**: `PROFILE_RECENT_DAYS_THRESHOLD` (7 for weekly, 30 for monthly)
+- **Deployment**: ✅ Uses existing `deploy_all.ps1` workflow
+- **Scheduling**: ✅ Vercel cron in `vercel.json` (consistent with existing pattern)
 
-```sql
-DO $$ 
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    CREATE EXTENSION pg_cron;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net') THEN
-    CREATE EXTENSION pg_net;
-  END IF;
-END $$;
+### Phase 3: Vercel Cron Integration
+Following your existing pattern with `vercel.json` and API routes for consistency and version control.
 
-SELECT cron.unschedule('generate-player-bios');
-
-SELECT cron.schedule(
-  'generate-player-bios',
-  '0 23 * * *', -- Daily at 23:00 UTC (adjust to weekly/monthly later)
-  $$
-  DO $$
-  DECLARE
-    offset INT := 0;
-    total_processed INT := 0;
-    batch_size INT := 50;
-    response JSONB;
-  BEGIN
-    LOOP
-      SELECT net.http_post(
-        'https://your-project-ref.supabase.co/functions/v1/generate-player-profiles',
-        jsonb_build_object('offset', offset)::jsonb,
-        '{
-          "Authorization": "Bearer your-service-role-key",
-          "Content-Type": "application/json"
-        }'::jsonb
-      ) INTO response;
-
-      total_processed := total_processed + (response->>'processed')::INT;
-      offset := offset + batch_size;
-
-      -- Exit if no more players or error
-      EXIT WHEN (response->>'status')::TEXT = 'No eligible players after filtering' OR (response->>'processed')::INT = 0;
-    END LOOP;
-
-    RAISE NOTICE 'Processed % players', total_processed;
-  END $$;
-  $$
-);
+**Add to `vercel.json`:**
+```json
+"crons": [
+  {
+    "path": "/api/admin/trigger-stats-update",
+    "schedule": "0 2 * * *"
+  },
+  {
+    "path": "/api/admin/trigger-player-profiles", 
+    "schedule": "0 23 * * 0"
+  }
+]
 ```
 
-### Phase 4: Integration with Existing Cron (Recommended)
-1. Add `generate-player-profiles` to your existing stats update workflow
-2. Test integration with overnight cron job
-3. Enhance player profile display component to show generated bios
+**Environment Configuration:**
+Add to `.env.local` or environment variables:
+```bash
+# Profile generation frequency control
+PROFILE_RECENT_DAYS_THRESHOLD=7    # 7 for weekly, 30 for monthly
+```
+
+**Schedule Options:**
+- **Weekly (Recommended for new leagues)**: `"0 23 * * 0"` (Sundays at 23:00 UTC)
+- **Monthly**: `"0 23 1 * *"` (1st of month at 23:00 UTC)
+
+**Complete `vercel.json` crons section:**
+```json
+"crons": [
+  {
+    "path": "/api/admin/trigger-stats-update",
+    "schedule": "0 2 * * *"
+  },
+  {
+    "path": "/api/admin/trigger-player-profiles", 
+    "schedule": "0 23 * * 0"
+  }
+]
+```
+
+### Phase 4: Integration & Testing
+1. Add new cron entry to `vercel.json` for profile generation schedule
+2. Configure `PROFILE_RECENT_DAYS_THRESHOLD` environment variable (7 for weekly, 30 for monthly)
+3. Test API route manually via admin interface
+4. Enhance player profile display component to show generated bios (between power ratings and streaks sections)
+5. Test UI integration and responsive design across devices
+6. Verify Vercel cron deployment and scheduling
 
 ### Phase 5: Testing & Monitoring
 **Testing Steps:**
@@ -639,30 +799,36 @@ SELECT cron.schedule(
 - **Performance Analytics**: A/B test different prompt strategies
 - **User Feedback**: Allow players to request profile regeneration
 
-## Integration with Existing Cron Job
+## Vercel Cron Integration (Consistent with Existing Pattern)
 
-### Recommended Integration
-Add `generate-player-profiles` to your existing `FUNCTIONS_TO_CALL` array in `src/app/api/admin/trigger-stats-update/route.ts`:
+### ✅ **Consistent Architecture**
+Following your existing pattern with version-controlled configuration:
+- **Stats Updates**: `vercel.json` → `/api/admin/trigger-stats-update` → Supabase Edge Functions
+- **Profile Generation**: `vercel.json` → `/api/admin/trigger-player-profiles` → Supabase Edge Function
 
-```typescript
-const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> = [
-  // ... existing functions ...
-  { name: 'generate-player-profiles', tag: CACHE_TAGS.PLAYER_PROFILE }
-];
-```
+### ✅ **Separate Scheduling (NOT Tied to Match Updates)**
+Profile generation runs on its own schedule, separate from nightly stats:
+- ❌ **NOT** added to existing `FUNCTIONS_TO_CALL` array (would be too frequent/expensive)
+- ✅ **Separate Vercel cron entry** with weekly/monthly schedule
+- ✅ **Environment variable control** for easy frequency changes
 
-### Optimal Flow Sequence
-1. **Overnight cron triggers stats update** (existing)
-2. **All aggregation functions run** (existing) 
-3. **Profile generation runs with fresh data** (new - runs last)
-4. **Cache invalidation** (existing)
+### Schedule Options & Costs
+**Weekly Generation (Recommended for new leagues)**
+- Schedule: `"0 23 * * 0"` (Sundays at 23:00 UTC)
+- Environment: `PROFILE_RECENT_DAYS_THRESHOLD=7`
+- Cost: ~$0.04 per month (4 runs)
 
-### Configuration Options
-- **Weekly Generation**: Set `RECENT_DAYS_THRESHOLD = 7` in Edge Function
-- **Monthly Generation**: Set `RECENT_DAYS_THRESHOLD = 30` (default)  
-- **Manual Trigger**: Available via admin interface anytime
+**Monthly Generation**
+- Schedule: `"0 23 1 * *"` (1st of month at 23:00 UTC)  
+- Environment: `PROFILE_RECENT_DAYS_THRESHOLD=30`
+- Cost: ~$0.01 per month (1 run)
 
-This ensures profiles are generated with the most current player statistics, using the rule-based logic to determine which players need new/updated profiles.
+**Manual Only**
+- Remove cron entry, keep API route for admin triggers
+- Zero automated costs
+
+### Multi-Tenancy Support
+Optional `league_id` parameter support built into both API route and SQL function for future expansion.
 
 ---
 
@@ -696,10 +862,11 @@ This ensures profiles are generated with the most current player statistics, usi
 - **Scalable**: Handles any league size efficiently
 
 ### Implementation Ready
-- **Complete SQL Functions**: Full league data export with rule-based player selection
-- **Production Edge Function**: Bulk processing with comprehensive error handling
+- **Complete SQL Functions**: Full league data export with rule-based player selection and optional multi-tenancy
+- **Version-Controlled API Route**: Follows existing `trigger-stats-update` pattern exactly
+- **Simplified Edge Function**: Bulk processing with comprehensive error handling
+- **Vercel Cron Integration**: Consistent architecture with existing stats workflow
 - **Testing Strategy**: Validate comparative insights and humor quality
-- **Integration Path**: Seamless addition to existing cron workflow
 
 This approach transforms player profiles from basic stat summaries into rich, entertaining narratives with league-wide context and comparative intelligence - adapting perfectly to any league's unique scale and history!
 
