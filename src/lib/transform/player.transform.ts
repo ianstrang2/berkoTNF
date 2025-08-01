@@ -105,11 +105,11 @@ export function toPlayerWithTrend(dbPlayer: any): PlayerWithTrend {
 
   return {
     ...playerProfile,
-    trend_rating: dbPlayer.trend_rating ? parseFloat(dbPlayer.trend_rating) : null,
-    trend_goal_threat: dbPlayer.trend_goal_threat ? parseFloat(dbPlayer.trend_goal_threat) : null,
-    trend_participation: dbPlayer.trend_participation ? parseFloat(dbPlayer.trend_participation) : null,
-    power_rating_percentile: dbPlayer.power_rating_percentile ? parseFloat(dbPlayer.power_rating_percentile) : null,
-    goal_threat_percentile: dbPlayer.goal_threat_percentile ? parseFloat(dbPlayer.goal_threat_percentile) : null,
+    trend_rating: dbPlayer.power_rating ? parseFloat(dbPlayer.power_rating) : null,
+    trend_goal_threat: dbPlayer.goal_threat ? parseFloat(dbPlayer.goal_threat) : null,
+    trend_participation: dbPlayer.participation ? parseFloat(dbPlayer.participation) : null,
+    power_rating_percentile: dbPlayer.power_percentile ? parseFloat(dbPlayer.power_percentile) : null,
+    goal_threat_percentile: dbPlayer.goal_percentile ? parseFloat(dbPlayer.goal_percentile) : null,
     participation_percentile: dbPlayer.participation_percentile ? parseFloat(dbPlayer.participation_percentile) : null,
     sparkline_data: dbPlayer.sparkline_data || [],
   };

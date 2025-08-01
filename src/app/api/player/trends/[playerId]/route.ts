@@ -16,7 +16,7 @@ const getPlayerTrends = unstable_cache(
     
     // Fetch both the pre-calculated ratings and the historical blocks for sparklines
     const [trendData, historicalData] = await Promise.all([
-      prisma.aggregated_player_power_ratings.findUnique({
+      prisma.aggregated_performance_ratings.findUnique({
         where: { player_id: playerId },
         include: { players: { select: { name: true, is_retired: true, is_ringer: true, selected_club: true } } },
       }),
@@ -64,7 +64,7 @@ const getPlayerTrends = unstable_cache(
       sparkline_data: sparklineData,
     };
   },
-  ['player_trends_v5'], // Updated cache key for percentile fix and sparkline data correction
+  ['player_trends_v6'], // Updated cache key for aggregated_performance_ratings table migration
   {
     tags: [CACHE_TAGS.PLAYER_POWER_RATING],
   }
