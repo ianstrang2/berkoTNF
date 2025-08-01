@@ -271,21 +271,30 @@ const LatestMatch: React.FC = () => {
       report += `Scorers: ${matchInfo.team_b_scorers}\n`;
     }
 
-    // Personal Bests will be included in Records & Achievements section below
+    // Personal Bests will be included in Records & Achievements section below (only for players who played)
     let personalBestsContent = '';
     if (pbsData && pbsData.broken_pbs_data && Object.keys(pbsData.broken_pbs_data).length > 0) {
-      personalBestsContent += `PERSONAL BESTS:\n`;
-      Object.values(pbsData.broken_pbs_data).forEach((playerPbData: { name: string; pbs: { metric_type: string; value: number }[] }) => {
-        playerPbData.pbs.forEach(pb => {
-          const metricDetail = PB_METRIC_DETAILS_FOR_COPY[pb.metric_type];
-          if (metricDetail) {
-            personalBestsContent += `- ${playerPbData.name}: ${metricDetail.name} - ${pb.value} ${metricDetail.unit}\n`;
-          } else {
-            personalBestsContent += `- ${playerPbData.name}: ${pb.metric_type.replace(/_/g, ' ')} - ${pb.value}\n`;
-          }
+      const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
+      
+      // Filter personal bests to only include players who played in this match
+      const filteredPbsData = Object.values(pbsData.broken_pbs_data).filter((playerPbData: { name: string; pbs: { metric_type: string; value: number }[] }) => 
+        matchPlayers.includes(playerPbData.name)
+      );
+      
+      if (filteredPbsData.length > 0) {
+        personalBestsContent += `PERSONAL BESTS:\n`;
+        filteredPbsData.forEach((playerPbData: { name: string; pbs: { metric_type: string; value: number }[] }) => {
+          playerPbData.pbs.forEach(pb => {
+            const metricDetail = PB_METRIC_DETAILS_FOR_COPY[pb.metric_type];
+            if (metricDetail) {
+              personalBestsContent += `- ${playerPbData.name}: ${metricDetail.name} - ${pb.value} ${metricDetail.unit}\n`;
+            } else {
+              personalBestsContent += `- ${playerPbData.name}: ${pb.metric_type.replace(/_/g, ' ')} - ${pb.value}\n`;
+            }
+          });
         });
-      });
-      personalBestsContent += `\n`;
+        personalBestsContent += `\n`;
+      }
     }
 
     // CURRENT STANDINGS SECTION (Leaderboards only)
@@ -439,44 +448,57 @@ const LatestMatch: React.FC = () => {
       hasRecordsData = true;
     }
     
-    // Add milestones to records section (combine game and goal milestones)
+    // Add milestones to records section (combine game and goal milestones) - only for players who played
     if ((data.gamesMilestones && data.gamesMilestones.length > 0) || 
         (data.goalsMilestones && data.goalsMilestones.length > 0)) {
-      if (!hasRecordsData) {
-        recordsSection += `\n--- RECORDS & ACHIEVEMENTS ---\n`;
-        hasRecordsData = true;
-      }
-      recordsSection += `MILESTONES:\n`;
+      const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
       
-      // Add game milestones
-      if (data.gamesMilestones && data.gamesMilestones.length > 0) {
-        data.gamesMilestones.forEach(m => {
-          const gameCount = m.total_games || m.value || 0;
-          recordsSection += `- ${m.name}: Played ${getOrdinalSuffix(gameCount)} game\n`;
-        });
-      }
+      // Filter milestones to only include players who played in this match
+      const filteredGameMilestones = data.gamesMilestones?.filter(m => matchPlayers.includes(m.name)) || [];
+      const filteredGoalMilestones = data.goalsMilestones?.filter(m => matchPlayers.includes(m.name)) || [];
       
-      // Add goal milestones
-      if (data.goalsMilestones && data.goalsMilestones.length > 0) {
-        data.goalsMilestones.forEach(m => {
-          const goalCount = m.total_goals || m.value || 0;
-          recordsSection += `- ${m.name}: Scored ${getOrdinalSuffix(goalCount)} goal\n`;
-        });
+      if (filteredGameMilestones.length > 0 || filteredGoalMilestones.length > 0) {
+        if (!hasRecordsData) {
+          recordsSection += `\n--- RECORDS & ACHIEVEMENTS ---\n`;
+          hasRecordsData = true;
+        }
+        recordsSection += `MILESTONES:\n`;
+        
+        // Add game milestones
+        if (filteredGameMilestones.length > 0) {
+          filteredGameMilestones.forEach(m => {
+            const gameCount = m.total_games || m.value || 0;
+            recordsSection += `- ${m.name}: Played ${getOrdinalSuffix(gameCount)} game\n`;
+          });
+        }
+        
+        // Add goal milestones
+        if (filteredGoalMilestones.length > 0) {
+          filteredGoalMilestones.forEach(m => {
+            const goalCount = m.total_goals || m.value || 0;
+            recordsSection += `- ${m.name}: Scored ${getOrdinalSuffix(goalCount)} goal\n`;
+          });
+        }
+        recordsSection += `\n`;
       }
-      recordsSection += `\n`;
     }
 
-    // Add feat-breaking records to records section
+    // Add feat-breaking records to records section - only for players who played
     if (data.featBreakingData && data.featBreakingData.length > 0) {
-      if (!hasRecordsData) {
-        recordsSection += `\n--- RECORDS & ACHIEVEMENTS ---\n`;
-        hasRecordsData = true;
+      const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
+      const filteredFeatBreakingData = data.featBreakingData.filter(feat => matchPlayers.includes(feat.player_name));
+      
+      if (filteredFeatBreakingData.length > 0) {
+        if (!hasRecordsData) {
+          recordsSection += `\n--- RECORDS & ACHIEVEMENTS ---\n`;
+          hasRecordsData = true;
+        }
+        recordsSection += `RECORD-BREAKING FEATS:\n`;
+        filteredFeatBreakingData.forEach(feat => {
+          const content = generateFeatContent(feat);
+          recordsSection += `- ${feat.player_name}: ${content}\n`;
+        });
       }
-      recordsSection += `RECORD-BREAKING FEATS:\n`;
-      data.featBreakingData.forEach(feat => {
-        const content = generateFeatContent(feat);
-        recordsSection += `- ${feat.player_name}: ${content}\n`;
-      });
     }
     
     if (hasRecordsData) {

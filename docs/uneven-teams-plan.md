@@ -1,9 +1,18 @@
-Final Specification for Enabling Uneven Teams in StatKick App (v1.6 - Strict 4v4 Minimum)
-Version: 1.6
+Final Specification for Enabling Uneven Teams in StatKick App (v1.8 - Optimized UI Flow)
+Version: 1.8
 
-Date: January 31, 2025
+Date: August 01, 2025
 
 Author: User Feedback + Cursor Implementation
+
+**CHANGELOG v1.8 - OPTIMIZED UI FLOW:**
+- **Merged blocked modal**: Single "8 players (4v4) is the minimum" modal with "Got It" button for <8 players
+- **Hard cap at 22**: Universal 22-player limit (11v11 max) with "Maximum players reached" hint, allows excess over team_size * 2 with auto-adjustment
+- **No modals for allowed cases**: Direct lock for >=8 players (even/uneven/4v4) with auto-split handling
+- **Balance Modal optimization**: Grayed Ability option in existing modal with subtitle, no toast messages for restrictions
+- **Simplified hints**: Essential hints only in existing UI space, removed clutter messages
+- **Removed status notes**: Deleted info boxes from BalanceTeamsPane and CompleteMatchForm
+- **Apple-style UX**: "Just works" clean UI with minimal friction, reusing existing patterns
 
 **CHANGELOG v1.6 - STRICT 4v4 MINIMUM:**
 - **Strict 8-player minimum**: Block any pool <8 players (no 3v4, 3v3, etc.)
@@ -14,29 +23,27 @@ Author: User Feedback + Cursor Implementation
 - **Clear 4v4 vs 5v5+ distinction**: 8 players = simplified, 9+ players = full positional treatment
 - **Updated modal messaging**: Clear guidance for blocked vs allowed scenarios with balancing restrictions
 
-Purpose: Enable **flexible team management** with a strict minimum of 4v4 (8 players) to ensure viable matches. The system treats exactly 8 players as a simplified case (all midfielders) while 9+ players get full positional treatment with optional uneven splits. **Ability balancing is disabled for ALL uneven teams** to preserve the existing algorithm, with Performance and Random balancing available for uneven scenarios.
+Purpose: Enable **flexible team management** with optimized UI flow. Universal 22-player hard cap (11v11 max) allowing excess over team_size * 2 with auto-adjustment, direct lock for viable matches (>=8 players), and streamlined guidance through existing UI patterns. **Ability balancing is disabled for ALL uneven teams** to preserve the existing algorithm, with clear visual indicators in the existing Balance Modal.
 
 ## Key Design Principles
 
-**Strict Viability**: Minimum 8 players ensures both teams have at least 4 players for competitive matches.
+**Apple-Style "Just Works"**: Minimal friction UI with direct actions for viable scenarios, single modal for blocked cases.
 
-**Clear Simplification Boundary**: 8 players (4v4) = simplified treatment, 9+ players = full positional treatment.
+**Hard Cap with Excess Allowance**: Universal 22-player limit (11v11 max) with "Maximum players reached" hint, allows excess over team_size * 2 with auto-adjustment (floor/ceil split, scaled formations).
 
-**Ability Balancing Restriction**: Disabled for ANY uneven team (including 4v4 simplified matches and uneven splits like 4v5, 5v6) to preserve the existing Ability algorithm. Only Performance and Random balancing are supported for uneven teams.
+**Direct Lock Flow**: No confirmation modals for viable matches (>=8 players) - direct lock with auto-split handling.
 
-**Planning Guide Approach**: team_size remains fixed as a planning tool (SMS caps, over-cap prevention, base template) but doesn't restrict actual splits.
+**Ability Balancing Restriction**: Disabled for ANY uneven team (including 4v4 simplified matches and uneven splits like 4v5, 5v6) with visual indicators in existing Balance Modal structure.
 
-**Adaptive Intelligence**: Modal messages and options adapt to pool size, suggesting optimal configurations while blocking non-viable scenarios.
+**Reuse Existing Patterns**: Leverage existing hint area, SoftUIConfirmationModal, Balance Modal radio buttons, and UI styling without adding new elements.
 
-**Enhanced Blocking**: No proceed option for insufficient pools - clear guidance to add players.
+**Essential Hints Only**: Simplified messaging in existing UI space, removing clutter and redundant guidance.
 
-**Graceful Scaling**: Templates auto-scale from team_size base to actual splits for 9+ player pools using intelligent rounding.
-
-**Mobile-First Modal UX**: Full-screen modals on mobile with large touch targets and clear action hierarchy.
+**Mobile-First Touch Targets**: 48px minimum button sizes, full-screen modals, optimized for thumb navigation.
 
 ## Implementation Changes
 
-**Phase 1: Always-Enabled Lock Pool Button**
+**Phase 1: Always-Enabled Lock Pool Button with Hard Cap**
 
 `src/app/admin/matches/[id]/page.tsx`:
 ```typescript
@@ -44,12 +51,21 @@ Purpose: Enable **flexible team management** with a strict minimum of 4v4 (8 pla
 disabled = playerPoolIds.length !== matchData.teamSize * 2;
 
 // REPLACE WITH:
-disabled = false; // Always enabled in Draft state
+disabled = playerPoolIds.length > 22; // Hard cap at 22 players (11v11 max)
 ```
 
-**Phase 2: Enhanced Dynamic Button Hints**
+`src/components/admin/matches/PlayerPoolPane.component.tsx`:
+```typescript
+// FIND (assumed):
+disabled = playerPoolIds.length >= matchData.teamSize * 2;
 
-Add intelligent hint calculation with 8-player minimum:
+// REPLACE WITH:
+disabled = playerPoolIds.length >= 22; // Override to allow excess up to 22
+```
+
+**Phase 2: Simplified Dynamic Button Hints**
+
+Update hint calculation with essential messaging only:
 ```typescript
 const { currentStep, primaryLabel, primaryAction, primaryDisabled, buttonHint } = useMemo(() => {
   // ... existing logic ...
@@ -59,7 +75,6 @@ const { currentStep, primaryLabel, primaryAction, primaryDisabled, buttonHint } 
     const targetSize = matchData.teamSize * 2;
     const sizeA = Math.floor(poolSize / 2);
     const sizeB = Math.ceil(poolSize / 2);
-    const diff = Math.abs(sizeA - sizeB);
     
     let hint = '';
     if (poolSize === 0) {
@@ -69,15 +84,14 @@ const { currentStep, primaryLabel, primaryAction, primaryDisabled, buttonHint } 
       hint = `Need ${needed} more for 4v4 minimum`;
     } else if (poolSize === 8) {
       hint = 'Lock 4v4 (all midfielders, Performance/Random only)';
-    } else if (poolSize < targetSize - 2) {
-      const needed = targetSize - poolSize;
-      hint = `Need ${needed} more for ${matchData.teamSize}v${matchData.teamSize} or lock ${sizeA}v${sizeB}`;
+    } else if (poolSize > 22) {
+      hint = 'Maximum players reached. Remove some?';
     } else if (poolSize === targetSize) {
       hint = `Perfect for ${matchData.teamSize}v${matchData.teamSize}`;
-    } else if (diff <= 1 && sizeA >= 4 && sizeB >= 4) {
-      hint = `Lock ${sizeA}v${sizeB} (Performance/Random only)`;
+    } else if (sizeA !== sizeB) {
+      hint = `Lock ${sizeA}v${sizeB}`;
     } else {
-      hint = `Add/remove for better balance (current: ${sizeA}v${sizeB})`;
+      hint = `Lock ${sizeA}v${sizeB}`;
     }
     
     return { 
@@ -90,207 +104,64 @@ const { currentStep, primaryLabel, primaryAction, primaryDisabled, buttonHint } 
 }, [matchData, playerPoolIds, actions]);
 ```
 
-**Phase 3: Enhanced Adaptive Lock Modal System**
+**Phase 3: Single Blocked Modal System**
 
-Add comprehensive modal state and logic with balancing restrictions:
+Add minimal modal state and direct lock logic:
 ```typescript
-// Add modal states
-const [isLockModalOpen, setIsLockModalOpen] = useState(false);
-const [modalConfig, setModalConfig] = useState<{
-  poolSize: number;
-  sizeA: number;
-  sizeB: number;
-  isBlocked: boolean;
-  blockReason: string;
-  isSimplified: boolean;
-  isUneven: boolean;
-  suggestedTeamSize?: number;
-  message: string;
-}>({
-  poolSize: 0,
-  sizeA: 0,
-  sizeB: 0,
-  isBlocked: false,
-  blockReason: '',
-  isSimplified: false,
-  isUneven: false,
-  message: ''
-});
+// Add single modal state
+const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
 
-// Modify primary action to always show modal with enhanced blocking
+// Modify primary action for direct lock or single block modal
 action = () => {
   const poolSize = playerPoolIds.length;
-  const sizeA = Math.floor(poolSize / 2);
-  const sizeB = Math.ceil(poolSize / 2);
-  const diff = Math.abs(sizeA - sizeB);
   
-  // Determine blocking conditions
-  let isBlocked = false;
-  let blockReason = '';
-  
+  // Single blocking condition: < 8 players
   if (poolSize < 8) {
-    isBlocked = true;
-    blockReason = 'minimum';
-  } else if (sizeA < 4 || sizeB < 4) {
-    isBlocked = true;
-    blockReason = 'team_too_small';
-  } else if (diff > 1) {
-    isBlocked = true;
-    blockReason = 'too_uneven';
+    setIsBlockedModalOpen(true);
+    return;
   }
   
-  const isSimplified = poolSize === 8; // Exactly 4v4
-  const isUneven = sizeA !== sizeB; // Any uneven split
-  
-  // Find nearest valid team_size for suggestions
-  const validSizes = [5, 6, 7, 8, 9, 10, 11]; // Based on team_size_templates
-  const nearestEven = validSizes.find(size => size * 2 >= poolSize) || validSizes[validSizes.length - 1];
-  
-  let message = '';
-  if (isBlocked) {
-    switch (blockReason) {
-      case 'minimum':
-        message = `${poolSize} players - too few for 4v4 minimum (need 8+). Add players?`;
-        break;
-      case 'team_too_small':
-        message = `${poolSize} players would create ${sizeA}v${sizeB} with teams <4 players. Add players for viable match?`;
-        break;
-      case 'too_uneven':
-        message = `${poolSize} players would create ${sizeA}v${sizeB} (difference >1). Please add/remove players.`;
-        break;
-    }
-  } else if (isSimplified) {
-    message = `${poolSize} players - locking to 4v4 as all midfielders (Performance/Random only). Proceed?`;
-  } else if (isUneven) {
-    message = `${poolSize} players - locking to ${sizeA}v${sizeB} (scaled from ${matchData.teamSize}v${matchData.teamSize} template). Performance/Random balancing only. Proceed?`;
-  } else {
-    message = `${poolSize} players - locking to ${sizeA}v${sizeB} (scaled from ${matchData.teamSize}v${matchData.teamSize} template). All balancing options available. Proceed?`;
-  }
-  
-  setModalConfig({
-    poolSize,
-    sizeA,
-    sizeB,
-    isBlocked,
-    blockReason,
-    isSimplified,
-    isUneven,
-    suggestedTeamSize: nearestEven,
-    message
-  });
-  setIsLockModalOpen(true);
+  // Direct lock for all viable scenarios (>=8 players)
+  actions.lockPool({ playerIds: playerPoolIds.map(id => Number(id)) });
 };
 
-// Add enhanced adaptive modal component
-<EnhancedAdaptiveLockModal 
-  isOpen={isLockModalOpen}
-  onClose={() => setIsLockModalOpen(false)}
-  config={modalConfig}
-  currentTeamSize={matchData.teamSize}
-  onConfirm={() => {
-    actions.lockPool({ playerIds: playerPoolIds.map(id => Number(id)) });
-    setIsLockModalOpen(false);
-  }}
-  onSetTeamSize={(newSize) => {
-    // Update team_size and re-calculate
-    handleEditMatch({ team_size: newSize });
-    setIsLockModalOpen(false);
-  }}
-  onCancel={() => setIsLockModalOpen(false)}
+// Add single blocked modal component
+<SingleBlockedModal 
+  isOpen={isBlockedModalOpen}
+  onClose={() => setIsBlockedModalOpen(false)}
+  poolSize={playerPoolIds.length}
 />
 ```
 
-**Phase 4: Enhanced Adaptive Lock Modal Component**
+**Phase 4: Single Blocked Modal Component**
 
-Create enhanced modal component with strict blocking:
+Create minimal blocked modal:
 ```typescript
-// src/components/admin/matches/EnhancedAdaptiveLockModal.component.tsx
-interface EnhancedAdaptiveLockModalProps {
+// src/components/admin/matches/SingleBlockedModal.component.tsx
+interface SingleBlockedModalProps {
   isOpen: boolean;
   onClose: () => void;
-  config: {
-    poolSize: number;
-    sizeA: number;
-    sizeB: number;
-    isBlocked: boolean;
-    blockReason: string;
-    isSimplified: boolean;
-    isUneven: boolean;
-    suggestedTeamSize?: number;
-    message: string;
-  };
-  currentTeamSize: number;
-  onConfirm: () => void;
-  onSetTeamSize: (newSize: number) => void;
-  onCancel: () => void;
+  poolSize: number;
 }
 
-const EnhancedAdaptiveLockModal = ({ isOpen, onClose, config, currentTeamSize, onConfirm, onSetTeamSize, onCancel }: EnhancedAdaptiveLockModalProps) => {
-  const { poolSize, sizeA, sizeB, isBlocked, blockReason, isSimplified, isUneven, suggestedTeamSize, message } = config;
-  
-  // Determine modal appearance based on state
-  let title = "Lock Pool";
-  let icon: "info" | "warning" | "question" = "question";
-  let confirmText: string | undefined = "Lock Teams";
-  let cancelText = "Cancel";
-  
-  if (isBlocked) {
-    switch (blockReason) {
-      case 'minimum':
-        title = "Too Few Players";
-        icon = "warning";
-        confirmText = undefined; // No proceed option
-        cancelText = "Add Players";
-        break;
-      case 'team_too_small':
-        title = "Teams Too Small";
-        icon = "warning";
-        confirmText = undefined;
-        cancelText = "Add Players";
-        break;
-      case 'too_uneven':
-        title = "Teams Too Uneven";
-        icon = "warning";
-        confirmText = undefined;
-        cancelText = "Add/Remove Players";
-        break;
-    }
-  } else if (isSimplified) {
-    title = "4v4 Match";
-    icon = "info";
-    confirmText = "Proceed with 4v4";
-    cancelText = "Add Players";
-  } else if (isUneven) {
-    title = "Uneven Teams";
-    icon = "info";
-    confirmText = "Lock Uneven Teams";
-    cancelText = "Add/Remove Players";
-  }
-  
+const SingleBlockedModal = ({ isOpen, onClose, poolSize }: SingleBlockedModalProps) => {
   return (
     <SoftUIConfirmationModal
       isOpen={isOpen}
       onClose={onClose}
-      title={title}
-      message={message}
-      confirmText={confirmText}
-      cancelText={cancelText}
-      icon={icon}
-      onConfirm={isBlocked ? undefined : onConfirm}
-      onCancel={onCancel}
-      additionalActions={!isBlocked && !isSimplified && !isUneven && suggestedTeamSize && suggestedTeamSize !== currentTeamSize ? [
-        {
-          label: `Set to ${suggestedTeamSize}v${suggestedTeamSize}`,
-          onClick: () => onSetTeamSize(suggestedTeamSize),
-          variant: "secondary"
-        }
-      ] : undefined}
+      title="Too Few Players"
+      message="8 players (4v4) is the minimum."
+      confirmText="Got It"
+      cancelText={undefined}
+      icon="warning"
+      onConfirm={onClose}
+      onCancel={undefined}
     />
   );
 };
 ```
 
-**Phase 5: Enhanced API Lock Pool Updates**
+**Phase 5: Streamlined API Lock Pool Updates**
 
 `src/app/api/admin/upcoming-matches/[id]/lock-pool/route.ts`:
 ```typescript
@@ -307,9 +178,16 @@ if (playerIds.length !== requiredPlayerCount) {
 const poolSize = playerIds.length;
 const sizeA = Math.floor(poolSize / 2);
 const sizeB = Math.ceil(poolSize / 2);
-const diff = Math.abs(sizeA - sizeB);
 
-// Strict minimum enforcement - must have at least 8 players for 4v4
+// Hard cap enforcement
+if (poolSize > 22) {
+  return NextResponse.json({ 
+    success: false, 
+    error: `Too many players (max 22 for 11v11). Got ${poolSize}.`
+  }, { status: 400 });
+}
+
+// Strict minimum enforcement
 if (poolSize < 8) {
   return NextResponse.json({ 
     success: false, 
@@ -317,19 +195,11 @@ if (poolSize < 8) {
   }, { status: 400 });
 }
 
-// Both teams must have at least 4 players
+// Both teams must have at least 4 players (defensive check)
 if (sizeA < 4 || sizeB < 4) {
   return NextResponse.json({ 
     success: false, 
     error: `Teams too small (${sizeA}v${sizeB}). Both teams need 4+ players.`
-  }, { status: 400 });
-}
-
-// Maximum difference is 1 player
-if (diff > 1) {
-  return NextResponse.json({ 
-    success: false, 
-    error: `Team difference too large (${sizeA}v${sizeB}). Max difference is 1 player.`
   }, { status: 400 });
 }
 
@@ -344,11 +214,11 @@ return NextResponse.json({
 });
 ```
 
-**Phase 6: Balance Teams API Validation**
+**Phase 6: Balance Teams API Validation (Unchanged)**
 
 `src/app/api/admin/balance-teams/route.ts`:
 ```typescript
-// ADD: Enhanced validation for Ability balancing
+// Keep existing validation for Ability balancing
 export async function POST(request: Request) {
   try {
     const { matchId, playerIds, method } = await request.json();
@@ -379,7 +249,7 @@ export async function POST(request: Request) {
     
     // Route to appropriate balancing algorithm
     if (method === 'ability') {
-      // Only allowed for even teams (9v9, 10v10, etc.)
+      // Only allowed for even teams (5v5, 6v6, etc.)
       return await balanceByRating(matchId);
     } else if (method === 'performance') {
       return await balanceByPerformance(matchId, playerIds);
@@ -396,25 +266,17 @@ export async function POST(request: Request) {
 }
 ```
 
-**Phase 7: Enhanced BalanceTeamsPane Updates**
+**Phase 7: Streamlined BalanceTeamsPane Updates**
 
 `src/components/admin/matches/BalanceTeamsPane.component.tsx`:
 ```typescript
-// Add enhanced team state detection
+// Add team state detection (keep existing logic)
 const totalPlayers = teamA.length + teamB.length;
 const isSimplified = totalPlayers === 8; // Exactly 4v4
-const isUneven = teamA.length !== teamB.length; // Any uneven split, e.g., 4v5
+const isUneven = teamA.length !== teamB.length; // Any uneven split
 
-// Update balance options modal to disable Ability for ANY uneven team
+// Remove toast messages - handle restrictions in Balance Modal only
 const handleBalanceConfirm = async (method: 'ability' | 'performance' | 'random') => {
-  if ((isSimplified || isUneven) && method === 'ability') {
-    onShowToast(
-      `Ability balancing not available for ${isSimplified ? '4v4' : `${teamA.length}v${teamB.length}`} teams - use Performance or Random`,
-      'error'
-    );
-    return;
-  }
-  
   setIsBalanceModalOpen(false);
   setIsBalancing(true);
   setBalanceMethod(method);
@@ -422,16 +284,17 @@ const handleBalanceConfirm = async (method: 'ability' | 'performance' | 'random'
   try {
     await balanceTeamsAction(method);
   } catch(e: any) { 
+    // Keep API error toasts for rare failures
     onShowToast(e.message || "Balancing failed", "error"); 
   } finally { 
     setIsBalancing(false); 
   }
 };
 
-// Hide TornadoChart for 4v4 matches
+// Hide TornadoChart for 4v4 matches (keep existing logic)
 const shouldShowTornadoChart = !isSimplified && teamStatsData && balanceWeights;
 
-// Update team column rendering for 4v4 matches
+// Keep existing team column rendering for 4v4 matches (no changes)
 const renderTeamColumn = (teamName: 'A' | 'B') => {
   if (isSimplified) {
     // Flat list for 4v4 matches - all midfielders
@@ -448,25 +311,14 @@ const renderTeamColumn = (teamName: 'A' | 'B') => {
   // ... existing positioned rendering for 9+ player matches
 };
 
-// Add comprehensive status note
-{(isSimplified || isUneven) && (
-  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-    <p className="text-sm text-blue-800">
-      <strong>{isSimplified ? '4v4 Match' : 'Uneven Teams'}:</strong> 
-      {isSimplified 
-        ? ' All positions treated as midfielders. Performance/Random balancing only.'
-        : ' Ability balancing disabled for uneven teams. Performance/Random balancing available.'
-      }
-    </p>
-  </div>
-)}
+// REMOVE status note completely (no UI boxes for 4v4 or uneven teams)
 ```
 
-**Phase 8: Balance Options Modal Enhancement**
+**Phase 8: Optimized Balance Options Modal**
 
 `src/components/admin/matches/BalanceOptionsModal.component.tsx`:
 ```typescript
-// Enhanced balance options with Ability restriction
+// Enhanced balance options with visual Ability restriction in existing modal structure
 interface BalanceOptionsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -490,9 +342,7 @@ const BalanceOptionsModal = ({
       label: 'Ability: Use player ratings to create balanced teams',
       description: 'Advanced algorithm using positional ratings',
       disabled: isSimplified || isUneven,
-      disabledReason: isSimplified 
-        ? 'Not available for 4v4 matches' 
-        : 'Not available for uneven teams'
+      disabledReason: 'Not available for 4v4/uneven teams. Use Performance or Random.'
     },
     { 
       value: 'performance', 
@@ -528,9 +378,8 @@ const BalanceOptionsModal = ({
               }`}
             >
               <div className="font-medium">{option.label}</div>
-              <div className="text-sm text-gray-600 mt-1">
-                {option.disabled ? option.disabledReason : option.description}
-              </div>
+              {option.disabled && <div className="text-sm text-gray-600 mt-1">{option.disabledReason}</div>}
+              {!option.disabled && <div className="text-sm text-gray-600 mt-1">{option.description}</div>}
             </button>
           ))}
         </div>
@@ -543,96 +392,94 @@ const BalanceOptionsModal = ({
 };
 ```
 
-**Phase 9: Enhanced CompleteMatchForm Updates**
+**Phase 9: Streamlined CompleteMatchForm Updates**
 
 `src/components/admin/matches/CompleteMatchForm.component.tsx`:
 ```typescript
-// Add note for 4v4 matches in match report
-const isSimplified = players.length === 8;
-
-// Update match completion to include 4v4 note
+// Remove all 4v4 notes and warnings - keep form clean
 const handleSubmit = async (formData: any) => {
   const matchData = {
     ...formData,
-    match_note: isSimplified ? "Small match (4v4): All positions midfield" : undefined
+    // Remove match_note addition
   };
   
   // ... existing submission logic
 };
 
-// Display note in UI
-{isSimplified && (
-  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-    <p className="text-sm text-amber-800">
-      <strong>Note:</strong> This 4v4 match will be recorded with all players as midfielders.
-    </p>
-  </div>
-)}
+// REMOVE all 4v4 warning UI completely
 ```
 
-## Benefits of This Enhanced Approach
+## Benefits of This Optimized Approach
 
-✅ **Strict Viability**: 8-player minimum ensures competitive 4v4 matches
-✅ **Algorithm Protection**: Ability balancing completely untouched for uneven teams
-✅ **Clear Boundaries**: 4v4 (simplified) vs 5v5+ (full positions) vs uneven (restricted balancing)
-✅ **Enhanced Blocking**: No proceed option for non-viable scenarios
-✅ **Consistent UX**: Clear messaging about balancing restrictions across all interfaces
-✅ **Template Flexibility**: Auto-scales templates for 9+ players, simplified for 8
-✅ **Mobile Optimized**: Full-screen modals with large touch targets
+✅ **Apple-Style UX**: "Just works" direct lock for viable scenarios, minimal friction
+✅ **Universal Hard Cap**: 22-player limit (11v11 max) with clear button graying
+✅ **Single Modal**: One blocking modal for <8 players with "Got It" action
+✅ **Algorithm Protection**: Ability balancing visually disabled with clear tooltips
+✅ **Clean UI**: Removed status notes and warnings, centralized guidance in hints
+✅ **Existing Patterns**: Reuses hint area, SoftUIConfirmationModal, button styling
+✅ **Mobile Optimized**: 48px touch targets, full-screen modals, thumb-friendly
 ✅ **Backward Compatible**: Even teams work exactly as before with all balancing options
 
 ## Scenario Examples
 
 **Minimum Viable (8 players)**:
 - Hint: "Lock 4v4 (all midfielders, Performance/Random only)"
-- Modal: "8 players - locking to 4v4 as all midfielders (Performance/Random only). Proceed?"
-- Result: 4v4 flat teams, Performance/Random only, all recorded as midfielders
+- Action: Direct lock on button click, no modal
+- Result: 4v4 flat teams, Ability grayed in Balance Modal
 
 **Perfect Small Match (10 players, 5v5)**:
 - Hint: "Perfect for 5v5"
-- Modal: "10 players - locking to 5v5. All balancing options available. Proceed?"
-- Result: Normal 5v5 with 2/2/1 positions, all balancing options
+- Action: Direct lock on button click, no modal
+- Result: Normal 5v5 with positions, all balancing options
 
 **Uneven Match (9 players, 4v5)**:
-- Hint: "Lock 4v5 (Performance/Random only)"
-- Modal: "9 players - locking to 4v5 (scaled from 9v9 template). Performance/Random balancing only. Proceed?"
-- Result: 4v5 with scaled positions, Performance/Random only (Ability disabled)
+- Hint: "Lock 4v5"
+- Action: Direct lock on button click, no modal
+- Result: 4v5 with scaled positions, Ability grayed in Balance Modal
+
+**Excess Match (19 players for team_size=9)**:
+- Hint: "Lock 9v10"
+- Action: Direct lock on button click, no modal (excess over 18 allowed)
+- Result: 9v10 with auto-adjustment, Ability grayed in Balance Modal
 
 **Perfect Large Match (18 players, 9v9)**:
 - Hint: "Perfect for 9v9"
-- Modal: "18 players - locking to 9v9. All balancing options available. Proceed?"
-- Result: Normal 9v9 with full positions, all balancing options including Ability
+- Action: Direct lock on button click, no modal
+- Result: Normal 9v9 with full positions, all balancing options
 
 **Insufficient Pool (6 players)**:
 - Hint: "Need 2 more for 4v4 minimum"
-- Modal: "6 players - too few for 4v4 minimum (need 8+). Add players?"
-- Blocked: Only "Add Players" or "Cancel" options
+- Action: Modal with "8 players (4v4) is the minimum" and "Got It" button
+- Blocked: Returns to Draft state, no proceed option
+
+**Over Capacity (23 players)**:
+- Hint: "Maximum players reached"
+- Action: "Lock Pool" button grayed out (disabled)
+- Blocked: Must remove players to continue
 
 ## Balancing Algorithm Matrix
 
 | Team Configuration | Ability | Performance | Random |
 |-------------------|---------|-------------|---------|
-| 4v4 (8 players) | ❌ Disabled | ✅ Available | ✅ Available |
-| Uneven (4v5, 5v6, etc.) | ❌ Disabled | ✅ Available | ✅ Available |
+| 4v4 (8 players) | ❌ Grayed with tooltip | ✅ Available | ✅ Available |
+| Uneven (4v5, 5v6, etc.) | ❌ Grayed with tooltip | ✅ Available | ✅ Available |
 | Even 5v5+ (10, 12, 14+ players) | ✅ Available | ✅ Available | ✅ Available |
 
 ## Testing Strategy
 
 **Phase 1 Tests:**
-- **Strict minimum**: 8+ players required, <8 blocked with clear messaging
-- **4v4 simplification**: Exactly 8 players → all midfielders, Performance/Random only
-- **Ability restriction**: Any uneven team blocks Ability balancing with clear error
-- **Modal blocking**: No proceed option for non-viable scenarios
+- **Hard cap**: 22+ players gray "Lock Pool" button with "Maximum players reached" hint
+- **Direct lock**: 8+ players proceed immediately without modals
+- **Single modal**: <8 players show unified blocking modal with "Got It"
 
 **Phase 2 Tests:**
-- **Uneven team flow**: 9, 11, 13 players → Performance/Random only
-- **Even team flow**: 10, 12, 14+ players → all balancing options
-- **API validation**: Backend rejects Ability requests for uneven teams
-- **UI consistency**: Balance options modal shows disabled Ability for uneven
+- **Balance Modal**: Ability option grayed with subtitle for 4v4/uneven teams
+- **Hint simplification**: Essential messages only in existing UI space
+- **No status notes**: Clean BalanceTeamsPane and CompleteMatchForm without warnings
 
 **Phase 3 Tests:**
-- **Boundary conditions**: 8 (simplified), 9 (first uneven), 10 (even), 11 (uneven)
-- **Error messaging**: Toast notifications for Ability attempts on uneven teams
-- **Data integrity**: Match reports correctly note restrictions and configurations
+- **Boundary conditions**: 6 (modal), 8 (direct), 19 (direct, excess), 23 (grayed button)
+- **Auto-split handling**: 9→4v5, 11→5v6, 19→9v10, 21→10v11 with uneven restrictions
+- **API consistency**: Backend errors as toasts for rare failures only
 
-This approach maintains the 4-6 hour implementation estimate while ensuring the Ability algorithm remains completely untouched and all uneven team scenarios are handled consistently with clear user guidance.
+This approach delivers a streamlined "Apple-style" experience with minimal UI friction while maintaining all functional requirements and algorithm protection.

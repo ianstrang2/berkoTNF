@@ -312,9 +312,14 @@ const CurrentForm: React.FC = () => {
       });
     }
     
-    // Add goal streaks to timeline
+    // Add goal streaks to timeline - ONLY for players who played in this match
     if (data.goalStreaks && data.goalStreaks.length > 0) {
       data.goalStreaks.forEach(streak => {
+        // Only show goal streaks for players who actually played in this match
+        if (!allMatchPlayers.includes(streak.name)) {
+          return;
+        }
+        
         const playerId = getPlayerIdByName(streak.name);
         items.push({
           type: 'goal_streak',

@@ -414,18 +414,29 @@ const CurrentFormAndStandings: React.FC = () => {
                   </div>
                 )}
 
-                {matchData.goalStreaks && matchData.goalStreaks.length > 0 && (
-                  <div>
-                    <h6 className="text-sm font-semibold text-slate-600 mb-2">Scoring Streaks</h6>
-                    <div className="space-y-1">
-                      {matchData.goalStreaks.map((streak, index) => (
-                        <p key={index} className="text-sm text-slate-700">
-                          <strong>{streak.name}</strong> - {streak.matches_with_goals} consecutive matches ({streak.goals_in_streak} goals)
-                        </p>
-                      ))}
+                {matchData.goalStreaks && matchData.goalStreaks.length > 0 && (() => {
+                  // Filter goal streaks to only include players who played in this match
+                  const allMatchPlayers = [
+                    ...(matchData.matchInfo?.team_a_players || []),
+                    ...(matchData.matchInfo?.team_b_players || [])
+                  ];
+                  const filteredGoalStreaks = matchData.goalStreaks.filter(streak => 
+                    allMatchPlayers.includes(streak.name)
+                  );
+                  
+                  return filteredGoalStreaks.length > 0 && (
+                    <div>
+                      <h6 className="text-sm font-semibold text-slate-600 mb-2">Scoring Streaks</h6>
+                      <div className="space-y-1">
+                        {filteredGoalStreaks.map((streak, index) => (
+                          <p key={index} className="text-sm text-slate-700">
+                            <strong>{streak.name}</strong> - {streak.matches_with_goals} consecutive matches ({streak.goals_in_streak} goals)
+                          </p>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             ) : (
               <p className="text-slate-500 text-sm">No active streaks</p>
