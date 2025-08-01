@@ -319,13 +319,36 @@ TARGET PLAYERS FOR PROFILE GENERATION:
 ${targetPlayers.map(p => `- ${p.name} (${p.action_type})`).join('\\n')}
 
 INSTRUCTIONS:
-Generate 2-3 paragraph profiles for ONLY the target players listed above. Use the complete league data to provide:
+Generate 2-3 paragraph profiles for ONLY the target players listed above. Each player should get their unique data-driven story.
 
-1. **Comparative insights** - rank them against other players (e.g., "top quartile", "3rd best streak in league history")
-2. **Historical context** - reference league records, milestones, significant achievements  
-3. **Relationship dynamics** - mention chemistry with specific teammates using actual win rate data
-4. **Performance patterns** - identify unique trends, clutch moments, signature achievements
-5. **Humorous flair** - keep it light-hearted and positive, use phrases like "making defenders weep with joy"
+**NARRATIVE VARIETY - Each player gets their authentic story:**
+- Identify their DATA SIGNATURE: What makes THIS player genuinely unique?
+- Choose 1-2 fitting narrative angles from: streaks, partnerships, breakthrough moments, consistency, clutch factor, quirky patterns, historical achievements
+- Avoid formulaic approaches - if they're not a "partnership player," don't force chemistry stats
+- Let their actual performance patterns drive the humor, not a template
+- Some players are streak legends, others are steady performers, others are clutch heroes - match the story to the data
+
+**HUMOR STYLE - Mine the data for character-driven comedy:**
+- Turn statistical patterns into personality: "Scores in bunches", "Consistency incarnate"
+- Use comparative data creatively: "Top quartile win rate, which is just showing off"
+- Reference specific streaks/performances when they're genuinely notable: "That 15-match scoring drought followed by 8 goals in 5 games"
+- Make teammate chemistry tangible only when it's their standout trait: "87% win rate with Sarah vs 52% apart - pure magic"
+- Historical reverence for genuinely significant moments: "That 2019 unbeaten run is still WhatsApp legend"
+
+**CREATIVE TECHNIQUES - Invent your own narrative approaches using the data creatively:**
+
+These are just inspiration - be inventive and find unique angles for each player:
+- **Streak narratives**: Current or broken streaks (win_streak, scoring_streak, attendance_streak, etc.)
+- **Record moments**: Personal bests with dates (most_game_goals + most_game_goals_date, most_season_goals)
+- **Performance styles**: Heavy wins, clean sheets, fantasy point patterns vs league averages
+- **Attendance & dedication**: Attendance streaks, participation patterns, commitment stories
+- **Partnership dynamics**: teammate_chemistry_all data for standout relationships only
+- **Power & percentiles**: Use percentile rankings creatively for bragging rights humor
+- **Form patterns**: Recent performance from last_5_games, seasonal trends from yearly_stats
+- **Career journeys**: Mine yearly_stats progression for "unknown to legend" narratives
+- **Scoring personalities**: Goal rhythm, drought/feast cycles, clutch timing
+
+**BE CREATIVE**: Don't simply copy these examples - use the data to discover each player's unique story. Find surprising patterns, unexpected correlations, and genuine character traits hidden in their numbers. Invent your own clever ways to turn statistics into personality.
 
 TONE: Funny, only-positive, banter style. Focus on strengths, achievements, and fun facts. NO negative comments.
 
