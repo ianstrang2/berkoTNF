@@ -104,8 +104,8 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS profile_generated_at TIMESTAMP WITH
 ALTER TABLE players ADD COLUMN IF NOT EXISTS is_retired BOOLEAN DEFAULT FALSE;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS is_ringer BOOLEAN DEFAULT FALSE;
 
--- Ensure last_match_date exists in aggregated_player_profile_stats
-ALTER TABLE aggregated_player_profile_stats ADD COLUMN IF NOT EXISTS last_match_date TIMESTAMP WITH TIME ZONE;
+-- Note: last_match_date is calculated on-the-fly in the export function
+-- No additional column needed - calculated dynamically from matches data
 ```
 
 ### 2. SQL Function (`sql/export_league_data_for_profiles.sql`)
@@ -869,5 +869,30 @@ Optional `league_id` parameter support built into both API route and SQL functio
 - **Testing Strategy**: Validate comparative insights and humor quality
 
 This approach transforms player profiles from basic stat summaries into rich, entertaining narratives with league-wide context and comparative intelligence - adapting perfectly to any league's unique scale and history!
+
+## Implementation Notes
+
+The following adjustments were made during implementation to match the actual database schema:
+
+### Schema Differences Resolved
+- **`seasons` table**: Does not exist in the database. Replaced with dynamic calculation using `COUNT(DISTINCT EXTRACT(YEAR FROM match_date)) FROM matches`
+- **`league_id` column**: Does not exist in `players` table. Removed multi-tenancy filtering from the export function
+- **SQL aggregation syntax**: Fixed `ORDER BY` clauses within `jsonb_agg()` functions by wrapping them in subqueries for PostgreSQL compatibility
+
+### LLM Response Handling
+- **Markdown wrapper parsing**: Added logic to handle LLM responses wrapped in ```json code blocks
+- **Fallback parsing**: Implemented regex-based parsing for cases where JSON parsing fails
+- **Enhanced logging**: Added comprehensive debug logging to track LLM interaction and response processing
+
+### API Integration
+- **Prisma schema sync**: Added `profile_text` and `profile_generated_at` columns to `players` model
+- **Frontend API route**: Updated `playerprofile/route.ts` to fetch and return profile data
+- **UI integration**: Added profile display section to `PlayerProfile.component.tsx`
+
+### Files Successfully Deployed
+- ✅ `sql/export_league_data_for_profiles.sql` - Enhanced export function with all 14 aggregated tables
+- ✅ `supabase/functions/generate-player-profiles/index.ts` - LLM processing Edge Function
+- ✅ `src/app/api/admin/trigger-player-profiles/route.ts` - API trigger with retry logic
+- ✅ `vercel.json` - Weekly cron job configuration (Sundays at 11 PM)
 
 This implementation leverages your existing infrastructure while adding intelligent, cost-effective player profile generation that enhances the user experience with minimal operational overhead.

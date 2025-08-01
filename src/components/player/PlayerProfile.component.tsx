@@ -132,6 +132,8 @@ interface ProfileData {
   power_ratings?: PowerRatings | null;
   league_normalization?: LeagueNormalization;
   streak_records?: StreakRecords;
+  profile_text?: string;
+  profile_generated_at?: string;
 }
 
 interface YearlyPerformanceData {
@@ -661,6 +663,32 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           </div>
         </div>
       </div>
+
+      {/* AI-Generated Player Bio */}
+      {profile.profile_text && (
+        <div className="w-full max-w-full px-3 mb-6">
+          <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+            <div className="p-4 lg:p-6 pb-0">
+              <h6 className="mb-3 lg:mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Player Profile</h6>
+            </div>
+            <div className="p-4 lg:p-6 pt-0">
+              <div className="prose prose-sm max-w-none" style={{ color: '#344767' }}>
+                {profile.profile_text.split('\n\n').map((paragraph, index) => (
+                  <p key={index} className="mb-3 text-sm leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+              {/* Optional: Generation timestamp for admin */}
+              {profile.profile_generated_at && process.env.NODE_ENV === 'development' && (
+                <p className="text-xs text-gray-500 mt-3 border-t pt-2">
+                  Profile generated: {new Date(profile.profile_generated_at).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* NEW: Streaks Section */}
       <div className="w-full max-w-full px-3 mb-6">

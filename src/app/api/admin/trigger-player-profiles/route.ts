@@ -19,18 +19,14 @@ async function triggerProfileGeneration() {
     // Call the Edge Function with retry logic
     let attempt = 0;
     const maxAttempts = 3;
-    let invokeError = null;
+    let lastError: any = null;
 
     while (attempt < maxAttempts) {
       attempt++;
       console.log(`Attempt ${attempt} for generate-player-profiles`);
       
       const { data, error } = await supabase.functions.invoke('generate-player-profiles', {
-        body: { 
-          recent_days_threshold: recentDaysThreshold,
-          offset: 0, // Start from beginning for full batch
-          league_id: null // Future multi-tenancy support
-        }
+        body: { recent_days_threshold: recentDaysThreshold }
       });
       
       if (!error) {
@@ -39,12 +35,11 @@ async function triggerProfileGeneration() {
           success: true, 
           message: 'Profile generation completed',
           results: data,
-          recent_days_threshold: recentDaysThreshold,
-          timestamp: new Date().toISOString()
+          recent_days_threshold: recentDaysThreshold
         });
       }
       
-      invokeError = error;
+      lastError = error;
       console.log(`Attempt ${attempt} failed for generate-player-profiles:`, error);
       
       if (attempt < maxAttempts) {
@@ -52,12 +47,12 @@ async function triggerProfileGeneration() {
       }
     }
 
-    console.error(`All attempts failed for generate-player-profiles:`, invokeError);
+    console.error(`All attempts failed for generate-player-profiles:`, lastError);
+    const errorMessage = lastError?.message || lastError?.toString() || 'Unknown error';
     return NextResponse.json({ 
       success: false, 
-      error: `Profile generation failed: ${invokeError.message}`,
-      recent_days_threshold: recentDaysThreshold,
-      timestamp: new Date().toISOString()
+      error: `Profile generation failed: ${errorMessage}`,
+      recent_days_threshold: recentDaysThreshold
     }, { status: 500 });
 
   } catch (error) {
@@ -66,8 +61,7 @@ async function triggerProfileGeneration() {
     return NextResponse.json({ 
       success: false, 
       error: `Profile generation failed: ${errorMessage}`,
-      recent_days_threshold: recentDaysThreshold,
-      timestamp: new Date().toISOString()
+      recent_days_threshold: recentDaysThreshold
     }, { status: 500 });
   }
 }

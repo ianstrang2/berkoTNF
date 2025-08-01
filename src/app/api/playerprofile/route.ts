@@ -28,10 +28,20 @@ export async function GET(request: Request) {
     console.log('Fetching aggregated profile for ID:', numericId);
 
     // Fetch profile data and power ratings in parallel
-    const [profile, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
+    const [profile, playerData, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
       // Existing profile query
       prisma.aggregated_player_profile_stats.findUnique({
         where: { player_id: numericId },
+      }),
+      
+      // NEW: Fetch player data including profile_text
+      prisma.players.findUnique({
+        where: { player_id: numericId },
+        select: {
+          profile_text: true,
+          profile_generated_at: true,
+          name: true
+        }
       }),
       
       // UPDATED: New EWMA performance ratings query
@@ -301,7 +311,11 @@ export async function GET(request: Request) {
           active_streaks: currentStreaks.streaks || {},
           active_goal_streaks: currentStreaks.goal_streaks || {},
           last_updated: currentStreaks.match_date
-        } : null
+        } : null,
+        
+        // NEW: AI-generated profile
+        profile_text: playerData?.profile_text || null,
+        profile_generated_at: playerData?.profile_generated_at || null
     };
 
     return NextResponse.json({ 

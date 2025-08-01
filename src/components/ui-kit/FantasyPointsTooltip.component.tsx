@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface FantasyPointsData {
   config_description: string;
@@ -17,13 +17,7 @@ const FantasyPointsTooltip: React.FC<FantasyPointsTooltipProps> = ({ isOpen, onC
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchFantasyPointsData();
-    }
-  }, [isOpen]);
-
-  const fetchFantasyPointsData = async () => {
+  const fetchFantasyPointsData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -54,7 +48,13 @@ const FantasyPointsTooltip: React.FC<FantasyPointsTooltipProps> = ({ isOpen, onC
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchFantasyPointsData();
+    }
+  }, [isOpen, fetchFantasyPointsData]);
 
   // Fallback display names for configuration keys
   const formatDisplayName = (configKey: string): string => {

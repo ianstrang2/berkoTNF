@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { PlayerProfile } from '@/types/player.types';
@@ -60,7 +60,7 @@ interface MilestonesData {
   seasonFantasyLeaders?: LeaderData[];
 }
 
-const CurrentStandings: React.FC = () => {
+const Milestones: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [milestonesData, setMilestonesData] = useState<MilestonesData | null>(null);
   const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
@@ -175,7 +175,7 @@ const CurrentStandings: React.FC = () => {
     }
   };
 
-  const fetchMilestonesData = async () => {
+  const fetchMilestonesData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -214,12 +214,12 @@ const CurrentStandings: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const getPlayerIdByName = (name: string): string | undefined => {
+  const getPlayerIdByName = useCallback((name: string): string | undefined => {
     const player = allPlayers.find(p => p.name === name);
     return player?.id;
-  };
+  }, [allPlayers]);
 
   // Helper function to render section headers with appropriate links
   const renderSectionHeader = (sectionName: string): React.ReactNode => {
@@ -275,7 +275,7 @@ const CurrentStandings: React.FC = () => {
     return result;
   };
 
-  const processTimelineItems = (data: MilestonesData) => {
+  const processTimelineItems = useCallback((data: MilestonesData) => {
     const items: TimelineItem[] = [];
     const matchDate = data.matchInfo.match_date ? formatDateSafely(data.matchInfo.match_date) : '';
     
@@ -437,17 +437,17 @@ const CurrentStandings: React.FC = () => {
     }
     
     setTimelineItems(items);
-  };
+  }, [getPlayerIdByName]);
 
   useEffect(() => {
     fetchMilestonesData();
-  }, []);
+  }, [fetchMilestonesData]);
 
   useEffect(() => {
     if (milestonesData) {
       processTimelineItems(milestonesData);
     }
-  }, [milestonesData, allPlayers]);
+  }, [milestonesData, processTimelineItems]);
 
   if (loading) {
     return (
@@ -591,4 +591,4 @@ const CurrentStandings: React.FC = () => {
   );
 };
 
-export default CurrentStandings; 
+export default Milestones; 

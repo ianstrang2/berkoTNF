@@ -111,7 +111,7 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
         }
       });
     }
-  }, [isOpen, title, message, confirmText, cancelText, isConfirming, icon]);
+  }, [isOpen, title, message, confirmText, cancelText, isConfirming, icon, onClose, onConfirm]);
 
   // This component doesn't directly render anything
   return null;

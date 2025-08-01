@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { PersonalBestsAPIResponseData as PersonalBestsData } from '@/types/personal-bests.types';
 import { FeatBreakingItem, generateFeatContent } from '@/types/feat-breaking.types';
@@ -99,7 +99,7 @@ const RecordsAndAchievements: React.FC = () => {
     return num + "th";
   };
 
-  const processTimelineItems = (personalBestsData: PersonalBestsData | null, milestonesData: any) => {
+  const processTimelineItems = useCallback((personalBestsData: PersonalBestsData | null, milestonesData: any) => {
     const items: TimelineItem[] = [];
 
     // 1. Process Personal Bests
@@ -198,7 +198,7 @@ const RecordsAndAchievements: React.FC = () => {
     });
 
     setTimelineItems(items);
-  };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -242,7 +242,7 @@ const RecordsAndAchievements: React.FC = () => {
 
   useEffect(() => {
     processTimelineItems(pbData, milestonesData);
-  }, [pbData, milestonesData]);
+  }, [pbData, milestonesData, processTimelineItems]);
 
   if (loading) {
     return (

@@ -58,6 +58,8 @@ model players {
   teamwork                                                                                          Int                              @default(3) @db.SmallInt
   resilience                                                                                        Int?                             @default(3) @db.SmallInt
   selected_club                                                                                     Json?
+  profile_text                                                                                      String?
+  profile_generated_at                                                                              DateTime?                        @db.Timestamptz(6)
   all_time_stats                                                                                    aggregated_all_time_stats?
   half_season_stats                                                                                 aggregated_half_season_stats?
   hall_of_fame                                                                                      aggregated_hall_of_fame[]
@@ -66,8 +68,8 @@ model players {
   aggregated_match_streaks_aggregated_match_streaks_previous_half_season_goals_leader_idToplayers   aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_half_season_goals_leader_idToplayers")
   aggregated_match_streaks_aggregated_match_streaks_previous_season_fantasy_leader_idToplayers      aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_season_fantasy_leader_idToplayers")
   aggregated_match_streaks_aggregated_match_streaks_previous_season_goals_leader_idToplayers        aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_season_goals_leader_idToplayers")
-  aggregated_player_power_ratings                                                                   aggregated_player_power_ratings?
   aggregated_performance_ratings                                                                    aggregated_performance_ratings?
+  aggregated_player_power_ratings                                                                   aggregated_player_power_ratings?
   aggregated_player_profile_stats                                                                   aggregated_player_profile_stats?
   recent_performance                                                                                aggregated_recent_performance?
   season_stats                                                                                      aggregated_season_stats[]
@@ -420,21 +422,20 @@ model aggregated_player_power_ratings {
   @@index([rating(sort: Desc)], map: "idx_power_rating_desc")
 }
 
-// New EWMA Performance Rating System
 model aggregated_performance_ratings {
-  player_id                Int      @id
-  power_rating             Decimal  @db.Decimal(10, 3)
-  goal_threat              Decimal  @db.Decimal(10, 3)
-  participation            Decimal  @db.Decimal(5, 1)
-  weighted_played          Decimal  @db.Decimal(10, 3)
-  weighted_available       Decimal  @db.Decimal(10, 3)
+  player_id                Int       @id
+  power_rating             Decimal   @db.Decimal(10, 3)
+  goal_threat              Decimal   @db.Decimal(10, 3)
+  participation            Decimal   @db.Decimal(5, 1)
+  weighted_played          Decimal   @db.Decimal(10, 3)
+  weighted_available       Decimal   @db.Decimal(10, 3)
   is_qualified             Boolean
-  power_percentile         Decimal? @default(50) @db.Decimal(5, 1)
-  goal_percentile          Decimal? @default(50) @db.Decimal(5, 1)
-  participation_percentile Decimal? @default(50) @db.Decimal(5, 1)
+  power_percentile         Decimal?  @default(50) @db.Decimal(5, 1)
+  goal_percentile          Decimal?  @default(50) @db.Decimal(5, 1)
+  participation_percentile Decimal?  @default(50) @db.Decimal(5, 1)
   first_match_date         DateTime? @db.Date
-  updated_at               DateTime @default(now()) @db.Timestamptz(6)
-  players                  players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
+  updated_at               DateTime? @default(now()) @db.Timestamptz(6)
+  players                  players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([power_rating(sort: Desc)], map: "idx_performance_ratings_power_desc")
   @@index([is_qualified, power_rating(sort: Desc)], map: "idx_performance_ratings_qualified")
