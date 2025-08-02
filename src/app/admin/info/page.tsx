@@ -82,6 +82,14 @@ const AdminInfoPage = () => {
   const [playersLoading, setPlayersLoading] = useState(false);
   const [playersError, setPlayersError] = useState<string | null>(null);
 
+  // Player Profiles state
+  const [profileMetadata, setProfileMetadata] = useState<any>(null);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState<boolean>(true);
+  const [isUpdatingProfiles, setIsUpdatingProfiles] = useState<boolean>(false);
+  const [isResettingProfiles, setIsResettingProfiles] = useState<boolean>(false);
+  const [profileUpdateSuccess, setProfileUpdateSuccess] = useState<boolean>(false);
+  const [profileResetSuccess, setProfileResetSuccess] = useState<boolean>(false);
+
   const fetchCacheMetadata = useCallback(async () => {
     setIsLoadingCache(true);
     setError(null);
@@ -176,11 +184,113 @@ const AdminInfoPage = () => {
     }
   }, []);
 
+  // Player Profiles functions
+  const fetchProfileMetadata = useCallback(async () => {
+    setIsLoadingProfiles(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/admin/player-profile-metadata');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch profile metadata: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setProfileMetadata(data);
+    } catch (err: any) {
+      console.error('Error fetching profile metadata:', err);
+      setError(err.message || 'Failed to fetch profile metadata.');
+    } finally {
+      setIsLoadingProfiles(false);
+    }
+  }, []);
+
+  const handleUpdateProfiles = async () => {
+    setIsUpdatingProfiles(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/admin/trigger-player-profiles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ limit: 100 }) // Process all eligible players
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || `Failed to trigger profile update: ${response.statusText}`);
+        } catch (e) {
+          throw new Error(errorText || `Failed to trigger profile update with status: ${response.statusText}`);
+        }
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || result.error || 'An unknown error occurred during profile update.');
+      }
+      
+      // Success case
+      setProfileUpdateSuccess(true);
+      setTimeout(() => setProfileUpdateSuccess(false), 2000);
+      
+      // Refresh the profile metadata
+      await fetchProfileMetadata(); 
+    } catch (err: any) {
+      console.error('Error triggering profile update:', err);
+      setError(err.message || 'Failed to trigger profile update.');
+    } finally {
+      setIsUpdatingProfiles(false);
+    }
+  };
+
+  const handleResetProfiles = async () => {
+    if (!confirm('This will delete ALL existing player profiles and regenerate them. Are you sure?')) {
+      return;
+    }
+
+    setIsResettingProfiles(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/admin/reset-player-profiles', {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || `Failed to reset profiles: ${response.statusText}`);
+        } catch (e) {
+          throw new Error(errorText || `Failed to reset profiles with status: ${response.statusText}`);
+        }
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'An unknown error occurred during profile reset.');
+      }
+      
+      // Success case
+      setProfileResetSuccess(true);
+      setTimeout(() => setProfileResetSuccess(false), 2000);
+      
+      // Refresh the profile metadata
+      await fetchProfileMetadata(); 
+    } catch (err: any) {
+      console.error('Error resetting profiles:', err);
+      setError(err.message || 'Failed to reset profiles.');
+    } finally {
+      setIsResettingProfiles(false);
+    }
+  };
+
   useEffect(() => {
     fetchCacheMetadata();
     fetchInfoData();
     fetchPlayers();
-  }, [fetchCacheMetadata, fetchInfoData, fetchPlayers]);
+    fetchProfileMetadata();
+  }, [fetchCacheMetadata, fetchInfoData, fetchPlayers, fetchProfileMetadata]);
 
   useEffect(() => {
     if (selectedPlayer) {
@@ -268,6 +378,8 @@ const AdminInfoPage = () => {
     }
   };
 
+
+
   // EWMA Rating helper functions
   const formatNumber = (value: number | null | undefined, decimals: number = 2): string => {
     return value ? value.toFixed(decimals) : 'N/A';
@@ -334,12 +446,12 @@ const AdminInfoPage = () => {
   };
 
   const renderTable = (columns: { key: string; label: string; isNumeric?: boolean; formatter?: (value: any, row: any) => React.ReactNode | string }[], data: any[]) => (
-    <div className="overflow-x-auto">
-      <table className="table-auto border-collapse text-slate-500" style={{ width: 'auto' }}>
-        <thead className="align-bottom sticky top-0 bg-white z-10 shadow-sm">
-          <tr>
+    <div className="w-full">
+      <table className="w-full border-collapse text-slate-500">
+        <thead>
+          <tr className="sticky top-0 bg-white z-10 shadow-sm">
             {columns.map((col) => (
-              <th key={col.key} className={`p-2 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 ${col.isNumeric ? 'text-center' : 'text-left'}`}>
+              <th key={col.key} className={`p-3 font-bold uppercase align-middle bg-white border-b-2 border-gray-200 text-xs tracking-wide whitespace-nowrap text-slate-600 ${col.isNumeric ? 'text-center' : 'text-left'}`}>
                 {col.label}
               </th>
             ))}
@@ -354,12 +466,10 @@ const AdminInfoPage = () => {
             </tr>
           ) : (
             data.map((row, rowIndex) => (
-              <tr key={rowIndex}>
+              <tr key={rowIndex} className="hover:bg-gray-50">
                 {columns.map((col) => (
-                  <td key={col.key} className={`p-2 align-middle bg-transparent border-b whitespace-nowrap ${col.isNumeric ? 'text-center' : 'text-left'}`}>
-                    <span className={`leading-normal text-sm ${col.isNumeric ? 'font-normal' : 'font-semibold'}`}>
-                      {col.formatter ? col.formatter(row[col.key], row) : row[col.key]}
-                    </span>
+                  <td key={col.key} className={`p-3 align-middle border-b border-gray-100 text-sm ${col.isNumeric ? 'text-center' : 'text-left'}`}>
+                    {col.formatter ? col.formatter(row[col.key], row) : row[col.key]}
                   </td>
                 ))}
               </tr>
@@ -386,6 +496,28 @@ const AdminInfoPage = () => {
     { key: 'name', label: 'Player', isNumeric: false },
     { key: 'totalGamesPlayed', label: 'Total Games Played', isNumeric: true },
     { key: 'gamesPlayedThisYear', label: 'Games This Year', isNumeric: true },
+  ];
+
+  const playersListColumns = [
+    { key: 'name', label: 'Player', isNumeric: false },
+    { 
+      key: 'is_retired', 
+      label: 'Retired', 
+      isNumeric: false, 
+      formatter: (value: boolean) => value ? 'Yes' : 'No'
+    },
+    { 
+      key: 'is_ringer', 
+      label: 'Ringer', 
+      isNumeric: false, 
+      formatter: (value: boolean) => value ? 'Yes' : 'No'
+    },
+    { 
+      key: 'profile_generated_at', 
+      label: 'Profile Last Updated', 
+      isNumeric: false, 
+      formatter: (dateStr: string | null) => dateStr ? format(new Date(dateStr), 'yyyy-MM-dd HH:mm') : 'Never'
+    },
   ];
 
   return (
@@ -583,6 +715,47 @@ const AdminInfoPage = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+
+              <div className="break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border flex flex-col" style={{ height: '700px' }}>
+                <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+                  <h3 className="mb-0 text-lg font-semibold text-slate-700">Player Profiles Last Updated At</h3>
+                </div>
+                <div className="p-4 flex-1 overflow-hidden">
+                  {isLoadingProfiles ? (
+                    <p className="text-center text-sm text-slate-500">Loading profile data...</p>
+                  ) : profileMetadata?.players_list?.length > 0 ? (
+                    <div className="h-full overflow-y-auto">
+                      {renderTable(playersListColumns, profileMetadata.players_list)}
+                    </div>
+                  ) : (
+                    <p className="text-center text-sm text-slate-500">No profile data available</p>
+                  )}
+                </div>
+                <div className="p-4 border-t border-gray-200 bg-white rounded-b-2xl">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant={profileUpdateSuccess ? "primary" : "secondary"}
+                      className={`rounded-lg shadow-soft-sm ${
+                        profileUpdateSuccess ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : ''
+                      }`}
+                      onClick={handleUpdateProfiles} 
+                      disabled={isUpdatingProfiles || isResettingProfiles}
+                    >
+                      {isUpdatingProfiles ? 'Updating...' : profileUpdateSuccess ? 'Updated' : 'Update Profiles'}
+                    </Button>
+                    <Button 
+                      variant={profileResetSuccess ? "primary" : "secondary"}
+                      className={`rounded-lg shadow-soft-sm ${
+                        profileResetSuccess ? 'bg-gradient-to-tl from-red-700 to-pink-500 text-white' : ''
+                      }`}
+                      onClick={handleResetProfiles}
+                      disabled={isUpdatingProfiles || isResettingProfiles}
+                    >
+                      {isResettingProfiles ? 'Resetting...' : profileResetSuccess ? 'Reset' : 'Reset & Regenerate'}
+                    </Button>
+                  </div>
                 </div>
               </div>
 

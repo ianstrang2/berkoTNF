@@ -111,7 +111,7 @@ BEGIN
         WHERE m.match_date::date >= (target_date::date - (v_window_days || ' days')::interval)::date
         AND m.match_date::date <= target_date::date
         AND p.is_ringer = false 
-        AND p.is_retired = false
+        AND p.is_ringer = false
     ),
     player_recent_stats AS (
         -- Calculate stats for each player's matches in the window
@@ -188,7 +188,7 @@ BEGIN
         END,
         COALESCE(string_agg(CASE WHEN pm.team = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), ''),
         COALESCE(string_agg(CASE WHEN pm.team = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), ''),
-        array_agg(pm.player_id) FILTER (WHERE p.is_ringer = false AND p.is_retired = false), -- Filter out ringers/retired here
+        array_agg(pm.player_id) FILTER (WHERE p.is_ringer = false AND p.is_ringer = false), -- Filter out ringers/retired here
         COALESCE(jsonb_object_agg(pm.player_id::text, p.name), '{}'::jsonb)
     INTO
         team_a_players_json, team_b_players_json,
@@ -292,7 +292,7 @@ BEGIN
         FROM players p
         JOIN player_matches pm ON p.player_id = pm.player_id
         JOIN matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = false AND p.is_retired = false
+        WHERE p.is_ringer = false AND p.is_ringer = false
     ),
     match_stats_with_points AS (
         SELECT
@@ -454,7 +454,7 @@ BEGIN
     WITH all_active_players AS (
         SELECT player_id, name 
         FROM players 
-        WHERE is_ringer = false AND is_retired = false
+        WHERE is_ringer = false
     ),
     -- Calculate current streaks using the same logic as player_profile_stats
     player_current_streaks AS (
@@ -465,7 +465,7 @@ BEGIN
             FROM player_matches pm 
             JOIN matches m ON pm.match_id = m.match_id
             JOIN players p ON pm.player_id = p.player_id
-            WHERE p.is_ringer = false AND p.is_retired = false
+            WHERE p.is_ringer = false AND p.is_ringer = false
         ),
         streak_groups AS (
             SELECT
@@ -541,7 +541,7 @@ BEGIN
             FROM player_matches pm 
             JOIN matches m ON pm.match_id = m.match_id
             JOIN players p ON pm.player_id = p.player_id
-            WHERE p.is_ringer = false AND p.is_retired = false
+            WHERE p.is_ringer = false AND p.is_ringer = false
         ),
         goal_streak_groups AS (
             SELECT

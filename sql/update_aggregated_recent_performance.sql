@@ -36,7 +36,7 @@ BEGIN
         FOR player_batch IN
             SELECT player_id
             FROM players
-            WHERE is_ringer = false AND is_retired = false
+            WHERE is_ringer = false
             ORDER BY player_id
             LIMIT batch_size OFFSET offset_num
         LOOP
@@ -89,7 +89,7 @@ BEGIN
         END LOOP;
 
         -- Check if the last batch was smaller than batch_size or empty
-        IF NOT FOUND OR (SELECT COUNT(*) FROM (SELECT player_id FROM players WHERE is_ringer = false AND is_retired = false ORDER BY player_id LIMIT batch_size OFFSET offset_num) AS sub) < batch_size THEN
+        IF NOT FOUND OR (SELECT COUNT(*) FROM (SELECT player_id FROM players WHERE is_ringer = false ORDER BY player_id LIMIT batch_size OFFSET offset_num) AS sub) < batch_size THEN
             RAISE NOTICE 'Last batch processed.';
             EXIT; -- Exit the loop
         END IF;

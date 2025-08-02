@@ -20,8 +20,8 @@ async function callOpenRouterBulk(prompt: string) {
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 12000, // Much larger for multiple profiles
-          temperature: 0.8, // Humor for Funny, Only-Positive
+          max_tokens: 15000, // Individual prompts are much smaller, can use higher limit
+          temperature: 0.9, // Increased creativity and humor for light-hearted banter
         }),
       });
 
@@ -52,7 +52,33 @@ function parseProfilesFromResponse(response: string, targetPlayers: any[]): Reco
     const parsed = JSON.parse(cleanResponse);
     if (typeof parsed === 'object' && !Array.isArray(parsed)) {
       console.log('✅ Successfully parsed JSON response');
-      return parsed;
+      
+      // Fix: Check if each profile value is a JSON string that needs unwrapping
+      const cleanedProfiles: Record<string, string> = {};
+      for (const [playerName, profileValue] of Object.entries(parsed)) {
+        if (typeof profileValue === 'string') {
+          try {
+            // Check if the profile value is a JSON string
+            const profileJson = JSON.parse(profileValue);
+            if (profileJson && typeof profileJson === 'object' && profileJson.profile) {
+              // Extract the profile text from {"profile": "..."}
+              cleanedProfiles[playerName] = profileJson.profile;
+              console.log(`🔧 Unwrapped JSON for ${playerName}`);
+            } else {
+              // It's already plain text
+              cleanedProfiles[playerName] = profileValue;
+            }
+          } catch {
+            // It's already plain text, not JSON
+            cleanedProfiles[playerName] = profileValue;
+          }
+        } else {
+          // Not a string, keep as is
+          cleanedProfiles[playerName] = String(profileValue);
+        }
+      }
+      
+      return cleanedProfiles;
     }
   } catch (e) {
     console.log('❌ JSON parsing failed, trying regex fallback:', e.message);
@@ -72,43 +98,79 @@ function parseProfilesFromResponse(response: string, targetPlayers: any[]): Reco
 
 serve(async (req) => {
   try {
-    console.log('Starting bulk player profile generation...');
-    const { recent_days_threshold = 7, offset = 0, league_id = null } = await req.json().catch(() => ({}));
+    console.log('Starting individual player profile generation...');
+    const { recent_days_threshold = 7, offset = 0, limit = 20 } = await req.json().catch(() => ({}));
 
     console.log(`Using ${recent_days_threshold}-day threshold for profile generation`);
 
-    // Get complete league dataset with pagination
-    const { data: leagueData, error: dataError } = await supabase
+    // First, get list of target players who need profiles
+    const { data: targetPlayersData, error: playersError } = await supabase
       .rpc('export_league_data_for_profiles', { 
         recent_days_threshold, 
         p_offset: offset, 
-        p_limit: BATCH_LIMIT,
-        p_league_id: league_id
+        p_limit: limit
       });
     
-    if (dataError) throw dataError;
+    if (playersError) throw playersError;
     
-    const targetPlayers = leagueData.target_players?.filter(p => p.action_type !== 'ignore') || [];
+    const targetPlayers = targetPlayersData.target_players?.filter(p => p.action_type !== 'ignore') || [];
     if (!targetPlayers.length) {
       return new Response(JSON.stringify({ status: 'No eligible players after filtering' }), { status: 200 });
     }
 
-    console.log(`Generating profiles for ${targetPlayers.length} players using full league context`);
+    console.log(`Processing ${targetPlayers.length} players individually with rich context`);
 
-    // Build comprehensive prompt with ALL league data
-    const prompt = `You are generating funny, only-positive football player profiles using complete league data.
+    const results = [];
+    
+    // Process each player individually
+    for (const targetPlayer of targetPlayers) {
+      try {
+        console.log(`🎭 Generating profile for ${targetPlayer.name}...`);
+        
+        // Get individual player data with league context
+        const { data: playerData, error: dataError } = await supabase
+          .rpc('export_individual_player_for_profile', { 
+            target_player_id: targetPlayer.player_id,
+            recent_days_threshold 
+          });
+        
+        if (dataError) {
+          console.error(`Failed to get data for ${targetPlayer.name}:`, dataError);
+          results.push({ 
+            name: targetPlayer.name, 
+            action: targetPlayer.action_type,
+            status: 'error', 
+            error: `Data fetch failed: ${dataError.message}` 
+          });
+          continue;
+        }
 
-LEAGUE CONTEXT:
-${JSON.stringify(leagueData.league_context, null, 2)}
+        // Build optimized prompt for individual player
+        const prompt = `You are generating a funny football player profile using league context and detailed individual data.
 
-COMPLETE PLAYER DATA (ALL PLAYERS WITH FULL STATS):
-${JSON.stringify(leagueData.all_players, null, 2)}
+LEAGUE CONTEXT (FOR COMPARATIVE INSIGHTS):
+${JSON.stringify(playerData.league_context, null, 2)}
 
-TARGET PLAYERS FOR PROFILE GENERATION:
-${targetPlayers.map(p => `- ${p.name} (${p.action_type})`).join('\\n')}
+TARGET PLAYER DATA (FULL DETAILS):
+${JSON.stringify(playerData.target_player, null, 2)}
 
 INSTRUCTIONS:
-Generate 2-3 paragraph profiles for ONLY the target players listed above. Each player should get their unique data-driven story.
+Generate a profile for ${playerData.target_player.basic_info.name}. Use the league context for comparative insights and rankings.
+
+**DYNAMIC PROFILE LENGTH - Scale narrative depth to player experience:**
+- **Newbies** (fewer than 50 games_played): Keep concise at 100-150 words, focus on potential and early moments
+- **Regulars** (50+ games_played): Double the length to 200-300 words minimum, include career development and patterns  
+- **Veterans** (10+ years in league, calculated from join_date vs league start date): Quadruple the length to 400-600 words minimum, provide comprehensive career retrospective
+
+Infer experience level from: games_played (profile_stats), join_date (basic_info) vs league start date (league_context.date_range.start_date), and league_age_years (league_context).
+
+**ENHANCED CAREER RETROSPECTIVE - For veterans especially:**
+- Create a narrative arc: early days → mid-career peaks → recent form → overall legacy
+- Use yearly_stats progression to show evolution over time (improvement from early years, peak seasons, consistency patterns)
+- Reference career highs and lows with humor: peak goal-scoring seasons, memorable droughts broken by hat-tricks, power_ratings trends over time
+- Include milestone moments from match_streaks, season_stats, and personal_bests with dates
+- For long-time players, discuss season-by-season progression and how their stats have trended (win rate over time, goal patterns, consistency evolution)
+- Frame career lows (slumps, droughts, tough periods) humorously and positively: "bounced back from that goal drought like a champ", "survived the great slump of 2019 to emerge stronger"
 
 **NARRATIVE VARIETY - Each player gets their authentic story:**
 - Identify their DATA SIGNATURE: What makes THIS player genuinely unique?
@@ -123,95 +185,67 @@ Generate 2-3 paragraph profiles for ONLY the target players listed above. Each p
 - Reference specific streaks/performances when they're genuinely notable: "That 15-match scoring drought followed by 8 goals in 5 games"
 - Make teammate chemistry tangible only when it's their standout trait: "87% win rate with Sarah vs 52% apart - pure magic"
 - Historical reverence for genuinely significant moments: "That 2019 unbeaten run is still WhatsApp legend"
+- Frame lows humorously but positively: turn droughts into comeback stories, slumps into character-building moments
 
-**CREATIVE TECHNIQUES - Invent your own narrative approaches using the data creatively:**
+**LEAGUE CONTEXT USAGE:**
+- Use league records to contextualize achievements: "Approaching the league record of X"
+- Reference percentile rankings for bragging rights: "87th percentile goal threat"
+- Compare to season honours for elite status: "Joining the exclusive group of season winners"
+- Use league age and scale to frame career stages appropriately
 
-These are just inspiration - be inventive and find unique angles for each player:
-- **Streak narratives**: Current or broken streaks (win_streak, scoring_streak, attendance_streak, etc.)
-- **Record moments**: Personal bests with dates (most_game_goals + most_game_goals_date, most_season_goals)
-- **Performance styles**: Heavy wins, clean sheets, fantasy point patterns vs league averages
-- **Attendance & dedication**: Attendance streaks, participation patterns, commitment stories
-- **Partnership dynamics**: teammate_chemistry_all data for standout relationships only
-- **Power & percentiles**: Use percentile rankings creatively for bragging rights humor
-- **Form patterns**: Recent performance from last_5_games, seasonal trends from yearly_stats
-- **Career journeys**: Mine yearly_stats progression for "unknown to legend" narratives
-- **Scoring personalities**: Goal rhythm, drought/feast cycles, clutch timing
+**TONE:** Funny with light-hearted banter. Allow honest mentions of lows (slumps, droughts, tough periods) but frame them humorously and positively overall. Keep the tone fun, engaging, and league-specific without being harsh or negative.
 
-**BE CREATIVE**: Don't simply copy these examples - use the data to discover each player's unique story. Find surprising patterns, unexpected correlations, and genuine character traits hidden in their numbers. Invent your own clever ways to turn statistics into personality.
+**RETIRED PLAYERS:** Use retrospective style celebrating their legacy and career highlights with comprehensive career review.
 
-TONE: Funny, only-positive, banter style. Focus on strengths, achievements, and fun facts. NO negative comments.
+**FORMAT:** Return just the profile text (no JSON wrapper needed for individual processing):
 
-LEAGUE SCALE INFERENCE: Analyze the league_context to determine the league's age (from date_range), total games, and scale. Adapt narratives accordingly—for example, in a new league with few games, treat early achievements as foundational; in an established league, emphasize long-term trends and records. Define career stages relative to the league's max games played (e.g., if max games is low, fewer games count as mid-career). Assume it's a casual weekly league unless data suggests otherwise. If league data is sparse (e.g., few games or short history), emphasize potential, fun early moments, and growth rather than historical rankings.
+Generate profile now:`;
 
-RETIRED PLAYERS: Use retrospective style celebrating their legacy and career highlights.
+        // Validate prompt size
+        console.log(`📏 Prompt length: ${prompt.length} characters`);
 
-FORMAT: Return as JSON object with player names as keys:
-{
-  "PlayerName1": "Profile text here...",
-  "PlayerName2": "Profile text here...",
-  ...
-}
-
-Generate profiles now:`;
-
-    const profilesResponse = await callOpenRouterBulk(prompt);
-    
-    // DEBUG: Log the raw response to see what we get
-    console.log('🔍 RAW LLM RESPONSE (first 1000 chars):');
-    console.log(profilesResponse.substring(0, 1000));
-    console.log('🔍 RAW LLM RESPONSE (last 1000 chars):');
-    console.log(profilesResponse.substring(Math.max(0, profilesResponse.length - 1000)));
-    
-    const generatedProfiles = parseProfilesFromResponse(profilesResponse, targetPlayers);
-    
-    // DEBUG: Log what parsing found
-    console.log('🔍 PARSED PROFILES COUNT:', Object.keys(generatedProfiles).length);
-    console.log('🔍 PARSED PROFILE KEYS:', Object.keys(generatedProfiles));
-
-    // Update players with generated profiles
-    const results = [];
-    for (const target of targetPlayers) {
-      try {
-        const playerName = target.name;
-        const profileText = generatedProfiles[playerName];
+        const profileText = await callOpenRouterBulk(prompt);
         
-        if (!profileText) {
-          results.push({ 
-            name: playerName, 
-            action: target.action_type,
-            status: 'error', 
-            error: 'No profile generated' 
-          });
-          continue;
+        // Clean the response (remove any JSON wrappers or markdown)
+        let cleanedProfile = profileText.trim();
+        if (cleanedProfile.startsWith('```') && cleanedProfile.endsWith('```')) {
+          cleanedProfile = cleanedProfile.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+        }
+        if (cleanedProfile.startsWith('"') && cleanedProfile.endsWith('"')) {
+          cleanedProfile = cleanedProfile.slice(1, -1);
         }
 
+        // Update player in database
         const { error: updateError } = await supabase
           .from('players')
           .update({ 
-            profile_text: profileText, 
+            profile_text: cleanedProfile, 
             profile_generated_at: new Date().toISOString() 
           })
-          .eq('name', playerName); // Note: Use player_id if name isn't unique
+          .eq('player_id', targetPlayer.player_id);
 
         if (updateError) throw updateError;
 
         results.push({ 
-          name: playerName, 
-          action: target.action_type,
-          status: 'success' 
+          name: targetPlayer.name, 
+          action: targetPlayer.action_type,
+          status: 'success',
+          profile_length: cleanedProfile.length
         });
         
-        console.log(`Generated ${target.action_type} profile for ${playerName}`);
+        console.log(`✅ Generated ${targetPlayer.action_type} profile for ${targetPlayer.name} (${cleanedProfile.length} chars)`);
+        
       } catch (err) {
-        console.error(`Failed for player ${target.name}: ${err}`);
+        console.error(`❌ Failed for player ${targetPlayer.name}: ${err}`);
         await supabase.from('log_errors').insert({
           function_name: 'generate-player-profiles',
           error_message: err.message,
-          player_id: null,
+          player_id: targetPlayer.player_id,
           created_at: new Date().toISOString()
         });
         results.push({ 
-          name: target.name, 
+          name: targetPlayer.name, 
+          action: targetPlayer.action_type,
           status: 'error', 
           error: err.message 
         });
@@ -224,10 +258,9 @@ Generate profiles now:`;
       successful: results.filter(r => r.status === 'success').length,
       failed: results.filter(r => r.status === 'error').length,
       recent_days_threshold,
-      league_id,
-      bulk_context_used: true,
+      individual_processing: true,
       results,
-      next_offset: offset + BATCH_LIMIT // Support for pagination
+      next_offset: offset + limit // Support for pagination
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

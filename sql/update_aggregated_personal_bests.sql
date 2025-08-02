@@ -47,7 +47,6 @@ BEGIN
         JOIN public.players p ON pm.player_id = p.player_id
         WHERE pm.match_id = v_latest_match_id
           AND p.is_ringer = false
-          AND p.is_retired = false
     LOOP
         v_player_id := v_player_records.player_id;
         v_player_name := v_player_records.name;

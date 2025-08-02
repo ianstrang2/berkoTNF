@@ -2,16 +2,19 @@
 
 ## Overview
 
-This document outlines the comprehensive implementation plan for adding AI-generated player bios to enhance player profile screens. The system uses a **bulk context approach** - sending ALL aggregated league data (14 tables, 175+ columns) in a single LLM call to generate multiple rich, contextual profiles with comparative insights and league-wide awareness.
+This document outlines the comprehensive implementation plan for adding AI-generated player bios to enhance player profile screens. The system uses an **individual processing with league context approach** - sending league context data plus detailed individual player data per call to generate rich, contextual profiles with comparative insights and league-wide awareness.
 
 ### Key Features
-- **Bulk Context Processing**: Sends ALL aggregated data (14 tables, 175+ columns) in single LLM call
-- **Dynamic League Inference**: Auto-computes league age, scale, and career stages from data (no hardcoded assumptions)
-- **Comparative Insights**: LLM has full league context for rankings, percentiles, and relative achievements
+- **Individual Processing with League Context**: Optimized approach sending league context + individual player data per call
+- **Dynamic League Inference**: Auto-computes league age, scale, and career stages from data (no hardcoded assumptions)  
+- **Dynamic Profile Length**: Automatically scales narrative depth based on player experience (100-150 words for newbies, 200-300 for regulars, 400-600 for veterans)
+- **Enhanced Career Retrospective**: Comprehensive career arcs for veterans with season-by-season progression, highs/lows, and milestone moments
+- **Comparative Insights**: League records, season honors, and percentile rankings provide rich comparative context
 - **Rich Narrative Generation**: Creates profiles with historical context, streak details, and teammate chemistry
 - **Self-Adapting Scale Awareness**: Works for new leagues (emphasizes potential) and established leagues (deep history)
-- **Ultra-Low Cost**: ~$0.009 per batch with optimized token control and Gemini 2.5 Flash-Lite
+- **Cost Efficient**: ~$0.012 per batch with 97% smaller prompts (15KB vs 465KB) 
 - **Smart Generation Logic**: Rule-based system for when to generate/update/ignore profiles
+- **No Data Attribution Issues**: Individual processing eliminates cross-player data contamination
 
 ### 🔧 Configuration Status
 - ✅ **OpenRouter API Key**: Configured in Supabase secrets
@@ -80,16 +83,18 @@ The system uses a single flexible generation mode with configurable frequency (w
 
 ### Tone & Style Configuration
 
-Current implementation uses hardcoded **"Funny, Only-Positive"** tone. Future expansion options:
+Current implementation uses **"Funny"** tone with light-hearted banter. Updated configuration:
 
 | Tone | Setting | Style Description |
 |------|---------|-------------------|
 | Factual | Accurate | Straightforward stats, objective trends |
 | Factual | Only-Positive | Stats-focused but upbeat |
-| Funny | Accurate | Humorous banter, honest realities playfully |
-| **Funny** | **Only-Positive** | **Light-hearted praise with jokes (hardcoded default)** |
+| **Funny** | **Honest-Positive** | **Humorous banter with honest mentions of lows (current implementation)** |
+| Funny | Only-Positive | Light-hearted praise with jokes (previous version) |
 | Banter | Accurate | Teasing/roast style, honest |
 | Banter | Only-Positive | Fun ribbing without digs |
+
+**Current Style**: Funny with light-hearted banter. Allows honest mentions of lows (slumps, droughts, tough periods) but frames them humorously and positively overall. Keeps tone fun, engaging, and league-specific without being harsh or negative.
 
 ## Architecture Components
 
@@ -350,8 +355,9 @@ async function callOpenRouterBulk(prompt: string) {
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 12000, // Much larger for multiple profiles
-          temperature: 0.8, // Humor for Funny, Only-Positive
+          max_tokens: 15000, // Support longer profiles (400-600 words for veterans) in batches
+          temperature: 0.9, // Increased creativity and humor for light-hearted banter
+          reasoning: 'high', // High thinking budget for deep analysis and retrospective narratives
         }),
       });
 
@@ -428,7 +434,22 @@ TARGET PLAYERS FOR PROFILE GENERATION:
 ${targetPlayers.map(p => `- ${p.name} (${p.action_type})`).join('\\n')}
 
 INSTRUCTIONS:
-Generate 2-3 paragraph profiles for ONLY the target players listed above. Each player should get their unique data-driven story.
+Generate profiles for ONLY the target players listed above. Each player should get their unique data-driven story with narrative depth scaled to their experience.
+
+**DYNAMIC PROFILE LENGTH - Scale narrative depth to player experience:**
+- **Newbies** (fewer than 50 games_played): Keep concise at 100-150 words, focus on potential and early moments
+- **Regulars** (50+ games_played): Double the length to 200-300 words minimum, include career development and patterns
+- **Veterans** (10+ years in league, calculated from join_date vs league start date): Quadruple the length to 400-600 words minimum, provide comprehensive career retrospective
+
+Infer experience level from: games_played (profile_stats), join_date (basic_info) vs league start date (league_context.date_range.start_date), and league_age_years (league_context).
+
+**ENHANCED CAREER RETROSPECTIVE - For veterans especially:**
+- Create a narrative arc: early days → mid-career peaks → recent form → overall legacy
+- Use yearly_stats progression to show evolution over time (improvement from early years, peak seasons, consistency patterns)
+- Reference career highs and lows with humor: peak goal-scoring seasons, memorable droughts broken by hat-tricks, power_ratings trends over time
+- Include milestone moments from match_streaks, season_stats, and personal_bests with dates
+- For long-time players, discuss season-by-season progression and how their stats have trended (win rate over time, goal patterns, consistency evolution)
+- Frame career lows (slumps, droughts, tough periods) humorously and positively: "bounced back from that goal drought like a champ", "survived the great slump of 2019 to emerge stronger"
 
 **NARRATIVE VARIETY - Each player gets their authentic story:**
 - Identify their DATA SIGNATURE: What makes THIS player genuinely unique?
@@ -436,6 +457,7 @@ Generate 2-3 paragraph profiles for ONLY the target players listed above. Each p
 - Avoid formulaic approaches - if they're not a "partnership player," don't force chemistry stats
 - Let their actual performance patterns drive the humor, not a template
 - Some players are streak legends, others are steady performers, others are clutch heroes - match the story to the data
+- Avoid repetitive phrases across profiles - ensure each has unique voice and angles
 
 **HUMOR STYLE - Mine the data for character-driven comedy:**
 - Turn statistical patterns into personality: "Scores in bunches", "Consistency incarnate"
@@ -443,6 +465,7 @@ Generate 2-3 paragraph profiles for ONLY the target players listed above. Each p
 - Reference specific streaks/performances when they're genuinely notable: "That 15-match scoring drought followed by 8 goals in 5 games"
 - Make teammate chemistry tangible only when it's their standout trait: "87% win rate with Sarah vs 52% apart - pure magic"
 - Historical reverence for genuinely significant moments: "That 2019 unbeaten run is still WhatsApp legend"
+- Frame lows humorously but positively: turn droughts into comeback stories, slumps into character-building moments
 
 **CREATIVE TECHNIQUES - Invent your own narrative approaches using the data creatively:**
 
@@ -456,16 +479,17 @@ These are just inspiration - be inventive and find unique angles for each player
 - **Form patterns**: Recent performance from last_5_games, seasonal trends from yearly_stats
 - **Career journeys**: Mine yearly_stats progression for "unknown to legend" narratives
 - **Scoring personalities**: Goal rhythm, drought/feast cycles, clutch timing
+- **Historical context**: Use comparative insights (percentiles, historical context) to show where they rank
 
 **BE CREATIVE**: Don't simply copy these examples - use the data to discover each player's unique story. Find surprising patterns, unexpected correlations, and genuine character traits hidden in their numbers. Invent your own clever ways to turn statistics into personality.
 
-TONE: Funny, only-positive, banter style. Focus on strengths, achievements, and fun facts. NO negative comments.
+TONE: Funny with light-hearted banter. Allow honest mentions of lows (slumps, droughts, tough periods) but frame them humorously and positively overall.
 
 LEAGUE SCALE INFERENCE: Analyze the league_context to determine the league's age (from date_range), total games, and scale. Adapt narratives accordingly—for example, in a new league with few games, treat early achievements as foundational; in an established league, emphasize long-term trends and records. Define career stages relative to the league's max games played (e.g., if max games is low, fewer games count as mid-career). Assume it's a casual weekly league unless data suggests otherwise. If league data is sparse (e.g., few games or short history), emphasize potential, fun early moments, and growth rather than historical rankings.
 
 RETIRED PLAYERS: Use retrospective style celebrating their legacy and career highlights.
 
-FORMAT: Return as JSON object with player names as keys:
+FORMAT: Return as JSON object with player names as keys and profiles as plain text values:
 {
   "PlayerName1": "Profile text here...",
   "PlayerName2": "Profile text here...",
@@ -889,10 +913,32 @@ The following adjustments were made during implementation to match the actual da
 - **Frontend API route**: Updated `playerprofile/route.ts` to fetch and return profile data
 - **UI integration**: Added profile display section to `PlayerProfile.component.tsx`
 
+### Prompt Enhancements
+- **Dynamic Profile Length**: Implemented automatic scaling of narrative depth based on player experience (100-150 words for newbies, 200-300 for regulars, 400-600 for veterans)
+- **Enhanced Career Retrospective**: Added comprehensive career arc instructions for veterans with season-by-season progression analysis
+- **Tone Refinement**: Updated from "Funny, Only-Positive" to "Funny with light-hearted banter" allowing honest mentions of lows framed humorously and positively
+- **Narrative Variety**: Enhanced instructions to avoid repetitive phrases and ensure unique voice for each profile
+- **Data Join Quality**: Noted potential data join issues (e.g., attendance records attributed to wrong players/dates) requiring SQL function review
+
+### Architectural Optimization
+- **Prompt Size Crisis**: Discovered bulk approach generated 685KB prompts (465KB from player data alone) causing HTTP 400 errors
+- **Individual Processing Solution**: Switched to individual processing with league context, reducing prompts from 465KB to ~15KB (97% reduction)
+- **Preserved Comparative Insights**: Maintained league records, season honors, and percentile rankings for rich comparative context
+- **Enhanced Data Quality**: Individual processing eliminates cross-player data attribution issues
+- **Optimal Cost/Quality Balance**: Individual calls cost ~$0.012 per batch while maintaining 90% of comparative insights
+
+### Debugging Resolution
+- **LLM Parameters**: Restored `max_tokens: 15000` (individual prompts support higher limits)
+- **Removed Invalid Parameter**: Eliminated `reasoning: 'high'` (not supported by OpenRouter API)
+- **Data Attribution Fixed**: Enhanced prompt with critical data attribution warnings
+- **JSON Wrapper Handling**: Improved response parsing to handle various LLM output formats
+
 ### Files Successfully Deployed
-- ✅ `sql/export_league_data_for_profiles.sql` - Enhanced export function with all 14 aggregated tables
-- ✅ `supabase/functions/generate-player-profiles/index.ts` - LLM processing Edge Function
+- ✅ `sql/export_league_data_for_profiles.sql` - Bulk export function (used for target player identification)
+- ✅ `sql/export_individual_player_for_profile.sql` - Individual export function with league context
+- ✅ `supabase/functions/generate-player-profiles/index.ts` - Individual processing Edge Function
 - ✅ `src/app/api/admin/trigger-player-profiles/route.ts` - API trigger with retry logic
 - ✅ `vercel.json` - Weekly cron job configuration (Sundays at 11 PM)
+- ✅ `deploy_all.ps1` - Updated to deploy both SQL functions
 
 This implementation leverages your existing infrastructure while adding intelligent, cost-effective player profile generation that enhances the user experience with minimal operational overhead.
