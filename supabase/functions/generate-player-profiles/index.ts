@@ -175,9 +175,13 @@ Generate a profile for ${playerData.target_player.basic_info.name}. Use the leag
 
 **🚨 CRITICAL: DYNAMIC PROFILE LENGTH - WORD COUNT IS MANDATORY 🚨**
 
-STEP 1: Find games_played in profile_stats data
-STEP 2: Apply the EXACT word count requirement below
-STEP 3: COUNT YOUR WORDS as you write to ensure compliance
+BEFORE YOU START WRITING:
+1. Find games_played in profile_stats data
+2. Determine your EXACT word target below  
+3. Write to hit that target word count
+4. COUNT YOUR WORDS as you write
+
+FOR ${playerData.target_player.basic_info.name} with ${playerData.target_player.profile_stats?.games_played || 0} games_played:
 
 **MANDATORY WORD COUNT RULES:**
 
@@ -205,11 +209,18 @@ IF games_played >= 200:
 - WRITE EXACTLY 350-450 words (MINIMUM 350 WORDS REQUIRED)
 - Comprehensive career retrospective with extensive detail
 
-**EXAMPLES WITH WORD COUNT VERIFICATION:**
-- games_played = 12 → Write 50-100 words (count each word)
-- games_played = 75 → Write 125-225 words (minimum 125)  
-- games_played = 175 → Write 275-375 words (minimum 275)
-- games_played = 500 → Write 350-450 words (minimum 350)
+**YOUR TARGET FOR THIS SPECIFIC PLAYER:**
+${playerData.target_player.profile_stats?.games_played >= 200 ? 
+  `🎯 TARGET: Write 350-450 words (MINIMUM 350) - This is a VETERAN with ${playerData.target_player.profile_stats?.games_played} games` :
+  playerData.target_player.profile_stats?.games_played >= 150 ? 
+  `🎯 TARGET: Write 275-375 words (MINIMUM 275) - ${playerData.target_player.profile_stats?.games_played} games` :
+  playerData.target_player.profile_stats?.games_played >= 100 ? 
+  `🎯 TARGET: Write 200-300 words (MINIMUM 200) - ${playerData.target_player.profile_stats?.games_played} games` :
+  playerData.target_player.profile_stats?.games_played >= 50 ? 
+  `🎯 TARGET: Write 125-225 words (MINIMUM 125) - ${playerData.target_player.profile_stats?.games_played} games` :
+  playerData.target_player.profile_stats?.games_played >= 25 ? 
+  `🎯 TARGET: Write 125-225 words (MINIMUM 125) - ${playerData.target_player.profile_stats?.games_played} games` :
+  `🎯 TARGET: Write 50-100 words (MAXIMUM 100) - ${playerData.target_player.profile_stats?.games_played} games`}
 
 **ENHANCED CAREER RETROSPECTIVE - For veterans especially:**
 - Create a narrative arc: early days → mid-career peaks → recent form → overall legacy
@@ -247,16 +258,19 @@ IF games_played >= 200:
 **FORMAT:** Return just the profile text (no JSON wrapper needed for individual processing):
 
 **🚨 FINAL WARNING: WORD COUNT COMPLIANCE IS MANDATORY 🚨**
-COUNT EVERY SINGLE WORD AND VERIFY YOUR WORD COUNT MATCHES THE REQUIREMENT:
 
-- If games_played < 25: Write 50-100 words EXACTLY (count each word)
-- If games_played 25-49: Write 125-225 words MINIMUM (at least 125 words)
-- If games_played 50-99: Write 125-225 words MINIMUM (at least 125 words)
-- If games_played 100-149: Write 200-300 words MINIMUM (at least 200 words)
-- If games_played 150-199: Write 275-375 words MINIMUM (at least 275 words)  
-- If games_played 200+: Write 350-450 words MINIMUM (at least 350 words)
+FOR ${playerData.target_player.basic_info.name} WITH ${playerData.target_player.profile_stats?.games_played || 0} GAMES:
+${playerData.target_player.profile_stats?.games_played >= 200 ? 
+  `🚨 WRITE 350-450 WORDS (MINIMUM 350) - Count every word!` :
+  playerData.target_player.profile_stats?.games_played >= 150 ? 
+  `🚨 WRITE 275-375 WORDS (MINIMUM 275) - Count every word!` :
+  playerData.target_player.profile_stats?.games_played >= 100 ? 
+  `🚨 WRITE 200-300 WORDS (MINIMUM 200) - Count every word!` :
+  playerData.target_player.profile_stats?.games_played >= 25 ? 
+  `🚨 WRITE 125-225 WORDS (MINIMUM 125) - Count every word!` :
+  `🚨 WRITE 50-100 WORDS (MAXIMUM 100) - Count every word!`}
 
-EXAMPLE: Lee Miles has 500+ games → MUST write 350-450 words (minimum 350)
+COUNT YOUR WORDS AS YOU WRITE - DO NOT SUBMIT UNTIL WORD COUNT IS CORRECT!
 
 **FINAL REMINDER ON CLUB MENTIONS:**
 - Skip mentioning their favorite club in MOST profiles (4 out of 5 times)
