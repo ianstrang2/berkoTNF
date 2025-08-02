@@ -1,10 +1,15 @@
 // src/app/api/admin/reset-player-profiles/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { createClient } from '@supabase/supabase-js';
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     console.log('Starting player profile reset...');
+    
+    // Check if user only wants to clear profiles without regenerating
+    const body = await request.json().catch(() => ({}));
+    const clearOnly = body.clear_only === true;
 
     // Clear all existing profiles
     const clearResult = await prisma.players.updateMany({
@@ -20,27 +25,48 @@ export async function POST() {
 
     console.log(`Cleared ${clearResult.count} existing profiles`);
 
-    // Trigger profile regeneration
-    const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/admin/trigger-player-profiles`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ limit: 100 }) // Process all eligible players
-    });
-
-    if (!profileResponse.ok) {
-      const errorText = await profileResponse.text();
-      throw new Error(`Profile generation failed: ${errorText}`);
+    // If user only wants to clear profiles, return early
+    if (clearOnly) {
+      return NextResponse.json({
+        success: true,
+        message: 'Player profiles cleared successfully',
+        cleared_profiles: clearResult.count
+      });
     }
 
-    const profileResult = await profileResponse.json();
+    // Trigger profile regeneration via direct Supabase function call
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const recentDaysThreshold = parseInt(process.env.PROFILE_RECENT_DAYS_THRESHOLD || '7');
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error('Supabase configuration missing');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+    
+    console.log('Triggering profile regeneration via Edge Function...');
+    const { data: profileResult, error: profileError } = await supabase.functions.invoke('generate-player-profiles', {
+      body: { recent_days_threshold: recentDaysThreshold, limit: 100 }
+    });
+
+    if (profileError) {
+      console.error('Profile generation failed:', profileError);
+      // Return partial success - profiles were cleared but regeneration failed
+      return NextResponse.json({
+        success: true,
+        message: 'Profiles cleared successfully, but regeneration failed',
+        cleared_profiles: clearResult.count,
+        generation_error: profileError.message,
+        note: 'You can manually trigger profile generation using the "Update Profiles" button'
+      });
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Player profiles reset and regeneration triggered successfully',
       cleared_profiles: clearResult.count,
-      generation_result: profileResult.results
+      generation_result: profileResult
     });
 
   } catch (error: any) {
