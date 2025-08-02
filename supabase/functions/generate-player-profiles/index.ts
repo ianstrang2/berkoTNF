@@ -154,15 +154,48 @@ ${JSON.stringify(playerData.league_context, null, 2)}
 TARGET PLAYER DATA (FULL DETAILS):
 ${JSON.stringify(playerData.target_player, null, 2)}
 
+**IMPORTANT DATA CLARIFICATIONS:**
+- **selected_club**: This is the player's FAVORITE/SUPPORTED professional club (e.g., Tottenham, Arsenal) - NOT the team they play for
+- **League Context**: This is a casual local football league where all players play together regardless of which professional clubs they support
+- **DO NOT**: Say the player "plays for" their selected_club - they only SUPPORT that club
+- **DO**: You can mention their club allegiance for banter (e.g., "Despite being a Spurs fan, he's surprisingly reliable")
+
 INSTRUCTIONS:
 Generate a profile for ${playerData.target_player.basic_info.name}. Use the league context for comparative insights and rankings.
 
-**DYNAMIC PROFILE LENGTH - Scale narrative depth to player experience:**
-- **Newbies** (fewer than 50 games_played): Keep concise at 100-150 words, focus on potential and early moments
-- **Regulars** (50+ games_played): Double the length to 200-300 words minimum, include career development and patterns  
-- **Veterans** (10+ years in league, calculated from join_date vs league start date): Quadruple the length to 400-600 words minimum, provide comprehensive career retrospective
+**CRITICAL: DYNAMIC PROFILE LENGTH - STRICTLY follow these match-based rules:**
 
-Infer experience level from: games_played (profile_stats), join_date (basic_info) vs league start date (league_context.date_range.start_date), and league_age_years (league_context).
+FIRST: Check games_played from profile_stats data.
+
+IF games_played < 25: 
+- Length = 50-100 words MAXIMUM
+- Focus on potential and early moments
+
+IF games_played >= 25 AND games_played < 50:
+- Length = 125-225 words
+- Include early career development
+
+IF games_played >= 50 AND games_played < 100:
+- Length = 125-225 words
+- Include early career development
+
+IF games_played >= 100 AND games_played < 150:
+- Length = 200-300 words  
+- Include career development patterns
+
+IF games_played >= 150 AND games_played < 200:
+- Length = 275-375 words
+- Include detailed career progression
+
+IF games_played >= 200:
+- Length = 350-450 words
+- Comprehensive career retrospective
+
+EXAMPLES: 
+- If games_played = 12, write 50-100 words ONLY
+- If games_played = 75, write 125-225 words  
+- If games_played = 175, write 275-375 words
+- If games_played = 250, write 350-450 words
 
 **ENHANCED CAREER RETROSPECTIVE - For veterans especially:**
 - Create a narrative arc: early days → mid-career peaks → recent form → overall legacy
@@ -198,6 +231,14 @@ Infer experience level from: games_played (profile_stats), join_date (basic_info
 **RETIRED PLAYERS:** Use retrospective style celebrating their legacy and career highlights with comprehensive career review.
 
 **FORMAT:** Return just the profile text (no JSON wrapper needed for individual processing):
+
+**FINAL REMINDER: STRICTLY ENFORCE WORD LIMITS BASED ON GAMES PLAYED**
+- If games_played < 25: Write 50-100 words MAXIMUM
+- If games_played 25-49: Write 125-225 words
+- If games_played 50-99: Write 125-225 words  
+- If games_played 100-149: Write 200-300 words
+- If games_played 150-199: Write 275-375 words
+- If games_played 200+: Write 350-450 words
 
 Generate profile now:`;
 
