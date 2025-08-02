@@ -158,44 +158,58 @@ ${JSON.stringify(playerData.target_player, null, 2)}
 - **selected_club**: This is the player's FAVORITE/SUPPORTED professional club (e.g., Tottenham, Arsenal) - NOT the team they play for
 - **League Context**: This is a casual local football league where all players play together regardless of which professional clubs they support
 - **DO NOT**: Say the player "plays for" their selected_club - they only SUPPORT that club
-- **DO**: You can mention their club allegiance for banter (e.g., "Despite being a Spurs fan, he's surprisingly reliable")
+
+**CLUB MENTION POLICY - KEEP IT RARE:**
+- **ONLY mention their favorite club in ~20% of profiles** (roughly 1 in 5 players)
+- **SKIP club mentions** unless it genuinely adds humor or relevance to their story
+- **WHEN TO MENTION**: Only if it creates a perfect setup for a joke or connects to their performance patterns
+- **WHEN TO SKIP**: Most of the time - focus on their actual league performance instead
+- **EXAMPLES**: 
+  - GOOD: "Despite being a Spurs fan, he's surprisingly consistent" (if they have good consistency stats)
+  - SKIP: Just mentioning "As a Chelsea supporter..." without it adding meaningful humor
 
 INSTRUCTIONS:
 Generate a profile for ${playerData.target_player.basic_info.name}. Use the league context for comparative insights and rankings.
 
-**CRITICAL: DYNAMIC PROFILE LENGTH - STRICTLY follow these match-based rules:**
+**⚠️ WORD COUNT IS THE #1 PRIORITY - VERIFY WORD COUNT BEFORE SUBMITTING ⚠️**
 
-FIRST: Check games_played from profile_stats data.
+**🚨 CRITICAL: DYNAMIC PROFILE LENGTH - WORD COUNT IS MANDATORY 🚨**
+
+STEP 1: Find games_played in profile_stats data
+STEP 2: Apply the EXACT word count requirement below
+STEP 3: COUNT YOUR WORDS as you write to ensure compliance
+
+**MANDATORY WORD COUNT RULES:**
 
 IF games_played < 25: 
-- Length = 50-100 words MAXIMUM
+- WRITE EXACTLY 50-100 words (NO MORE, NO LESS)
 - Focus on potential and early moments
 
 IF games_played >= 25 AND games_played < 50:
-- Length = 125-225 words
+- WRITE EXACTLY 125-225 words (MINIMUM 125 WORDS REQUIRED)
 - Include early career development
 
 IF games_played >= 50 AND games_played < 100:
-- Length = 125-225 words
+- WRITE EXACTLY 125-225 words (MINIMUM 125 WORDS REQUIRED)
 - Include early career development
 
 IF games_played >= 100 AND games_played < 150:
-- Length = 200-300 words  
+- WRITE EXACTLY 200-300 words (MINIMUM 200 WORDS REQUIRED)
 - Include career development patterns
 
 IF games_played >= 150 AND games_played < 200:
-- Length = 275-375 words
+- WRITE EXACTLY 275-375 words (MINIMUM 275 WORDS REQUIRED)
 - Include detailed career progression
 
 IF games_played >= 200:
-- Length = 350-450 words
-- Comprehensive career retrospective
+- WRITE EXACTLY 350-450 words (MINIMUM 350 WORDS REQUIRED)
+- Comprehensive career retrospective with extensive detail
 
-EXAMPLES: 
-- If games_played = 12, write 50-100 words ONLY
-- If games_played = 75, write 125-225 words  
-- If games_played = 175, write 275-375 words
-- If games_played = 250, write 350-450 words
+**EXAMPLES WITH WORD COUNT VERIFICATION:**
+- games_played = 12 → Write 50-100 words (count each word)
+- games_played = 75 → Write 125-225 words (minimum 125)  
+- games_played = 175 → Write 275-375 words (minimum 275)
+- games_played = 500 → Write 350-450 words (minimum 350)
 
 **ENHANCED CAREER RETROSPECTIVE - For veterans especially:**
 - Create a narrative arc: early days → mid-career peaks → recent form → overall legacy
@@ -232,13 +246,22 @@ EXAMPLES:
 
 **FORMAT:** Return just the profile text (no JSON wrapper needed for individual processing):
 
-**FINAL REMINDER: STRICTLY ENFORCE WORD LIMITS BASED ON GAMES PLAYED**
-- If games_played < 25: Write 50-100 words MAXIMUM
-- If games_played 25-49: Write 125-225 words
-- If games_played 50-99: Write 125-225 words  
-- If games_played 100-149: Write 200-300 words
-- If games_played 150-199: Write 275-375 words
-- If games_played 200+: Write 350-450 words
+**🚨 FINAL WARNING: WORD COUNT COMPLIANCE IS MANDATORY 🚨**
+COUNT EVERY SINGLE WORD AND VERIFY YOUR WORD COUNT MATCHES THE REQUIREMENT:
+
+- If games_played < 25: Write 50-100 words EXACTLY (count each word)
+- If games_played 25-49: Write 125-225 words MINIMUM (at least 125 words)
+- If games_played 50-99: Write 125-225 words MINIMUM (at least 125 words)
+- If games_played 100-149: Write 200-300 words MINIMUM (at least 200 words)
+- If games_played 150-199: Write 275-375 words MINIMUM (at least 275 words)  
+- If games_played 200+: Write 350-450 words MINIMUM (at least 350 words)
+
+EXAMPLE: Lee Miles has 500+ games → MUST write 350-450 words (minimum 350)
+
+**FINAL REMINDER ON CLUB MENTIONS:**
+- Skip mentioning their favorite club in MOST profiles (4 out of 5 times)
+- Only mention if it creates genuine humor or irony with their performance
+- Focus on their league achievements instead of professional club allegiances
 
 Generate profile now:`;
 
