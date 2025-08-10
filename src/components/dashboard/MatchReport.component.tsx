@@ -191,8 +191,12 @@ const LatestMatch: React.FC = () => {
     fetchData();
   }, []);
 
+  const getPlayerByName = (name: string) => {
+    return allPlayers.find(p => p.name === name);
+  };
+
   const getPlayerIdByName = (name: string): string | undefined => {
-    const player = allPlayers.find(p => p.name === name);
+    const player = getPlayerByName(name);
     return player?.id;
   };
 
@@ -522,11 +526,11 @@ const LatestMatch: React.FC = () => {
   };
 
   const renderPlayerName = (playerName: string) => {
-    const playerId = getPlayerIdByName(playerName);
-
     // Extract actual player name if it contains goal count, e.g., "Player Name (2)" -> "Player Name"
     const cleanPlayerName = playerName.replace(/\s*\(\d+\)$/, '').trim();
-    const actualPlayerId = getPlayerIdByName(cleanPlayerName); // Use cleaned name to get ID
+    const actualPlayer = getPlayerByName(cleanPlayerName);
+    const actualPlayerId = actualPlayer?.id;
+    const isRinger = actualPlayer?.isRinger;
 
     const content = (
       <>
@@ -540,7 +544,7 @@ const LatestMatch: React.FC = () => {
       </>
     );
 
-    if (actualPlayerId) {
+    if (actualPlayerId && !isRinger) {
       return (
         <Link href={`/players/${actualPlayerId}`} className="hover:border-b hover:border-current">
           <span className="inline-flex items-center text-slate-700">

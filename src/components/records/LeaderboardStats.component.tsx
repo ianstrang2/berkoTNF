@@ -104,8 +104,12 @@ const LeaderboardStats: React.FC = () => {
     return null;
   };
 
+  const getPlayerByName = (name: string) => {
+    return allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase());
+  };
+
   const getPlayerIdByName = (name: string): string | undefined => {
-    const player = allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase());
+    const player = getPlayerByName(name);
     return player?.id;
   };
 
@@ -237,6 +241,8 @@ const LeaderboardStats: React.FC = () => {
           <tbody>
             {stats.map((player, index) => {
               const isRetired = player.isRetired;
+              const actualPlayer = getPlayerByName(player.name);
+              const isRinger = actualPlayer?.isRinger;
               const wins = player.wins || 0;
               const losses = (player.gamesPlayed || 0) - (player.wins || 0) - (player.draws || 0);
               const heavyWins = player.heavyWins || 0;
@@ -267,7 +273,7 @@ const LeaderboardStats: React.FC = () => {
                     <div className="flex px-2 py-1">
                       <div className="flex flex-col justify-center">
                         <h6 className={`mb-0 leading-normal text-sm ${isRetired ? 'text-slate-400' : ''}`}>
-                          {playerId ? (
+                          {playerId && !isRinger ? (
                             <Link href={`/players/${playerId}`} className="hover:underline">
                               {player.name}
                             </Link>

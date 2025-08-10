@@ -146,14 +146,15 @@ const CurrentFormAndStandings: React.FC = () => {
     fetchData();
   }, []);
 
-  const getPlayerIdByName = (name: string): string | undefined => {
-    const player = allPlayers.find(p => p.name === name);
-    return player?.id;
+  const getPlayerByName = (name: string) => {
+    return allPlayers.find(p => p.name === name);
   };
 
   const renderPlayerName = (playerName: string) => {
     const cleanPlayerName = playerName.replace(/\s*\(\d+\)$/, '').trim();
-    const actualPlayerId = getPlayerIdByName(cleanPlayerName);
+    const actualPlayer = getPlayerByName(cleanPlayerName);
+    const actualPlayerId = actualPlayer?.id;
+    const isRinger = actualPlayer?.isRinger;
 
     const content = (
       <>
@@ -167,7 +168,7 @@ const CurrentFormAndStandings: React.FC = () => {
       </>
     );
 
-    if (actualPlayerId) {
+    if (actualPlayerId && !isRinger) {
       return (
         <Link href={`/players/${actualPlayerId}`} className="hover:border-b hover:border-current">
           <span className="inline-flex items-center text-slate-700">

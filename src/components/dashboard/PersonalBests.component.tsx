@@ -55,12 +55,24 @@ const getOrdinalSuffix = (num: number): string => {
   return num + "th";
 };
 
+// Helper function to get the correct ordinal suffix for numbers
+const getOrdinalSuffixHelper = (num: number): string => {
+  if (num === 0) return "0th";
+  const j = num % 10;
+  const k = num % 100;
+  if (j === 1 && k !== 11) return num + "st";
+  if (j === 2 && k !== 12) return num + "nd";
+  if (j === 3 && k !== 13) return num + "rd";
+  return num + "th";
+};
+
 const RecordsAndAchievements: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [pbData, setPbData] = useState<PersonalBestsData | null>(null);
   const [milestonesData, setMilestonesData] = useState<any>(null);
   const [error, setError] = useState<Error | null>(null);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
+  const [allPlayers, setAllPlayers] = useState<any[]>([]);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -88,15 +100,13 @@ const RecordsAndAchievements: React.FC = () => {
     }
   };
 
-  // Helper function to get the correct ordinal suffix for numbers
-  const getOrdinalSuffix = (num: number): string => {
-    if (num === 0) return "0th";
-    const j = num % 10;
-    const k = num % 100;
-    if (j === 1 && k !== 11) return num + "st";
-    if (j === 2 && k !== 12) return num + "nd";
-    if (j === 3 && k !== 13) return num + "rd";
-    return num + "th";
+  const getPlayerByName = (name: string) => {
+    return allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase());
+  };
+
+  const getPlayerIdByName = (name: string): string | undefined => {
+    const player = getPlayerByName(name);
+    return player?.id;
   };
 
   const processTimelineItems = useCallback((personalBestsData: PersonalBestsData | null, milestonesData: any) => {
@@ -132,11 +142,12 @@ const RecordsAndAchievements: React.FC = () => {
       if (milestonesData.gamesMilestones && milestonesData.gamesMilestones.length > 0) {
         milestonesData.gamesMilestones.forEach((milestone: Milestone) => {
           const gameCount = milestone.total_games || milestone.value || 0;
+          const playerId = getPlayerIdByName(milestone.name);
           items.push({
             type: 'game_milestone',
             player: milestone.name,
-            playerId: 0, // No specific player ID for milestones in this context
-            content: `Played ${getOrdinalSuffix(gameCount)} game`,
+            playerId: playerId || 0,
+            content: `Played ${getOrdinalSuffixHelper(gameCount)} game`,
             icon: 'trophy',
             color: 'blue'
           });
@@ -147,11 +158,12 @@ const RecordsAndAchievements: React.FC = () => {
       if (milestonesData.goalsMilestones && milestonesData.goalsMilestones.length > 0) {
         milestonesData.goalsMilestones.forEach((milestone: Milestone) => {
           const goalCount = milestone.total_goals || milestone.value || 0;
+          const playerId = getPlayerIdByName(milestone.name);
           items.push({
             type: 'goal_milestone',
             player: milestone.name,
-            playerId: 0,
-            content: `Scored ${getOrdinalSuffix(goalCount)} goal`,
+            playerId: playerId || 0,
+            content: `Scored ${getOrdinalSuffixHelper(goalCount)} goal`,
             icon: 'goal',
             color: 'blue'
           });
@@ -198,7 +210,7 @@ const RecordsAndAchievements: React.FC = () => {
     });
 
     setTimelineItems(items);
-  }, []);
+  }, [allPlayers]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -206,10 +218,11 @@ const RecordsAndAchievements: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch both personal bests and match report data in parallel
-        const [pbResponse, matchResponse] = await Promise.all([
+        // Fetch personal bests, match report data, and players in parallel
+        const [pbResponse, matchResponse, playersResponse] = await Promise.all([
           fetch('/api/personal-bests'),
-          fetch('/api/matchReport')
+          fetch('/api/matchReport'),
+          fetch('/api/players')
         ]);
         
         // Handle personal bests
@@ -226,6 +239,12 @@ const RecordsAndAchievements: React.FC = () => {
           if (matchResult.success) {
             setMilestonesData(matchResult.data);
           }
+        }
+
+        // Handle players data
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json();
+          setAllPlayers(playersData.data || []);
         }
         
       } catch (error) {
@@ -353,7 +372,7 @@ const RecordsAndAchievements: React.FC = () => {
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto"> {/* max-w-120 might be specific, adjust if needed */}
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700 dark:text-slate-200">
                     {/* Apply Link to item.player, preserving original h6 classes */}
-                    {item.playerId ? (
+                    {item.playerId && !getPlayerByName(item.player)?.isRinger ? (
                       <Link href={`/players/${item.playerId}`} className="hover:underline">
                         {item.player}
                       </Link>
