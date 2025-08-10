@@ -79,33 +79,6 @@ interface TrendData {
   power_rating_percentile: number | null;
   goal_threat_percentile: number | null;
   participation_percentile: number | null;
-  sparkline_data: Array<{
-    period: string;
-    start_date: string;
-    end_date: string;
-    power_rating: number;
-    goal_threat: number;
-    participation: number;
-    power_rating_percentile: number;
-    goal_threat_percentile: number;
-    participation_percentile: number;
-    games_played: number;
-  }>;
-  league_distribution: {
-    power_rating: { p10: number; p90: number; avg: number };
-    goal_threat: { p10: number; p90: number; avg: number };
-    participation: { p10: number; p90: number; avg: number };
-  };
-  league_maximums: {
-    power_rating: number;
-    goal_threat: number;
-    participation: number;
-  };
-  data_quality: {
-    historical_blocks_count: number;
-    sparkline_points: number;
-    qualified_players_in_league: number;
-  };
 }
 
 interface ProfileData {
@@ -569,115 +542,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 </div>
               </div>
 
-              {/* Trend Sparklines Section */}
-              {trendData && trendData.sparkline_data && trendData.sparkline_data.length > 0 && (
-                <div className="grid grid-cols-3 gap-1 sm:gap-3 lg:gap-6 mt-3 px-2 sm:px-0">
-                  {/* Power Rating Sparkline */}
-                  <div className="flex flex-col items-center">
-                    <div className="scale-75 sm:scale-90 lg:scale-100 transform w-full flex justify-center">
-                      <div className="w-[160px] h-[60px] border border-gray-200 rounded bg-gray-50">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
-                            <Line 
-                              type="monotone" 
-                              dataKey="power_rating_percentile" 
-                              stroke="#6B48FF" 
-                              strokeWidth={2}
-                              dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
-                              activeDot={{ r: 4, fill: '#A880FF' }}
-                            />
-                            <YAxis domain={[0, 100]} hide />
-                            <Tooltip 
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  const data = payload[0].payload;
-                                  return (
-                                    <div className="bg-white p-1.5 border rounded shadow-sm text-xs" style={{ fontSize: '10px !important', lineHeight: '1.2' }}>
-                                      <p className="font-medium text-xs" style={{ fontSize: '10px !important' }}>{data.period}</p>
-                                      <p className="text-xs" style={{ fontSize: '10px !important' }}>Rating: {data.power_rating_percentile}%</p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Goal Threat Sparkline */}
-                  <div className="flex flex-col items-center">
-                    <div className="scale-75 sm:scale-90 lg:scale-100 transform w-full flex justify-center">
-                      <div className="w-[160px] h-[60px] border border-gray-200 rounded bg-gray-50">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
-                            <Line 
-                              type="monotone" 
-                              dataKey="goal_threat_percentile" 
-                              stroke="#6B48FF" 
-                              strokeWidth={2}
-                              dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
-                              activeDot={{ r: 4, fill: '#A880FF' }}
-                            />
-                            <YAxis domain={[0, 100]} hide />
-                            <Tooltip 
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  const data = payload[0].payload;
-                                  return (
-                                    <div className="bg-white p-1.5 border rounded shadow-sm text-xs" style={{ fontSize: '10px !important', lineHeight: '1.2' }}>
-                                      <p className="font-medium text-xs" style={{ fontSize: '10px !important' }}>{data.period}</p>
-                                      <p className="text-xs" style={{ fontSize: '10px !important' }}>Threat: {data.goal_threat_percentile}%</p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Participation Sparkline */}
-                  <div className="flex flex-col items-center">
-                    <div className="scale-75 sm:scale-90 lg:scale-100 transform w-full flex justify-center">
-                      <div className="w-[160px] h-[60px] border border-gray-200 rounded bg-gray-50">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trendData.sparkline_data} margin={{ top: 10, right: 5, left: 5, bottom: 10 }}>
-                            <Line 
-                              type="monotone" 
-                              dataKey="participation_percentile" 
-                              stroke="#6B48FF" 
-                              strokeWidth={2}
-                              dot={{ fill: '#6B48FF', strokeWidth: 2, r: 2 }}
-                              activeDot={{ r: 4, fill: '#A880FF' }}
-                            />
-                            <YAxis domain={[0, 100]} hide />
-                            <Tooltip 
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  const data = payload[0].payload;
-                                  return (
-                                    <div className="bg-white p-1.5 border rounded shadow-sm text-xs" style={{ fontSize: '10px !important', lineHeight: '1.2' }}>
-                                      <p className="font-medium text-xs" style={{ fontSize: '10px !important' }}>{data.period}</p>
-                                      <p className="text-xs" style={{ fontSize: '10px !important' }}>Participation: {data.participation_percentile}%</p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
               </>
             ) : (
               <div className="text-center py-8 text-gray-500">

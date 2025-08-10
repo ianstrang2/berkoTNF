@@ -43,56 +43,40 @@ The Performance Rating System provides player performance metrics for both team 
 - **Ringer Handling**: Uses EWMA values if qualified, otherwise defaults
 - **Universal Coverage**: ALL non-retired players get EWMA ratings through Bayesian shrinkage
 
-## Period Qualification
-- Dynamic games threshold based on player history
-- Minimum games = 25% of player's average games per period
-- Hard minimum of 3 games, maximum of 6 games
-- Example: If player averages 20 games per period, they need 5 games to qualify
 
-## Trend Analysis
-- Uses proper statistical regression (REGR_SLOPE)
-- Calculated on raw values, not percentiles
-- Projects forward ~6 months (one period)
-- Latest value + (slope × projection period)
-- Trends used for both display and team balancing
+
+## EWMA Analysis
+- Single exponentially weighted value per metric per player
+- No trend projections needed - EWMA inherently recency-weighted
+- Current ratings represent both current skill and form
+- Values used directly for team balancing and display
 
 ## Data Storage
 
-### Historical Blocks
+### EWMA Performance Ratings
 ```typescript
-interface PeriodBlock {
-  start_date: string;
-  end_date: string;
-  games_played: number;
+interface EWMAPerformanceRating {
+  player_id: number;
   power_rating: number;
   goal_threat: number;
   participation: number;
-  power_rating_percentile: number;
-  goal_threat_percentile: number;
+  weighted_played: number;
+  weighted_available: number;
+  is_qualified: boolean;
+  power_percentile: number;
+  goal_percentile: number;
   participation_percentile: number;
-  total_fantasy_points: number;
-  total_goals: number;
-}
-```
-
-### Current Trends
-```typescript
-interface PlayerTrends {
-  trend_rating: number;
-  trend_goal_threat: number;
-  trend_participation: number;
-  power_rating_percentile: number;
-  goal_threat_percentile: number;
+  first_match_date: Date;
+  updated_at: Date;
 }
 ```
 
 ## Percentile Calculation
-- Calculated separately for each 6-month period
+- Calculated across all qualified players in the league
 - Uses PERCENT_RANK for true relative percentiles that reflect actual league standings
-- Formula: `ROUND((PERCENT_RANK() OVER (PARTITION BY period ORDER BY metric ASC) * 100)::numeric, 1)`
-- Defaults to 50 when all values in a period are equal
-- Only calculated after raw values are finalized
-- Never used in trend calculations
+- Formula: `ROUND((PERCENT_RANK() OVER (ORDER BY metric ASC) * 100)::numeric, 1)`
+- Defaults to 50 for unqualified players or when all values are equal
+- Only calculated after raw EWMA values are finalized
 - **Fixed Issue**: Previously used `width_bucket()` which gave bucket positions rather than true percentile rankings
 
 ## Edge Cases
@@ -122,10 +106,9 @@ interface PlayerTrends {
 - Cache invalidation on updates
 
 ### Execution Dependencies
-- **Critical**: `update_power_ratings()` must run AFTER `update_half_and_full_season_stats()`
-- **Reason**: Basic stats function deletes/rebuilds `aggregated_half_season_stats`, removing `historical_blocks`
-- **Current Solution**: Execution order enforced in `trigger-stats-update` API route
-- **Future**: Architectural separation needed for robust data ownership
+- **Independent**: `update_power_ratings()` now operates independently using `aggregated_performance_ratings` table
+- **Clean Architecture**: EWMA system uses dedicated table, avoiding data conflicts with basic stats functions
+- **No Order Dependencies**: Can run before or after other aggregation functions
 
 ## Recent Fixes (v5.1)
 
@@ -135,13 +118,13 @@ interface PlayerTrends {
 - **Deterministic Results**: Added explicit ORDER BY to `trend_final` CTE for consistent results
 
 ### API Improvements  
-- **Added Historical Blocks**: Updated `/api/playerprofile` endpoint to include `historical_blocks` in response for debugging tools
-- **Debugging Support**: Enhanced admin data view at `/admin/data` to properly display raw values and percentiles
+- **Simplified Trends API**: Updated `/api/player/trends/[playerId]` to return EWMA data directly
+- **Debugging Support**: Enhanced admin data view at `/admin/info` to display EWMA ratings and percentiles
 
 ### Validation Status
-- ✅ 54/79 players now have valid trend ratings (68% success rate)
-- ✅ 55/55 players with match history have populated historical blocks (100% success rate)
-- ✅ Admin debugging page functional for data validation
+- ✅ EWMA calculations operational for all qualified players
+- ✅ Percentile rankings accurate and stable
+- ✅ Admin debugging interface functional for EWMA validation
 
 ## Ringer Data Strategy (v5.4)
 

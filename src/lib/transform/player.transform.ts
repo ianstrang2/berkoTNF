@@ -99,7 +99,7 @@ export const toPlayerWithStats = (dbPlayer: any): PlayerWithStats => {
   };
 };
 
-// New transformer for the simplified Player Trend API
+// Transformer for EWMA Player Trend API
 export function toPlayerWithTrend(dbPlayer: any): PlayerWithTrend {
   const playerProfile = toPlayerProfile(dbPlayer);
 
@@ -111,6 +111,5 @@ export function toPlayerWithTrend(dbPlayer: any): PlayerWithTrend {
     power_rating_percentile: dbPlayer.power_percentile ? parseFloat(dbPlayer.power_percentile) : null,
     goal_threat_percentile: dbPlayer.goal_percentile ? parseFloat(dbPlayer.goal_percentile) : null,
     participation_percentile: dbPlayer.participation_percentile ? parseFloat(dbPlayer.participation_percentile) : null,
-    sparkline_data: dbPlayer.sparkline_data || [],
   };
 } 

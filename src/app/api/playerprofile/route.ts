@@ -219,32 +219,13 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fetch participation data from historical blocks (for 3rd metric)
+    // Fetch participation data from EWMA performance ratings (replaces historical blocks)
     let participationPercentage = 50; // Default fallback
-    let historicalBlocks: any[] = []; // Store for response
     
-    try {
-      const halfSeasonData = await prisma.aggregated_half_season_stats.findUnique({
-        where: { player_id: numericId },
-        select: { historical_blocks: true } as any
-      }) as any;
-
-      if (halfSeasonData?.historical_blocks && Array.isArray(halfSeasonData.historical_blocks)) {
-        // Store the historical blocks for the response
-        historicalBlocks = halfSeasonData.historical_blocks;
-        
-        // Get the most recent block with participation data
-        const recentBlocks = halfSeasonData.historical_blocks as any[];
-        const latestBlock = recentBlocks
-          .filter(block => block.participation_rate !== undefined)
-          .sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime())[0];
-        
-        if (latestBlock && latestBlock.participation_rate !== undefined) {
-          participationPercentage = Math.round(latestBlock.participation_rate * 100);
-        }
-      }
-    } catch (participationError) {
-      console.warn('Could not fetch participation data:', participationError);
+    // Note: EWMA participation data is already fetched above in performanceRatings
+    // Use that data if available, otherwise fall back to default
+    if (performanceRatings && (performanceRatings as any).participation !== undefined) {
+      participationPercentage = Math.round(Number((performanceRatings as any).participation));
     }
 
     const responseData = {
@@ -272,10 +253,7 @@ export async function GET(request: Request) {
         teammate_chemistry_all: (profile as any).teammate_chemistry_all, // New comprehensive teammate data
         last_updated: profile.last_updated,
         
-        // Historical blocks for debugging and display
-        historical_blocks: historicalBlocks,
-        
-        // NEW: 3-metric power ratings (sophisticated trend calculation for all metrics)
+        // NEW: 3-metric power ratings (EWMA system)
         power_ratings: performanceRatings ? {
           power_rating: (performanceRatings as any).power_rating ? Number((performanceRatings as any).power_rating) : null,
           goal_threat: (performanceRatings as any).goal_threat ? Number((performanceRatings as any).goal_threat) : null,

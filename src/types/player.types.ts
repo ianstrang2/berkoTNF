@@ -84,5 +84,4 @@ export interface PlayerWithTrend extends PlayerProfile {
   power_rating_percentile: number | null;
   goal_threat_percentile: number | null;
   participation_percentile: number | null;
-  sparkline_data: any[]; // Add sparkline_data to the type
 } 

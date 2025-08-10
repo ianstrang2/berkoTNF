@@ -263,7 +263,6 @@ model aggregated_half_season_stats {
   player            players?  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_player")
 
   @@index([player_id], map: "idx_agg_half_season_stats_player_id")
-  @@index([historical_blocks], map: "idx_half_season_stats_historical_blocks", type: Gin)
 }
 
 /// This model stores pre-aggregated all-time stats for faster retrieval
