@@ -165,6 +165,32 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   const [leagueAverages, setLeagueAverages] = useState<any[]>([]);
   const [trendData, setTrendData] = useState<TrendData | null>(null);
   const [trendLoading, setTrendLoading] = useState<boolean>(false);
+  const [isProfileExpanded, setIsProfileExpanded] = useState<boolean>(false);
+
+  // Helper function to truncate profile text
+  const truncateProfileText = (text: string, maxChars: number = 150): { truncated: string; needsTruncation: boolean } => {
+    if (text.length <= maxChars) {
+      return { truncated: text, needsTruncation: false };
+    }
+    
+    // Find a good breaking point (end of sentence or word)
+    const truncatedAt = text.lastIndexOf('.', maxChars);
+    const fallbackAt = text.lastIndexOf(' ', maxChars);
+    
+    let breakPoint = maxChars;
+    if (truncatedAt > maxChars * 0.7) {
+      // If we found a sentence ending within 70% of max chars, use it
+      breakPoint = truncatedAt + 1;
+    } else if (fallbackAt > maxChars * 0.7) {
+      // Otherwise use word boundary if within 70% of max chars
+      breakPoint = fallbackAt;
+    }
+    
+    return {
+      truncated: text.substring(0, breakPoint).trim(),
+      needsTruncation: true
+    };
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -673,18 +699,52 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
             </div>
             <div className="p-4 lg:p-6 pt-0">
               <div className="prose prose-sm max-w-none" style={{ color: '#344767' }}>
-                {profile.profile_text.split('\n\n').map((paragraph, index) => (
-                  <p key={index} className="mb-3 text-sm leading-relaxed">
-                    {paragraph}
-                  </p>
-                ))}
+                {(() => {
+                  const { truncated, needsTruncation } = truncateProfileText(profile.profile_text);
+                  
+                  if (!needsTruncation) {
+                    // Show full text if no truncation needed
+                    return profile.profile_text.split('\n\n').map((paragraph, index) => (
+                      <p key={index} className="mb-3 text-sm leading-relaxed">
+                        {paragraph}
+                      </p>
+                    ));
+                  }
+                  
+                  if (isProfileExpanded) {
+                    // Show full text with "Read less" button
+                    return (
+                      <>
+                        {profile.profile_text.split('\n\n').map((paragraph, index) => (
+                          <p key={index} className="mb-3 text-sm leading-relaxed">
+                            {paragraph}
+                          </p>
+                        ))}
+                        <button
+                          onClick={() => setIsProfileExpanded(false)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded transition-colors duration-200"
+                        >
+                          Read less
+                        </button>
+                      </>
+                    );
+                  }
+                  
+                  // Show truncated text with inline "... Read more"
+                  return (
+                    <p className="mb-3 text-sm leading-relaxed">
+                      {truncated}
+                      <span className="text-gray-500">... </span>
+                      <button
+                        onClick={() => setIsProfileExpanded(true)}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded transition-colors duration-200"
+                      >
+                        Read more
+                      </button>
+                    </p>
+                  );
+                })()}
               </div>
-              {/* Optional: Generation timestamp for admin */}
-              {profile.profile_generated_at && process.env.NODE_ENV === 'development' && (
-                <p className="text-xs text-gray-500 mt-3 border-t pt-2">
-                  Profile generated: {new Date(profile.profile_generated_at).toLocaleDateString()}
-                </p>
-              )}
             </div>
           </div>
         </div>
