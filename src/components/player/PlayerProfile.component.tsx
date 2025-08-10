@@ -107,6 +107,7 @@ interface ProfileData {
   streak_records?: StreakRecords;
   profile_text?: string;
   profile_generated_at?: string;
+  is_retired?: boolean;
 }
 
 interface YearlyPerformanceData {
@@ -480,78 +481,105 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       {/* NEW: Player Profile with Trend Analysis */}
       <div className="w-full max-w-full px-3 mb-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="p-4 lg:p-6 pb-0">
-            {/* Player Name and Club Logo */}
-            {profile.name && (
-              <div className="flex items-center justify-center mb-10">
-                {clubInfo && clubInfo.filename && (
-                  <img
-                    src={`/club-logos/${clubInfo.filename}`}
-                    alt={clubInfo.name ? `${clubInfo.name} logo` : 'Club logo'}
-                    className="h-12 w-12 mr-4"
-                    style={{ objectFit: 'contain' }}
-                  />
+          {profile.is_retired ? (
+            // Compact version for retired players - just name and club logo
+            <div className="p-4 lg:p-6">
+              {profile.name && (
+                <div className="flex items-center justify-center">
+                  {clubInfo && clubInfo.filename && (
+                    <img
+                      src={`/club-logos/${clubInfo.filename}`}
+                      alt={clubInfo.name ? `${clubInfo.name} logo` : 'Club logo'}
+                      className="h-12 w-12 mr-4"
+                      style={{ objectFit: 'contain' }}
+                    />
+                  )}
+                  <h2 className="text-2xl font-semibold text-slate-700 font-sans">
+                    {profile.name}
+                  </h2>
+                  <span className="ml-3 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                    Retired
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            // Full version for active players
+            <>
+              <div className="p-4 lg:p-6 pb-0">
+                {/* Player Name and Club Logo */}
+                {profile.name && (
+                  <div className="flex items-center justify-center mb-10">
+                    {clubInfo && clubInfo.filename && (
+                      <img
+                        src={`/club-logos/${clubInfo.filename}`}
+                        alt={clubInfo.name ? `${clubInfo.name} logo` : 'Club logo'}
+                        className="h-12 w-12 mr-4"
+                        style={{ objectFit: 'contain' }}
+                      />
+                    )}
+                    <h2 className="text-2xl font-semibold text-slate-700 font-sans">
+                      {profile.name}
+                    </h2>
+                  </div>
                 )}
-                <h2 className="text-2xl font-semibold text-slate-700 font-sans">
-                  {profile.name}
-                </h2>
               </div>
-            )}
-          </div>
-          <div className="p-4 lg:p-6 pt-0">
-            {trendLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
-                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
-                </div>
-              </div>
-            ) : trendData ? (
-              <>
-                <div className="grid grid-cols-3 gap-1 sm:gap-3 lg:gap-6 mb-0 px-2 sm:px-0">
-                {/* Power Rating */}
-                <div className="flex flex-col items-center">
-                  <div className="scale-75 sm:scale-90 lg:scale-100 transform">
-                    <PowerRatingGauge 
-                      rating={trendData.power_rating_percentile ?? 0}
-                      size="md"
-                      label="Power Rating"
-                    />
+              <div className="p-4 lg:p-6 pt-0">
+                {trendLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                      <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                    </div>
                   </div>
-                </div>
+                ) : trendData ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-1 sm:gap-3 lg:gap-6 mb-0 px-2 sm:px-0">
+                    {/* Power Rating */}
+                    <div className="flex flex-col items-center">
+                      <div className="scale-75 sm:scale-90 lg:scale-100 transform">
+                        <PowerRatingGauge 
+                          rating={trendData.power_rating_percentile ?? 0}
+                          size="md"
+                          label="Power Rating"
+                        />
+                      </div>
+                    </div>
 
-                {/* Goal Threat */}
-                <div className="flex flex-col items-center">
-                  <div className="scale-75 sm:scale-90 lg:scale-100 transform">
-                    <PowerRatingGauge 
-                      rating={trendData.goal_threat_percentile ?? 0}
-                      size="md"
-                      label="Goal Threat"
-                    />
+                    {/* Goal Threat */}
+                    <div className="flex flex-col items-center">
+                      <div className="scale-75 sm:scale-90 lg:scale-100 transform">
+                        <PowerRatingGauge 
+                          rating={trendData.goal_threat_percentile ?? 0}
+                          size="md"
+                          label="Goal Threat"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Participation */}
+                    <div className="flex flex-col items-center">
+                      <div className="scale-75 sm:scale-90 lg:scale-100 transform">
+                        <PowerRatingGauge 
+                          rating={trendData.participation_percentile ?? 0}
+                          size="md"
+                          label="Participation"
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Participation */}
-                <div className="flex flex-col items-center">
-                  <div className="scale-75 sm:scale-90 lg:scale-100 transform">
-                    <PowerRatingGauge 
-                      rating={trendData.participation_percentile ?? 0}
-                      size="md"
-                      label="Participation"
-                    />
+
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">No trend data available</p>
+                    <p className="text-xs mt-1">Trend analysis requires match history</p>
                   </div>
-                </div>
+                )}
+
               </div>
-
-
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">No trend data available</p>
-                <p className="text-xs mt-1">Trend analysis requires match history</p>
-              </div>
-            )}
-
-          </div>
+            </>
+          )}
         </div>
       </div>
 

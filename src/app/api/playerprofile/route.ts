@@ -40,7 +40,8 @@ export async function GET(request: Request) {
         select: {
           profile_text: true,
           profile_generated_at: true,
-          name: true
+          name: true,
+          is_retired: true
         }
       }),
       
@@ -293,7 +294,10 @@ export async function GET(request: Request) {
         
         // NEW: AI-generated profile
         profile_text: playerData?.profile_text || null,
-        profile_generated_at: playerData?.profile_generated_at || null
+        profile_generated_at: playerData?.profile_generated_at || null,
+        
+        // Player status
+        is_retired: playerData?.is_retired || false
     };
 
     return NextResponse.json({ 
