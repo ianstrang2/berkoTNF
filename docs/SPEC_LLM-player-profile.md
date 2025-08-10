@@ -999,3 +999,87 @@ The following adjustments were made during implementation to match the actual da
 - ✅ `deploy_all.ps1` - Updated to deploy both SQL functions
 
 This implementation leverages your existing infrastructure while adding intelligent, cost-effective player profile generation that enhances the user experience with minimal operational overhead.
+
+---
+
+## Recent Updates & Refinements (Post-Implementation)
+
+### Club Mention Policy Refinement (August 2025)
+
+**Issue Identified:** LLM was mentioning players' favorite clubs in virtually every profile, making them repetitive.
+
+**Solution Implemented:**
+- **20% Mention Policy**: Club mentions now limited to ~20% of profiles (1 in 5 players)
+- **Selective Usage**: Only mention clubs when it creates genuine humor or irony with performance
+- **Focus Shift**: Profiles now emphasize league achievements over professional club allegiances
+
+**Code Changes:**
+- Updated `supabase/functions/generate-player-profiles/index.ts` with new club mention guidelines
+- Added explicit instructions: "Skip mentioning their favorite club in MOST profiles (4 out of 5 times)"
+
+### Word Count Enforcement Improvements (August 2025)
+
+**Issue Identified:** LLM not consistently following word count requirements. Examples:
+- Lee Miles (505 games): Got 250 words instead of required 350-450 words
+- Dave Wates (12 games): Got 132 words instead of required 50-100 words
+
+**Solutions Implemented:**
+1. **Enhanced Prompt Enforcement**: Added multiple emphatic warnings with emojis
+2. **Personalized Targets**: Dynamic prompt shows specific player name and exact word requirement
+3. **Step-by-Step Instructions**: Clear process for LLM to follow before writing
+4. **Multiple Reminders**: Word count requirements appear in 3 places in the prompt
+
+**Current Challenge:** LLM still struggles with strict word count compliance during creative writing process.
+
+**Future Consideration:** "Write full, then trim" approach discussed as potential solution:
+- Write comprehensive 400-450 word profiles for all players
+- Implement post-processing to trim based on experience level
+- May improve creative flow and consistency
+
+### Reset Function Technical Fixes (August 2025)
+
+**Issue Identified:** "Reset & Regenerate" button failing with HTTP 500 errors in serverless environment.
+
+**Root Cause:** Internal HTTP requests to same API route don't work reliably in serverless functions.
+
+**Solution Implemented:**
+- Replaced `fetch()` call with direct Supabase Edge Function invocation
+- Added better error handling for partial successes
+- Improved user feedback for various failure scenarios
+
+**Code Changes:**
+- Updated `src/app/api/admin/reset-player-profiles/route.ts` with direct function calls
+- Added support for clear-only operations
+- Enhanced error messages and user guidance
+
+### Data Clarification Improvements (August 2025)
+
+**Issue Identified:** LLM misinterpreting `selected_club` as the team players actually play for.
+- Example: "Alex Chaplin plays for Tottenham" instead of "Alex supports Tottenham"
+
+**Solution Implemented:**
+- Added explicit data clarifications in prompt
+- Clear distinction between "favorite club" vs "team they play for"
+- League context explanation (casual local league where everyone plays together)
+
+### Current System Performance
+
+**✅ Working Well:**
+- Individual processing with league context
+- Admin dashboard management
+- Weekly automated generation
+- UI integration and display
+- Comparative insights and humor
+
+**⚠️ Areas for Continued Refinement:**
+- Word count compliance consistency
+- LLM instruction following reliability
+- Profile generation time optimization
+
+**📊 Usage Statistics:**
+- Profiles generated for 20+ active players
+- Word count ranges: 50-100 (newbies) to 350-450 (veterans)
+- Club mentions reduced from ~100% to target ~20%
+- Admin dashboard provides real-time generation status and controls
+
+This system continues to evolve based on real-world usage and feedback, demonstrating the value of iterative improvement in AI-generated content systems.

@@ -670,6 +670,27 @@ const balancePercentage = Math.round(100 - (balanceScore * 100));
 - **Efficient Rendering**: Memoized calculations for team statistics
 - **Progressive Enhancement**: Core functionality works without JavaScript
 
+### **7.4 Mobile Search Visibility Fix**
+**Issue**: On mobile portrait mode, player search results were hidden under the fixed "LOCK POOL" button, making players appear unavailable when searching.
+
+**Solution**: Added mobile-specific bottom padding to search results dropdown:
+```css
+/* Mobile-only bottom padding to clear fixed CTA bar */
+max-md:pb-40
+```
+
+**Implementation**: 
+- **File**: `src/components/team/PlayerPool.component.tsx`
+- **Target**: Search results container with `max-h-72 overflow-y-auto`
+- **Calculation**: 160px clearance for GlobalCtaBar (64px bottom + 16px padding + 44px button + 24px extra + 12px buffer)
+- **Scope**: Mobile-only (`max-md:`) - desktop layout unchanged
+
+**Benefits**:
+- ✅ Search results fully visible on mobile portrait
+- ✅ No landscape rotation required for player selection
+- ✅ Maintains touch-friendly interaction
+- ✅ Preserves desktop responsiveness
+
 ---
 
 ## 8. Configuration Management System
