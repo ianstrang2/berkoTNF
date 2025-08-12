@@ -7,9 +7,10 @@ interface GlobalCtaBarProps {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  hint?: string;
 }
 
-const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = false }) => {
+const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = false, hint }) => {
   const isLoading = label.includes('Saving...') || label.includes('Loading...');
   
   return (
@@ -22,6 +23,11 @@ const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = 
       "
     >
       <div className="md:max-w-4xl md:mx-auto">
+        {hint && (
+          <p className="text-sm text-gray-600 text-center mb-3 px-4">
+            {hint}
+          </p>
+        )}
         <Button
           onClick={onClick}
           disabled={disabled}

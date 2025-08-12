@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import useMatchState from '@/hooks/useMatchState.hook';
+import { splitSizesFromPool, getPoolValidation, COPY_CONSTANTS } from '@/utils/teamSplit.util';
 import PlayerPoolPane from '@/components/admin/matches/PlayerPoolPane.component';
 import BalanceTeamsPane from '@/components/admin/matches/BalanceTeamsPane.component';
 import CompleteMatchForm from '@/components/admin/matches/CompleteMatchForm.component';
@@ -12,6 +13,7 @@ import StepperBar from '@/components/admin/matches/StepperBar.component';
 import GlobalCtaBar from '@/components/admin/matches/GlobalCtaBar.component';
 import MatchModal from '@/components/team/modals/MatchModal.component';
 import MatchCompletedModal from '@/components/team/modals/MatchCompletedModal.component';
+import SingleBlockedModal from '@/components/admin/matches/SingleBlockedModal.component';
 import { MoreVertical, Lock, Unlock, RotateCcw, Edit } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout.layout';
 import { format } from 'date-fns';
@@ -41,6 +43,9 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   const [isEditing, setIsEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState(false);
+  
+  // Blocked pool modal state
+  const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
 
   // Edit match data state
   const [editMatchData, setEditMatchData] = useState({
@@ -111,21 +116,55 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
     }
   };
 
-  const { currentStep, primaryLabel, primaryAction, primaryDisabled } = useMemo(() => {
+  const { currentStep, primaryLabel, primaryAction, primaryDisabled, buttonHint } = useMemo(() => {
     if (!matchData) {
-      return { currentStep: 'Pool' as 'Pool', primaryLabel: 'Loading...', primaryAction: () => {}, primaryDisabled: true };
+      return { currentStep: 'Pool' as 'Pool', primaryLabel: 'Loading...', primaryAction: () => {}, primaryDisabled: true, buttonHint: '' };
     }
     let step: 'Pool' | 'Teams' | 'Result' | 'Done' = 'Pool';
     let label = '';
     let action = () => {};
     let disabled = true;
+    let hint = '';
 
     switch (matchData.state) {
       case 'Draft':
         step = 'Pool';
         label = 'Lock Pool';
-        action = () => actions.lockPool({ playerIds: playerPoolIds.map(id => Number(id)) });
-        disabled = playerPoolIds.length !== matchData.teamSize * 2;
+        
+        const poolSize = playerPoolIds.length;
+        const targetSize = matchData.teamSize * 2;
+        const { a: sizeA, b: sizeB } = splitSizesFromPool(poolSize);
+        const { disabled: poolDisabled, blocked } = getPoolValidation(poolSize);
+        
+        // Modify primary action for direct lock or single block modal
+        action = () => {
+          // Single blocking condition: < 8 players
+          if (blocked) {
+            setIsBlockedModalOpen(true);
+            return;
+          }
+          
+          // Direct lock for all viable scenarios (>=8 players)
+          actions.lockPool({ playerIds: playerPoolIds.map(id => Number(id)) });
+        };
+        
+        disabled = poolDisabled;
+        
+        // Dynamic hints
+        if (poolSize === 0) {
+          hint = 'Add players to begin';
+        } else if (blocked) {
+          const needed = 8 - poolSize;
+          hint = `Need ${needed} more for 4v4 minimum`;
+        } else if (poolSize === 8) {
+          hint = `Lock 4v4`;
+        } else if (poolDisabled) {
+          hint = 'Maximum players reached. Remove some?';
+        } else if (poolSize === targetSize) {
+          hint = `Perfect for ${matchData.teamSize}v${matchData.teamSize}`;
+        } else {
+          hint = `Lock ${sizeA}v${sizeB}`;
+        }
         break;
       case 'PoolLocked':
         step = 'Teams';
@@ -146,7 +185,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         disabled = true;
         break;
     }
-    return { currentStep: step, primaryLabel: label, primaryAction: action, primaryDisabled: disabled };
+    return { currentStep: step, primaryLabel: label, primaryAction: action, primaryDisabled: disabled, buttonHint: hint };
   }, [matchData, playerPoolIds, actions, isCompleteFormSubmitting]);
 
   if (error) {
@@ -220,7 +259,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
       case 'Draft':
         return <PlayerPoolPane matchId={matchId} teamSize={matchData.teamSize} initialPlayers={matchData.players} onSelectionChange={setPlayerPoolIds} />;
       case 'PoolLocked':
-        return <BalanceTeamsPane matchId={matchId} teamSize={matchData.teamSize} players={matchData.players} isBalanced={matchData.isBalanced} balanceTeamsAction={actions.balanceTeams} clearTeamsAction={actions.clearAssignments} onShowToast={showToast} markAsUnbalanced={actions.markAsUnbalanced} />;
+        return <BalanceTeamsPane matchId={matchId} teamSize={matchData.teamSize} actualSizeA={matchData.actualSizeA} actualSizeB={matchData.actualSizeB} players={matchData.players} isBalanced={matchData.isBalanced} balanceTeamsAction={actions.balanceTeams} clearTeamsAction={actions.clearAssignments} onShowToast={showToast} markAsUnbalanced={actions.markAsUnbalanced} />;
       case 'TeamsBalanced':
       case 'Completed':
         return (
@@ -268,7 +307,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         {renderCurrentPane()}
       
       {matchData.state !== 'Completed' && (
-        <GlobalCtaBar label={primaryLabel} onClick={primaryAction} disabled={primaryDisabled} />
+        <GlobalCtaBar label={primaryLabel} onClick={primaryAction} disabled={primaryDisabled} hint={buttonHint} />
       )}
 
       {/* Match Completed Modal */}
@@ -291,6 +330,13 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         isLoading={isEditing}
         error={editError}
         isEditing={true}
+      />
+
+      {/* Single Blocked Modal */}
+      <SingleBlockedModal 
+        isOpen={isBlockedModalOpen}
+        onClose={() => setIsBlockedModalOpen(false)}
+        poolSize={playerPoolIds.length}
       />
     </div>
   );

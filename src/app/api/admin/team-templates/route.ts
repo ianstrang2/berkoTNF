@@ -37,6 +37,26 @@ export async function GET(request: Request) {
           created_at: 'asc' 
         }
       });
+      
+      // If no custom templates found, fall back to defaults
+      if (templates.length === 0) {
+        const defaultTemplate = await prisma.team_size_templates_defaults.findUnique({
+          where: { team_size: parseInt(teamSize) }
+        });
+        
+        if (defaultTemplate) {
+          templates = [{
+            template_id: 0, // Indicate this is a default
+            team_size: defaultTemplate.team_size,
+            name: defaultTemplate.name || `${defaultTemplate.team_size}-a-side`,
+            defenders: defaultTemplate.defenders_per_team,
+            midfielders: defaultTemplate.midfielders_per_team,
+            attackers: defaultTemplate.attackers_per_team,
+            created_at: null,
+            updated_at: null
+          }];
+        }
+      }
     } else {
       // Get all templates
       templates = await prisma.team_size_templates.findMany({
@@ -45,6 +65,24 @@ export async function GET(request: Request) {
           { name: 'asc' }
         ]
       });
+      
+      // If no custom templates exist, fall back to all defaults
+      if (templates.length === 0) {
+        const defaultTemplates = await prisma.team_size_templates_defaults.findMany({
+          orderBy: { team_size: 'asc' }
+        });
+        
+        templates = defaultTemplates.map(defaultTemplate => ({
+          template_id: 0, // Indicate this is a default
+          team_size: defaultTemplate.team_size,
+          name: defaultTemplate.name || `${defaultTemplate.team_size}-a-side`,
+          defenders: defaultTemplate.defenders_per_team,
+          midfielders: defaultTemplate.midfielders_per_team,
+          attackers: defaultTemplate.attackers_per_team,
+          created_at: null,
+          updated_at: null
+        }));
+      }
     }
 
     return NextResponse.json({

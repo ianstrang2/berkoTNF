@@ -30,6 +30,8 @@ export async function PATCH(
         } as any,
         data: {
           state: 'Draft',
+          actual_size_a: null,     // Clear actual sizes when returning to Draft
+          actual_size_b: null,     // Clear actual sizes when returning to Draft
           is_balanced: false,
           state_version: { increment: 1 },
         } as any,

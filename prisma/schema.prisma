@@ -166,6 +166,8 @@ model upcoming_matches {
   upcoming_match_id Int                      @id @default(autoincrement())
   match_date        DateTime                 @db.Timestamptz(6)
   team_size         Int
+  actual_size_a     Int?
+  actual_size_b     Int?
   location          String?                  @db.VarChar(255)
   team_a_name       String?                  @default("Orange") @db.VarChar(100)
   team_b_name       String?                  @default("Green") @db.VarChar(100)

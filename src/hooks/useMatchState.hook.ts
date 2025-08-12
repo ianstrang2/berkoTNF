@@ -25,6 +25,8 @@ interface MatchData {
   state: 'Draft' | 'PoolLocked' | 'TeamsBalanced' | 'Completed' | 'Cancelled';
   stateVersion: number;
   teamSize: number;
+  actualSizeA?: number;
+  actualSizeB?: number;
   players: PlayerInPool[];
   isBalanced: boolean;
   updatedAt: string;
@@ -81,6 +83,8 @@ export const useMatchState = (matchId: number | string) => {
           state: result.data.state,
           stateVersion: result.data.state_version,
           teamSize: result.data.team_size,
+          actualSizeA: result.data.actual_size_a,
+          actualSizeB: result.data.actual_size_b,
           players: result.data.players || [],
           isBalanced: result.data.is_balanced,
           updatedAt: result.data.updated_at,

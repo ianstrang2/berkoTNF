@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { splitSizesFromPool, getPoolValidation, MIN_PLAYERS, MAX_PLAYERS, MIN_TEAM } from '@/utils/teamSplit.util';
 
 /**
  * API route to lock the player pool for an upcoming match.
@@ -41,12 +42,40 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Conflict: Match has been updated by someone else.' }, { status: 409 });
     }
     
-    const requiredPlayerCount = match.team_size * 2;
-    if (playerIds.length !== requiredPlayerCount) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Player count mismatch. Expected ${requiredPlayerCount}, got ${playerIds.length}.`
-        }, { status: 409 });
+    // Enhanced validation with support for uneven teams
+    const poolSize = playerIds.length;
+    const { a: sizeA, b: sizeB } = splitSizesFromPool(poolSize);
+    const { disabled, blocked } = getPoolValidation(poolSize);
+
+    // Validation checks using constants
+    if (disabled) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Too many players (max ${MAX_PLAYERS} for 11v11). Got ${poolSize}.`
+      }, { status: 400 });
+    }
+
+    if (blocked) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Too few for 4v4 minimum (need ${MIN_PLAYERS}+ players). Got ${poolSize}.`
+      }, { status: 400 });
+    }
+
+    // Both teams must have at least MIN_TEAM players (defensive check)
+    if (sizeA < MIN_TEAM || sizeB < MIN_TEAM) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Teams too small (${sizeA}v${sizeB}). Both teams need ${MIN_TEAM}+ players.`
+      }, { status: 400 });
+    }
+
+    // Validate unique player IDs to prevent data corruption
+    if (new Set(playerIds).size !== playerIds.length) {
+      return NextResponse.json({
+        success: false,
+        error: 'Duplicate player IDs detected'
+      }, { status: 400 });
     }
 
     const updatedMatch = await prisma.$transaction(async (tx) => {
@@ -64,7 +93,7 @@ export async function PATCH(
         })),
       });
 
-      // 3. Update the match state
+      // 3. Update the match state with actual team sizes
       const newMatchState = await tx.upcoming_matches.update({
         where: { 
           upcoming_match_id: matchId,
@@ -72,6 +101,8 @@ export async function PATCH(
         } as any,
         data: {
           state: 'PoolLocked',
+          actual_size_a: sizeA,      // NEW: Persist actual team sizes
+          actual_size_b: sizeB,      // NEW: Source of truth for downstream
           state_version: {
             increment: 1,
           },
@@ -82,12 +113,28 @@ export async function PATCH(
     });
 
 
-    return NextResponse.json({ success: true, data: updatedMatch });
+    const isSimplified = poolSize === 8; // Exactly 4v4
+    const isUneven = sizeA !== sizeB; // Any uneven split
+
+    return NextResponse.json({ 
+      success: true, 
+      data: updatedMatch,
+      splitInfo: { sizeA, sizeB, isUneven, isSimplified }
+    });
   } catch (error: any) {
      if (error.code === 'P2025' || error.code === 'P2034') { // Prisma transaction errors for concurrency
         return NextResponse.json({ success: false, error: 'Conflict: Match has been updated by someone else.' }, { status: 409 });
     }
-    console.error('Error locking pool:', error);
-    return NextResponse.json({ success: false, error: 'An unexpected error occurred.' }, { status: 500 });
+    console.error('Error locking pool:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      name: error.name
+    });
+    return NextResponse.json({ 
+      success: false, 
+      error: `Server error: ${error.message}`,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 } 

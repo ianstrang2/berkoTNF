@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { players } from '@prisma/client';
+import { splitSizesFromPool, MIN_PLAYERS, MAX_PLAYERS } from '@/utils/teamSplit.util';
 
 // Define interface for player pool entries
 interface PoolPlayer {
@@ -45,12 +46,14 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get match details
+    // Get match details including actual team sizes
     const match = await prisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: matchIdInt },
       select: {
         upcoming_match_id: true,
         team_size: true,
+        actual_size_a: true,
+        actual_size_b: true,
         is_balanced: true
       }
     });
@@ -74,32 +77,55 @@ export async function POST(request: NextRequest) {
 
     const players = playersInPool.map(p => p.player).filter(p => p !== null) as players[];
 
-    if (players.length < match.team_size * 2) {
+    // Use actual sizes as source of truth if available, otherwise calculate
+    let sizeA, sizeB;
+    if (match.actual_size_a && match.actual_size_b) {
+      sizeA = match.actual_size_a;
+      sizeB = match.actual_size_b;
+    } else {
+      const sizes = splitSizesFromPool(players.length);
+      sizeA = sizes.a;
+      sizeB = sizes.b;
+    }
+
+    // Enhanced validation with proper bounds checking
+    const poolSize = players.length;
+    if (poolSize < MIN_PLAYERS || poolSize > MAX_PLAYERS) {
       return NextResponse.json(
         { 
           success: false, 
-          error: `Not enough players in pool. Need ${match.team_size * 2}, have ${players.length}.` 
+          error: `Invalid player count. Expected ${MIN_PLAYERS}-${MAX_PLAYERS}, got ${poolSize}.` 
         },
         { status: 400 }
       );
     }
     
-    const shuffledPlayers = players.sort(() => 0.5 - Math.random());
-    const teamSize = match.team_size;
-    const teamA = shuffledPlayers.slice(0, teamSize);
-    const teamB = shuffledPlayers.slice(teamSize, teamSize * 2);
+    if (sizeA + sizeB !== poolSize) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Size mismatch. Expected ${sizeA}+${sizeB}=${sizeA + sizeB}, got ${poolSize}.` 
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Proper Fisher-Yates shuffle (replace poor 0.5 - Math.random())
+    const shuffledPlayers = shuffleArray(players);
+    const teamA = shuffledPlayers.slice(0, sizeA);
+    const teamB = shuffledPlayers.slice(sizeA, sizeA + sizeB);
     
     // Delete existing slot assignments for this match
     await prisma.upcoming_match_players.deleteMany({
       where: { upcoming_match_id: matchIdInt }
     });
     
-    // Create new slot assignments for Team A
+    // Create new slot assignments using actual team sizes
     const teamAAssignments = teamA.map((player, index) => ({
       upcoming_match_id: matchIdInt,
       player_id: player.player_id,
       team: 'A',
-      slot_number: index + 1 // Slots 1 to teamSize
+      slot_number: index + 1 // Slots 1 to sizeA
     }));
     
     // Create new slot assignments for Team B
@@ -107,7 +133,7 @@ export async function POST(request: NextRequest) {
       upcoming_match_id: matchIdInt,
       player_id: player.player_id,
       team: 'B',
-      slot_number: teamSize + index + 1 // Slots teamSize+1 to teamSize*2
+      slot_number: index + 1 // Slots 1 to sizeB
     }));
     
     // Combine assignments and insert them

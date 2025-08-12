@@ -163,7 +163,11 @@ function calculateBalanceScore(
 
 // --- MAIN ALGORITHM EXPORT ---
 
-export async function balanceByRating(matchId: string) {
+export async function balanceByRating(
+  matchId: string, 
+  sizes?: { a: number; b: number }, 
+  state_version?: number
+) {
   const matchIdInt = parseInt(matchId, 10);
   if (isNaN(matchIdInt)) {
     throw new Error('Invalid Match ID provided.');

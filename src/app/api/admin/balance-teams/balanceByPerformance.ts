@@ -1,24 +1,26 @@
 import { prisma } from '@/lib/prisma';
 import { balanceByPastPerformance } from '../balance-by-past-performance/utils';
+import { MIN_PLAYERS, MAX_PLAYERS, MIN_TEAM } from '@/utils/teamSplit.util';
 
 // This logic uses the sophisticated performance algorithm with configurable weights
 
-export async function balanceByPerformance(matchId: string, playerIds: string[]) {
+export async function balanceByPerformance(
+  matchId: string, 
+  playerIds: string[], 
+  sizes: { a: number; b: number },
+  state_version?: number // For concurrency control
+) {
   const matchIdInt = parseInt(matchId, 10);
   const playerIdsInt = playerIds.map(id => parseInt(id, 10));
 
-  const match = await prisma.upcoming_matches.findUnique({
-    where: { upcoming_match_id: matchIdInt },
-    select: { team_size: true },
-  });
-
-  if (!match) {
-    throw new Error('Match not found');
+  // Enhanced validation with proper bounds checking using constants
+  const poolSize = playerIdsInt.length;
+  if (poolSize < MIN_PLAYERS || poolSize > MAX_PLAYERS) {
+    throw new Error(`Invalid player count. Expected ${MIN_PLAYERS}-${MAX_PLAYERS}, got ${poolSize}.`);
   }
-
-  const requiredPlayerCount = match.team_size * 2;
-  if (playerIdsInt.length < requiredPlayerCount) {
-    throw new Error(`Not enough players. Expected ${requiredPlayerCount}, got ${playerIdsInt.length}.`);
+  
+  if (sizes.a + sizes.b !== poolSize) {
+    throw new Error(`Size mismatch. Expected ${sizes.a}+${sizes.b}=${sizes.a + sizes.b}, got ${poolSize}.`);
   }
   
   // Fetch performance weights from app config
@@ -52,29 +54,63 @@ export async function balanceByPerformance(matchId: string, playerIds: string[])
   // Use the sophisticated performance balancing algorithm
   const result = await balanceByPastPerformance(null, playerIdsInt, performanceWeights);
 
-  // Convert to the expected assignment format for database update
+  // Convert to assignment format using actual team sizes
   const assignments = [
-    ...result.teamA.map((playerId, i) => ({ 
+    ...result.teamA.slice(0, sizes.a).map((playerId, i) => ({ 
       player_id: playerId, 
       team: 'A', 
       slot_number: i + 1 
     })),
-    ...result.teamB.map((playerId, i) => ({ 
+    ...result.teamB.slice(0, sizes.b).map((playerId, i) => ({ 
       player_id: playerId, 
       team: 'B', 
-      slot_number: i + 1 + match.team_size 
+      slot_number: i + 1 
     })),
   ];
-
-  // Atomically update the assignments
-  await prisma.$transaction([
-    prisma.upcoming_match_players.deleteMany({
-      where: { upcoming_match_id: matchIdInt },
-    }),
-    prisma.upcoming_match_players.createMany({
-      data: assignments.map(a => ({ ...a, upcoming_match_id: matchIdInt })),
-    }),
-  ]);
-
-  return { success: true, assignments };
+  
+  // Atomically update assignments with concurrency control
+  await prisma.$transaction(async (tx) => {
+    // Clear and recreate assignments
+    await tx.upcoming_match_players.deleteMany({
+      where: { upcoming_match_id: matchIdInt }
+    });
+    
+    await tx.upcoming_match_players.createMany({
+      data: assignments.map(a => ({ ...a, upcoming_match_id: matchIdInt }))
+    });
+    
+    // Update match state with concurrency check
+    if (state_version !== undefined) {
+      const updateResult = await tx.upcoming_matches.updateMany({
+        where: { 
+          upcoming_match_id: matchIdInt,
+          state_version: state_version
+        },
+        data: { 
+          is_balanced: true,
+          state_version: { increment: 1 }
+        }
+      });
+      
+      if (updateResult.count === 0) {
+        throw new Error('CONCURRENCY_CONFLICT');
+      }
+    } else {
+      // Fallback for cases without state_version
+      await tx.upcoming_matches.update({
+        where: { upcoming_match_id: matchIdInt },
+        data: { is_balanced: true }
+      });
+    }
+  });
+  
+  // Ensure consistent return format matching Random/Ability
+  return {
+    success: true,
+    data: {
+      assignments,
+      is_balanced: true,
+      balanceType: 'performance'
+    }
+  };
 } 

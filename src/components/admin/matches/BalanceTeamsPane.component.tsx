@@ -10,6 +10,21 @@ import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal
 import TornadoChart from '@/components/team/TornadoChart.component';
 import PerformanceTornadoChart from '@/components/team/PerformanceTornadoChart.component';
 import { calculateTeamStatsFromPlayers, calculatePerformanceTeamStats } from '@/utils/teamStatsCalculation.util';
+import { deriveTemplate, formationToTemplate } from '@/utils/teamFormation.util';
+
+// Fallback templates based on database values
+function getFallbackTemplate(teamSize: number) {
+  switch (teamSize) {
+    case 5: return { defenders: 1, midfielders: 2, attackers: 2 };
+    case 6: return { defenders: 2, midfielders: 2, attackers: 2 };
+    case 7: return { defenders: 2, midfielders: 3, attackers: 2 };
+    case 8: return { defenders: 3, midfielders: 3, attackers: 2 };
+    case 9: return { defenders: 3, midfielders: 4, attackers: 2 };
+    case 10: return { defenders: 4, midfielders: 3, attackers: 3 };
+    case 11: return { defenders: 4, midfielders: 4, attackers: 3 };
+    default: return { defenders: 3, midfielders: 4, attackers: 2 }; // 9-player fallback
+  }
+}
 
 type Team = 'A' | 'B' | 'Unassigned';
 
@@ -22,6 +37,8 @@ interface TeamTemplate {
 interface BalanceTeamsPaneProps {
   matchId: string;
   teamSize: number;
+  actualSizeA?: number;
+  actualSizeB?: number;
   players: PlayerInPool[];
   isBalanced: boolean;
   balanceTeamsAction: (method: 'ability' | 'performance' | 'random') => Promise<void>;
@@ -157,6 +174,8 @@ const useTeamDragAndDrop = (
 const BalanceTeamsPane = ({ 
   matchId, 
   teamSize, 
+  actualSizeA,
+  actualSizeB,
   players: initialPlayers, 
   isBalanced, 
   balanceTeamsAction, 
@@ -167,6 +186,8 @@ const BalanceTeamsPane = ({
   const [players, setPlayers] = useState(initialPlayers);
   const [isBalancing, setIsBalancing] = useState(false);
   const [teamTemplate, setTeamTemplate] = useState<TeamTemplate | null>(null);
+  const [teamTemplateA, setTeamTemplateA] = useState<TeamTemplate | null>(null);
+  const [teamTemplateB, setTeamTemplateB] = useState<TeamTemplate | null>(null);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   
@@ -191,21 +212,61 @@ const BalanceTeamsPane = ({
 
   useEffect(() => {
     const fetchTemplate = async () => {
-        try {
-            const response = await fetch(`/api/admin/team-templates?teamSize=${teamSize}`);
-            const result = await response.json();
+        // Check if we have uneven teams
+        const isUneven = actualSizeA && actualSizeB && actualSizeA !== actualSizeB;
+        const isSimplified = actualSizeA === 4 && actualSizeB === 4;
+        
+
+        
+
+        
+        if (isUneven || isSimplified) {
+            // Use derived templates for uneven teams
+            const sizeA = actualSizeA || teamSize;
+            const sizeB = actualSizeB || teamSize;
             
-            if (result.success && result.data.length > 0) {
-                setTeamTemplate(result.data[0]);
-            } else {
-                setTeamTemplate({ defenders: 3, midfielders: 4, attackers: 2 });
+            // Only use simplified (all midfielders) for true 4v4 matches
+            const formationA = deriveTemplate(sizeA, isSimplified);
+            const formationB = deriveTemplate(sizeB, isSimplified);
+            
+            setTeamTemplateA(formationToTemplate(formationA));
+            setTeamTemplateB(formationToTemplate(formationB));
+            
+            // For legacy compatibility, set teamTemplate to team A
+            setTeamTemplate(formationToTemplate(formationA));
+        } else {
+            // Use database template for even teams (original behavior)
+            try {
+                // For even teams, use individual team size (actualSizeA or actualSizeB)
+                const individualTeamSize = actualSizeA || teamSize;
+                const response = await fetch(`/api/admin/team-templates?teamSize=${individualTeamSize}`);
+                const result = await response.json();
+
+                
+
+                
+                if (result.success && result.data.length > 0) {
+                    const template = result.data[0];
+                    setTeamTemplate(template);
+                    setTeamTemplateA(template);
+                    setTeamTemplateB(template);
+                } else {
+                    // Use appropriate fallback based on team size
+                    const fallback = getFallbackTemplate(teamSize);
+                    setTeamTemplate(fallback);
+                    setTeamTemplateA(fallback);
+                    setTeamTemplateB(fallback);
+                }
+            } catch (error) { 
+                const fallback = getFallbackTemplate(teamSize);
+                setTeamTemplate(fallback);
+                setTeamTemplateA(fallback);
+                setTeamTemplateB(fallback);
             }
-        } catch (error) { 
-            setTeamTemplate({ defenders: 3, midfielders: 4, attackers: 2 }); 
         }
     };
     fetchTemplate();
-  }, [teamSize]);
+  }, [teamSize, actualSizeA, actualSizeB]);
 
   // Fetch team names and special player data
   useEffect(() => {
@@ -465,10 +526,21 @@ const BalanceTeamsPane = ({
   };
   
   const renderTeamColumn = (teamName: 'A' | 'B') => {
-    if (!teamTemplate) return <div className="p-4"><div className="w-full h-96 bg-gray-200 animate-pulse rounded-lg"></div></div>;
-    // Loop from 0 to teamSize-1 to get the correct index for the slot
-    const slots = Array.from({ length: teamSize }, (_, i) => i);
-    const { defenders, midfielders, attackers } = teamTemplate;
+    // Use team-specific templates for uneven teams
+    const currentTemplate = teamName === 'A' ? (teamTemplateA || teamTemplate) : (teamTemplateB || teamTemplate);
+    
+    if (!currentTemplate) return <div className="p-4"><div className="w-full h-96 bg-gray-200 animate-pulse rounded-lg"></div></div>;
+    
+    // Use actual team sizes if available, otherwise fall back to teamSize
+    const actualTeamSize = teamName === 'A' 
+      ? (actualSizeA || teamSize) 
+      : (actualSizeB || teamSize);
+    
+    // Loop from 0 to actualTeamSize-1 to get the correct index for the slot
+    const slots = Array.from({ length: actualTeamSize }, (_, i) => i);
+    const { defenders, midfielders, attackers } = currentTemplate;
+    
+
     
     return (
       <div className="space-y-1">
