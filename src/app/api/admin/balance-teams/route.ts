@@ -58,6 +58,26 @@ export async function POST(request: Request) {
       result = await balanceByRating(matchId, { a: sizeA, b: sizeB }, state_version);
     } else if (method === 'balanceByPerformance') {
       result = await balanceByPerformance(matchId, playerIdsAsStrings, { a: sizeA, b: sizeB }, state_version);
+    } else if (method === 'random') {
+      // Call the existing random balance endpoint directly
+      const baseUrl = new URL(request.url).origin;
+      const randomUrl = `${baseUrl}/api/admin/random-balance-match?matchId=${matchId}`;
+      
+      console.log('Calling random balance URL:', randomUrl);
+      
+      const randomResponse = await fetch(randomUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const randomData = await randomResponse.json();
+      
+      console.log('Random balance response:', randomData);
+      
+      if (!randomData.success) {
+        return NextResponse.json({ success: false, error: randomData.error }, { status: randomResponse.status });
+      }
+      
+      result = randomData.data;
     } else {
       return NextResponse.json({ success: false, error: 'Invalid balancing method' }, { status: 400 });
     }

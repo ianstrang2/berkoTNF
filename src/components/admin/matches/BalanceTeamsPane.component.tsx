@@ -65,14 +65,14 @@ const useTeamDragAndDrop = (
     let originalPlayerTeam: Team | undefined = undefined;
     let originalPlayerSlot: number | undefined = undefined;
     
+    // Find the dragged player's current position
+    const draggedPlayer = originalPlayers.find(p => p.id === player.id);
+    if (draggedPlayer) {
+      originalPlayerTeam = draggedPlayer.team;
+      originalPlayerSlot = draggedPlayer.slot_number;
+    }
+    
     if (targetTeam !== 'Unassigned' && targetSlot) {
-      // Find the dragged player's current position
-      const draggedPlayer = originalPlayers.find(p => p.id === player.id);
-      if (draggedPlayer) {
-        originalPlayerTeam = draggedPlayer.team;
-        originalPlayerSlot = draggedPlayer.slot_number;
-      }
-      
       // Find any player currently in the target slot
       conflictPlayer = originalPlayers.find(p => 
         p.team === targetTeam && p.slot_number === targetSlot && p.id !== player.id
@@ -86,15 +86,25 @@ const useTeamDragAndDrop = (
       
       if (draggedPlayerIdx === -1) return currentPlayers; // Player not found
       
-      // If there's a conflict, move that player to the dragged player's old position
-      if (conflictPlayer && originalPlayerTeam && originalPlayerSlot) {
+      // If there's a conflict, move that player to the dragged player's old position or to Unassigned
+      if (conflictPlayer) {
         const conflictPlayerIdx = newPlayers.findIndex(p => p.id === conflictPlayer!.id);
         if (conflictPlayerIdx > -1) {
-          newPlayers[conflictPlayerIdx] = {
-            ...newPlayers[conflictPlayerIdx],
-            team: originalPlayerTeam,
-            slot_number: originalPlayerSlot,
-          };
+          if (originalPlayerTeam && originalPlayerSlot) {
+            // Swap: move conflict player to dragged player's old position
+            newPlayers[conflictPlayerIdx] = {
+              ...newPlayers[conflictPlayerIdx],
+              team: originalPlayerTeam,
+              slot_number: originalPlayerSlot,
+            };
+          } else {
+            // Dragged player came from pool: move conflict player to pool
+            newPlayers[conflictPlayerIdx] = {
+              ...newPlayers[conflictPlayerIdx],
+              team: 'Unassigned',
+              slot_number: undefined,
+            };
+          }
         }
       }
       
@@ -110,37 +120,44 @@ const useTeamDragAndDrop = (
 
     // Send updates to the server
     try {
-      // First, update the dragged player
-      const response1 = await fetch('/api/admin/upcoming-match-players', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          upcoming_match_id: parseInt(matchId, 10),
-          player_id: parseInt(player.id, 10),
-          team: targetTeam,
-          slot_number: targetTeam !== 'Unassigned' ? targetSlot : null,
-        }),
-      });
-      
-      if (!response1.ok) {
-        throw new Error(`Server responded with ${response1.status} for main player`);
-      }
-      
-      // If there was a conflict, update the displaced player
-      if (conflictPlayer && originalPlayerTeam && originalPlayerSlot) {
-        const response2 = await fetch('/api/admin/upcoming-match-players', {
+      if (conflictPlayer) {
+        // Use atomic swap endpoint for any conflicts (either true swap or displacement to pool)
+        const response = await fetch('/api/admin/upcoming-match-players/swap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            upcoming_match_id: parseInt(matchId, 10),
+            playerA: {
+              player_id: parseInt(player.id, 10),
+              team: targetTeam,
+              slot_number: targetTeam !== 'Unassigned' ? targetSlot : null,
+            },
+            playerB: {
+              player_id: parseInt(conflictPlayer.id, 10),
+              team: originalPlayerTeam || 'Unassigned',
+              slot_number: (originalPlayerTeam && originalPlayerTeam !== 'Unassigned') ? originalPlayerSlot : null,
+            },
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Server responded with ${response.status} for player swap`);
+        }
+      } else {
+        // Single player move (no conflict)
+        const response = await fetch('/api/admin/upcoming-match-players', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             upcoming_match_id: parseInt(matchId, 10),
-            player_id: parseInt(conflictPlayer.id, 10),
-            team: originalPlayerTeam,
-            slot_number: originalPlayerTeam !== 'Unassigned' ? originalPlayerSlot : null,
+            player_id: parseInt(player.id, 10),
+            team: targetTeam,
+            slot_number: targetTeam !== 'Unassigned' ? targetSlot : null,
           }),
         });
         
-        if (!response2.ok) {
-          throw new Error(`Server responded with ${response2.status} for conflict player`);
+        if (!response.ok) {
+          throw new Error(`Server responded with ${response.status} for player move`);
         }
       }
       
@@ -374,7 +391,11 @@ const BalanceTeamsPane = ({
     }
     
     // Hide chart if teams are incomplete (players moved to pool)
-    if (teamA.length !== teamSize || teamB.length !== teamSize) {
+    // For uneven teams, check against actual team sizes
+    const expectedSizeA = actualSizeA || teamSize;
+    const expectedSizeB = actualSizeB || teamSize;
+    
+    if (teamA.length !== expectedSizeA || teamB.length !== expectedSizeB) {
       return null;
     }
     
@@ -391,7 +412,11 @@ const BalanceTeamsPane = ({
   // Calculate performance-based team stats for Performance algorithm tornado chart
   const performanceStatsData = useMemo(() => {
     // Hide chart if teams are incomplete (players moved to pool)
-    if (teamA.length !== teamSize || teamB.length !== teamSize) {
+    // For uneven teams, check against actual team sizes
+    const expectedSizeA = actualSizeA || teamSize;
+    const expectedSizeB = actualSizeB || teamSize;
+    
+    if (teamA.length !== expectedSizeA || teamB.length !== expectedSizeB) {
       return null;
     }
 
@@ -503,8 +528,8 @@ const BalanceTeamsPane = ({
   };
   
   const renderTeamSlot = (team: 'A' | 'B', slotIndex: number) => {
-    // For Team B, the slot number needs to be offset by the team size.
-    const actualSlotNumber = team === 'A' ? slotIndex + 1 : slotIndex + 1 + teamSize;
+    // Both teams use slot numbers 1-N within their team
+    const actualSlotNumber = slotIndex + 1;
     const playerInSlot = (team === 'A' ? teamA : teamB).find(p => p.slot_number === actualSlotNumber);
     
     return (
@@ -736,7 +761,14 @@ const BalanceTeamsPane = ({
         </div>
       )}
 
-      <BalanceOptionsModal isOpen={isBalanceModalOpen} onClose={() => setIsBalanceModalOpen(false)} onConfirm={handleBalanceConfirm} isLoading={isBalancing} />
+      <BalanceOptionsModal 
+        isOpen={isBalanceModalOpen} 
+        onClose={() => setIsBalanceModalOpen(false)} 
+        onConfirm={handleBalanceConfirm} 
+        isLoading={isBalancing}
+        actualSizeA={actualSizeA}
+        actualSizeB={actualSizeB}
+      />
       <SoftUIConfirmationModal 
         isOpen={isClearConfirmOpen} 
         onClose={() => setIsClearConfirmOpen(false)} 

@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       where: { upcoming_match_id: matchIdInt }
     });
     
-    // Create new slot assignments using actual team sizes
+    // Create new slot assignments - both teams use 1-N slot numbering
     const teamAAssignments = teamA.map((player, index) => ({
       upcoming_match_id: matchIdInt,
       player_id: player.player_id,

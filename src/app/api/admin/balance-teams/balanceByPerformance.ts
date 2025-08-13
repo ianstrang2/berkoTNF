@@ -52,9 +52,9 @@ export async function balanceByPerformance(
   }
 
   // Use the sophisticated performance balancing algorithm
-  const result = await balanceByPastPerformance(null, playerIdsInt, performanceWeights);
+  const result = await balanceByPastPerformance(null, playerIdsInt, performanceWeights, sizes);
 
-  // Convert to assignment format using actual team sizes
+  // Convert to assignment format - both teams use 1-N slot numbering
   const assignments = [
     ...result.teamA.slice(0, sizes.a).map((playerId, i) => ({ 
       player_id: playerId, 
@@ -64,7 +64,7 @@ export async function balanceByPerformance(
     ...result.teamB.slice(0, sizes.b).map((playerId, i) => ({ 
       player_id: playerId, 
       team: 'B', 
-      slot_number: i + 1 
+      slot_number: i + 1
     })),
   ];
   

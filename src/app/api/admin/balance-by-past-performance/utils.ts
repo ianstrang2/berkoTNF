@@ -45,7 +45,8 @@ const IMPROVEMENT_THRESHOLD = 0.95; // 95% confidence threshold for accepting im
 export async function balanceByPastPerformance(
   _unused_supabaseClient: any, // Keep parameter for compatibility but don't use
   playerIds: number[],
-  performanceWeights?: { power_weight: number; goal_weight: number }
+  performanceWeights?: { power_weight: number; goal_weight: number },
+  targetSizes?: { a: number; b: number }
 ): Promise<TeamResult> {
   // Get performance weights (use provided or fetch from database)
   let weights = performanceWeights;
@@ -120,18 +121,31 @@ export async function balanceByPastPerformance(
   // Sort players by power rating in descending order (primary metric)
   playersData.sort((a, b) => b.trend_rating - a.trend_rating);
 
-  // Initial team assignment using snake draft
+  // Initial team assignment using snake draft (respecting target sizes for uneven teams)
   let teamA_ids: number[] = [];
   let teamB_ids: number[] = [];
   
-  playersData.forEach((player, index) => {
-    // Snake draft: 1st, 4th, 5th, 8th → Team A; 2nd, 3rd, 6th, 7th → Team B
-    if (index % 4 === 0 || index % 4 === 3) {
-      teamA_ids.push(player.player_id);
-    } else {
-      teamB_ids.push(player.player_id);
-    }
-  });
+  if (targetSizes) {
+    // For uneven teams, use a modified snake draft that respects target sizes
+    playersData.forEach((player, index) => {
+      // Fill teams until they reach target sizes
+      if (teamA_ids.length < targetSizes.a && (teamB_ids.length >= targetSizes.b || index % 2 === 0)) {
+        teamA_ids.push(player.player_id);
+      } else {
+        teamB_ids.push(player.player_id);
+      }
+    });
+  } else {
+    // Original snake draft for even teams
+    playersData.forEach((player, index) => {
+      // Snake draft: 1st, 4th, 5th, 8th → Team A; 2nd, 3rd, 6th, 7th → Team B
+      if (index % 4 === 0 || index % 4 === 3) {
+        teamA_ids.push(player.player_id);
+      } else {
+        teamB_ids.push(player.player_id);
+      }
+    });
+  }
 
   // Multi-objective range normalization functions
   const calculateTeamTotals = (teamPlayerIds: number[]) => {

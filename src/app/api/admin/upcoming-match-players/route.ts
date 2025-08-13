@@ -265,6 +265,8 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { upcoming_match_id, player_id, team, slot_number } = body;
+    
+
 
     if (!upcoming_match_id || !player_id) {
       return NextResponse.json(
@@ -295,16 +297,26 @@ export async function PUT(request: NextRequest) {
       },
       data: {
         team: team,
-        slot_number: slot_number,
+        slot_number: team === 'Unassigned' ? null : slot_number,
       },
     });
 
-    return NextResponse.json({ success: true, data: updatedAssignment });
+    // Mark match as unbalanced
+    await prisma.upcoming_matches.update({
+      where: { upcoming_match_id: upcoming_match_id },
+      data: { is_balanced: false }
+    });
+
+    const result = updatedAssignment;
+    
+
+
+    return NextResponse.json({ success: true, data: result });
 
   } catch (error: any) {
     console.error('Error updating player assignment:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
