@@ -35,10 +35,8 @@ const SingleBlockedModal = ({ isOpen, onClose, poolSize }: SingleBlockedModalPro
       title="Too Few Players"
       message="8 players (4v4) is the minimum."
       confirmText="Got It"
-      cancelText={undefined}
       icon="warning"
       onConfirm={onClose}
-      onCancel={undefined}
     />
   );
 };

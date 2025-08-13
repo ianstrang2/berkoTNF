@@ -45,6 +45,8 @@ model upcoming_matches {
   upcoming_match_id Int      @id @default(autoincrement())
   match_date        DateTime @db.Timestamptz(6)
   team_size         Int
+  actual_size_a     Int?     -- NEW: Actual team A size (for uneven teams)
+  actual_size_b     Int?     -- NEW: Actual team B size (for uneven teams)
   state             match_state @default(Draft)  -- NEW: Lifecycle state
   state_version     Int      @default(0)         -- NEW: Concurrency control
   is_balanced       Boolean  @default(false)
@@ -812,9 +814,263 @@ setTimeout(() => setEditSuccess(false), 2000);
 
 ---
 
-## 10. Legacy Migration - ✅ COMPLETED
+## 10. Uneven Teams Feature - ✅ IMPLEMENTED (January 2025)
 
-### **10.1 Migration Status**
+### **10.1 Feature Overview**
+The uneven teams feature allows matches with flexible team sizes from 4v4 to 11v11 (8-22 total players), supporting uneven splits like 4v5, 5v6, etc. This maintains compatibility with existing 11v11 workflows while expanding match flexibility.
+
+### **10.2 Database Schema Enhancements**
+
+#### **New Columns in `upcoming_matches`**
+```sql
+actual_size_a INT     -- Actual team A size after pool lock
+actual_size_b INT     -- Actual team B size after pool lock
+```
+
+**State Lifecycle Rules:**
+- **Draft → PoolLocked**: Set both actual sizes from split calculation
+- **PoolLocked → Draft**: Clear both to NULL
+- **PoolLocked → TeamsBalanced**: Preserve actual sizes
+- **TeamsBalanced → PoolLocked**: Preserve actual sizes
+
+#### **Database Constraints**
+```sql
+-- Deferrable unique constraint for drag-and-drop operations
+ALTER TABLE upcoming_match_players
+ADD CONSTRAINT uniq_match_team_slot
+UNIQUE (upcoming_match_id, team, slot_number)
+DEFERRABLE INITIALLY DEFERRED;
+
+-- Composite unique constraint for player updates
+ALTER TABLE upcoming_match_players 
+ADD CONSTRAINT upcoming_match_id_player_id_unique 
+UNIQUE (upcoming_match_id, player_id);
+```
+
+### **10.3 Core Utilities & Constants**
+
+#### **Team Split Logic (`teamSplit.util.ts`)**
+```typescript
+export const MIN_PLAYERS = 8;      // 4v4 minimum
+export const MAX_PLAYERS = 22;     // 11v11 maximum
+export const MIN_TEAM = 4;         // Minimum team size
+export const MIN_CHART_PLAYERS = 10; // TornadoChart display threshold
+
+export function splitSizesFromPool(poolSize: number): { a: number; b: number } {
+  return { 
+    a: Math.floor(poolSize / 2), 
+    b: Math.ceil(poolSize / 2) 
+  };
+}
+
+export function getPoolValidation(poolSize: number) {
+  const disabled = poolSize > MAX_PLAYERS;
+  const blocked = poolSize < MIN_PLAYERS;
+  return { disabled, blocked };
+}
+```
+
+#### **Formation Templates (`teamFormation.util.ts`)**
+```typescript
+export function deriveTemplate(teamSize: number, isSimplifiedMatch?: boolean): Formation {
+  // 4v4 simplified matches use all midfielders
+  if (teamSize === 4 && isSimplifiedMatch) return { def: 0, mid: 4, att: 0 };
+  
+  // Scale formations proportionally for other team sizes
+  const baseTemplate = getNearestTemplate(teamSize);
+  // ... scaling logic for uneven team sizes
+}
+```
+
+### **10.4 UI/UX Implementation**
+
+#### **Lock Pool Button Logic**
+- **8+ players**: Direct lock with auto-split (no confirmation modal)
+- **<8 players**: Single blocking modal "8 players (4v4) is the minimum"
+- **22+ players**: Button disabled with "Maximum players reached" hint
+
+#### **Dynamic Button Hints**
+```typescript
+// Examples of hint messages
+poolSize === 0     → "Add players to begin"
+poolSize < 8       → "Need X more for 4v4 minimum"
+poolSize === 8     → "Lock 4v4 (all midfielders, Performance/Random only)"
+poolSize === targetSize → "Perfect for Xv X"
+uneven split       → "Lock 4v5" (or appropriate split)
+poolSize > 22      → "Maximum players reached"
+```
+
+#### **Balance Algorithm Restrictions**
+- **Ability Balancing**: Disabled for 4v4 and all uneven teams
+- **Performance/Random**: Available for all team configurations
+- **Visual Indicators**: Grayed out options with explanatory tooltips
+
+### **10.5 API Enhancements**
+
+#### **Lock Pool API (`/lock-pool`)**
+```typescript
+// Enhanced validation and team size calculation
+const { a: sizeA, b: sizeB } = splitSizesFromPool(poolSize);
+const { disabled, blocked } = getPoolValidation(poolSize);
+
+// Atomic transaction updates match state and actual sizes
+await tx.upcoming_matches.updateMany({
+  where: { upcoming_match_id: matchId, state_version },
+  data: {
+    state: 'PoolLocked',
+    actual_size_a: sizeA,
+    actual_size_b: sizeB,
+    state_version: { increment: 1 }
+  }
+});
+```
+
+#### **Balance Teams API (`/balance-teams`)**
+```typescript
+// All algorithms now accept size parameters
+const isUneven = sizeA !== sizeB;
+const isSimplified = (sizeA + sizeB) === 8;
+
+// Block Ability balancing for uneven teams
+if (method === 'ability' && (isUneven || isSimplified)) {
+  return NextResponse.json({
+    success: false,
+    error: 'Ability balancing not supported for uneven teams'
+  }, { status: 400 });
+}
+```
+
+#### **Atomic Player Swaps (`/swap`)**
+```typescript
+// New endpoint for conflict-free drag-and-drop operations
+export async function POST(request: NextRequest) {
+  const { upcoming_match_id, playerA, playerB } = await request.json();
+  
+  await prisma.$transaction(async (tx) => {
+    // Update both players atomically within single transaction
+    await tx.upcoming_match_players.update({
+      where: { upcoming_match_id_player_id: { upcoming_match_id, player_id: playerA.player_id }},
+      data: { team: playerA.team, slot_number: playerA.slot_number }
+    });
+    
+    await tx.upcoming_match_players.update({
+      where: { upcoming_match_id_player_id: { upcoming_match_id, player_id: playerB.player_id }},
+      data: { team: playerB.team, slot_number: playerB.slot_number }
+    });
+  });
+}
+```
+
+### **10.6 Team Balancing Algorithm Updates**
+
+#### **Performance Algorithm**
+- Updated to accept `sizes: { a: number; b: number }` parameter
+- Uses actual team sizes for slot assignment (1-N for both teams)
+- Properly handles uneven team distributions
+
+#### **Random Algorithm**
+- Enhanced with Fisher-Yates shuffle for proper randomization
+- Optional seeding for reproducible testing
+- Respects actual team sizes for assignment
+
+#### **Ability Algorithm**
+- Modified to accept sizes parameter for consistency
+- Blocked for uneven teams via API validation
+- Falls back to team size template when teams are even
+
+### **10.7 Drag & Drop System**
+
+#### **Conflict Resolution**
+- **No Conflict**: Single HTTP call to existing PUT endpoint
+- **With Conflict**: Atomic swap via new POST `/swap` endpoint
+- **Deferrable Constraint**: Allows temporary unique violations within transaction
+
+#### **Slot Numbering**
+- **Team A**: Slots 1-N (where N = actual_size_a)
+- **Team B**: Slots 1-N (where N = actual_size_b)
+- **Simplified**: No offset numbering, each team independent
+
+#### **Capacity Guards**
+```typescript
+// Prevent overfilling teams during manual assignment
+const capacity = team === 'A' ? match.actual_size_a : match.actual_size_b;
+if (currentCount >= capacity) {
+  return NextResponse.json({
+    success: false,
+    error: `Team ${team} at capacity (${capacity} players)`
+  }, { status: 400 });
+}
+```
+
+### **10.8 Formation & Display Logic**
+
+#### **Template Derivation**
+- **4v4 Simplified**: All midfielders (flat list)
+- **Other Sizes**: Proportionally scaled formations
+- **Uneven Teams**: Each team uses appropriate formation for its size
+
+#### **UI Rendering**
+```typescript
+// Conditional rendering based on team configuration
+const isSimplified = totalPlayers === 8;
+const isUneven = teamA.length !== teamB.length;
+
+// TornadoChart display rules
+const shouldShowChart = !isSimplified && !isUneven && 
+                       totalPlayers >= MIN_CHART_PLAYERS;
+
+// Team column rendering
+const teamSize = teamName === 'A' ? actualSizeA : actualSizeB;
+const formation = isSimplified ? { def: 0, mid: 4, att: 0 } : 
+                  deriveTemplate(teamSize);
+```
+
+### **10.9 Key Benefits Achieved**
+
+#### **✅ Flexible Match Management**
+- Support for any team configuration from 4v4 to 11v11
+- Automatic handling of uneven player pools
+- Preserved existing 11v11 workflow compatibility
+
+#### **✅ Data Integrity**
+- Deferrable unique constraints prevent slot conflicts
+- Atomic operations ensure consistent state transitions
+- Comprehensive validation at all API boundaries
+
+#### **✅ Enhanced User Experience**
+- "Just works" flow for viable scenarios (8+ players)
+- Single blocking modal for insufficient players
+- Clear visual indicators for algorithm restrictions
+
+#### **✅ Algorithm Protection**
+- Ability balancing disabled for uneven teams
+- Performance/Random algorithms enhanced for flexibility
+- Consistent API interfaces across all methods
+
+#### **✅ Mobile Optimization**
+- Touch-friendly drag and drop operations
+- Responsive formation displays
+- Optimized button sizing and spacing
+
+### **10.10 Testing & Validation**
+
+#### **Comprehensive Test Coverage**
+- Split logic validation for all pool sizes (8-22)
+- Formation template snapshots for consistency
+- API boundary validation and error handling
+- Concurrency conflict resolution testing
+
+#### **Production Safeguards**
+- Runtime schema validation with clear error messages
+- Defensive UI guards for edge cases
+- Comprehensive logging for debugging
+- Graceful degradation for data inconsistencies
+
+---
+
+## 11. Legacy Migration - ✅ COMPLETED
+
+### **11.1 Migration Status**
 **✅ ALL LEGACY MATCHES MIGRATED** - As documented in `clean-legacy-matches.md`:
 - **685 legacy matches** successfully migrated to unified system
 - **All matches** now have `upcoming_match_id` linking to planning records
@@ -830,7 +1086,7 @@ upcoming_match_id: Int // No longer optional
 const href = `/admin/matches/${match.upcoming_match_id}`;
 ```
 
-### **10.2 Migration Achievements**
+### **11.2 Migration Achievements**
 **Completed Implementation**:
 1. **✅ Phase 1**: New matches use full lifecycle 
 2. **✅ Phase 2**: Legacy matches migrated to new system
@@ -845,9 +1101,9 @@ const href = `/admin/matches/${match.upcoming_match_id}`;
 
 ---
 
-## 11. Performance & Monitoring
+## 12. Performance & Monitoring
 
-### **11.1 Caching Strategy**
+### **12.1 Caching Strategy**
 **API Level**:
 ```typescript
 // Aggressive cache control for real-time data
@@ -863,7 +1119,7 @@ headers: {
 - `useCallback` for event handlers to prevent re-renders
 - Optimized re-rendering through proper dependency arrays
 
-### **11.2 Database Performance**
+### **12.2 Database Performance**
 **Indexing Strategy**:
 ```sql
 -- Match lookups
@@ -882,22 +1138,22 @@ headers: {
 
 ---
 
-## 12. Future Enhancements & Roadmap
+## 13. Future Enhancements & Roadmap
 
-### **12.1 Planned Features**
+### **13.1 Planned Features**
 - **Push Notifications**: Match reminders and team announcements
 - **Advanced Analytics**: Historical team balance performance tracking
 - **Player Feedback System**: Post-match player ratings
 - **Schedule Management**: Recurring match creation
 - **Export Functionality**: PDF lineup sheets and match reports
 
-### **12.2 Technical Improvements**
+### **13.2 Technical Improvements**
 - **Background Jobs**: Asynchronous stats calculation via Supabase Edge Functions
 - **Real-time Updates**: WebSocket integration for live collaboration
 - **Progressive Web App**: Offline functionality for on-pitch use
 - **Advanced Caching**: Redis integration for frequently accessed data
 
-### **12.3 Mobile Enhancements**
+### **13.3 Mobile Enhancements**
 - **Gesture Support**: Swipe navigation between match states
 - **Voice Commands**: "Add goal for [player name]" voice input
 - **Camera Integration**: QR code scanning for quick player addition
@@ -905,9 +1161,9 @@ headers: {
 
 ---
 
-## 13. Technical Specifications
+## 14. Technical Specifications
 
-### **13.1 Dependencies**
+### **14.1 Dependencies**
 ```json
 {
   "next": "^13.x",
@@ -920,14 +1176,14 @@ headers: {
 }
 ```
 
-### **13.2 Environment Configuration**
+### **14.2 Environment Configuration**
 ```env
 DATABASE_URL="postgresql://..."
 DIRECT_URL="postgresql://..."
 NODE_ENV="production"
 ```
 
-### **13.3 Build & Deployment**
+### **14.3 Build & Deployment**
 - **Platform**: Vercel with automatic deployments
 - **Database**: Supabase managed PostgreSQL
 - **CDN**: Vercel Edge Network for global performance
@@ -935,7 +1191,7 @@ NODE_ENV="production"
 
 ---
 
-## 14. Complete Implementation Checklist
+## 15. Complete Implementation Checklist
 
 ### ✅ **Core System (100% Complete)**
 - [x] Match lifecycle state machine (Draft → PoolLocked → TeamsBalanced → Completed)
@@ -969,6 +1225,18 @@ NODE_ENV="production"
 - [x] Proper data transformation via canonical player types
 - [x] Integration with existing stats calculation system
 - [x] Preservation of all historical match data
+
+### ✅ **Uneven Teams Feature (100% Complete)**
+- [x] Flexible team sizes from 4v4 to 11v11 (8-22 total players)
+- [x] Database schema enhancements with actual_size_a/b columns
+- [x] Deferrable unique constraints for drag-and-drop integrity
+- [x] Enhanced lock pool validation with hard limits (8 min, 22 max)
+- [x] Algorithm restrictions (Ability disabled for uneven/4v4 teams)
+- [x] Atomic player swap endpoint for conflict resolution
+- [x] Formation template derivation for all team sizes
+- [x] UI/UX enhancements with dynamic hints and blocking modals
+- [x] Performance and Random algorithm updates for uneven teams
+- [x] Comprehensive testing and validation coverage
 
 ---
 

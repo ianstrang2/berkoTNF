@@ -176,7 +176,11 @@ export async function balanceByRating(
   // === PHASE 1: Authoritative Data Gathering ===
   const match = await prisma.upcoming_matches.findUnique({ where: { upcoming_match_id: matchIdInt }});
   if (!match) throw new Error(`Match with ID ${matchIdInt} not found.`);
-  const { team_size } = match;
+  
+  // Use actual sizes if provided, otherwise fall back to original team_size
+  const actualSizeA = sizes?.a || match.actual_size_a || match.team_size;
+  const actualSizeB = sizes?.b || match.actual_size_b || match.team_size;
+  const totalPlayers = actualSizeA + actualSizeB;
 
   const confirmedPlayerPool = await prisma.upcoming_match_players.findMany({ 
     where: { upcoming_match_id: matchIdInt },
@@ -186,13 +190,15 @@ export async function balanceByRating(
 
   const players = await prisma.players.findMany({ where: { player_id: { in: playerIds } } });
   const balanceWeights = await prisma.team_balance_weights.findMany();
-  const template = await prisma.team_size_templates.findFirst({ where: { team_size } });
   
-  if (!template) throw new Error(`No team size template found for team size: ${team_size}`);
+  // For uneven teams, we need to use the larger team size for template
+  const templateSize = Math.max(actualSizeA, actualSizeB);
+  const template = await prisma.team_size_templates.findFirst({ where: { team_size: templateSize } });
   
-  const requiredPlayerCount = team_size * 2;
-  if (players.length !== requiredPlayerCount) {
-    throw new Error(`Player count mismatch. Expected ${requiredPlayerCount}, got ${players.length}.`);
+  if (!template) throw new Error(`No team size template found for team size: ${templateSize}`);
+  
+  if (players.length !== totalPlayers) {
+    throw new Error(`Player count mismatch. Expected ${totalPlayers}, got ${players.length}.`);
   }
 
   // === PHASE 2: Player Suitability Scoring ===
@@ -240,7 +246,12 @@ export async function balanceByRating(
   // 1. Select Defender Pool - sort by RAW defender attribute
   remainingPlayers.sort((a, b) => (b.defender || 0) - (a.defender || 0));
   console.log('Players sorted by RAW defender attribute:', remainingPlayers.map(p => `${p.name}: ${p.defender}`));
-  const totalDefenders = template.defenders * 2;
+  
+  // Calculate total defenders needed for both teams based on actual sizes
+  const defendersTeamA = Math.round(template.defenders * actualSizeA / templateSize);
+  const defendersTeamB = Math.round(template.defenders * actualSizeB / templateSize);
+  const totalDefenders = defendersTeamA + defendersTeamB;
+  
   pools.defenders = remainingPlayers.slice(0, totalDefenders);
   console.log('Selected defenders:', pools.defenders.map(p => p.name));
   remainingPlayers = remainingPlayers.slice(totalDefenders);
@@ -248,7 +259,12 @@ export async function balanceByRating(
   // 2. Select Attacker Pool - sort by RAW goalscoring attribute
   remainingPlayers.sort((a, b) => (b.goalscoring || 0) - (a.goalscoring || 0));
   console.log('Remaining players sorted by RAW goalscoring attribute:', remainingPlayers.map(p => `${p.name}: ${p.goalscoring}`));
-  const totalAttackers = template.attackers * 2;
+  
+  // Calculate total attackers needed for both teams based on actual sizes
+  const attackersTeamA = Math.round(template.attackers * actualSizeA / templateSize);
+  const attackersTeamB = Math.round(template.attackers * actualSizeB / templateSize);
+  const totalAttackers = attackersTeamA + attackersTeamB;
+  
   pools.attackers = remainingPlayers.slice(0, totalAttackers);
   console.log('Selected attackers:', pools.attackers.map(p => p.name));
   remainingPlayers = remainingPlayers.slice(totalAttackers);
@@ -261,9 +277,10 @@ export async function balanceByRating(
   let bestScore = Infinity;
   let bestTeamACombination: BestCombination | null = null;
   
-  const teamA_DefenderCombinations = combinations(pools.defenders, template.defenders);
-  const teamA_MidfielderCombinations = combinations(pools.midfielders, template.midfielders);
-  const teamA_AttackerCombinations = combinations(pools.attackers, template.attackers);
+  // Use actual team A sizes for combinations
+  const teamA_DefenderCombinations = combinations(pools.defenders, defendersTeamA);
+  const teamA_MidfielderCombinations = combinations(pools.midfielders, Math.round(template.midfielders * actualSizeA / templateSize));
+  const teamA_AttackerCombinations = combinations(pools.attackers, attackersTeamA);
 
   for (const teamADefenders of teamA_DefenderCombinations) {
     for (const teamAMidfielders of teamA_MidfielderCombinations) {
@@ -304,8 +321,6 @@ export async function balanceByRating(
   const teamBAttackers = pools.attackers.filter(p => !bestTeamAPlayerIds.has(p.player_id));
 
   const finalAssignments: FinalAssignment[] = [];
-  
-  const { defenders: defPerTeam, midfielders: midPerTeam } = template;
 
   // --- Corrected Slot Assignment Logic ---
   const assignSlots = (
@@ -321,21 +336,21 @@ export async function balanceByRating(
     }));
   };
 
-  // Team A Assignments
-  let slotCounter = 1;
-  finalAssignments.push(...assignSlots(finalTeamACombination.defenders, 'A', slotCounter));
-  slotCounter += defPerTeam;
-  finalAssignments.push(...assignSlots(finalTeamACombination.midfielders, 'A', slotCounter));
-  slotCounter += midPerTeam;
-  finalAssignments.push(...assignSlots(finalTeamACombination.attackers, 'A', slotCounter));
+  // Team A Assignments - use 1-N numbering
+  let slotCounterA = 1;
+  finalAssignments.push(...assignSlots(finalTeamACombination.defenders, 'A', slotCounterA));
+  slotCounterA += defendersTeamA;
+  finalAssignments.push(...assignSlots(finalTeamACombination.midfielders, 'A', slotCounterA));
+  slotCounterA += finalTeamACombination.midfielders.length;
+  finalAssignments.push(...assignSlots(finalTeamACombination.attackers, 'A', slotCounterA));
 
-  // Team B Assignments
-  slotCounter = template.team_size + 1;
-  finalAssignments.push(...assignSlots(teamBDefenders, 'B', slotCounter));
-  slotCounter += defPerTeam;
-  finalAssignments.push(...assignSlots(teamBMidfielders, 'B', slotCounter));
-  slotCounter += midPerTeam;
-  finalAssignments.push(...assignSlots(teamBAttackers, 'B', slotCounter));
+  // Team B Assignments - use 1-N numbering (separate from Team A)
+  let slotCounterB = 1;
+  finalAssignments.push(...assignSlots(teamBDefenders, 'B', slotCounterB));
+  slotCounterB += teamBDefenders.length;
+  finalAssignments.push(...assignSlots(teamBMidfielders, 'B', slotCounterB));
+  slotCounterB += teamBMidfielders.length;
+  finalAssignments.push(...assignSlots(teamBAttackers, 'B', slotCounterB));
 
   await prisma.$transaction(async (tx) => {
     // Step 1: Delete Old Assignments

@@ -1,8 +1,8 @@
 # BerkoTNF - Balance by Rating Algorithm Specification
 
-**Version:** 1.0  
-**Date:** 2023-11-16  
-**Author:** [Your Name]
+**Version:** 1.1  
+**Date:** January 2025  
+**Author:** System Documentation
 
 ---
 
@@ -11,6 +11,8 @@
 This document provides a definitive, forensic-level specification for the **Balance by Rating** team balancing algorithm. Its purpose is to serve as the single source of truth for all current and future implementations, ensuring the logic is preserved perfectly.
 
 The algorithm's primary goal is to create the most balanced teams possible, not just by overall team strength, but by ensuring that players are placed in the positions where they will be most effective and that the teams are structurally balanced at a positional level.
+
+**IMPORTANT RESTRICTION (January 2025):** This algorithm is disabled for uneven teams (including 4v4 matches) to preserve the existing algorithm integrity. For uneven team configurations, use the Performance or Random balancing methods instead.
 
 ## 2.0 Core Principles
 

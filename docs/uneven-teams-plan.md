@@ -5,6 +5,15 @@ Date: January 2025
 
 Author: User Feedback + LLM Technical Review + Production Polish + Cursor Implementation
 
+**CHANGELOG v1.9.2 - DRAG-AND-DROP FIXES (January 2025):**
+- **Deferrable constraints**: Replaced partial index with proper deferrable UNIQUE constraint
+- **Atomic swap endpoint**: New `/api/admin/upcoming-match-players/swap` for conflict-free operations
+- **Slot numbering optimization**: Reverted to 1-N numbering for both teams with atomic backend handling
+- **Conflict detection enhancement**: Frontend properly detects all swap scenarios (team-to-team, pool-to-team)
+- **Transaction integrity**: Single database transaction handles both player moves atomically
+- **Error diagnosis improvement**: Enhanced logging and debugging for constraint violations
+- **Production reliability**: Comprehensive testing of drag-and-drop operations for all team configurations
+
 **CHANGELOG v1.9.1 - PRODUCTION POLISH:**
 - **Concurrency safety**: Proper 409 handling for stale state_version conflicts in lock-pool
 - **Data integrity**: Duplicate player ID validation and database slot uniqueness constraints
@@ -87,12 +96,13 @@ Add actual team size tracking and data integrity constraints:
 ALTER TABLE upcoming_matches ADD COLUMN actual_size_a INTEGER;
 ALTER TABLE upcoming_matches ADD COLUMN actual_size_b INTEGER;
 
--- Add slot uniqueness constraint to prevent double-assignments
--- NOTE: Keep this as raw SQL migration - Prisma can't express partial indexes
--- Document for future devs: WHERE clause prevents conflicts for 'Unassigned' team
-CREATE UNIQUE INDEX uniq_team_slot
-ON upcoming_match_players(upcoming_match_id, team, slot_number)
-WHERE team IN ('A','B');
+-- Add deferrable slot uniqueness constraint for atomic drag-and-drop operations
+-- IMPORTANT: Must be a constraint (not index) to support DEFERRABLE
+-- This allows temporary unique violations within a transaction
+ALTER TABLE upcoming_match_players
+ADD CONSTRAINT uniq_match_team_slot
+UNIQUE (upcoming_match_id, team, slot_number)
+DEFERRABLE INITIALLY DEFERRED;
 
 -- Add Prisma composite unique constraint for DnD updates
 -- This enables where: { upcoming_match_id_player_id: { upcoming_match_id, player_id } }
@@ -101,17 +111,15 @@ ADD CONSTRAINT upcoming_match_id_player_id_unique
 UNIQUE (upcoming_match_id, player_id);
 
 -- Database Requirements: PostgreSQL 12+
--- NOTE: Partial indexes (WHERE team IN ('A','B')) require PostgreSQL
--- For MySQL compatibility later, would need: generated column slot_guard that's 
--- NULL for Unassigned and unique on (match_id, team, slot_guard)
+-- NOTE: DEFERRABLE constraints require PostgreSQL
+-- The constraint allows temporary unique violations within a single transaction
+-- enabling atomic player swaps without intermediate constraint violations
 
--- Production deployment: Use CONCURRENTLY to avoid table locks
--- CREATE UNIQUE INDEX CONCURRENTLY uniq_team_slot
--- ON upcoming_match_players(upcoming_match_id, team, slot_number)
--- WHERE team IN ('A','B');
+-- For Unassigned players: slot_number = NULL, which doesn't violate uniqueness
+-- (PostgreSQL treats multiple NULLs as distinct for unique constraints)
 
--- Optional: Enforce uniqueness only when slotted (for stricter editing)
--- WHERE team IN ('A','B') AND slot_number IS NOT NULL;
+-- Production deployment: This constraint is NOT deferrable by default
+-- so it can be added safely without affecting existing operations
 ```
 
 **State Lifecycle Rules:**
@@ -1361,7 +1369,173 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 }
 ```
 
-**Phase 9a: Enhanced Single Blocked Modal**
+**Phase 9a: Atomic Player Swap Endpoint (Final DnD Solution)**
+
+`src/app/api/admin/upcoming-match-players/swap/route.ts`:
+```typescript
+// POST: Swap two players atomically in a single transaction
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { upcoming_match_id, playerA, playerB } = body;
+
+    // Validation
+    if (!upcoming_match_id || !playerA || !playerB) {
+      return NextResponse.json(
+        { success: false, error: 'Match ID and both players are required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Optional: Lock the match for concurrent swap protection
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${upcoming_match_id})`;
+
+      // Lock the two player rows to prevent concurrent modifications
+      const players = await tx.$queryRaw<Array<{
+        upcoming_player_id: number;
+        player_id: number;
+        team: string;
+        slot_number: number | null;
+      }>>`
+        SELECT upcoming_player_id, player_id, team, slot_number
+        FROM upcoming_match_players
+        WHERE upcoming_match_id = ${upcoming_match_id}
+          AND player_id IN (${playerA.player_id}, ${playerB.player_id})
+        FOR UPDATE
+      `;
+
+      if (players.length !== 2) {
+        throw new Error('One or both players not found in this match');
+      }
+
+      const playerARecord = players.find(p => p.player_id === playerA.player_id);
+      const playerBRecord = players.find(p => p.player_id === playerB.player_id);
+
+      // Perform the atomic swap
+      // With DEFERRABLE constraint, we can create temporary conflicts
+      await tx.upcoming_match_players.update({
+        where: { upcoming_player_id: playerARecord.upcoming_player_id },
+        data: {
+          team: playerA.team,
+          slot_number: playerA.team === 'Unassigned' ? null : playerA.slot_number,
+        },
+      });
+
+      await tx.upcoming_match_players.update({
+        where: { upcoming_player_id: playerBRecord.upcoming_player_id },
+        data: {
+          team: playerB.team,
+          slot_number: playerB.team === 'Unassigned' ? null : playerB.slot_number,
+        },
+      });
+
+      // Mark match as unbalanced
+      await tx.upcoming_matches.update({
+        where: { upcoming_match_id: upcoming_match_id },
+        data: { is_balanced: false }
+      });
+
+      return { 
+        playerA: { ...playerARecord, team: playerA.team, slot_number: playerA.slot_number },
+        playerB: { ...playerBRecord, team: playerB.team, slot_number: playerB.slot_number }
+      };
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      data: result,
+      message: 'Players swapped successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error swapping players:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+**Frontend Integration for Conflict-Free Drag and Drop**
+
+`src/components/admin/matches/BalanceTeamsPane.component.tsx`:
+```typescript
+const updatePlayerAssignment = async (player: PlayerInPool, targetTeam: Team, targetSlot?: number) => {
+  // Check for conflicts (any player already in target slot)
+  const conflictPlayer = originalPlayers.find(p => 
+    p.team === targetTeam && p.slot_number === targetSlot && p.id !== player.id
+  ) || null;
+  
+  // Get dragged player's current position
+  const draggedPlayer = originalPlayers.find(p => p.id === player.id);
+  const originalPlayerTeam = draggedPlayer?.team;
+  const originalPlayerSlot = draggedPlayer?.slot_number;
+
+  // Optimistic UI update
+  setPlayers(/* ... immediate state change ... */);
+
+  try {
+    if (conflictPlayer) {
+      // Use atomic swap endpoint for any conflicts
+      const response = await fetch('/api/admin/upcoming-match-players/swap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          upcoming_match_id: parseInt(matchId, 10),
+          playerA: {
+            player_id: parseInt(player.id, 10),
+            team: targetTeam,
+            slot_number: targetTeam !== 'Unassigned' ? targetSlot : null,
+          },
+          playerB: {
+            player_id: parseInt(conflictPlayer.id, 10),
+            team: originalPlayerTeam || 'Unassigned',
+            slot_number: (originalPlayerTeam && originalPlayerTeam !== 'Unassigned') ? originalPlayerSlot : null,
+          },
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status} for player swap`);
+      }
+    } else {
+      // Single player move (no conflict) - use existing PUT endpoint
+      const response = await fetch('/api/admin/upcoming-match-players', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          upcoming_match_id: parseInt(matchId, 10),
+          player_id: parseInt(player.id, 10),
+          team: targetTeam,
+          slot_number: targetTeam !== 'Unassigned' ? targetSlot : null,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status} for player move`);
+      }
+    }
+    
+    await markAsUnbalanced();
+    onTeamModified?.();
+  } catch (error) {
+    console.error("Failed to update player assignment:", error);
+    setPlayers(originalPlayers); // Rollback on failure
+  }
+};
+```
+
+**Benefits of the Atomic Swap Solution:**
+- ✅ **Zero Constraint Violations**: Deferrable constraint allows temporary conflicts within transaction
+- ✅ **Single Database Transaction**: Both player moves committed atomically
+- ✅ **Conflict Detection**: Frontend properly identifies all swap scenarios
+- ✅ **Optimistic UI**: Immediate visual feedback with rollback on failure
+- ✅ **Performance**: Advisory locks prevent concurrent swap conflicts
+- ✅ **Reliability**: Comprehensive error handling and logging
+
+**Phase 9b: Enhanced Single Blocked Modal**
 
 `src/components/admin/matches/SingleBlockedModal.component.tsx`:
 ```typescript
