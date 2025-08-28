@@ -128,7 +128,7 @@ export const NavPills = <T extends string>({
           >
             <a
               href="javascript:;"
-              className="block w-full py-1 transition-colors border-0 rounded-lg ease-soft-in-out bg-inherit bg-none dark:text-white text-xs md:text-sm"
+              className="block w-full py-1 transition-colors border-0 rounded-lg ease-soft-in-out bg-inherit bg-none text-slate-700 dark:text-white text-xs md:text-sm"
               onClick={() => onTabChange(item.value)}
               role="tab"
               aria-selected={activeTab === item.value}
@@ -147,7 +147,7 @@ export const NavPills = <T extends string>({
           }}
         >
           <a 
-            className="block w-full py-1 transition-colors border-0 rounded-lg ease-soft-in-out bg-white text-white dark:bg-slate-950 dark:text-slate-950 shadow-soft-xxs"
+            className="block w-full py-1 transition-colors border-0 rounded-lg ease-soft-in-out bg-white text-slate-700 dark:bg-slate-950 dark:text-white shadow-soft-xxs"
             href="javascript:;"
             style={{ animation: '.2s ease' }}
           >
