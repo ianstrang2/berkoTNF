@@ -377,14 +377,21 @@ const CurrentForm: React.FC = () => {
     );
   }
 
-  if (timelineItems.length === 0) {
+  // Only show empty state if there are no timeline items AND no player status to display
+  const hasPlayerStatus = (showOnFireConfig && milestonesData?.on_fire_player_id) || 
+                          (showGrimReaperConfig && milestonesData?.grim_reaper_player_id);
+  
+  if (timelineItems.length === 0 && !hasPlayerStatus) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-                 <div className="p-4">
-           <div className="text-center">
-             <p className="text-neutral-500">No current form data to display</p>
-           </div>
-         </div>
+        <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+          <h5 className="mb-0">Current Form</h5>
+        </div>
+        <div className="p-4">
+          <div className="text-center">
+            <p className="text-neutral-500">No current form data to display</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -450,9 +457,11 @@ const CurrentForm: React.FC = () => {
           </div>
         )}
         
-        <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
-          <div className="w-auto relative before:absolute before:left-4 before:top-0 before:h-full before:border-r-2 before:border-solid before:border-slate-100 before:content-[''] lg:before:-ml-px">
-            {timelineItems.map((item, index) => (
+        {/* Only show timeline section if there are timeline items */}
+        {timelineItems.length > 0 && (
+          <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
+            <div className="w-auto relative before:absolute before:left-4 before:top-0 before:h-full before:border-r-2 before:border-solid before:border-slate-100 before:content-[''] lg:before:-ml-px">
+              {timelineItems.map((item, index) => (
               <motion.div 
                 key={`timeline-${index}`} 
                 custom={index}
@@ -531,9 +540,10 @@ const CurrentForm: React.FC = () => {
                   )}
                 </div>
               </motion.div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </motion.div>
   );
