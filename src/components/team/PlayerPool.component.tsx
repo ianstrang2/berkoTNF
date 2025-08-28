@@ -121,7 +121,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
         </div>
         
         {/* List of available players */}
-        <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 divide-y shadow-soft-xs max-md:pb-40">
+        <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 divide-y shadow-soft-xs">
           {availablePlayers.length > 0 && !hasReachedMaxPlayers ? (
             availablePlayers.map(player => (
               <div 

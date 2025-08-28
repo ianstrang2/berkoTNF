@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { toPlayerProfile } from '@/lib/transform/player.transform';
 
 const serializeData = (data) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
@@ -43,9 +44,16 @@ export async function GET(request: Request) {
       });
     }
     
+    // Transform the raw database data to canonical format
+    const transformedPlayers = players.map(player => ({
+      ...toPlayerProfile(player),
+      // Preserve the matches_played field if it exists (from the raw query)
+      ...(player.matches_played !== undefined && { matches_played: player.matches_played })
+    }));
+    
     return new NextResponse(JSON.stringify({ 
       success: true,
-      data: serializeData(players) 
+      data: serializeData(transformedPlayers) 
     }), {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -107,7 +115,10 @@ export async function POST(request: Request) {
     const player = await prisma.players.create({
       data: createData,
     });
-    return NextResponse.json({ data: serializeData(player) });
+    
+    // Transform the created player to canonical format
+    const transformedPlayer = toPlayerProfile(player);
+    return NextResponse.json({ data: serializeData(transformedPlayer) });
   } catch (error: any) {
     console.error('API POST Error in /api/admin/players:', error);
     let errorMessage = 'Failed to create player';
@@ -181,7 +192,10 @@ export async function PUT(request: Request) {
       },
       data: updateData,
     });
-    return NextResponse.json({ data: serializeData(player) });
+    
+    // Transform the updated player to canonical format
+    const transformedPlayer = toPlayerProfile(player);
+    return NextResponse.json({ data: serializeData(transformedPlayer) });
   } catch (error: any) {
     console.error('API PUT Error in /api/admin/players:', error); // Enhanced server-side logging
     let errorMessage = 'Failed to update player';

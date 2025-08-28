@@ -278,7 +278,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   };
 
   return (
-    <div className="flex flex-col w-full max-w-7xl">
+    <div className="flex flex-col w-full max-w-7xl max-md:pb-40">
       {toast && (
             <div className={`fixed top-5 right-5 z-50 p-4 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
               <div className="flex items-center justify-between">
