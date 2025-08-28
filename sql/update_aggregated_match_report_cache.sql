@@ -170,24 +170,28 @@ BEGIN
 
     -- 3. Get Match Participants & Details
     SELECT
-        -- Team A players with conditional own goals entry
+        -- Team A players (without own goals)
+        COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'A'), '[]'::jsonb),
+        -- Team B players (without own goals)
+        COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'B'), '[]'::jsonb),
+        -- Team A scorers with own goals appended if > 0
         CASE 
             WHEN COALESCE(latest_match.team_a_own_goals, 0) > 0 THEN
-                COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'A'), '[]'::jsonb) || 
-                jsonb_build_array('OG (' || latest_match.team_a_own_goals || ')')
+                COALESCE(string_agg(CASE WHEN pm.team = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '') ||
+                CASE WHEN string_agg(CASE WHEN pm.team = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) IS NOT NULL THEN ', ' ELSE '' END ||
+                'OG (' || latest_match.team_a_own_goals || ')'
             ELSE
-                COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'A'), '[]'::jsonb)
+                COALESCE(string_agg(CASE WHEN pm.team = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '')
         END,
-        -- Team B players with conditional own goals entry  
+        -- Team B scorers with own goals appended if > 0
         CASE 
             WHEN COALESCE(latest_match.team_b_own_goals, 0) > 0 THEN
-                COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'B'), '[]'::jsonb) || 
-                jsonb_build_array('OG (' || latest_match.team_b_own_goals || ')')
+                COALESCE(string_agg(CASE WHEN pm.team = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '') ||
+                CASE WHEN string_agg(CASE WHEN pm.team = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) IS NOT NULL THEN ', ' ELSE '' END ||
+                'OG (' || latest_match.team_b_own_goals || ')'
             ELSE
-                COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'B'), '[]'::jsonb)
+                COALESCE(string_agg(CASE WHEN pm.team = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '')
         END,
-        COALESCE(string_agg(CASE WHEN pm.team = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), ''),
-        COALESCE(string_agg(CASE WHEN pm.team = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), ''),
         array_agg(pm.player_id) FILTER (WHERE p.is_ringer = false AND p.is_ringer = false), -- Filter out ringers/retired here
         COALESCE(jsonb_object_agg(pm.player_id::text, p.name), '{}'::jsonb)
     INTO
