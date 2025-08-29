@@ -39,7 +39,7 @@ const transformBasePlayerFromDb = (dbPlayer: any): Omit<PlayerProfile, 'id' | 'n
         isRetired: dbPlayer.is_retired ?? false,
         club: transformClubFromDb(dbPlayer.selected_club),
         goalscoring: dbPlayer.goalscoring ?? 0,
-        defending: dbPlayer.defending ?? 0,
+        defending: dbPlayer.defender ?? 0,
         staminaPace: dbPlayer.stamina_pace ?? 0,
         control: dbPlayer.control ?? 0,
         teamwork: dbPlayer.teamwork ?? 0,

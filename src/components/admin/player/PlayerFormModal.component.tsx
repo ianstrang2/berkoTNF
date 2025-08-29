@@ -72,6 +72,24 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     club: initialData?.club || null
   });
 
+  // Effect to update form data when initialData changes (for editing)
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData?.name || '',
+        isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : true,
+        isRetired: initialData?.isRetired || false,
+        goalscoring: initialData?.goalscoring || 3,
+        defending: initialData?.defending || 3,
+        staminaPace: initialData?.staminaPace || 3,
+        control: initialData?.control || 3,
+        teamwork: initialData?.teamwork || 3,
+        resilience: initialData?.resilience || 3,
+        club: initialData?.club || null
+      });
+    }
+  }, [initialData]);
+
   // Effect to clear nameError when formData.name changes
   useEffect(() => {
     if (nameError) {

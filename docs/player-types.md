@@ -223,7 +223,7 @@ The file `src/types/player.types.ts` is the single source of truth for all playe
 
 // The shape of a club, consistent across the app
 export interface Club {
-  id: string; // Club IDs are strings in the frontend
+  id: number; // Club IDs are numbers (matches database)
   name: string;
   filename: string;
 }

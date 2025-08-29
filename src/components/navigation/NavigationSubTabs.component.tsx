@@ -44,13 +44,8 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
               label: 'Add/Edit',
               href: '/admin/players/add-edit',
               active: pathname === '/admin/players/add-edit'
-            },
-            {
-              key: 'ratings',
-              label: 'Ratings',
-              href: '/admin/players/ratings',
-              active: pathname === '/admin/players/ratings'
             }
+
           ];
         
         case 'setup':

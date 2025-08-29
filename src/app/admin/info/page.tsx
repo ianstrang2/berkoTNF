@@ -18,7 +18,7 @@ interface CacheMetadata {
 }
 
 interface AbsenteePlayer {
-  player_id: number;
+  id: string;
   name: string;
   totalGamesPlayed: number;
   lastGamePlayedDate: string | null;
@@ -26,17 +26,17 @@ interface AbsenteePlayer {
 }
 
 interface ShowOnStatsPlayer {
-  player_id: number;
+  id: string;
   name: string;
-  is_ringer?: boolean;
-  is_retired?: boolean;
+  isRinger?: boolean;
+  isRetired?: boolean;
   totalGamesPlayed: number;
   gamesPlayedThisYear: number;
 }
 
 // EWMA Rating interfaces
 interface Player {
-  player_id: number;
+  id: string;
   name: string;
   isRinger: boolean;
 }
@@ -808,7 +808,7 @@ const AdminInfoPage = () => {
                      >
                        <option value="">Select a player...</option>
                        {players.map(p => (
-                         <option key={p.player_id} value={p.player_id.toString()}>
+                         <option key={p.id} value={p.id}>
                            {p.name} {p.isRinger ? '(Ringer)' : ''}
                          </option>
                        ))}

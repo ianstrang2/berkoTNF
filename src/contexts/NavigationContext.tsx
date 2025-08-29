@@ -69,7 +69,7 @@ const NAVIGATION_CONFIG = {
     icon: 'settings',
     secondary: {
       matches: { label: 'Matches', tertiary: ['next', 'results'] },
-      players: { label: 'Players', tertiary: ['add-edit', 'ratings'] },
+      players: { label: 'Players', tertiary: ['add-edit'] },
       info: { label: 'Info' },
       setup: { label: 'Setup', hasSections: true }
     }

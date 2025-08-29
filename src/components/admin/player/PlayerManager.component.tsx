@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Card from '@/components/ui-kit/Card.component';
-import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
-import Button from '@/components/ui-kit/Button.component';
+
 import PlayerFormModal from './PlayerFormModal.component';
-import ClubSelector from './ClubSelector.component';
+
 import { Club, PlayerProfile } from '@/types/player.types';
-import { PlayerFormData } from '@/types/team-algorithm.types';
+
 
 // Extend PlayerProfile to include matches_played for this component's context
 type PlayerWithMatchCount = PlayerProfile & {
   matches_played: number;
 };
 
-type EditableRowData = Pick<PlayerProfile, 'name' | 'isRinger' | 'isRetired' | 'club'>;
+
 
 interface SortConfig {
   key: string;
@@ -25,6 +23,18 @@ const DefaultPlayerIcon = () => (
     <path fillRule="evenodd" d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clipRule="evenodd" />
   </svg>
 );
+
+// Rating color helper function
+const getRatingColor = (value: number): string => {
+  switch (value) {
+    case 1: return 'text-red-600 font-semibold'; // Red
+    case 2: return 'text-orange-500 font-semibold'; // Orange  
+    case 3: return 'text-yellow-500 font-semibold'; // Yellow
+    case 4: return 'text-green-400 font-semibold'; // Light green
+    case 5: return 'text-green-600 font-semibold'; // Strong green
+    default: return 'text-gray-400 font-semibold';
+  }
+};
 
 const PlayerManager: React.FC = () => {
   const [players, setPlayers] = useState<PlayerWithMatchCount[]>([]);
@@ -39,9 +49,7 @@ const PlayerManager: React.FC = () => {
   const [showPlayerModal, setShowPlayerModal] = useState<boolean>(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithMatchCount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<EditableRowData | null>(null);
-  const [inlineEditError, setInlineEditError] = useState<string | null>(null);
+
 
   const fetchPlayers = useCallback(async (): Promise<void> => {
     try {
@@ -161,6 +169,19 @@ const PlayerManager: React.FC = () => {
           : b.matches_played - a.matches_played;
       }
       
+      // Handle rating fields (goalscoring, defending, staminaPace, control, teamwork, resilience)
+      const ratingFields = ['goalscoring', 'defending', 'staminaPace', 'control', 'teamwork', 'resilience'];
+      if (ratingFields.includes(sortConfig.key)) {
+        const aValue = (a as any)[sortConfig.key];
+        const bValue = (b as any)[sortConfig.key];
+        if (aValue === bValue) {
+          return a.name.localeCompare(b.name);
+        }
+        return sortConfig.direction === 'asc'
+          ? aValue - bValue
+          : bValue - aValue;
+      }
+      
       return 0;
     });
   };
@@ -182,183 +203,7 @@ const PlayerManager: React.FC = () => {
     return matchesSearch;
   });
 
-  // Handlers for inline editing
-  const handleEditStart = (player: PlayerWithMatchCount): void => {
-    setEditingId(player.id);
-    setEditData({
-      name: player.name,
-      isRinger: player.isRinger,
-      isRetired: player.isRetired,
-      club: player.club || null,
-    });
-    setInlineEditError(null); // Clear previous inline edit errors
-    setError(''); // Clear general component errors too
-  };
 
-  const handleEditCancel = (): void => {
-    setEditingId(null);
-    setEditData(null);
-    setInlineEditError(null); // Clear inline edit errors on cancel
-  };
-
-  const handleEditSave = async (): Promise<void> => {
-    if (!editData || !editingId) return;
-    
-    setInlineEditError(null);
-    setError('');
-
-    if (!editData.name.trim()) {
-      setInlineEditError("Name cannot be empty.");
-      return;
-    }
-    if (editData.name.length > 14) {
-      setInlineEditError("Name cannot exceed 14 characters.");
-      return;
-    }
-    
-    const originalPlayer = players.find(p => p.id === editingId);
-    if (!originalPlayer) {
-        setInlineEditError("Original player data not found. Cannot save.");
-        return;
-    }
-
-    try {
-      setIsLoading(true); 
-      
-      // Construct payload, ensuring all required fields for the API are present
-      const payload = {
-        player_id: editingId, // API expects player_id as a string for identification
-        name: editData.name,
-        is_ringer: editData.isRinger,
-        is_retired: editData.isRetired,
-        selected_club: editData.club,
-        // Preserve existing rating attributes from the original player data (ensure valid 1-10 values)
-        goalscoring: Math.max(1, Math.min(10, originalPlayer.goalscoring || 3)),
-        defender: Math.max(1, Math.min(10, originalPlayer.defending || 3)), 
-        stamina_pace: Math.max(1, Math.min(10, originalPlayer.staminaPace || 3)),
-        control: Math.max(1, Math.min(10, originalPlayer.control || 3)),
-        teamwork: Math.max(1, Math.min(10, originalPlayer.teamwork || 3)),
-        resilience: Math.max(1, Math.min(10, originalPlayer.resilience || 3)),
-      };
-
-      const response = await fetch('/api/admin/players', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const responseData = await response.json(); // Parse the JSON response body
-
-      if (!response.ok) {
-        const errorDetail = responseData?.error || responseData?.details?.message || responseData?.message || 'Failed to update player';
-        throw new Error(errorDetail);
-      }
-
-      // Assuming API returns the full updated player object in responseData.data
-      const updatedPlayerFromAPI = responseData.data;
-
-      setPlayers(players.map(p => 
-        p.id === editingId ? 
-        {
-          ...originalPlayer,
-          ...updatedPlayerFromAPI,
-          id: String(updatedPlayerFromAPI.id || updatedPlayerFromAPI.player_id),
-          isRinger: updatedPlayerFromAPI.is_ringer,
-          isRetired: updatedPlayerFromAPI.is_retired,
-          club: updatedPlayerFromAPI.selected_club || null,
-        } 
-        : p
-      ));
-      
-      setEditingId(null);
-      setEditData(null);
-      setInlineEditError(null);
-    } catch (error) {
-      console.error("Error saving player (inline edit):", error); // Log the full error
-      const message = error instanceof Error ? error.message : String(error);
-      if (message && message.includes('duplicate key value violates unique constraint')) {
-        setInlineEditError('That name already exists. Please choose a different one.');
-      } else {
-        setInlineEditError(message || 'Failed to update player (see console for details).');
-      }
-      // Do not clear editingId or editData here if save failed, so the user can see the error and try again
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const renderEditableRow = (player: PlayerWithMatchCount): JSX.Element => {
-    if (!editData) return <></>;
-    
-    const isSaveDisabled = isLoading || !editData.name.trim() || editData.name.length > 14 || !!inlineEditError;
-
-    return (
-      <tr key={player.id} className="bg-gradient-to-r from-fuchsia-50 to-slate-50">
-        <td className="p-2 align-middle bg-transparent border-b">
-          <input
-            type="text"
-            value={editData.name}
-            onChange={(e) => {
-              setEditData({ ...editData, name: e.target.value });
-              if (e.target.value.trim() && e.target.value.length <= 14 && inlineEditError === "Name cannot be empty." || inlineEditError === "Name cannot exceed 14 characters.") {
-                  setInlineEditError(null);
-              }
-            }}
-            maxLength={14}
-            className={`px-2 py-1 border rounded-lg focus:outline-none text-sm ${ (inlineEditError && (!editData.name.trim() || editData.name.length > 14)) || (inlineEditError && editData.name.trim() && editData.name.length <=14) ? 'border-red-500' : 'border-fuchsia-200 focus:border-fuchsia-300'}`}
-            style={{width: '130px'}}
-          />
-          {inlineEditError && (
-            <div className="text-xs text-red-500 mt-1">
-              {inlineEditError}
-            </div>
-          )}
-        </td>
-        <td className="p-2 align-middle bg-transparent border-b">
-           <ClubSelector
-                value={editData.club || null}
-                onChange={(club) => {
-                  setEditData({ ...editData, club: club });
-                }}
-            />
-        </td>
-        <td className="p-2 text-center align-middle bg-transparent border-b">
-          <button
-            onClick={() => setEditData({ ...editData, isRetired: !editData.isRetired })}
-            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.isRetired ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
-            {editData.isRetired ? 'RETIRED' : 'ACTIVE'}
-          </button>
-        </td>
-        <td className="p-2 text-center align-middle bg-transparent border-b">
-          <button
-            onClick={() => setEditData({ ...editData, isRinger: !editData.isRinger })}
-            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.isRinger ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
-            {editData.isRinger ? 'YES' : 'NO'}
-          </button>
-        </td>
-        <td className="p-2 text-center align-middle bg-transparent border-b">
-          <span className="font-medium text-sm">
-            {player.matches_played || 0}
-          </span>
-        </td>
-        <td className="p-2 text-center align-middle bg-transparent border-b">
-          <div className="flex justify-center space-x-2">
-            <button
-              onClick={handleEditSave}
-              disabled={isSaveDisabled}
-              className="inline-block px-3 py-1.5 text-xs font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed">
-              Save
-            </button>
-            <button
-              onClick={handleEditCancel}
-              className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25">
-              Cancel
-            </button>
-          </div>
-        </td>
-      </tr>
-    );
-  };
 
   return (
     <div className="bg-white rounded-2xl shadow-soft-xl p-6 lg:w-fit max-w-7xl">
@@ -428,7 +273,7 @@ const PlayerManager: React.FC = () => {
               <th onClick={() => handleSort('name')} className="cursor-pointer px-1 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Name {getSortIndicator('name')}
               </th>
-              <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" style={{minWidth: '200px'}}>
+              <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Club
               </th>
               <th onClick={() => handleSort('status')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
@@ -440,15 +285,33 @@ const PlayerManager: React.FC = () => {
               <th onClick={() => handleSort('played')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Played {getSortIndicator('played')}
               </th>
+              <th onClick={() => handleSort('goalscoring')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                GOL {getSortIndicator('goalscoring')}
+              </th>
+              <th onClick={() => handleSort('defending')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                DEF {getSortIndicator('defending')}
+              </th>
+              <th onClick={() => handleSort('staminaPace')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                S&P {getSortIndicator('staminaPace')}
+              </th>
+              <th onClick={() => handleSort('control')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                CTL {getSortIndicator('control')}
+              </th>
+              <th onClick={() => handleSort('teamwork')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                TMW {getSortIndicator('teamwork')}
+              </th>
+              <th onClick={() => handleSort('resilience')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                RES {getSortIndicator('resilience')}
+              </th>
               <th className="px-2 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && !editingId ? (
+            {isLoading ? (
               <tr>
-                <td colSpan={6} className="p-2 text-center align-middle bg-transparent border-b">
+                <td colSpan={12} className="p-2 text-center align-middle bg-transparent border-b">
                   <div className="flex justify-center items-center py-4">
                     <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
                       <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
@@ -459,15 +322,12 @@ const PlayerManager: React.FC = () => {
               </tr>
             ) : filteredPlayers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-2 text-center align-middle bg-transparent border-b">
+                <td colSpan={12} className="p-2 text-center align-middle bg-transparent border-b">
                   <div className="py-4 text-slate-500">No players found</div>
                 </td>
               </tr>
             ) : (
               filteredPlayers.map(player => (
-                editingId === player.id 
-                  ? renderEditableRow(player)
-                  : (
                     <tr key={player.id}>
                       <td className="p-2 align-middle bg-transparent border-b">
                         <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
@@ -502,21 +362,53 @@ const PlayerManager: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className={getRatingColor(player.goalscoring)}>
+                          {player.goalscoring}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className={getRatingColor(player.defending)}>
+                          {player.defending}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className={getRatingColor(player.staminaPace)}>
+                          {player.staminaPace}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className={getRatingColor(player.control)}>
+                          {player.control}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className={getRatingColor(player.teamwork)}>
+                          {player.teamwork}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <span className={getRatingColor(player.resilience)}>
+                          {player.resilience}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
                         <button
-                          onClick={() => handleEditStart(player)}
+                          onClick={() => {
+                            setSelectedPlayer(player);
+                            setShowPlayerModal(true);
+                          }}
                           className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25">
                           EDIT
                         </button>
                       </td>
                     </tr>
-                  )
               ))
             )}
           </tbody>
         </table>
       </div>
       
-      {/* Player Form Modal - only for adding new players */}
+      {/* Player Form Modal - for adding and editing players */}
       <PlayerFormModal 
         isOpen={showPlayerModal}
         onClose={() => {
