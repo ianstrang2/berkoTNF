@@ -40,7 +40,7 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
   return (
     <div className="relative">
       <div 
-        className="block w-full appearance-none rounded-md border border-gray-300 bg-white px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm cursor-pointer"
+        className="block w-full appearance-none rounded-md border border-gray-300 bg-white px-2 py-1 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-sm cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
         {value ? (
@@ -48,7 +48,7 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
             <img 
               src={`/club-logos-40px/${value.filename}`} 
               alt={value.name} 
-              className="h-6 w-6 mr-2" 
+              className="h-5 w-5 mr-2" 
             />
             <span>{value.name}</span>
             <button 
@@ -69,7 +69,7 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
           <input
             type="text"
             placeholder="Search clubs..."
-            className="block w-full border-0 border-b border-gray-300 px-3 py-2 focus:ring-0 sm:text-sm"
+            className="block w-full border-0 border-b border-gray-300 px-3 py-2 focus:ring-0 text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             autoFocus
@@ -80,12 +80,12 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
                 <li
                   key={club.id}
                   onClick={() => handleSelectClub(club)}
-                  className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                 >
                   <img 
                     src={`/club-logos-40px/${club.filename}`} 
                     alt={club.name} 
-                    className="h-6 w-6 mr-2" 
+                    className="h-5 w-5 mr-2" 
                   />
                   <span>{club.name}</span>
                 </li>

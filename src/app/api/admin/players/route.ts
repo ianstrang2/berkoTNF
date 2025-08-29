@@ -13,31 +13,47 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const includeMatchCounts = url.searchParams.get('include_match_counts') === 'true';
+    const showRetired = url.searchParams.get('show_retired') === 'true';
     
     let players;
     
     if (includeMatchCounts) {
-      // Fetch players with match counts - exclude retired players from admin debugging
-      players = await prisma.$queryRaw`
-        SELECT 
-          p.*,
-          COUNT(pm.player_match_id)::integer as matches_played
-        FROM 
-          players p
-        LEFT JOIN 
-          player_matches pm ON p.player_id = pm.player_id
-        WHERE p.is_retired = false
-        GROUP BY 
-          p.player_id
-        ORDER BY 
-          p.name ASC
-      `;
+      // Fetch players with match counts - conditionally include retired players
+      if (showRetired) {
+        players = await prisma.$queryRaw`
+          SELECT 
+            p.*,
+            COUNT(pm.player_match_id)::integer as matches_played
+          FROM 
+            players p
+          LEFT JOIN 
+            player_matches pm ON p.player_id = pm.player_id
+          GROUP BY 
+            p.player_id
+          ORDER BY 
+            p.name ASC
+        `;
+      } else {
+        players = await prisma.$queryRaw`
+          SELECT 
+            p.*,
+            COUNT(pm.player_match_id)::integer as matches_played
+          FROM 
+            players p
+          LEFT JOIN 
+            player_matches pm ON p.player_id = pm.player_id
+          WHERE p.is_retired = false
+          GROUP BY 
+            p.player_id
+          ORDER BY 
+            p.name ASC
+        `;
+      }
     } else {
-      // Just fetch players without match counts - exclude retired players from admin debugging
+      // Just fetch players without match counts - conditionally include retired players
+      const whereClause = showRetired ? {} : { is_retired: false };
       players = await prisma.players.findMany({
-        where: {
-          is_retired: false,
-        },
+        where: whereClause,
         orderBy: {
           name: 'asc',
         },

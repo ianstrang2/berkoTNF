@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Card from '@/components/ui-kit/Card.component';
 import { Table, TableHead, TableBody, TableRow, TableCell } from '@/components/ui-kit/Table.component';
 import Button from '@/components/ui-kit/Button.component';
@@ -43,14 +43,10 @@ const PlayerManager: React.FC = () => {
   const [editData, setEditData] = useState<EditableRowData | null>(null);
   const [inlineEditError, setInlineEditError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPlayers();
-  }, []);
-
-  const fetchPlayers = async (): Promise<void> => {
+  const fetchPlayers = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/players?include_match_counts=true');
+      const response = await fetch(`/api/admin/players?include_match_counts=true&show_retired=${showRetired}`);
       const data = await response.json();
       if (data.data) {
         // The transform should handle this, but as a fallback, ensure IDs are strings
@@ -65,7 +61,11 @@ const PlayerManager: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showRetired]);
+
+  useEffect(() => {
+    fetchPlayers();
+  }, [fetchPlayers]); // Refetch when fetchPlayers changes
 
   const handleSubmitPlayer = async (formData: any): Promise<void> => {
     setIsSubmitting(true);
@@ -178,8 +178,8 @@ const PlayerManager: React.FC = () => {
 
   const filteredPlayers = sortPlayers(players).filter(player => {
     const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRetiredFilter = showRetired ? true : !player.isRetired;
-    return matchesSearch && matchesRetiredFilter;
+    // No need to filter by retired status since API handles this now
+    return matchesSearch;
   });
 
   // Handlers for inline editing
@@ -232,13 +232,13 @@ const PlayerManager: React.FC = () => {
         is_ringer: editData.isRinger,
         is_retired: editData.isRetired,
         selected_club: editData.club,
-        // Preserve existing rating attributes from the original player data
-        goalscoring: originalPlayer.goalscoring,
-        defender: originalPlayer.defending, 
-        stamina_pace: originalPlayer.staminaPace,
-        control: originalPlayer.control,
-        teamwork: originalPlayer.teamwork,
-        resilience: originalPlayer.resilience,
+        // Preserve existing rating attributes from the original player data (ensure valid 1-10 values)
+        goalscoring: Math.max(1, Math.min(10, originalPlayer.goalscoring || 3)),
+        defender: Math.max(1, Math.min(10, originalPlayer.defending || 3)), 
+        stamina_pace: Math.max(1, Math.min(10, originalPlayer.staminaPace || 3)),
+        control: Math.max(1, Math.min(10, originalPlayer.control || 3)),
+        teamwork: Math.max(1, Math.min(10, originalPlayer.teamwork || 3)),
+        resilience: Math.max(1, Math.min(10, originalPlayer.resilience || 3)),
       };
 
       const response = await fetch('/api/admin/players', {
@@ -295,28 +295,24 @@ const PlayerManager: React.FC = () => {
     return (
       <tr key={player.id} className="bg-gradient-to-r from-fuchsia-50 to-slate-50">
         <td className="p-2 align-middle bg-transparent border-b">
-          <div className="flex flex-col px-2 py-1">
-            <input
-              type="text"
-              value={editData.name}
-              onChange={(e) => {
-                setEditData({ ...editData, name: e.target.value });
-                if (e.target.value.trim() && e.target.value.length <= 14 && inlineEditError === "Name cannot be empty." || inlineEditError === "Name cannot exceed 14 characters.") {
-                    setInlineEditError(null);
-                }
-              }}
-              maxLength={14}
-              className={`w-full px-2 py-1 border rounded-lg focus:outline-none text-sm ${ (inlineEditError && (!editData.name.trim() || editData.name.length > 14)) || (inlineEditError && editData.name.trim() && editData.name.length <=14) ? 'border-red-500' : 'border-fuchsia-200 focus:border-fuchsia-300'}`}
-            />
-            <div className="text-xs text-slate-500 mt-1 flex justify-between w-full">
-                {inlineEditError ? (
-                  <span className="text-red-500 text-xs">{inlineEditError}</span>
-                ) : (
-                  <span>&nbsp;</span>
-                )}
-                <span className={`${(editData.name.length > 14 || !editData.name.trim()) ? 'text-red-500' : 'text-slate-500'}`}>{editData.name.length} / 14</span>
+          <input
+            type="text"
+            value={editData.name}
+            onChange={(e) => {
+              setEditData({ ...editData, name: e.target.value });
+              if (e.target.value.trim() && e.target.value.length <= 14 && inlineEditError === "Name cannot be empty." || inlineEditError === "Name cannot exceed 14 characters.") {
+                  setInlineEditError(null);
+              }
+            }}
+            maxLength={14}
+            className={`px-2 py-1 border rounded-lg focus:outline-none text-sm ${ (inlineEditError && (!editData.name.trim() || editData.name.length > 14)) || (inlineEditError && editData.name.trim() && editData.name.length <=14) ? 'border-red-500' : 'border-fuchsia-200 focus:border-fuchsia-300'}`}
+            style={{width: '130px'}}
+          />
+          {inlineEditError && (
+            <div className="text-xs text-red-500 mt-1">
+              {inlineEditError}
             </div>
-          </div>
+          )}
         </td>
         <td className="p-2 align-middle bg-transparent border-b">
            <ClubSelector
@@ -329,14 +325,14 @@ const PlayerManager: React.FC = () => {
         <td className="p-2 text-center align-middle bg-transparent border-b">
           <button
             onClick={() => setEditData({ ...editData, isRetired: !editData.isRetired })}
-            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.isRetired ? 'bg-gradient-to-tl from-red-600 to-rose-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
-            {editData.isRetired ? 'Retired' : 'Active'}
+            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.isRetired ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
+            {editData.isRetired ? 'RETIRED' : 'ACTIVE'}
           </button>
         </td>
         <td className="p-2 text-center align-middle bg-transparent border-b">
           <button
             onClick={() => setEditData({ ...editData, isRinger: !editData.isRinger })}
-            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.isRinger ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${editData.isRinger ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
             {editData.isRinger ? 'YES' : 'NO'}
           </button>
         </td>
@@ -365,7 +361,7 @@ const PlayerManager: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft-xl p-6 max-w-5xl">
+    <div className="bg-white rounded-2xl shadow-soft-xl p-6 lg:w-fit max-w-7xl">
       <div className="flex justify-between items-center mb-6">
         <h5 className="font-bold text-slate-700">Player Manager</h5>
         <button 
@@ -426,24 +422,25 @@ const PlayerManager: React.FC = () => {
       
       <div className="overflow-x-auto">
         <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+
           <thead className="align-bottom">
             <tr>
-              <th onClick={() => handleSort('name')} className="cursor-pointer px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+              <th onClick={() => handleSort('name')} className="cursor-pointer px-1 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Name {getSortIndicator('name')}
               </th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+              <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" style={{minWidth: '200px'}}>
                 Club
               </th>
-              <th onClick={() => handleSort('status')} className="cursor-pointer px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+              <th onClick={() => handleSort('status')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Status {getSortIndicator('status')}
               </th>
-              <th onClick={() => handleSort('ringer')} className="cursor-pointer px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+              <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Ringer {getSortIndicator('ringer')}
               </th>
-              <th onClick={() => handleSort('played')} className="cursor-pointer px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+              <th onClick={() => handleSort('played')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Played {getSortIndicator('played')}
               </th>
-              <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+              <th className="px-2 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Actions
               </th>
             </tr>
@@ -472,10 +469,8 @@ const PlayerManager: React.FC = () => {
                   ? renderEditableRow(player)
                   : (
                     <tr key={player.id}>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        <div className="flex px-2 py-1">
-                          <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
-                        </div>
+                      <td className="p-2 align-middle bg-transparent border-b">
+                        <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b text-center">
                         <div className="flex justify-center items-center">
@@ -492,12 +487,12 @@ const PlayerManager: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRetired ? 'bg-slate-300 text-slate-700' : 'bg-gradient-to-tl from-green-600 to-lime-400 text-white'}`}>
+                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRetired ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
                           {player.isRetired ? 'RETIRED' : 'ACTIVE'}
                         </span>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRinger ? 'bg-gradient-to-tl from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRinger ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
                           {player.isRinger ? 'YES' : 'NO'}
                         </span>
                       </td>
