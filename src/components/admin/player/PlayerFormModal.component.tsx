@@ -5,7 +5,8 @@ import { Club } from '@/types/player.types';
 
 // Define attribute descriptions for tooltips
 const attributeDescriptions: Record<string, string> = {
-  isRinger: 'Player who is not a regular team member but joins for occasional matches.',
+  isRinger: 'Occasional players not shown in any stats',
+  isRetired: 'Player who is no longer actively playing but whose historical data is preserved.',
   goalscoring: 'Ability to score goals and convert chances.',
   defending: 'Willingness to be a defender.',
   staminaPace: 'Physical attributes like running speed and stamina over 90 minutes.',
@@ -189,32 +190,65 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
             </div>
             
             <div className="mb-4">
-              <div className="flex items-center">
-                <label htmlFor="isRinger" className="text-slate-700 text-sm font-medium mr-2">Ringer</label>
-                <button
-                  type="button"
-                  className="text-slate-400 hover:text-slate-600 mr-3"
-                  onClick={() => toggleTooltip('isRinger')}
-                >
-                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={formData.isRinger}
-                    onChange={(e) => setFormData({ ...formData, isRinger: e.target.checked })}
-                    className="mt-0.5 rounded-10 duration-250 ease-soft-in-out after:rounded-circle after:shadow-soft-2xl after:duration-250 checked:after:translate-x-5.3 h-5 relative float-left w-10 cursor-pointer appearance-none border border-solid border-gray-200 bg-slate-800/10 bg-none bg-contain bg-left bg-no-repeat align-top transition-all after:absolute after:top-px after:h-4 after:w-4 after:translate-x-px after:bg-white after:content-[''] checked:border-slate-800/95 checked:bg-slate-800/95 checked:bg-none checked:bg-right"
-                    id="isRinger"
-                  />
-                  {activeTooltip === 'isRinger' && (
-                    <AttributeTooltip 
-                      attribute="Ringer" 
-                      description={attributeDescriptions.isRinger}
-                      onClose={() => setActiveTooltip(null)}
+              <div className="flex items-center justify-between">
+                {/* Ringer Section */}
+                <div className="flex items-center">
+                  <label htmlFor="isRinger" className="text-slate-700 text-sm font-medium mr-2">Ringer</label>
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-slate-600 mr-3"
+                    onClick={() => toggleTooltip('isRinger')}
+                  >
+                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={formData.isRinger}
+                      onChange={(e) => setFormData({ ...formData, isRinger: e.target.checked })}
+                      className="mt-0.5 rounded-10 duration-250 ease-soft-in-out after:rounded-circle after:shadow-soft-2xl after:duration-250 checked:after:translate-x-5.3 h-5 relative float-left w-10 cursor-pointer appearance-none border border-solid border-gray-200 bg-slate-800/10 bg-none bg-contain bg-left bg-no-repeat align-top transition-all after:absolute after:top-px after:h-4 after:w-4 after:translate-x-px after:bg-white after:content-[''] checked:border-slate-800/95 checked:bg-slate-800/95 checked:bg-none checked:bg-right"
+                      id="isRinger"
                     />
-                  )}
+                    {activeTooltip === 'isRinger' && (
+                      <AttributeTooltip 
+                        attribute="Ringer" 
+                        description={attributeDescriptions.isRinger}
+                        onClose={() => setActiveTooltip(null)}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Retired Section */}
+                <div className="flex items-center">
+                  <label htmlFor="isRetired" className="text-slate-700 text-sm font-medium mr-2">Retired</label>
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-slate-600 mr-3"
+                    onClick={() => toggleTooltip('isRetired')}
+                  >
+                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={formData.isRetired}
+                      onChange={(e) => setFormData({ ...formData, isRetired: e.target.checked })}
+                      className="mt-0.5 rounded-10 duration-250 ease-soft-in-out after:rounded-circle after:shadow-soft-2xl after:duration-250 checked:after:translate-x-5.3 h-5 relative float-left w-10 cursor-pointer appearance-none border border-solid border-gray-200 bg-slate-800/10 bg-none bg-contain bg-left bg-no-repeat align-top transition-all after:absolute after:top-px after:h-4 after:w-4 after:translate-x-px after:bg-white after:content-[''] checked:border-slate-800/95 checked:bg-slate-800/95 checked:bg-none checked:bg-right"
+                      id="isRetired"
+                    />
+                    {activeTooltip === 'isRetired' && (
+                      <AttributeTooltip 
+                        attribute="Retired" 
+                        description={attributeDescriptions.isRetired}
+                        onClose={() => setActiveTooltip(null)}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
