@@ -536,8 +536,6 @@ const BalanceAlgorithmSetup: React.FC = () => {
                           <div className="flex justify-between items-center mb-1">
                             <div className="text-sm text-slate-700">
                               {formatAttributeName(weight.name)}
-                              {weight.name === 'stamina_pace' && <span className="text-gray-400 text-xs"> (i)</span>}
-                              {weight.name === 'resilience' && <span className="text-gray-400 text-xs"> (i)</span>}
                             </div>
                             <div className="font-medium text-slate-700">{formatWeight(weight.weight)}</div>
                           </div>
