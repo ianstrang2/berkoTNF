@@ -399,15 +399,15 @@ const BalanceTeamsPane = ({
       return null;
     }
     
-    // Show stats if originally balanced with ability method OR currently balanced
-    const shouldCalculate = balanceMethod === 'ability' || isBalanced;
+    // Show stats for ability method when teams are complete (regardless of isBalanced flag)
+    const shouldCalculate = balanceMethod === 'ability';
     if (!shouldCalculate) return null;
     
     const teamAStats = calculateTeamStatsFromPlayers(teamA, teamTemplate, teamSize);
     const teamBStats = calculateTeamStatsFromPlayers(teamB, teamTemplate, teamSize);
     
     return { teamAStats, teamBStats };
-  }, [isBalanced, balanceMethod, teamA, teamB, teamTemplate, teamSize, players]);
+  }, [balanceMethod, teamA, teamB, teamTemplate, teamSize, actualSizeA, actualSizeB]);
 
   // Calculate performance-based team stats for Performance algorithm tornado chart
   const performanceStatsData = useMemo(() => {
@@ -420,15 +420,15 @@ const BalanceTeamsPane = ({
       return null;
     }
 
-    // Show performance stats only for performance method
-    const shouldCalculate = balanceMethod === 'performance' || isBalanced;
-    if (!shouldCalculate || balanceMethod !== 'performance') return null;
+    // Show performance stats only for performance method when teams are complete
+    const shouldCalculate = balanceMethod === 'performance';
+    if (!shouldCalculate) return null;
 
     const teamAStats = calculatePerformanceTeamStats(teamA);
     const teamBStats = calculatePerformanceTeamStats(teamB);
 
     return { teamAStats, teamBStats };
-  }, [isBalanced, balanceMethod, teamA, teamB, teamSize, players]);
+  }, [balanceMethod, teamA, teamB, actualSizeA, actualSizeB]);
 
   // Performance weights - use fetched values or defaults
   const performanceWeights = useMemo(() => {

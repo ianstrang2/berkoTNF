@@ -37,8 +37,56 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Conflict: Match has been updated by someone else.' }, { status: 409 });
     }
 
-    if (!match.is_balanced) {
-        return NextResponse.json({ success: false, error: 'Teams must be balanced before they can be confirmed.' }, { status: 400 });
+    // Check if all team slots are properly filled
+    const teamPlayers = await prisma.upcoming_match_players.findMany({
+      where: { 
+        upcoming_match_id: matchId,
+        team: { in: ['A', 'B'] }
+      }
+    });
+
+    const teamAPlayers = teamPlayers.filter(p => p.team === 'A');
+    const teamBPlayers = teamPlayers.filter(p => p.team === 'B');
+
+    // Verify we have the right number of players
+    if (teamAPlayers.length !== match.actual_size_a || teamBPlayers.length !== match.actual_size_b) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Teams incomplete. Need ${match.actual_size_a} players for Orange, ${match.actual_size_b} for Green.` 
+      }, { status: 400 });
+    }
+
+    // Verify all players have slot assignments
+    const teamASlots = teamAPlayers.map(p => p.slot_number).filter(slot => slot !== null);
+    const teamBSlots = teamBPlayers.map(p => p.slot_number).filter(slot => slot !== null);
+
+    if (teamASlots.length !== match.actual_size_a || teamBSlots.length !== match.actual_size_b) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'All players must have position assignments before confirming teams.' 
+      }, { status: 400 });
+    }
+
+    // Check for duplicate slots within each team
+    const uniqueTeamASlots = new Set(teamASlots);
+    const uniqueTeamBSlots = new Set(teamBSlots);
+
+    if (uniqueTeamASlots.size !== match.actual_size_a || uniqueTeamBSlots.size !== match.actual_size_b) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Duplicate position assignments detected. Each position must be unique within each team.' 
+      }, { status: 400 });
+    }
+
+    // Check if slot numbers are within valid range
+    const invalidTeamASlots = teamASlots.some(slot => !slot || slot < 1 || slot > match.actual_size_a!);
+    const invalidTeamBSlots = teamBSlots.some(slot => !slot || slot < 1 || slot > match.actual_size_b!);
+
+    if (invalidTeamASlots || invalidTeamBSlots) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid position assignments detected. Positions must be between 1 and team size.' 
+      }, { status: 400 });
     }
 
     const updatedMatch = await prisma.upcoming_matches.update({

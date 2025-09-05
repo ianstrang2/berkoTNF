@@ -246,7 +246,7 @@ const { currentStep, primaryLabel, primaryAction, primaryDisabled } = useMemo(()
       step: 'Teams',
       label: 'Confirm Teams',
       action: () => actions.confirmTeams(),
-      disabled: !matchData.isBalanced
+      disabled: !areAllSlotsFilled(matchData.players, matchData.actualSizeA, matchData.actualSizeB)
     };
     // ... additional states
   }
@@ -281,6 +281,12 @@ const { currentStep, primaryLabel, primaryAction, primaryDisabled } = useMemo(()
 
 #### **BalanceTeamsPane (`BalanceTeamsPane.component.tsx`)**
 **Purpose**: Advanced team balancing interface for PoolLocked state
+
+**Confirm Teams Logic**: The "Confirm Teams" button is enabled when **all team slots are filled** (not when teams are algorithmically balanced). This allows users to:
+- Auto-balance teams and confirm immediately
+- Manually arrange teams via drag-and-drop and confirm when complete  
+- Use balance algorithms as optional helpers, not mandatory requirements
+
 **Key Features**:
 
 1. **Multiple Balance Algorithms**:
@@ -578,6 +584,8 @@ return {
 - Position-group statistical breakdown (Defense/Midfield/Attack)
 - Weight-adjusted scoring display
 - "Teams Modified" indicator when manual changes are made
+- **Real-time updates**: Chart updates live as players are dragged between teams
+- **Displays for complete teams**: Shows for any complete team arrangement (not just algorithmically balanced teams)
 
 **Implementation**:
 ```typescript

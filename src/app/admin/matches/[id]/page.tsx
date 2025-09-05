@@ -4,6 +4,7 @@ import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import useMatchState from '@/hooks/useMatchState.hook';
 import { splitSizesFromPool, getPoolValidation, COPY_CONSTANTS } from '@/utils/teamSplit.util';
+import { areAllSlotsFilled, getTeamCompletionStatus } from '@/utils/teamValidation.util';
 import PlayerPoolPane from '@/components/admin/matches/PlayerPoolPane.component';
 import BalanceTeamsPane from '@/components/admin/matches/BalanceTeamsPane.component';
 import CompleteMatchForm from '@/components/admin/matches/CompleteMatchForm.component';
@@ -170,7 +171,10 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         step = 'Teams';
         label = 'Confirm Teams';
         action = () => actions.confirmTeams();
-        disabled = !matchData.isBalanced;
+        disabled = !areAllSlotsFilled(matchData.players, matchData.actualSizeA, matchData.actualSizeB);
+        if (disabled) {
+          hint = getTeamCompletionStatus(matchData.players, matchData.actualSizeA, matchData.actualSizeB);
+        }
         break;
       case 'TeamsBalanced':
         step = 'Result';
