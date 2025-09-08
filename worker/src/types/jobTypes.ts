@@ -21,14 +21,14 @@ export interface ProcessingResult {
   success: boolean;
   message: string;
   duration: number;
-  error?: string;
+  error: string | undefined;
 }
 
 export interface JobResult {
   function: string;
   status: 'success' | 'failed';
   duration: number;
-  error?: string;
+  error: string | undefined;
 }
 
 export interface BackgroundJobStatus {
