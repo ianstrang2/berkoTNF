@@ -82,7 +82,8 @@ export async function processStatsFunction(
     return { 
       success: true, 
       message, 
-      duration 
+      duration,
+      error: undefined
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
