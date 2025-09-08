@@ -1,0 +1,66 @@
+/**
+ * Supabase client setup for background worker
+ */
+
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+let supabaseClient: SupabaseClient | null = null;
+
+export function getSupabaseClient(): SupabaseClient {
+  if (!supabaseClient) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Missing required environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+    }
+
+    supabaseClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
+
+    console.log('✅ Supabase client initialized');
+  }
+
+  return supabaseClient;
+}
+
+export async function updateJobStatus(
+  jobId: string,
+  status: 'queued' | 'processing' | 'completed' | 'failed',
+  updates: {
+    started_at?: string;
+    completed_at?: string;
+    error_message?: string;
+    results?: any;
+    retry_count?: number;
+  } = {}
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  
+  const updateData: any = { status, ...updates };
+  
+  // Set timestamps based on status
+  if (status === 'processing' && !updates.started_at) {
+    updateData.started_at = new Date().toISOString();
+  }
+  
+  if ((status === 'completed' || status === 'failed') && !updates.completed_at) {
+    updateData.completed_at = new Date().toISOString();
+  }
+
+  const { error } = await supabase
+    .from('background_job_status')
+    .update(updateData)
+    .eq('id', jobId);
+
+  if (error) {
+    console.error(`Failed to update job ${jobId} status to ${status}:`, error);
+    throw error;
+  }
+
+  console.log(`✅ Updated job ${jobId} status to ${status}`);
+}

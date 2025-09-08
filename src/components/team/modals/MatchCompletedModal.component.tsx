@@ -72,7 +72,7 @@ const MatchCompletedModal: React.FC<MatchCompletedModalProps> = ({
             
             {/* Description */}
             <p className="text-slate-600 mb-6">
-              Stats will recalculate in ~45 seconds
+              Stats will recalculate in ~60 seconds
             </p>
             
             {/* Action Buttons */}

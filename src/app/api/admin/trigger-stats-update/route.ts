@@ -155,10 +155,55 @@ async function triggerStatsUpdate() {
   });
 }
 
-// GET handler for Vercel cron jobs
+// GET handler for Vercel cron jobs with feature flag support
 export async function GET() {
   console.log('📅 Cron job triggered stats update');
-  return triggerStatsUpdate();
+  
+  // Import feature flags dynamically to avoid module loading issues
+  const { shouldUseBackgroundJobs } = await import('@/config/feature-flags');
+  const useBackgroundJobs = shouldUseBackgroundJobs('cron');
+  
+  if (useBackgroundJobs) {
+    console.log('🔄 Using background job system for cron trigger');
+    
+    // Enqueue job instead of processing directly
+    const jobPayload = {
+      triggeredBy: 'cron' as const,
+      requestId: crypto.randomUUID(),
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Call the enqueue endpoint directly
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/admin/enqueue-stats-job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(jobPayload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Enqueue failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Cron job successfully enqueued:', result.jobId);
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Cron stats update job successfully enqueued',
+        jobId: result.jobId,
+        method: 'background-job'
+      });
+    } catch (error) {
+      console.error('❌ Failed to enqueue cron job, falling back to direct processing');
+      return triggerStatsUpdate(); // Fallback to original implementation
+    }
+  } else {
+    console.log('🔄 Using fallback edge functions for cron trigger');
+    return triggerStatsUpdate();
+  }
 }
 
 // POST handler for manual admin triggers

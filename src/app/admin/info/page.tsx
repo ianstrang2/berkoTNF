@@ -8,8 +8,9 @@ import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import Button from '@/components/ui-kit/Button.component';
 // Removed Table components from ui-kit to use direct HTML with Tailwind for style consistency
 
-// import { triggerEdgeFunctions as triggerStatsUpdate } from '@/services/statsUpdate.service'; // No longer needed
 import { format } from 'date-fns';
+import { shouldUseBackgroundJobs } from '@/config/feature-flags';
+import { createClient } from '@supabase/supabase-js';
 
 interface CacheMetadata {
   cache_key: string;
@@ -32,6 +33,23 @@ interface ShowOnStatsPlayer {
   isRetired?: boolean;
   totalGamesPlayed: number;
   gamesPlayedThisYear: number;
+}
+
+interface BackgroundJobStatus {
+  id: string;
+  job_type: string;
+  job_payload: {
+    triggeredBy: 'post-match' | 'admin' | 'cron';
+    matchId?: number;
+    requestId: string;
+    userId?: string;
+  };
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  started_at: string | null;
+  completed_at: string | null;
+  retry_count: number;
+  error_message: string | null;
+  created_at: string;
 }
 
 // EWMA Rating interfaces
@@ -89,6 +107,11 @@ const AdminInfoPage = () => {
   const [isResettingProfiles, setIsResettingProfiles] = useState<boolean>(false);
   const [profileUpdateSuccess, setProfileUpdateSuccess] = useState<boolean>(false);
   const [profileResetSuccess, setProfileResetSuccess] = useState<boolean>(false);
+
+  // Background Job Status state
+  const [jobStatusData, setJobStatusData] = useState<BackgroundJobStatus[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState<boolean>(true);
+  const [jobError, setJobError] = useState<string | null>(null);
 
   const fetchCacheMetadata = useCallback(async () => {
     setIsLoadingCache(true);
@@ -285,18 +308,112 @@ const AdminInfoPage = () => {
     }
   };
 
+  // Background Job Status functions
+  const fetchJobStatus = useCallback(async () => {
+    setIsLoadingJobs(true);
+    setJobError(null);
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase configuration missing');
+      }
+      
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+      const { data, error } = await supabase
+        .from('background_job_status')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setJobStatusData(data || []);
+    } catch (err: any) {
+      console.error('Error fetching job status:', err);
+      setJobError(err.message);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }, []);
+
+  const handleRetryJob = async (jobId: string) => {
+    try {
+      // Re-enqueue the failed job
+      const response = await fetch('/api/admin/enqueue-stats-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          triggeredBy: 'admin',
+          requestId: crypto.randomUUID(),
+          userId: 'admin',
+          retryOf: jobId
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to retry job');
+      
+      // Refresh job status
+      await fetchJobStatus();
+      // Use existing toast system if available, or just console log
+      console.log('Job retry queued successfully');
+    } catch (err: any) {
+      console.error(`Failed to retry job: ${err.message}`);
+      setError(`Failed to retry job: ${err.message}`);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'queued': return 'text-yellow-600 bg-yellow-100';
+      case 'processing': return 'text-blue-600 bg-blue-100';
+      case 'completed': return 'text-green-600 bg-green-100';
+      case 'failed': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const calculateDuration = (startedAt: string | null, completedAt: string | null) => {
+    if (!startedAt) return 'N/A';
+    if (!completedAt) return 'In progress...';
+    
+    const start = new Date(startedAt);
+    const end = new Date(completedAt);
+    const durationMs = end.getTime() - start.getTime();
+    const durationSeconds = Math.round(durationMs / 1000);
+    
+    return `${durationSeconds}s`;
+  };
+
   useEffect(() => {
     fetchCacheMetadata();
     fetchInfoData();
     fetchPlayers();
     fetchProfileMetadata();
-  }, [fetchCacheMetadata, fetchInfoData, fetchPlayers, fetchProfileMetadata]);
+    fetchJobStatus();
+  }, [fetchCacheMetadata, fetchInfoData, fetchPlayers, fetchProfileMetadata, fetchJobStatus]);
 
   useEffect(() => {
     if (selectedPlayer) {
       fetchPlayerData(selectedPlayer);
     }
   }, [selectedPlayer, fetchPlayerData]);
+
+  // Auto-refresh job status for active jobs
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Only auto-refresh if there are active jobs
+      const hasActiveJobs = jobStatusData.some(job => 
+        job.status === 'queued' || job.status === 'processing'
+      );
+      
+      if (hasActiveJobs) {
+        fetchJobStatus();
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [jobStatusData, fetchJobStatus]);
 
   const fetchDebugInfo = useCallback(async () => {
     try {
@@ -327,6 +444,28 @@ const AdminInfoPage = () => {
   }, []);
 
   const handleUpdateStats = async () => {
+    setIsUpdatingStats(true);
+    setError(null);
+    try {
+      // Use the shared trigger function with feature flag support
+      await triggerStatsUpdate('admin');
+      
+      // Success case - use button flash instead of green popup
+      setUpdateSuccess(true);
+      setTimeout(() => setUpdateSuccess(false), 2000);
+      
+      // Refresh the cache metadata to show new timestamps
+      await fetchCacheMetadata(); 
+    } catch (err: any) {
+      console.error('Error triggering stats update:', err);
+      setError(err.message || 'Failed to trigger stats update.');
+    } finally {
+      setIsUpdatingStats(false);
+    }
+  };
+
+  // Legacy implementation for fallback compatibility
+  const handleUpdateStatsLegacy = async () => {
     setIsUpdatingStats(true);
     setError(null);
     try {
@@ -855,12 +994,144 @@ const AdminInfoPage = () => {
                   </div>
                 ) : null}
               </div>
+
+              {/* Background Job Status Section */}
+              <ErrorBoundary>
+                <div className="break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+                  <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+                    <h3 className="mb-0 text-lg font-semibold text-slate-700">Background Job Status</h3>
+                    <p className="mb-0 text-sm text-slate-500">Recent stats update jobs and their status</p>
+                  </div>
+                  <div className="p-4">
+                    {isLoadingJobs ? (
+                      <p className="text-center text-sm text-slate-500">Loading job status...</p>
+                    ) : jobError ? (
+                      <p className="text-center text-sm text-red-500">Error loading jobs: {jobError}</p>
+                    ) : jobStatusData.length === 0 ? (
+                      <p className="text-center text-sm text-slate-500">No background jobs found</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="text-left py-2 px-3 font-semibold text-slate-600">Trigger</th>
+                              <th className="text-left py-2 px-3 font-semibold text-slate-600">Status</th>
+                              <th className="text-left py-2 px-3 font-semibold text-slate-600">Started</th>
+                              <th className="text-left py-2 px-3 font-semibold text-slate-600">Completed</th>
+                              <th className="text-left py-2 px-3 font-semibold text-slate-600">Duration</th>
+                              <th className="text-left py-2 px-3 font-semibold text-slate-600">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {jobStatusData.map((job) => (
+                              <tr key={job.id} className="border-b border-gray-100">
+                                <td className="py-2 px-3 text-slate-700">
+                                  <span className="capitalize">{job.job_payload.triggeredBy}</span>
+                                  {job.job_payload.matchId && (
+                                    <span className="text-xs text-slate-500 ml-1">
+                                      (Match {job.job_payload.matchId})
+                                    </span>
+                                  )}
+                                  {job.retry_count > 0 && (
+                                    <span className="text-xs text-orange-600 ml-1">
+                                      (Retry {job.retry_count})
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-3">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
+                                    {job.status}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 text-slate-600 text-xs">
+                                  {job.started_at ? format(new Date(job.started_at), 'HH:mm:ss') : 'N/A'}
+                                </td>
+                                <td className="py-2 px-3 text-slate-600 text-xs">
+                                  {job.completed_at ? format(new Date(job.completed_at), 'HH:mm:ss') : 'N/A'}
+                                </td>
+                                <td className="py-2 px-3 text-slate-600 text-xs">
+                                  {calculateDuration(job.started_at, job.completed_at)}
+                                </td>
+                                <td className="py-2 px-3">
+                                  {job.status === 'failed' && (
+                                    <Button 
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => handleRetryJob(job.id)}
+                                      className="text-xs px-2 py-1"
+                                    >
+                                      Retry
+                                    </Button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </ErrorBoundary>
             </div>
           </ErrorBoundary>
         </div>
       </AdminLayout>
     </MainLayout>
   );
+}
+
+/**
+ * Helper function to trigger stats updates with feature flag support
+ */
+async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', matchId?: number): Promise<void> {
+  const useBackgroundJobs = shouldUseBackgroundJobs(triggerType);
+  
+  if (useBackgroundJobs) {
+    // Use new background job system
+    console.log(`🔄 Triggering background job for ${triggerType} stats update`);
+    
+    const payload = {
+      triggeredBy: triggerType === 'match' ? 'post-match' : triggerType,
+      matchId,
+      requestId: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      userId: 'admin' // For admin-triggered jobs
+    };
+
+    const response = await fetch('/api/admin/enqueue-stats-job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Background job enqueue failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log(`✅ Background job enqueued for ${triggerType} trigger:`, result.jobId);
+  } else {
+    // Fallback to original edge function system
+    console.log(`🔄 Using fallback edge functions for ${triggerType} stats update`);
+    
+    const response = await fetch('/api/admin/trigger-stats-update', { 
+      method: 'POST' 
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      try {
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.error || `Edge function trigger failed: ${response.statusText}`);
+      } catch (e) {
+        throw new Error(errorText || `Edge function trigger failed: ${response.statusText}`);
+      }
+    }
+
+    console.log(`✅ Edge functions triggered for ${triggerType} trigger`);
+  }
 }
 
 export default AdminInfoPage; 

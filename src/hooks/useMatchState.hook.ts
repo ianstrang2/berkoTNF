@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { differenceInHours } from 'date-fns';
 import { PlayerInPool } from '@/types/player.types';
+import { shouldUseBackgroundJobs } from '@/config/feature-flags';
 
 interface ToastState {
   message: string;
@@ -176,8 +177,8 @@ export const useMatchState = (matchId: number | string) => {
         
         showMatchCompletedModal(teamAName, teamBName, teamAScore, teamBScore);
         
-        // ✅ Trigger stats in background (non-blocking)
-        fetch('/api/admin/trigger-stats-update', { method: 'POST' })
+        // ✅ Trigger stats in background (non-blocking) with feature flag support
+        triggerStatsUpdate('match', typeof matchId === 'string' ? parseInt(matchId) : matchId)
           .catch(err => console.warn('Stats update failed:', err));
       }
 
@@ -268,5 +269,49 @@ export const useMatchState = (matchId: number | string) => {
     }
   };
 };
+
+/**
+ * Helper function to trigger stats updates with feature flag support
+ */
+async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', matchId?: number): Promise<void> {
+  const useBackgroundJobs = shouldUseBackgroundJobs(triggerType);
+  
+  if (useBackgroundJobs) {
+    // Use new background job system
+    console.log(`🔄 Triggering background job for ${triggerType} stats update`);
+    
+    const payload = {
+      triggeredBy: triggerType === 'match' ? 'post-match' : triggerType,
+      matchId,
+      requestId: crypto.randomUUID(),
+      timestamp: new Date().toISOString()
+    };
+
+    const response = await fetch('/api/admin/enqueue-stats-job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Background job enqueue failed: ${response.statusText}`);
+    }
+
+    console.log(`✅ Background job enqueued for ${triggerType} trigger`);
+  } else {
+    // Fallback to original edge function system
+    console.log(`🔄 Using fallback edge functions for ${triggerType} stats update`);
+    
+    const response = await fetch('/api/admin/trigger-stats-update', { 
+      method: 'POST' 
+    });
+
+    if (!response.ok) {
+      throw new Error(`Edge function trigger failed: ${response.statusText}`);
+    }
+
+    console.log(`✅ Edge functions triggered for ${triggerType} trigger`);
+  }
+}
 
 export default useMatchState; 
