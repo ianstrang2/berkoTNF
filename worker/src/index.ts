@@ -92,18 +92,43 @@ async function listenToQueue(supabase: any): Promise<void> {
 }
 
 async function processJob(job: QueueJob): Promise<void> {
+  const startTime = new Date().toISOString();
+  console.log(`[${startTime}] 🔨 Starting job processing for job ${job.id}`);
+  console.log(`[${startTime}] 📋 Job details:`, {
+    id: job.id,
+    triggeredBy: job.payload.triggeredBy,
+    matchId: job.payload.matchId,
+    requestId: job.payload.requestId,
+    userId: job.payload.userId,
+    retryCount: job.retry_count || 0,
+    timestamp: job.payload.timestamp
+  });
+  
   try {
-    console.log(`🔨 Processing job ${job.id} with payload:`, job.payload);
-    
     if (job.retry_count && job.retry_count > 0) {
+      console.log(`[${new Date().toISOString()}] 🔄 Processing retry job (attempt ${job.retry_count + 1})`);
       await handleJobRetry(job.id, job.payload, job.retry_count);
     } else {
+      console.log(`[${new Date().toISOString()}] ⚡ Processing new job`);
       await processStatsUpdateJob(job.id, job.payload);
     }
     
-    console.log(`✅ Job ${job.id} processed successfully`);
+    const endTime = new Date().toISOString();
+    console.log(`[${endTime}] ✅ Job ${job.id} processed successfully`);
   } catch (error) {
-    console.error(`❌ Error processing job ${job.id}:`, error);
+    const errorTime = new Date().toISOString();
+    console.error(`[${errorTime}] 🚨 CRITICAL ERROR processing job ${job.id}:`);
+    console.error(`[${errorTime}] Error details:`, error);
+    console.error(`[${errorTime}] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Log job context for debugging
+    console.error(`[${errorTime}] Failed job context:`, {
+      jobId: job.id,
+      triggeredBy: job.payload.triggeredBy,
+      matchId: job.payload.matchId,
+      requestId: job.payload.requestId,
+      retryCount: job.retry_count || 0
+    });
     
     // The job processor handles updating the status to failed
     // The queue system can decide whether to retry based on the job status

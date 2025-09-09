@@ -12,21 +12,38 @@ export async function processStatsUpdateJob(
   jobId: string,
   payload: StatsUpdateJobPayload
 ): Promise<void> {
-  console.log(`🎯 Starting stats update job ${jobId}`);
-  console.log(`📋 Job payload:`, payload);
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 🎯 Starting stats update job ${jobId}`);
+  console.log(`[${timestamp}] 📋 Job payload:`, {
+    triggeredBy: payload.triggeredBy,
+    matchId: payload.matchId || 'N/A',
+    requestId: payload.requestId,
+    userId: payload.userId || 'system',
+    timestamp: payload.timestamp,
+    retryOf: payload.retryOf || 'N/A'
+  });
 
   const startTime = Date.now();
 
   try {
     // Update job status to processing
+    console.log(`[${new Date().toISOString()}] 📝 Updating job status to 'processing'`);
     await updateJobStatus(jobId, 'processing');
 
     // Get Supabase client
+    console.log(`[${new Date().toISOString()}] 🔗 Initializing Supabase client`);
     const supabase = getSupabaseClient();
 
     // Process all stats functions in parallel
-    console.log(`⚡ Processing all stats functions in parallel...`);
+    console.log(`[${new Date().toISOString()}] ⚡ Starting parallel processing of all stats functions...`);
     const { results, allCacheTags, summary } = await processAllStatsFunctions(supabase);
+    console.log(`[${new Date().toISOString()}] 📊 Stats processing completed:`, {
+      totalFunctions: summary.total,
+      successful: summary.successful,
+      failed: summary.failed,
+      totalDuration: summary.totalDuration + 'ms',
+      cacheTags: allCacheTags.length
+    });
 
     // Convert results to job format
     const jobResults: JobResult[] = results.map((result, index) => ({
@@ -37,8 +54,14 @@ export async function processStatsUpdateJob(
     }));
 
     // Attempt cache invalidation
-    console.log(`🧹 Attempting cache invalidation for ${allCacheTags.length} tags...`);
+    console.log(`[${new Date().toISOString()}] 🧹 Starting cache invalidation for ${allCacheTags.length} tags:`, allCacheTags);
     const cacheResult = await invalidateCache(allCacheTags, payload.requestId, `job-${payload.triggeredBy}`);
+    console.log(`[${new Date().toISOString()}] 🧹 Cache invalidation completed:`, {
+      success: cacheResult.success,
+      invalidatedTags: cacheResult.invalidated_tags.length,
+      failedTags: cacheResult.failed_tags.length,
+      error: cacheResult.error || 'none'
+    });
 
     // Prepare final results
     const finalResults = {
@@ -65,37 +88,56 @@ export async function processStatsUpdateJob(
 
       const errorMessage = errorMessages.join('; ');
       
+      console.log(`[${new Date().toISOString()}] 📝 Updating job status to 'failed'`);
       await updateJobStatus(jobId, 'failed', {
         error_message: errorMessage,
         results: finalResults
       });
 
-      console.error(`❌ Job ${jobId} completed with errors in ${totalDuration}ms: ${errorMessage}`);
+      console.error(`[${new Date().toISOString()}] ❌ Job ${jobId} completed with errors in ${totalDuration}ms: ${errorMessage}`);
     } else {
       // Complete success
+      console.log(`[${new Date().toISOString()}] 📝 Updating job status to 'completed'`);
       await updateJobStatus(jobId, 'completed', {
         results: finalResults
       });
 
-      console.log(`✅ Job ${jobId} completed successfully in ${totalDuration}ms`);
+      console.log(`[${new Date().toISOString()}] ✅ Job ${jobId} completed successfully in ${totalDuration}ms`);
     }
 
   } catch (error) {
+    const errorTime = new Date().toISOString();
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const totalDuration = Date.now() - startTime;
 
-    console.error(`🚨 Job ${jobId} failed with critical error after ${totalDuration}ms:`, error);
-
-    await updateJobStatus(jobId, 'failed', {
-      error_message: errorMessage,
-      results: {
-        total_functions: 0,
-        successful_functions: 0,
-        failed_functions: 0,
-        cache_invalidation_success: false,
-        function_results: []
-      }
+    console.error(`[${errorTime}] 🚨 CRITICAL ERROR in job ${jobId} after ${totalDuration}ms`);
+    console.error(`[${errorTime}] Error message:`, errorMessage);
+    console.error(`[${errorTime}] Full error:`, error);
+    console.error(`[${errorTime}] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
+    console.error(`[${errorTime}] Job context:`, {
+      jobId,
+      triggeredBy: payload.triggeredBy,
+      matchId: payload.matchId,
+      requestId: payload.requestId,
+      userId: payload.userId,
+      duration: totalDuration + 'ms'
     });
+
+    try {
+      console.log(`[${new Date().toISOString()}] 📝 Updating failed job status in database`);
+      await updateJobStatus(jobId, 'failed', {
+        error_message: errorMessage,
+        results: {
+          total_functions: 0,
+          successful_functions: 0,
+          failed_functions: 0,
+          cache_invalidation_success: false,
+          function_results: []
+        }
+      });
+    } catch (updateError) {
+      console.error(`[${new Date().toISOString()}] 🚨 Failed to update job status to 'failed':`, updateError);
+    }
 
     throw error; // Re-throw for queue system to handle retries
   }

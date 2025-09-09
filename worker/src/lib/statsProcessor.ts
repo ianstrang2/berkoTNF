@@ -63,21 +63,30 @@ export async function processStatsFunction(
   supabase: SupabaseClient,
   statsFunction: StatsFunction
 ): Promise<ProcessingResult> {
-  console.log(`[${statsFunction.name}] Calling RPC: ${statsFunction.rpcName}...`);
+  const startTimestamp = new Date().toISOString();
+  console.log(`[${startTimestamp}] [${statsFunction.name}] 🚀 Starting RPC call: ${statsFunction.rpcName}`);
+  console.log(`[${startTimestamp}] [${statsFunction.name}] 📋 Cache tags: [${statsFunction.cacheTags.join(', ')}]`);
   const startTime = Date.now();
   
   try {
+    console.log(`[${new Date().toISOString()}] [${statsFunction.name}] 📡 Executing Supabase RPC...`);
     const { error } = await supabase.rpc(statsFunction.rpcName);
 
     if (error) {
-      console.error(`[${statsFunction.name}] Error calling RPC ${statsFunction.rpcName}:`, error);
+      console.error(`[${new Date().toISOString()}] [${statsFunction.name}] ❌ RPC returned error:`, {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       throw new Error(`Database function error: ${error.message}`);
     }
     
     const endTime = Date.now();
     const duration = endTime - startTime;
+    const endTimestamp = new Date().toISOString();
     const message = `${statsFunction.rpcName} executed successfully in ${duration}ms.`;
-    console.log(`[${statsFunction.name}] ${message}`);
+    console.log(`[${endTimestamp}] [${statsFunction.name}] ✅ ${message}`);
     
     return { 
       success: true, 
@@ -86,8 +95,14 @@ export async function processStatsFunction(
       error: undefined
     };
   } catch (error) {
+    const errorTimestamp = new Date().toISOString();
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[${statsFunction.name}] CRITICAL ERROR calling ${statsFunction.rpcName}:`, error);
+    console.error(`[${errorTimestamp}] [${statsFunction.name}] 🚨 CRITICAL ERROR:`, {
+      rpcName: statsFunction.rpcName,
+      error: errorMessage,
+      fullError: error,
+      duration: Date.now() - startTime + 'ms'
+    });
     
     return { 
       success: false, 
@@ -108,15 +123,23 @@ export async function processAllStatsFunctions(supabase: SupabaseClient): Promis
     totalDuration: number;
   };
 }> {
-  console.log(`🚀 Starting parallel processing of ${STATS_FUNCTIONS.length} stats functions...`);
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 🚀 Starting parallel processing of ${STATS_FUNCTIONS.length} stats functions:`);
+  console.log(`[${timestamp}] 📋 Functions to process:`, STATS_FUNCTIONS.map(f => f.name));
   const overallStartTime = Date.now();
 
   // Process all functions in parallel
+  console.log(`[${new Date().toISOString()}] ⚡ Executing all stats functions in parallel using Promise.all()`);
   const results = await Promise.all(
-    STATS_FUNCTIONS.map(func => processStatsFunction(supabase, func))
+    STATS_FUNCTIONS.map((func, index) => {
+      console.log(`[${new Date().toISOString()}] 📤 Starting function ${index + 1}/${STATS_FUNCTIONS.length}: ${func.name}`);
+      return processStatsFunction(supabase, func);
+    })
   );
+  console.log(`[${new Date().toISOString()}] 🎯 All parallel function executions completed`);
 
   // Collect all cache tags for invalidation
+  console.log(`[${new Date().toISOString()}] 🏷️ Collecting cache tags from all functions`);
   const allCacheTags = STATS_FUNCTIONS.flatMap(func => func.cacheTags);
 
   // Calculate summary
@@ -124,8 +147,14 @@ export async function processAllStatsFunctions(supabase: SupabaseClient): Promis
   const failed = results.length - successful;
   const totalDuration = Date.now() - overallStartTime;
 
-  console.log(`✅ Completed processing ${results.length} functions in ${totalDuration}ms`);
-  console.log(`📊 Summary: ${successful} successful, ${failed} failed`);
+  const summaryTime = new Date().toISOString();
+  console.log(`[${summaryTime}] ✅ Completed processing ${results.length} functions in ${totalDuration}ms`);
+  console.log(`[${summaryTime}] 📊 Summary: ${successful} successful, ${failed} failed`);
+  
+  if (failed > 0) {
+    console.error(`[${summaryTime}] ❌ Failed functions:`, 
+      results.filter(r => !r.success).map(r => r.error).join(', '));
+  }
 
   return {
     results,
