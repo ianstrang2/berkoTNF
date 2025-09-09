@@ -10,7 +10,7 @@ import Button from '@/components/ui-kit/Button.component';
 
 import { format } from 'date-fns';
 import { shouldUseBackgroundJobs } from '@/config/feature-flags';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabaseClient';
 
 interface CacheMetadata {
   cache_key: string;
@@ -313,14 +313,6 @@ const AdminInfoPage = () => {
     setIsLoadingJobs(true);
     setJobError(null);
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error('Supabase configuration missing');
-      }
-      
-      const supabase = createClient(supabaseUrl, supabaseAnonKey);
       const { data, error } = await supabase
         .from('background_job_status')
         .select('*')
