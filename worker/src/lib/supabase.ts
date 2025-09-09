@@ -3,9 +3,24 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import fetch from 'node-fetch';
 
 let supabaseClient: SupabaseClient | null = null;
+
+// Custom fetch with 20-second timeout for long-running SQL functions
+const customFetch: typeof fetch = async (input, init) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000); // 20 seconds
+
+  try {
+    const response = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
 
 export function getSupabaseClient(): SupabaseClient {
   if (!supabaseClient) {
@@ -22,21 +37,7 @@ export function getSupabaseClient(): SupabaseClient {
         autoRefreshToken: false
       },
       global: {
-        fetch: (url, options = {}) => {
-          // Increase timeout for long-running SQL functions (20 seconds)
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 20000);
-          
-          const fetchPromise = fetch(url, {
-            ...options,
-            signal: controller.signal
-          });
-          
-          // Clear timeout when request completes
-          fetchPromise.finally(() => clearTimeout(timeoutId));
-          
-          return fetchPromise;
-        }
+        fetch: customFetch
       }
     });
 
