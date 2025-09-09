@@ -41,8 +41,8 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 QUEUE_NAME=stats-update-queue
 WORKER_ID=worker-production-1
 
-# Cache Invalidation
-CACHE_INVALIDATION_URL=https://your-nextjs-app.vercel.app/api/internal/cache/invalidate
+# Cache Invalidation (uses NEXT_PUBLIC_APP_URL + endpoint path)
+NEXT_PUBLIC_APP_URL=https://your-nextjs-app.vercel.app
 INTERNAL_API_KEY=your_internal_api_key
 
 # Optional: Development
@@ -79,7 +79,7 @@ The worker will:
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service role key with full access | `eyJhbG...` |
 | `QUEUE_NAME` | ❌ | Queue name (defaults to `stats-update-queue`) | `stats-update-queue` |
 | `WORKER_ID` | ❌ | Unique worker identifier | `worker-render-1` |
-| `CACHE_INVALIDATION_URL` | ❌ | Next.js cache endpoint | `https://app.com/api/internal/cache/invalidate` |
+| `NEXT_PUBLIC_APP_URL` | ❌ | Next.js app base URL | `https://app.com` |
 | `INTERNAL_API_KEY` | ❌ | API key for cache invalidation | `internal-worker-key` |
 
 ### Stats Functions Processed
@@ -126,7 +126,7 @@ SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 QUEUE_NAME=stats-update-queue
 WORKER_ID=worker-render-production
-CACHE_INVALIDATION_URL=https://your-nextjs-app.vercel.app/api/internal/cache/invalidate
+NEXT_PUBLIC_APP_URL=https://your-nextjs-app.vercel.app
 INTERNAL_API_KEY=your_internal_api_key
 NODE_ENV=production
 ```

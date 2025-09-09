@@ -6,7 +6,9 @@
 import fetch from 'node-fetch';
 import { CacheInvalidationRequest, CacheInvalidationResponse } from '../types/jobTypes.js';
 
-const CACHE_INVALIDATION_ENDPOINT = process.env.CACHE_INVALIDATION_URL || 'http://localhost:3000/api/internal/cache/invalidate';
+// Dynamic base URL for both local and production environments
+const getBaseUrl = () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const getCacheInvalidationEndpoint = () => `${getBaseUrl()}/api/internal/cache/invalidate`;
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
 
@@ -21,7 +23,11 @@ export async function invalidateCache(
     requestId
   };
 
+  const baseUrl = getBaseUrl();
+  const endpoint = getCacheInvalidationEndpoint();
   console.log(`🔄 Attempting to invalidate ${tags.length} cache tags:`, tags);
+  console.log(`📡 Base URL: ${baseUrl}`);
+  console.log(`📡 Full endpoint: ${endpoint}`);
 
   let lastError: Error | null = null;
 
@@ -29,7 +35,7 @@ export async function invalidateCache(
     try {
       console.log(`📡 Cache invalidation attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`);
       
-      const response = await fetch(CACHE_INVALIDATION_ENDPOINT, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
