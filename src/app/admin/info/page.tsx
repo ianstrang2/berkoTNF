@@ -339,6 +339,13 @@ const AdminInfoPage = () => {
 
   const handleRetryJob = async (jobId: string) => {
     try {
+      // Show loading state for the specific job being retried
+      setJobStatusData(prev => prev.map(job => 
+        job.id === jobId 
+          ? { ...job, status: 'queued' as const } 
+          : job
+      ));
+
       // Re-enqueue the failed job
       const response = await fetch('/api/admin/enqueue-stats-job', {
         method: 'POST',
@@ -351,15 +358,25 @@ const AdminInfoPage = () => {
         })
       });
       
-      if (!response.ok) throw new Error('Failed to retry job');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to retry job');
+      }
       
-      // Refresh job status
+      // Refresh job status to show the new retry job
       await fetchJobStatus();
-      // Use existing toast system if available, or just console log
+      
+      // Show success feedback
+      setUpdateSuccess(true);
+      setTimeout(() => setUpdateSuccess(false), 2000);
       console.log('Job retry queued successfully');
+      
     } catch (err: any) {
       console.error(`Failed to retry job: ${err.message}`);
       setError(`Failed to retry job: ${err.message}`);
+      
+      // Revert the optimistic update on error
+      await fetchJobStatus();
     }
   };
 
@@ -399,18 +416,35 @@ const AdminInfoPage = () => {
     }
   }, [selectedPlayer, fetchPlayerData]);
 
-  // Auto-refresh job status for active jobs
+  // Auto-refresh job status for active jobs with smart intervals
+  useEffect(() => {
+    const hasActiveJobs = jobStatusData.some(job => 
+      job.status === 'queued' || job.status === 'processing'
+    );
+    
+    if (!hasActiveJobs) return;
+
+    // More frequent refresh when jobs are active (every 5 seconds)
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing job status (active jobs detected)');
+      fetchJobStatus();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [jobStatusData, fetchJobStatus]);
+
+  // Less frequent refresh for completed jobs (every 2 minutes) to catch any missed updates
   useEffect(() => {
     const interval = setInterval(() => {
-      // Only auto-refresh if there are active jobs
       const hasActiveJobs = jobStatusData.some(job => 
         job.status === 'queued' || job.status === 'processing'
       );
       
-      if (hasActiveJobs) {
+      if (!hasActiveJobs && jobStatusData.length > 0) {
+        console.log('🔄 Periodic job status refresh');
         fetchJobStatus();
       }
-    }, 30000); // 30 seconds
+    }, 120000); // 2 minutes
 
     return () => clearInterval(interval);
   }, [jobStatusData, fetchJobStatus]);
@@ -446,6 +480,28 @@ const AdminInfoPage = () => {
   const handleUpdateStats = async () => {
     setIsUpdatingStats(true);
     setError(null);
+    
+    // Optimistic update: Add a temporary job to the list
+    const tempJobId = `temp-${Date.now()}`;
+    const optimisticJob: BackgroundJobStatus = {
+      id: tempJobId,
+      job_type: 'stats_update',
+      job_payload: {
+        triggeredBy: 'admin',
+        requestId: crypto.randomUUID(),
+        userId: 'admin'
+      },
+      status: 'queued',
+      started_at: null,
+      completed_at: null,
+      retry_count: 0,
+      error_message: null,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add optimistic job to the list
+    setJobStatusData(prev => [optimisticJob, ...prev]);
+    
     try {
       // Use the shared trigger function with feature flag support
       await triggerStatsUpdate('admin');
@@ -454,11 +510,18 @@ const AdminInfoPage = () => {
       setUpdateSuccess(true);
       setTimeout(() => setUpdateSuccess(false), 2000);
       
-      // Refresh the cache metadata to show new timestamps
-      await fetchCacheMetadata(); 
+      // Refresh both cache metadata and job status
+      await Promise.all([
+        fetchCacheMetadata(),
+        fetchJobStatus() // This will replace the optimistic job with real data
+      ]);
+      
     } catch (err: any) {
       console.error('Error triggering stats update:', err);
       setError(err.message || 'Failed to trigger stats update.');
+      
+      // Remove the optimistic job on error
+      setJobStatusData(prev => prev.filter(job => job.id !== tempJobId));
     } finally {
       setIsUpdatingStats(false);
     }
@@ -999,8 +1062,32 @@ const AdminInfoPage = () => {
               <ErrorBoundary>
                 <div className="break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
                   <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-                    <h3 className="mb-0 text-lg font-semibold text-slate-700">Background Job Status</h3>
-                    <p className="mb-0 text-sm text-slate-500">Recent stats update jobs and their status</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="mb-0 text-lg font-semibold text-slate-700">Background Job Status</h3>
+                        <p className="mb-0 text-sm text-slate-500">
+                          Recent stats update jobs and their status
+                          {jobStatusData.some(job => job.status === 'queued' || job.status === 'processing') && (
+                            <span className="ml-2 inline-flex items-center">
+                              <span className="animate-pulse w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+                              <span className="text-blue-600 text-xs">Auto-refreshing every 5s</span>
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <button
+                        onClick={fetchJobStatus}
+                        disabled={isLoadingJobs}
+                        className="text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                        title="Refresh job status"
+                      >
+                        {isLoadingJobs ? (
+                          <span className="animate-spin inline-block w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full"></span>
+                        ) : (
+                          '🔄 Refresh'
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div className="p-4">
                     {isLoadingJobs ? (
@@ -1039,7 +1126,10 @@ const AdminInfoPage = () => {
                                   )}
                                 </td>
                                 <td className="py-2 px-3">
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium inline-flex items-center ${getStatusColor(job.status)}`}>
+                                    {(job.status === 'processing' || job.status === 'queued') && (
+                                      <span className="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full mr-1"></span>
+                                    )}
                                     {job.status}
                                   </span>
                                 </td>
