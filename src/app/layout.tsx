@@ -74,7 +74,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Script 
           src="/assets/js/perfect-scrollbar.js" 
           strategy="afterInteractive"
-          onLoad={() => console.log('✅ PerfectScrollbar initialized')}
         />
         
         {/* Nav Pills JS */}

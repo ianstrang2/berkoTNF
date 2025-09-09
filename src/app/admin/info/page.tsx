@@ -394,6 +394,77 @@ const AdminInfoPage = () => {
     return `${durationSeconds}s`;
   };
 
+  // Smart table display logic
+  const hasRecentJobs = jobStatusData.some(job => 
+    new Date(job.created_at) > new Date(Date.now() - 10 * 60 * 1000) // Last 10 minutes
+  );
+
+  const hasStuckJobs = jobStatusData.some(job => 
+    job.status === 'queued' && 
+    new Date(job.created_at) < new Date(Date.now() - 5 * 60 * 1000) // Queued for 5+ minutes
+  );
+
+  const isBackgroundJobsEnabled = shouldUseBackgroundJobs('admin');
+
+  // Dynamic headers based on system state
+  const getJobTableHeader = () => {
+    if (hasStuckJobs) {
+      return {
+        title: "Background Job Status ⚠️",
+        subtitle: "Recent jobs (worker may be down - jobs stuck)"
+      };
+    }
+    if (hasRecentJobs) {
+      return {
+        title: "Background Job Status",
+        subtitle: "Recent stats update jobs and their status"
+      };
+    }
+    return {
+      title: "Background Job Status",
+      subtitle: isBackgroundJobsEnabled 
+        ? "No recent background jobs" 
+        : "Background processing disabled"
+    };
+  };
+
+  const getCacheTableHeader = () => {
+    if (hasRecentJobs && hasStuckJobs) {
+      return {
+        title: "Stats Cache Status (Fallback Active)",
+        subtitle: "Edge functions are handling stats updates"
+      };
+    }
+    if (hasRecentJobs && isBackgroundJobsEnabled) {
+      return {
+        title: "Stats Cache Status",
+        subtitle: "Legacy cache timestamps (background jobs active)"
+      };
+    }
+    return {
+      title: "Stats Last Updated At",
+      subtitle: "Current stats cache status via edge functions"
+    };
+  };
+
+  // Smart retry logic: only show retry for most recent failed job if no successful job came after it
+  const shouldShowRetryButton = (job: BackgroundJobStatus, jobIndex: number) => {
+    if (job.status !== 'failed') return false;
+    
+    // Find the most recent successful job
+    const mostRecentSuccessfulJob = jobStatusData.find(j => j.status === 'completed');
+    
+    // If there's a successful job that's more recent than this failed job, don't show retry
+    if (mostRecentSuccessfulJob && 
+        new Date(mostRecentSuccessfulJob.created_at) > new Date(job.created_at)) {
+      return false;
+    }
+    
+    // Only show retry for the most recent failed job (first in the sorted list)
+    const mostRecentFailedJobIndex = jobStatusData.findIndex(j => j.status === 'failed');
+    return jobIndex === mostRecentFailedJobIndex;
+  };
+
   useEffect(() => {
     fetchCacheMetadata();
     fetchInfoData();
@@ -742,7 +813,8 @@ const AdminInfoPage = () => {
             <div className="flex flex-wrap gap-6">
               <div className="break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
                 <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-                  <h3 className="mb-0 text-lg font-semibold text-slate-700">Stats Last Updated At</h3>
+                  <h3 className="mb-0 text-lg font-semibold text-slate-700">{getCacheTableHeader().title}</h3>
+                  <p className="mb-0 text-sm text-slate-500">{getCacheTableHeader().subtitle}</p>
                 </div>
                 <div className="p-4">
                   {isLoadingCache ? (
@@ -1056,9 +1128,9 @@ const AdminInfoPage = () => {
                   <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="mb-0 text-lg font-semibold text-slate-700">Background Job Status</h3>
+                        <h3 className="mb-0 text-lg font-semibold text-slate-700">{getJobTableHeader().title}</h3>
                         <p className="mb-0 text-sm text-slate-500">
-                          Recent stats update jobs and their status
+                          {getJobTableHeader().subtitle}
                           {jobStatusData.some(job => job.status === 'queued' || job.status === 'processing') && (
                             <span className="ml-2 inline-flex items-center">
                               <span className="animate-pulse w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
@@ -1102,7 +1174,7 @@ const AdminInfoPage = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {jobStatusData.map((job) => (
+                            {jobStatusData.map((job, jobIndex) => (
                               <tr key={job.id} className="border-b border-gray-100">
                                 <td className="py-2 px-3 text-slate-700">
                                   <span className="capitalize">{job.job_payload.triggeredBy}</span>
@@ -1135,7 +1207,7 @@ const AdminInfoPage = () => {
                                   {calculateDuration(job.started_at, job.completed_at)}
                                 </td>
                                 <td className="py-2 px-3">
-                                  {job.status === 'failed' && (
+                                  {shouldShowRetryButton(job, jobIndex) && (
                                     <Button 
                                       size="sm"
                                       variant="secondary"
