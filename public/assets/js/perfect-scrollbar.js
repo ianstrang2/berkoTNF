@@ -1,4 +1,10 @@
 (function () {
+  // Safety check: only run if PerfectScrollbar is available
+  if (typeof window.PerfectScrollbar === 'undefined') {
+    console.warn('PerfectScrollbar library not loaded, skipping initialization');
+    return;
+  }
+
   var isWindows = navigator.platform.indexOf("Win") > -1 ? true : false;
 
   if (isWindows) {

@@ -66,9 +66,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
         
-        {/* Perfect Scrollbar JS */}
-        <Script src="/assets/js/plugins/perfect-scrollbar.min.js" strategy="afterInteractive" />
-        <Script src="/assets/js/perfect-scrollbar.js" strategy="afterInteractive" />
+        {/* Perfect Scrollbar JS - Library must load first */}
+        <Script 
+          src="/assets/js/plugins/perfect-scrollbar.min.js" 
+          strategy="afterInteractive"
+        />
+        <Script 
+          src="/assets/js/perfect-scrollbar.js" 
+          strategy="afterInteractive"
+          onLoad={() => console.log('✅ PerfectScrollbar initialized')}
+        />
         
         {/* Nav Pills JS */}
         <Script src="/assets/js/nav-pills.js" strategy="afterInteractive" />
