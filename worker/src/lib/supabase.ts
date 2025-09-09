@@ -3,6 +3,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import fetch from 'node-fetch';
 
 let supabaseClient: SupabaseClient | null = null;
 
@@ -19,10 +20,27 @@ export function getSupabaseClient(): SupabaseClient {
       auth: {
         persistSession: false,
         autoRefreshToken: false
+      },
+      global: {
+        fetch: (url, options = {}) => {
+          // Increase timeout for long-running SQL functions (20 seconds)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 20000);
+          
+          const fetchPromise = fetch(url, {
+            ...options,
+            signal: controller.signal
+          });
+          
+          // Clear timeout when request completes
+          fetchPromise.finally(() => clearTimeout(timeoutId));
+          
+          return fetchPromise;
+        }
       }
     });
 
-    console.log('✅ Supabase client initialized');
+    console.log('✅ Supabase client initialized with 20s timeout for RPC calls');
   }
 
   return supabaseClient;
