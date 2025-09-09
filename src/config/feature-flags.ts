@@ -12,10 +12,10 @@ interface BackgroundJobFeatureFlags {
 
 // Environment variable based feature flags with sensible defaults
 export const BACKGROUND_JOB_FLAGS: BackgroundJobFeatureFlags = {
-  USE_BG_JOBS: process.env.USE_BG_JOBS === 'true',
-  USE_BG_JOBS_ADMIN: process.env.USE_BG_JOBS_ADMIN === 'true',
-  USE_BG_JOBS_CRON: process.env.USE_BG_JOBS_CRON === 'true',
-  USE_BG_JOBS_MATCH: process.env.USE_BG_JOBS_MATCH === 'true',
+  USE_BG_JOBS: process.env.NEXT_PUBLIC_USE_BG_JOBS === 'true',
+  USE_BG_JOBS_ADMIN: process.env.NEXT_PUBLIC_USE_BG_JOBS_ADMIN === 'true',
+  USE_BG_JOBS_CRON: process.env.NEXT_PUBLIC_USE_BG_JOBS_CRON === 'true',
+  USE_BG_JOBS_MATCH: process.env.NEXT_PUBLIC_USE_BG_JOBS_MATCH === 'true',
 };
 
 /**
@@ -24,10 +24,10 @@ export const BACKGROUND_JOB_FLAGS: BackgroundJobFeatureFlags = {
 export function shouldUseBackgroundJobs(triggerType: 'admin' | 'cron' | 'match'): boolean {
   // Debug logging
   console.log('ENV VARS', {
-    USE_BG_JOBS: process.env.USE_BG_JOBS,
-    USE_BG_JOBS_ADMIN: process.env.USE_BG_JOBS_ADMIN,
-    USE_BG_JOBS_MATCH: process.env.USE_BG_JOBS_MATCH,
-    USE_BG_JOBS_CRON: process.env.USE_BG_JOBS_CRON,
+    NEXT_PUBLIC_USE_BG_JOBS: process.env.NEXT_PUBLIC_USE_BG_JOBS,
+    NEXT_PUBLIC_USE_BG_JOBS_ADMIN: process.env.NEXT_PUBLIC_USE_BG_JOBS_ADMIN,
+    NEXT_PUBLIC_USE_BG_JOBS_MATCH: process.env.NEXT_PUBLIC_USE_BG_JOBS_MATCH,
+    NEXT_PUBLIC_USE_BG_JOBS_CRON: process.env.NEXT_PUBLIC_USE_BG_JOBS_CRON,
   });
 
   // Master switch check first
