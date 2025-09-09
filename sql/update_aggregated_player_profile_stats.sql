@@ -2,6 +2,7 @@
 CREATE OR REPLACE FUNCTION update_aggregated_player_profile_stats()
 RETURNS VOID LANGUAGE plpgsql AS $$
 BEGIN
+    PERFORM set_config('statement_timeout', '20000', false); -- 20s timeout
     RAISE NOTICE 'Starting update_aggregated_player_profile_stats processing (v3, single-query)...';
 
     -- Clear the table before repopulating
