@@ -147,7 +147,6 @@ export async function processAllStatsFunctions(supabase: SupabaseClient): Promis
   console.log(`[${timestamp}] 🚀 AUDIT: Starting parallel processing of ${STATS_FUNCTIONS.length} stats functions`);
   console.log(`[${timestamp}] 🔍 AUDIT: Supabase client status:`, {
     clientExists: !!supabase,
-    clientUrl: supabase?.supabaseUrl || 'undefined',
     hasAuth: !!supabase?.auth,
     timestamp: timestamp
   });
@@ -183,26 +182,30 @@ export async function processAllStatsFunctions(supabase: SupabaseClient): Promis
   // Log successful functions
   const successfulFunctions = results
     .map((result, index) => ({ result, func: STATS_FUNCTIONS[index] }))
-    .filter(({ result }) => result.success);
+    .filter(({ result, func }) => result.success && func);
   
   console.log(`[${summaryTime}] ✅ SUCCESSFUL FUNCTIONS (${successfulFunctions.length}):`);
   successfulFunctions.forEach(({ result, func }) => {
-    console.log(`[${summaryTime}]   ✅ ${func.rpcName} (${result.duration}ms)`);
+    if (func) {
+      console.log(`[${summaryTime}]   ✅ ${func.rpcName} (${result.duration}ms)`);
+    }
   });
   
   if (failed > 0) {
     const failedFunctions = results
       .map((result, index) => ({ result, func: STATS_FUNCTIONS[index] }))
-      .filter(({ result }) => !result.success);
+      .filter(({ result, func }) => !result.success && func);
     
     console.error(`[${summaryTime}] ❌ FAILED FUNCTIONS (${failedFunctions.length}):`);
     failedFunctions.forEach(({ result, func }) => {
-      console.error(`[${summaryTime}]   ❌ ${func.rpcName}: ${result.error} (${result.duration}ms)`);
+      if (func) {
+        console.error(`[${summaryTime}]   ❌ ${func.rpcName}: ${result.error} (${result.duration}ms)`);
+      }
     });
     
     // Special attention to player profile stats function
     const playerProfileFailed = failedFunctions.some(({ func }) => 
-      func.rpcName === 'update_aggregated_player_profile_stats'
+      func && func.rpcName === 'update_aggregated_player_profile_stats'
     );
     
     if (playerProfileFailed) {
