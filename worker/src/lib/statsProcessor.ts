@@ -75,10 +75,24 @@ export async function processStatsFunction(
   
   try {
     console.log(`[${new Date().toISOString()}] [${statsFunction.name}] 📡 Starting RPC: ${statsFunction.rpcName}`);
-    console.log(`[${new Date().toISOString()}] [${statsFunction.name}] ⏱️  Client timeout: 20000ms, DB timeout: 20000ms`);
+    
+    // Add conditional headers for the player profile stats function
+    const rpcOptions = statsFunction.rpcName === 'update_aggregated_player_profile_stats' 
+      ? {
+          headers: {
+            'Prefer': 'statement_timeout=20000'
+          }
+        }
+      : undefined;
+
+    const timeoutInfo = rpcOptions 
+      ? "Client timeout: 20000ms, DB timeout: 20000ms, Header timeout: 20000ms"
+      : "Client timeout: 20000ms, DB timeout: 20000ms";
+    
+    console.log(`[${new Date().toISOString()}] [${statsFunction.name}] ⏱️  ${timeoutInfo}`);
     
     const rpcStartTime = Date.now();
-    const { error } = await supabase.rpc(statsFunction.rpcName);
+    const { error } = await supabase.rpc(statsFunction.rpcName, {}, rpcOptions);
     const rpcEndTime = Date.now();
     const rpcDuration = rpcEndTime - rpcStartTime;
 

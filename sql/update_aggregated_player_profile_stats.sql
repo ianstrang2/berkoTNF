@@ -6,10 +6,6 @@ DECLARE
     block_start_time TIMESTAMPTZ;
 BEGIN
     start_time := clock_timestamp();
-    PERFORM set_config('statement_timeout', '20000', false); -- 20s timeout
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Timeout = ' || current_setting('statement_timeout'), NOW());
-    RAISE NOTICE 'Current timeout: %', current_setting('statement_timeout');
     RAISE NOTICE 'Starting update_aggregated_player_profile_stats processing (v3, timed-steps)...';
 
     -- Clear the table before repopulating
