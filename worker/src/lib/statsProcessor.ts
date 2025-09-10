@@ -64,8 +64,13 @@ export async function processStatsFunction(
   statsFunction: StatsFunction
 ): Promise<ProcessingResult> {
   const startTimestamp = new Date().toISOString();
-  console.log(`[${startTimestamp}] [${statsFunction.name}] 🚀 Starting RPC call: ${statsFunction.rpcName}`);
-  console.log(`[${startTimestamp}] [${statsFunction.name}] 📋 Cache tags: [${statsFunction.cacheTags.join(', ')}]`);
+  console.log(`[${startTimestamp}] [${statsFunction.name}] 🚀 AUDIT: Starting RPC call`);
+  console.log(`[${startTimestamp}] [${statsFunction.name}] 📋 Function details:`, {
+    edgeFunctionName: statsFunction.name,
+    sqlRpcName: statsFunction.rpcName,
+    cacheTags: statsFunction.cacheTags,
+    isPlayerProfileStats: statsFunction.rpcName === 'update_aggregated_player_profile_stats'
+  });
   const startTime = Date.now();
   
   try {
@@ -105,12 +110,19 @@ export async function processStatsFunction(
   } catch (error) {
     const errorTimestamp = new Date().toISOString();
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[${errorTimestamp}] [${statsFunction.name}] 🚨 CRITICAL ERROR:`, {
-      rpcName: statsFunction.rpcName,
-      error: errorMessage,
-      fullError: error,
-      duration: Date.now() - startTime + 'ms'
+    console.error(`[${errorTimestamp}] [${statsFunction.name}] 🚨 FUNCTION FAILED - CRITICAL ERROR:`);
+    console.error(`[${errorTimestamp}] [${statsFunction.name}] ❌ FAILED FUNCTION: ${statsFunction.rpcName}`);
+    console.error(`[${errorTimestamp}] [${statsFunction.name}] 💥 ERROR MESSAGE: ${errorMessage}`);
+    console.error(`[${errorTimestamp}] [${statsFunction.name}] 📊 FAILURE DETAILS:`, {
+      edgeFunctionName: statsFunction.name,
+      sqlRpcName: statsFunction.rpcName,
+      cacheTags: statsFunction.cacheTags,
+      errorMessage: errorMessage,
+      duration: Date.now() - startTime + 'ms',
+      isPlayerProfileStats: statsFunction.rpcName === 'update_aggregated_player_profile_stats',
+      timestamp: errorTimestamp
     });
+    console.error(`[${errorTimestamp}] [${statsFunction.name}] 🔍 FULL ERROR OBJECT:`, error);
     
     return { 
       success: false, 
@@ -132,8 +144,17 @@ export async function processAllStatsFunctions(supabase: SupabaseClient): Promis
   };
 }> {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] 🚀 Starting parallel processing of ${STATS_FUNCTIONS.length} stats functions:`);
-  console.log(`[${timestamp}] 📋 Functions to process:`, STATS_FUNCTIONS.map(f => f.name));
+  console.log(`[${timestamp}] 🚀 AUDIT: Starting parallel processing of ${STATS_FUNCTIONS.length} stats functions`);
+  console.log(`[${timestamp}] 🔍 AUDIT: Supabase client status:`, {
+    clientExists: !!supabase,
+    clientUrl: supabase?.supabaseUrl || 'undefined',
+    hasAuth: !!supabase?.auth,
+    timestamp: timestamp
+  });
+  console.log(`[${timestamp}] 📋 AUDIT: All functions to process:`);
+  STATS_FUNCTIONS.forEach((func, index) => {
+    console.log(`[${timestamp}]   ${index + 1}. ${func.name} → ${func.rpcName}`);
+  });
   const overallStartTime = Date.now();
 
   // Process all functions in parallel
@@ -156,12 +177,37 @@ export async function processAllStatsFunctions(supabase: SupabaseClient): Promis
   const totalDuration = Date.now() - overallStartTime;
 
   const summaryTime = new Date().toISOString();
-  console.log(`[${summaryTime}] ✅ Completed processing ${results.length} functions in ${totalDuration}ms`);
-  console.log(`[${summaryTime}] 📊 Summary: ${successful} successful, ${failed} failed`);
+  console.log(`[${summaryTime}] ✅ AUDIT: Completed processing ${results.length} functions in ${totalDuration}ms`);
+  console.log(`[${summaryTime}] 📊 AUDIT: Summary: ${successful} successful, ${failed} failed`);
+  
+  // Log successful functions
+  const successfulFunctions = results
+    .map((result, index) => ({ result, func: STATS_FUNCTIONS[index] }))
+    .filter(({ result }) => result.success);
+  
+  console.log(`[${summaryTime}] ✅ SUCCESSFUL FUNCTIONS (${successfulFunctions.length}):`);
+  successfulFunctions.forEach(({ result, func }) => {
+    console.log(`[${summaryTime}]   ✅ ${func.rpcName} (${result.duration}ms)`);
+  });
   
   if (failed > 0) {
-    console.error(`[${summaryTime}] ❌ Failed functions:`, 
-      results.filter(r => !r.success).map(r => r.error).join(', '));
+    const failedFunctions = results
+      .map((result, index) => ({ result, func: STATS_FUNCTIONS[index] }))
+      .filter(({ result }) => !result.success);
+    
+    console.error(`[${summaryTime}] ❌ FAILED FUNCTIONS (${failedFunctions.length}):`);
+    failedFunctions.forEach(({ result, func }) => {
+      console.error(`[${summaryTime}]   ❌ ${func.rpcName}: ${result.error} (${result.duration}ms)`);
+    });
+    
+    // Special attention to player profile stats function
+    const playerProfileFailed = failedFunctions.some(({ func }) => 
+      func.rpcName === 'update_aggregated_player_profile_stats'
+    );
+    
+    if (playerProfileFailed) {
+      console.error(`[${summaryTime}] 🎯 PLAYER PROFILE STATS FUNCTION FAILED - This is the one with timeout fixes!`);
+    }
   }
 
   return {

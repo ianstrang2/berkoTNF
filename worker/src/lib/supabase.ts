@@ -11,12 +11,21 @@ const customFetch: typeof fetch = async (input, init) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000); // 20 seconds
 
+  console.log(`[DEBUG] Starting fetch to Supabase RPC: ${input}`);
+  const start = Date.now();
+  
   try {
     const response = await fetch(input, {
       ...init,
       signal: controller.signal,
     });
+    const duration = Date.now() - start;
+    console.log(`[DEBUG] Supabase RPC completed in ${duration}ms`);
     return response;
+  } catch (error) {
+    const duration = Date.now() - start;
+    console.error(`[DEBUG] Supabase RPC failed after ${duration}ms:`, error);
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
