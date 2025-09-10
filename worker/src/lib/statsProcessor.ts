@@ -69,15 +69,23 @@ export async function processStatsFunction(
   const startTime = Date.now();
   
   try {
-    console.log(`[${new Date().toISOString()}] [${statsFunction.name}] 📡 Executing Supabase RPC...`);
+    console.log(`[${new Date().toISOString()}] [${statsFunction.name}] 📡 Starting RPC: ${statsFunction.rpcName}`);
+    console.log(`[${new Date().toISOString()}] [${statsFunction.name}] ⏱️  Client timeout: 20000ms, DB timeout: 20000ms`);
+    
+    const rpcStartTime = Date.now();
     const { error } = await supabase.rpc(statsFunction.rpcName);
+    const rpcEndTime = Date.now();
+    const rpcDuration = rpcEndTime - rpcStartTime;
+
+    console.log(`[${new Date().toISOString()}] [${statsFunction.name}] ⏱️  RPC duration: ${rpcDuration}ms`);
 
     if (error) {
-      console.error(`[${new Date().toISOString()}] [${statsFunction.name}] ❌ RPC returned error:`, {
+      console.error(`[${new Date().toISOString()}] [${statsFunction.name}] ❌ RPC returned error after ${rpcDuration}ms:`, {
         code: error.code,
         message: error.message,
         details: error.details,
-        hint: error.hint
+        hint: error.hint,
+        duration: rpcDuration + 'ms'
       });
       throw new Error(`Database function error: ${error.message}`);
     }
@@ -85,7 +93,7 @@ export async function processStatsFunction(
     const endTime = Date.now();
     const duration = endTime - startTime;
     const endTimestamp = new Date().toISOString();
-    const message = `${statsFunction.rpcName} executed successfully in ${duration}ms.`;
+    const message = `${statsFunction.rpcName} executed successfully in ${duration}ms (RPC: ${rpcDuration}ms).`;
     console.log(`[${endTimestamp}] [${statsFunction.name}] ✅ ${message}`);
     
     return { 
