@@ -6,6 +6,7 @@ export const CACHE_TAGS = {
   
   // Player-Specific
   PLAYER_PROFILE: 'player_profile_stats',
+  PLAYER_TEAMMATE_STATS: 'player_teammate_stats', // NEW: Separate teammate stats
   PERSONAL_BESTS: 'personal_bests',
   PLAYER_POWER_RATING: 'player_power_rating', // EWMA system uses existing key
   
@@ -28,6 +29,7 @@ export const ALL_MATCH_RELATED_TAGS = [
   CACHE_TAGS.SEASON_STATS,
   CACHE_TAGS.HALF_SEASON_STATS,
   CACHE_TAGS.PLAYER_PROFILE,
+  CACHE_TAGS.PLAYER_TEAMMATE_STATS, // NEW: Include teammate stats in match updates
   CACHE_TAGS.PERSONAL_BESTS,
   CACHE_TAGS.PLAYER_POWER_RATING, // EWMA system
   CACHE_TAGS.HALL_OF_FAME,

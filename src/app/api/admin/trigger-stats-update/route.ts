@@ -14,7 +14,7 @@ const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> 
   { name: 'call-update-match-report-cache', tag: CACHE_TAGS.MATCH_REPORT },
   { name: 'call-update-personal-bests', tag: CACHE_TAGS.PERSONAL_BESTS },
   { name: 'call-update-player-profile-stats', tag: CACHE_TAGS.PLAYER_PROFILE },
-  { name: 'call-update-player-teammate-stats', tag: 'player_teammate_stats' }, // NEW: Teammate stats function
+  { name: 'call-update-player-teammate-stats', tag: CACHE_TAGS.PLAYER_TEAMMATE_STATS }, // NEW: Teammate stats function
   { name: 'call-update-season-race-data', tag: CACHE_TAGS.SEASON_RACE_DATA },
   // EWMA function - no position dependency
   { name: 'call-update-power-ratings', tag: CACHE_TAGS.PLAYER_POWER_RATING }

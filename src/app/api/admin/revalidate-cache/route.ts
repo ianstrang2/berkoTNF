@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 
-// This is a protected route.
-// It should only be called from other server-side admin routes or trusted services.
-// We'll add a simple auth check to ensure it's not exposed to the public.
+// DEPRECATED: This endpoint is deprecated in favor of /api/internal/cache/invalidate
+// The background job system uses the internal endpoint for batch cache invalidation
+// This endpoint remains for legacy compatibility but is not actively used
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
 
 export async function POST(request: NextRequest) {
   // This is a server-to-server endpoint.

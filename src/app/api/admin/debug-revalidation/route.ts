@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       VERCEL_URL: process.env.VERCEL_URL,
       NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
       hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasInternalApiKey: !!process.env.INTERNAL_API_KEY,
       timestamp: new Date().toISOString(),
       isVercelEnvironment: !!process.env.VERCEL,
       relevantEnvKeys: Object.keys(process.env)
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
         }
       }
       
-      const testUrl = new URL('/api/admin/revalidate-cache', baseUrl);
+      const testUrl = new URL('/api/internal/cache/invalidate', baseUrl);
       
       urlConstructionTest = {
         success: true,
@@ -88,9 +89,13 @@ export async function GET(request: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Authorization': `Bearer ${process.env.INTERNAL_API_KEY || 'internal-worker-key'}`,
           },
-          body: JSON.stringify({ cacheKey: CACHE_TAGS.MATCH_REPORT }),
+          body: JSON.stringify({ 
+            tags: [CACHE_TAGS.MATCH_REPORT], 
+            source: 'admin-debug-test',
+            requestId: 'debug-' + Date.now()
+          }),
           signal: AbortSignal.timeout(5000)
         });
 
@@ -128,9 +133,9 @@ export async function GET(request: NextRequest) {
         revalidationEndpointTest,
         diagnosis: {
           canBuildUrl: urlConstructionTest.success,
-          hasAuthToken: environmentInfo.hasSupabaseKey,
+          hasAuthToken: environmentInfo.hasInternalApiKey,
           canReachEndpoint: revalidationEndpointTest.success,
-          overallHealth: urlConstructionTest.success && environmentInfo.hasSupabaseKey && revalidationEndpointTest.success
+          overallHealth: urlConstructionTest.success && environmentInfo.hasInternalApiKey && revalidationEndpointTest.success
         }
       }
     });

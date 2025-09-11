@@ -86,10 +86,9 @@ const AdminInfoPage = () => {
   const [error, setError] = useState<string | null>(null);
   // Add state for button success flash
   const [updateSuccess, setUpdateSuccess] = useState<boolean>(false);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [showDebugInfo, setShowDebugInfo] = useState<boolean>(false);
-  const [matchReportHealth, setMatchReportHealth] = useState<any>(null);
-  const [showMatchReportHealth, setShowMatchReportHealth] = useState<boolean>(false);
+  const [systemHealth, setSystemHealth] = useState<any>(null);
+  const [showSystemHealth, setShowSystemHealth] = useState<boolean>(false);
+  const [isLoadingSystemHealth, setIsLoadingSystemHealth] = useState<boolean>(false);
   
   // EWMA Rating state
   const [players, setPlayers] = useState<Player[]>([]);
@@ -496,6 +495,26 @@ const AdminInfoPage = () => {
     return () => clearInterval(interval);
   }, [jobStatusData, fetchJobStatus]);
 
+  // Auto-refresh cache metadata when background jobs complete
+  useEffect(() => {
+    const completedJobs = jobStatusData.filter(job => job.status === 'completed');
+    
+    if (completedJobs.length > 0) {
+      // Check if we have a recently completed job (within last 10 seconds)
+      const recentlyCompleted = completedJobs.some(job => {
+        const completedTime = new Date(job.completed_at || job.created_at);
+        const now = new Date();
+        const timeDiff = now.getTime() - completedTime.getTime();
+        return timeDiff < 10000; // 10 seconds
+      });
+
+      if (recentlyCompleted) {
+        console.log('🔄 Refreshing cache metadata due to recently completed background job');
+        fetchCacheMetadata();
+      }
+    }
+  }, [jobStatusData, fetchCacheMetadata]);
+
   // Less frequent refresh for completed jobs (every 2 minutes) to catch any missed updates
   useEffect(() => {
     const interval = setInterval(() => {
@@ -512,31 +531,22 @@ const AdminInfoPage = () => {
     return () => clearInterval(interval);
   }, [jobStatusData, fetchJobStatus]);
 
-  const fetchDebugInfo = useCallback(async () => {
+  const fetchSystemHealth = useCallback(async () => {
+    setIsLoadingSystemHealth(true);
     try {
-      const response = await fetch('/api/admin/debug-revalidation');
+      const response = await fetch('/api/admin/system-health');
       if (response.ok) {
         const result = await response.json();
-        setDebugInfo(result.data);
+        setSystemHealth(result.health);
       } else {
-        console.warn('Could not fetch debug info:', response.status);
+        console.warn('Could not fetch system health:', response.status);
+        setSystemHealth(null);
       }
     } catch (err) {
-      console.warn('Debug info fetch failed:', err);
-    }
-  }, []);
-
-  const fetchMatchReportHealth = useCallback(async () => {
-    try {
-      const response = await fetch('/api/admin/match-report-health');
-      if (response.ok) {
-        const result = await response.json();
-        setMatchReportHealth(result.health);
-      } else {
-        console.warn('Could not fetch match report health:', response.status);
-      }
-    } catch (err) {
-      console.warn('Match report health fetch failed:', err);
+      console.warn('System health fetch failed:', err);
+      setSystemHealth(null);
+    } finally {
+      setIsLoadingSystemHealth(false);
     }
   }, []);
 
@@ -839,146 +849,82 @@ const AdminInfoPage = () => {
                       variant="secondary"
                       className="rounded-lg shadow-soft-sm"
                       onClick={() => {
-                        setShowDebugInfo(!showDebugInfo);
-                        if (!showDebugInfo && !debugInfo) {
-                          fetchDebugInfo();
+                        setShowSystemHealth(!showSystemHealth);
+                        if (!showSystemHealth) {
+                          fetchSystemHealth();
                         }
                       }}
-                      disabled={isUpdatingStats}
+                      disabled={isUpdatingStats || isLoadingSystemHealth}
                     >
-                      Debug
-                    </Button>
-                    <Button 
-                      variant="secondary"
-                      className="rounded-lg shadow-soft-sm"
-                      onClick={() => {
-                        setShowMatchReportHealth(!showMatchReportHealth);
-                        if (!showMatchReportHealth && !matchReportHealth) {
-                          fetchMatchReportHealth();
-                        }
-                      }}
-                      disabled={isUpdatingStats}
-                    >
-                      Health
+                      {isLoadingSystemHealth ? 'Testing...' : 'System Health'}
                     </Button>
                   </div>
                   
-                  {showDebugInfo && debugInfo && (
+                  {showSystemHealth && systemHealth && (
                     <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs">
-                      <h4 className="font-semibold mb-2 text-gray-700">Revalidation Health Check</h4>
-                      <div className="space-y-1">
-                        <div className={`flex items-center gap-2 ${debugInfo.diagnosis.overallHealth ? 'text-green-600' : 'text-red-600'}`}>
-                          <span>{debugInfo.diagnosis.overallHealth ? '✅' : '❌'}</span>
-                          <span>Overall Health: {debugInfo.diagnosis.overallHealth ? 'Good' : 'Issues Detected'}</span>
-                        </div>
-                        <div className={`flex items-center gap-2 ${debugInfo.diagnosis.canBuildUrl ? 'text-green-600' : 'text-red-600'}`}>
-                          <span>{debugInfo.diagnosis.canBuildUrl ? '✅' : '❌'}</span>
-                          <span>URL Construction: {debugInfo.urlConstruction.urlSource || 'Failed'}</span>
-                        </div>
-                        <div className={`flex items-center gap-2 ${debugInfo.diagnosis.hasAuthToken ? 'text-green-600' : 'text-red-600'}`}>
-                          <span>{debugInfo.diagnosis.hasAuthToken ? '✅' : '❌'}</span>
-                          <span>Auth Token: {debugInfo.diagnosis.hasAuthToken ? 'Present' : 'Missing'}</span>
-                        </div>
-                        <div className={`flex items-center gap-2 ${debugInfo.diagnosis.canReachEndpoint ? 'text-green-600' : 'text-red-600'}`}>
-                          <span>{debugInfo.diagnosis.canReachEndpoint ? '✅' : '❌'}</span>
-                          <span>Endpoint: {debugInfo.revalidationEndpointTest.success ? 'Reachable' : `Failed (${debugInfo.revalidationEndpointTest.status || 'Network'})`}</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-gray-700">System Health Check</h4>
+                        <div className={`px-2 py-1 rounded text-xs font-medium ${
+                          systemHealth.overall_status === 'healthy' ? 'bg-green-100 text-green-800' :
+                          systemHealth.overall_status === 'degraded' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {systemHealth.overall_status.toUpperCase()}
                         </div>
                       </div>
-                      {debugInfo.urlConstruction.finalUrl && (
-                        <div className="mt-2 pt-2 border-t border-gray-200">
-                          <span className="text-gray-600">URL: </span>
-                          <span className="font-mono text-xs break-all">{debugInfo.urlConstruction.finalUrl}</span>
+                      
+                      {/* Feature Flags Status */}
+                      <div className="mb-3 p-2 bg-blue-50 rounded">
+                        <div className="font-medium text-blue-800 mb-1">Active Configuration:</div>
+                        <div className="text-xs space-y-1">
+                          <div>Background Jobs: {systemHealth.feature_flags.effective.admin ? '✅ Enabled' : '❌ Disabled'}</div>
+                          <div>Edge Functions: {!systemHealth.feature_flags.effective.admin ? '✅ Active' : '⏸️ Standby'}</div>
+                        </div>
+                      </div>
+
+                      {/* System Status */}
+                      <div className="space-y-2">
+                        {Object.entries(systemHealth.systems).map(([systemName, system]: [string, any]) => (
+                          system.active && (
+                            <div key={systemName} className="border-l-2 border-gray-300 pl-2">
+                              <div className={`flex items-center gap-2 font-medium ${
+                                system.status === 'healthy' ? 'text-green-600' :
+                                system.status === 'degraded' ? 'text-yellow-600' : 'text-red-600'
+                              }`}>
+                                <span>{
+                                  system.status === 'healthy' ? '✅' :
+                                  system.status === 'degraded' ? '⚠️' : '❌'
+                                }</span>
+                                <span>{systemName.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
+                              </div>
+                              <div className="ml-6 mt-1 space-y-1">
+                                {system.tests.map((test: any, idx: number) => (
+                                  <div key={idx} className={`flex items-center gap-2 text-xs ${
+                                    test.status === 'pass' ? 'text-green-600' :
+                                    test.status === 'fail' ? 'text-red-600' : 'text-gray-500'
+                                  }`}>
+                                    <span>{test.status === 'pass' ? '✓' : test.status === 'fail' ? '✗' : '○'}</span>
+                                    <span>{test.name}: {test.message}</span>
+                                    {test.duration && <span className="text-gray-400">({test.duration}ms)</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+
+                      {/* Recommendations */}
+                      {systemHealth.recommendations.length > 0 && (
+                        <div className="mt-3 pt-2 border-t border-gray-200">
+                          <div className="font-medium text-gray-700 mb-1">Recommendations:</div>
+                          <ul className="ml-2 list-disc list-inside space-y-1 text-xs">
+                            {systemHealth.recommendations.map((rec: string, idx: number) => (
+                              <li key={idx} className="text-gray-600">{rec}</li>
+                            ))}
+                          </ul>
                         </div>
                       )}
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <span className="text-gray-600">Environment: </span>
-                        <span className="font-mono">{debugInfo.environment.NODE_ENV}</span>
-                        {debugInfo.environment.VERCEL_ENV && (
-                          <>
-                            <span className="text-gray-600 ml-2">Vercel: </span>
-                            <span className="font-mono">{debugInfo.environment.VERCEL_ENV}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {showMatchReportHealth && matchReportHealth && (
-                    <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs">
-                      <h4 className="font-semibold mb-2 text-blue-700">Match Report Health Check</h4>
-                      <div className="space-y-1">
-                        <div className={`flex items-center gap-2 ${
-                          matchReportHealth.status === 'healthy' ? 'text-green-600' :
-                          matchReportHealth.status === 'degraded' ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
-                          <span>{
-                            matchReportHealth.status === 'healthy' ? '✅' :
-                            matchReportHealth.status === 'degraded' ? '⚠️' : '❌'
-                          }</span>
-                          <span>Status: {matchReportHealth.status}</span>
-                        </div>
-                        
-                        {/* Data Sources */}
-                        <div className="space-y-1 mt-2">
-                          <div className="text-gray-700 font-medium">Data Sources:</div>
-                          {matchReportHealth.data_sources?.aggregated_match_report && (
-                            <div className={`flex items-center gap-2 ml-2 ${
-                              matchReportHealth.data_sources.aggregated_match_report.status === 'available' ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              <span>{matchReportHealth.data_sources.aggregated_match_report.status === 'available' ? '✅' : '❌'}</span>
-                              <span>Main Cache: {matchReportHealth.data_sources.aggregated_match_report.status}</span>
-                              {matchReportHealth.data_sources.aggregated_match_report.feat_count > 0 && (
-                                <span className="text-purple-600">({matchReportHealth.data_sources.aggregated_match_report.feat_count} feats)</span>
-                              )}
-                            </div>
-                          )}
-                          {matchReportHealth.data_sources?.matches_fallback && (
-                            <div className={`flex items-center gap-2 ml-2 ${
-                              matchReportHealth.data_sources.matches_fallback.status === 'available' ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              <span>{matchReportHealth.data_sources.matches_fallback.status === 'available' ? '✅' : '❌'}</span>
-                              <span>Fallback: {matchReportHealth.data_sources.matches_fallback.status}</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Cache Info */}
-                        {matchReportHealth.cache_info && (
-                          <div className="mt-2 pt-2 border-t border-blue-200">
-                            <div className="text-gray-700 font-medium">Cache Info:</div>
-                            <div className="ml-2 space-y-1">
-                              <div>Last invalidated: {matchReportHealth.cache_info.hours_since_invalidation}h ago</div>
-                              {matchReportHealth.cache_info.is_stale && (
-                                <div className="text-orange-600">⚠️ Cache may be stale</div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Issues */}
-                        {matchReportHealth.issues && matchReportHealth.issues.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-blue-200">
-                            <div className="text-red-700 font-medium">Issues:</div>
-                            <ul className="ml-2 list-disc list-inside space-y-0">
-                              {matchReportHealth.issues.map((issue: string, index: number) => (
-                                <li key={index} className="text-red-600">{issue}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        
-                        {/* Recommendations */}
-                        {matchReportHealth.recommendations && matchReportHealth.recommendations.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-blue-200">
-                            <div className="text-blue-700 font-medium">Recommendations:</div>
-                            <ul className="ml-2 list-disc list-inside space-y-0">
-                              {matchReportHealth.recommendations.map((rec: string, index: number) => (
-                                <li key={index} className="text-blue-600">{rec}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>
