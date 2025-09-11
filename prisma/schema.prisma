@@ -466,10 +466,18 @@ model aggregated_player_profile_stats {
   attendance_streak_dates String?
   scoring_streak          Int?     @default(0)
   scoring_streak_dates    String?
-  teammate_chemistry_all  Json?    @default("[]") @db.Json
   player                  players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("aggregated_player_profile_stats")
+}
+
+model aggregated_player_teammate_stats {
+  player_id               Int      @id @map("player_id")
+  teammate_chemistry_all  Json?    @default("[]") @db.Json
+  last_updated            DateTime @default(now()) @db.Timestamptz(6)
+  player                  players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("aggregated_player_teammate_stats")
 }
 
 /// This model stores pre-aggregated season race data for faster retrieval

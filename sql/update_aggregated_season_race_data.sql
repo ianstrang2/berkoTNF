@@ -182,11 +182,11 @@ BEGIN
     )
     
     -- Insert both period types
-    INSERT INTO aggregated_season_race_data (season_year, period_type, player_data)
-    SELECT season_year, period_type, COALESCE(player_data, '[]'::jsonb)
+    INSERT INTO aggregated_season_race_data (season_year, period_type, player_data, last_updated)
+    SELECT season_year, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
     FROM whole_season_final
     UNION ALL
-    SELECT season_year, period_type, COALESCE(player_data, '[]'::jsonb)
+    SELECT season_year, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
     FROM current_half_final;
 
     GET DIAGNOSTICS inserted_count = ROW_COUNT;

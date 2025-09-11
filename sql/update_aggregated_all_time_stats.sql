@@ -53,7 +53,7 @@ BEGIN
         player_id, games_played, wins, draws, losses, goals,
         win_percentage, minutes_per_goal, heavy_wins, heavy_win_percentage,
         heavy_losses, heavy_loss_percentage, clean_sheets, clean_sheet_percentage,
-        fantasy_points, points_per_game
+        fantasy_points, points_per_game, last_updated
     )
     SELECT
         player_id, games_played, wins, draws, losses, goals,
@@ -66,7 +66,8 @@ BEGIN
         clean_sheets,
         ROUND((CASE WHEN games_played > 0 THEN clean_sheets::numeric / games_played * 100 ELSE 0 END), 1),
         fantasy_points,
-        ROUND((CASE WHEN games_played > 0 THEN fantasy_points::numeric / games_played ELSE 0 END), 1)
+        ROUND((CASE WHEN games_played > 0 THEN fantasy_points::numeric / games_played ELSE 0 END), 1),
+        NOW() -- last_updated
     FROM player_base_stats;
 
     GET DIAGNOSTICS inserted_count = ROW_COUNT;

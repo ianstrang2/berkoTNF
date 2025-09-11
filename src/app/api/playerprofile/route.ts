@@ -28,10 +28,18 @@ export async function GET(request: Request) {
     console.log('Fetching aggregated profile for ID:', numericId);
 
     // Fetch profile data and power ratings in parallel
-    const [profile, playerData, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
+    const [profile, teammateStats, playerData, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
       // Existing profile query
       prisma.aggregated_player_profile_stats.findUnique({
         where: { player_id: numericId },
+      }),
+      
+      // NEW: Fetch teammate stats from separate table
+      prisma.aggregated_player_teammate_stats.findUnique({
+        where: { player_id: numericId },
+        select: {
+          teammate_chemistry_all: true
+        }
       }),
       
       // NEW: Fetch player data including profile_text
@@ -251,7 +259,7 @@ export async function GET(request: Request) {
         attendance_streak_dates: (profile as any).attendance_streak_dates, // New field
         selected_club: profile.selected_club, // Should be JSON object
         yearly_stats: yearlyStatsArray, // Ensured to be an array
-        teammate_chemistry_all: (profile as any).teammate_chemistry_all, // New comprehensive teammate data
+        teammate_chemistry_all: teammateStats?.teammate_chemistry_all || [], // NEW: From separate teammate stats table
         last_updated: profile.last_updated,
         
         // NEW: 3-metric power ratings (EWMA system)
