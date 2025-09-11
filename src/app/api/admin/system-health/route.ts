@@ -111,7 +111,9 @@ async function testBackgroundWorkerSystem(): Promise<SystemStatus> {
 
   // Test 2: Cache invalidation endpoint
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+    // Use same URL resolution as background worker for consistency
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                   process.env.NEXT_PUBLIC_SITE_URL || 
                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
                    'http://localhost:3000';
     
@@ -259,7 +261,9 @@ async function testCacheInvalidationSystem(): Promise<SystemStatus> {
   const endpoint = useBackgroundJobs ? '/api/internal/cache/invalidate' : '/api/admin/revalidate-cache';
   
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+    // Use same URL resolution as background worker for consistency
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                   process.env.NEXT_PUBLIC_SITE_URL || 
                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
                    'http://localhost:3000';
 
