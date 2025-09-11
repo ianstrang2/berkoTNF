@@ -48,6 +48,11 @@ export const STATS_FUNCTIONS: StatsFunction[] = [
     cacheTags: ['player_profile_stats'] 
   },
   { 
+    name: 'call-update-player-teammate-stats', 
+    rpcName: 'update_aggregated_player_teammate_stats', 
+    cacheTags: ['player_teammate_stats'] 
+  },
+  { 
     name: 'call-update-season-race-data', 
     rpcName: 'update_aggregated_season_race_data', 
     cacheTags: ['season_race_data'] 
