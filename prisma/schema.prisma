@@ -20,11 +20,12 @@ model matches {
   team_a_own_goals          Int?                       @default(0)
   team_b_own_goals          Int?                       @default(0)
   aggregated_personal_bests aggregated_personal_bests?
-  leader_history            leader_history[]
   upcoming_matches          upcoming_matches?          @relation(fields: [upcoming_match_id], references: [upcoming_match_id], map: "fk_matches_upcoming_match_id")
   player_matches            player_matches[]
 
   @@index([upcoming_match_id], map: "idx_matches_upcoming_match_id")
+  @@index([match_date(sort: Desc), match_id(sort: Desc)], map: "idx_matches_match_date_desc")
+  @@index([match_date, match_id], map: "idx_matches_match_date_match_id")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. 
@@ -43,38 +44,40 @@ model player_matches {
   updated_at      DateTime? @default(now()) @db.Timestamptz(6)
   matches         matches?  @relation(fields: [match_id], references: [match_id], onDelete: NoAction, onUpdate: NoAction)
   players         players?  @relation(fields: [player_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([match_id, team], map: "idx_player_matches_match_id_team")
+  @@index([player_id, match_id, goals], map: "idx_player_matches_player_match_composite")
 }
 
 model players {
-  player_id                                                                                         Int                              @id @default(autoincrement())
-  name                                                                                              String                           @unique(map: "unique_player_name") @db.VarChar(14)
-  join_date                                                                                         DateTime?                        @default(dbgenerated("CURRENT_DATE")) @db.Date
-  is_ringer                                                                                         Boolean                          @default(false)
-  is_retired                                                                                        Boolean?                         @default(false)
-  goalscoring                                                                                       Int                              @default(3) @db.SmallInt
-  defender                                                                                          Int                              @default(3) @db.SmallInt
-  stamina_pace                                                                                      Int                              @default(3) @db.SmallInt
-  control                                                                                           Int                              @default(3) @db.SmallInt
-  teamwork                                                                                          Int                              @default(3) @db.SmallInt
-  resilience                                                                                        Int?                             @default(3) @db.SmallInt
+  player_id                                                                                         Int                               @id @default(autoincrement())
+  name                                                                                              String                            @unique(map: "unique_player_name") @db.VarChar(14)
+  join_date                                                                                         DateTime?                         @default(dbgenerated("CURRENT_DATE")) @db.Date
+  is_ringer                                                                                         Boolean                           @default(false)
+  is_retired                                                                                        Boolean?                          @default(false)
+  goalscoring                                                                                       Int                               @default(3) @db.SmallInt
+  defender                                                                                          Int                               @default(3) @db.SmallInt
+  stamina_pace                                                                                      Int                               @default(3) @db.SmallInt
+  control                                                                                           Int                               @default(3) @db.SmallInt
+  teamwork                                                                                          Int                               @default(3) @db.SmallInt
+  resilience                                                                                        Int?                              @default(3) @db.SmallInt
   selected_club                                                                                     Json?
   profile_text                                                                                      String?
-  profile_generated_at                                                                              DateTime?                        @db.Timestamptz(6)
+  profile_generated_at                                                                              DateTime?                         @db.Timestamptz(6)
   all_time_stats                                                                                    aggregated_all_time_stats?
   half_season_stats                                                                                 aggregated_half_season_stats?
   hall_of_fame                                                                                      aggregated_hall_of_fame[]
-  aggregated_match_streaks_aggregated_match_streaks_player_idToplayers                              aggregated_match_streaks?        @relation("aggregated_match_streaks_player_idToplayers")
-  aggregated_match_streaks_aggregated_match_streaks_previous_half_season_fantasy_leader_idToplayers aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_half_season_fantasy_leader_idToplayers")
-  aggregated_match_streaks_aggregated_match_streaks_previous_half_season_goals_leader_idToplayers   aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_half_season_goals_leader_idToplayers")
-  aggregated_match_streaks_aggregated_match_streaks_previous_season_fantasy_leader_idToplayers      aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_season_fantasy_leader_idToplayers")
-  aggregated_match_streaks_aggregated_match_streaks_previous_season_goals_leader_idToplayers        aggregated_match_streaks[]       @relation("aggregated_match_streaks_previous_season_goals_leader_idToplayers")
+  aggregated_match_streaks_aggregated_match_streaks_player_idToplayers                              aggregated_match_streaks?         @relation("aggregated_match_streaks_player_idToplayers")
+  aggregated_match_streaks_aggregated_match_streaks_previous_half_season_fantasy_leader_idToplayers aggregated_match_streaks[]        @relation("aggregated_match_streaks_previous_half_season_fantasy_leader_idToplayers")
+  aggregated_match_streaks_aggregated_match_streaks_previous_half_season_goals_leader_idToplayers   aggregated_match_streaks[]        @relation("aggregated_match_streaks_previous_half_season_goals_leader_idToplayers")
+  aggregated_match_streaks_aggregated_match_streaks_previous_season_fantasy_leader_idToplayers      aggregated_match_streaks[]        @relation("aggregated_match_streaks_previous_season_fantasy_leader_idToplayers")
+  aggregated_match_streaks_aggregated_match_streaks_previous_season_goals_leader_idToplayers        aggregated_match_streaks[]        @relation("aggregated_match_streaks_previous_season_goals_leader_idToplayers")
   aggregated_performance_ratings                                                                    aggregated_performance_ratings?
   aggregated_player_power_ratings                                                                   aggregated_player_power_ratings?
   aggregated_player_profile_stats                                                                   aggregated_player_profile_stats?
+  aggregated_player_teammate_stats                                                                  aggregated_player_teammate_stats?
   recent_performance                                                                                aggregated_recent_performance?
   season_stats                                                                                      aggregated_season_stats[]
-  leader_history_leader_history_new_leader_idToplayers                                              leader_history[]                 @relation("leader_history_new_leader_idToplayers")
-  leader_history_leader_history_previous_leader_idToplayers                                         leader_history[]                 @relation("leader_history_previous_leader_idToplayers")
   match_player_pool                                                                                 match_player_pool[]
   player_matches                                                                                    player_matches[]
   team_slots                                                                                        team_slots[]
@@ -166,8 +169,6 @@ model upcoming_matches {
   upcoming_match_id Int                      @id @default(autoincrement())
   match_date        DateTime                 @db.Timestamptz(6)
   team_size         Int
-  actual_size_a     Int?
-  actual_size_b     Int?
   location          String?                  @db.VarChar(255)
   team_a_name       String?                  @default("Orange") @db.VarChar(100)
   team_b_name       String?                  @default("Green") @db.VarChar(100)
@@ -179,6 +180,8 @@ model upcoming_matches {
   is_balanced       Boolean?                 @default(false)
   state             match_state              @default(Draft)
   state_version     Int                      @default(0)
+  actual_size_a     Int?
+  actual_size_b     Int?
   player_pool       match_player_pool[]
   matches           matches[]
   players           upcoming_match_players[]
@@ -198,6 +201,9 @@ model upcoming_match_players {
   slot_number        Int?
   player             players          @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
   match              upcoming_matches @relation(fields: [upcoming_match_id], references: [upcoming_match_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([upcoming_match_id, team, slot_number], map: "uniq_match_team_slot")
+  @@unique([upcoming_match_id, player_id], map: "upcoming_match_id_player_id_unique")
 }
 
 /// This model represents the player pool for upcoming matches
@@ -372,37 +378,6 @@ model aggregated_personal_bests {
   matches         matches  @relation(fields: [match_id], references: [match_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model leader_history {
-  id                                                 Int       @id @default(autoincrement())
-  match_id                                           Int
-  leader_type                                        String    @db.VarChar(50)
-  new_leader_id                                      Int?
-  previous_leader_id                                 Int?
-  new_leader_value                                   Int?
-  previous_leader_value                              Int?
-  change_type                                        String?   @db.VarChar(20)
-  created_at                                         DateTime? @default(now()) @db.Timestamptz(6)
-  matches                                            matches   @relation(fields: [match_id], references: [match_id], onDelete: NoAction, onUpdate: NoAction)
-  players_leader_history_new_leader_idToplayers      players?  @relation("leader_history_new_leader_idToplayers", fields: [new_leader_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
-  players_leader_history_previous_leader_idToplayers players?  @relation("leader_history_previous_leader_idToplayers", fields: [previous_leader_id], references: [player_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([match_id], map: "idx_leader_history_match")
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model process_state {
-  id               String    @id
-  is_running       Boolean?  @default(false)
-  request_id       String?
-  current_step     String?
-  completed_steps  String[]  @default([])
-  error            String?
-  start_time       DateTime? @db.Timestamp(6)
-  last_update_time DateTime? @db.Timestamp(6)
-  step_attempts    Json?     @default("{}")
-}
-
 model aggregated_player_power_ratings {
   player_id                Int      @id
   rating                   Decimal  @db.Decimal
@@ -466,16 +441,17 @@ model aggregated_player_profile_stats {
   attendance_streak_dates String?
   scoring_streak          Int?     @default(0)
   scoring_streak_dates    String?
+  teammate_chemistry_all  Json?    @default("[]") @db.Json
   player                  players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("aggregated_player_profile_stats")
 }
 
 model aggregated_player_teammate_stats {
-  player_id               Int      @id @map("player_id")
-  teammate_chemistry_all  Json?    @default("[]") @db.Json
-  last_updated            DateTime @default(now()) @db.Timestamptz(6)
-  player                  players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
+  player_id              Int       @id @map("player_id")
+  teammate_chemistry_all Json?     @default("[]")
+  last_updated           DateTime? @default(now()) @db.Timestamptz(6)
+  player                 players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("aggregated_player_teammate_stats")
 }
@@ -489,35 +465,6 @@ model aggregated_season_race_data {
   period_type  String   @default("whole_season") @db.VarChar(20)
 
   @@unique([season_year, period_type], map: "idx_season_race_data_year_period")
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model matches_backup {
-  match_id     Int?
-  match_date   DateTime? @db.Date
-  team_a_score Int?
-  team_b_score Int?
-  created_at   DateTime? @db.Timestamp(6)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model upcoming_matches_backup {
-  upcoming_match_id Int?
-  match_date        DateTime? @db.Timestamptz(6)
-  team_size         Int?
-  location          String?   @db.VarChar(255)
-  team_a_name       String?   @db.VarChar(100)
-  team_b_name       String?   @db.VarChar(100)
-  notes             String?
-  is_completed      Boolean?
-  created_at        DateTime? @db.Timestamptz(6)
-  updated_at        DateTime? @db.Timestamptz(6)
-  is_active         Boolean?
-  is_balanced       Boolean?
-
-  @@ignore
 }
 
 model aggregated_match_streaks {
@@ -563,15 +510,35 @@ model aggregated_match_streaks {
   @@index([season_goals_rank], map: "idx_ams_season_goals_rank")
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model defensive_data_backup {
-  player_id                  Int?
-  defensive_shield           Decimal?  @db.Decimal
-  defensive_score            Decimal?  @db.Decimal
-  league_avg_defensive_score Decimal?  @db.Decimal
-  backup_date                DateTime? @db.Timestamptz(6)
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model background_job_status {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  job_type      String    @default("stats_update")
+  job_payload   Json
+  status        String    @default("queued")
+  started_at    DateTime? @db.Timestamptz(6)
+  completed_at  DateTime? @db.Timestamptz(6)
+  retry_count   Int       @default(0)
+  priority      Int?      @default(1)
+  tenant_id     String?   @db.Uuid
+  error_message String?
+  results       Json?
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
 
-  @@ignore
+  @@index([created_at(sort: Desc)], map: "idx_background_job_status_created_at")
+  @@index([job_type], map: "idx_background_job_status_job_type")
+  @@index([status], map: "idx_background_job_status_status")
+  @@index([tenant_id], map: "idx_background_job_status_tenant_id")
+}
+
+model debug_logs {
+  id        Int       @id @default(autoincrement())
+  source    String?
+  message   String?
+  timestamp DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 enum match_state {
