@@ -1,0 +1,278 @@
+📋 COMPREHENSIVE SEASON REFACTOR PLAN
+⚽ What Your App Does (today)
+•	A casual football organiser app:
+o	Balances teams fairly.
+o	Tracks stats, awards fantasy-style points.
+o	Generates AI-driven player profiles for fun/engagement.
+o	Doesn't yet include player billing, but will do in the near future.
+•	Stats are currently tied to calendar years (Jan–Dec), with half-year splits (Jan–Jun, Jul–Dec).
+
+🔍 CRITICAL FINDINGS FROM CODEBASE ANALYSIS
+After thorough analysis, this refactor impacts significantly more components than initially anticipated:
+
+**HARD-CODED SEASON LOGIC FOUND IN:**
+1. **SQL Functions (11 files)** - All aggregation queries use hardcoded Jan-Dec, Jan-Jun, Jul-Dec
+2. **Frontend Components (6 files)** - Tables, graphs, legends all assume calendar year seasons  
+3. **Background Workers (3 systems)** - Worker + Edge Functions + SQL triggers all hardcoded
+4. **Database Schema (8 tables)** - Multiple aggregated tables store season/half-season data
+5. **API Routes (4 files)** - Season race, stats, legends APIs all use hardcoded dates
+
+**MAJOR IMPACT AREAS IDENTIFIED:**
+• 10+ SQL aggregation functions that populate cached tables
+• Season race graph with hardcoded half-season line at June 30th
+• Legends component showing previous "season winners" by calendar year
+• Background job system processing 10 stats functions in parallel
+• Multiple aggregated tables storing pre-calculated season statistics
+________________________________________
+💡 Why You’re Changing the Model
+1.	Flexibility for different groups
+o	Not all groups run Jan–Dec.
+o	Many run custom seasons (e.g. Sept–May), often with membership tiers.
+o	Current “Year + Half-Year” structure is too rigid.
+2.	To support billing properly
+o	Need to handle both per-match fees (casuals) and season fees with tiers (structured groups).
+o	Current system can’t tie billing to stats/time windows cleanly.
+3.	To unify stats + payments
+o	By introducing a Season entity with 3 dates (start_date, half_date, end_date), you can:
+	Run stats cleanly (seasonal, half-season, lifetime).
+	Tie billing cycles to seasons (match fees, tier subs).
+	Support rollovers without confusion.
+4.	Better market fit
+o	Casual groups = happy with match fees.
+o	Semi-structured / leagues = need season fees with tiers.
+o	Supporting both covers most of the grassroots football market.
+________________________________________
+🚀 SOLO-DEV SPRINT PLAN (MONDAY-WEDNESDAY)
+Reality: You're the only user, low risk, background worker runs Thursday. Let's smash this!
+
+**🔥 TODAY (MONDAY) - "SMASH THE ENTIRE THING" (1-2 hours)**
+Goal: Get 90% done - I generate everything, you copy-paste and test
+
+1. **Database Setup (15 mins)**
+   - I give you: Clean seasons table + computed display name function + helper functions + 2011-2025 data
+   - **Simple Engineering Wins**: Computed display names (no sync issues), helper functions (DRY principle)
+   - **No Over-Engineering**: No groups/timezones, no backwards compatibility, no enterprise complexity
+   - **Table Updates**: Add season_id to 6 tables, migrate existing data, update constraints/indexes
+   - **Overlap Prevention**: Database constraint prevents overlapping seasons
+   - **Match Validation**: Helper function to validate matches have active season
+   - Display logic: "2025" for calendar years, "2025/26" for cross-year, "Spring '25" for custom
+   - You: Run SQL, verify it works
+
+2. **Convert SQL Functions (25-35 mins)**
+   - I give you: 10 updated SQL functions (player profile stats stays as-is)
+   - You: Replace files, run a couple tests to verify they work
+
+3. **Frontend Updates (25-35 mins)**
+   - I give you: Updated React components with smart season selectors
+   - **UX Preserved**: Dropdowns still show "2025", "2024", "2023" - users won't notice change
+   - **Season Gap Protection**: Match creation validates active season exists
+   - **Quick Season Creation Modal**: 15-second form for when no active season
+   - **No Backwards Compatibility Needed**: You control everything, just direct migration
+   - You: Replace files, npm run dev, smoke test in browser
+
+4. **Historical Data (15 mins)**
+   - I give you: Bulk insert for 2011-2023 seasons
+   - You: Run SQL, verify data looks right
+
+**🛠️ TUESDAY - "POLISH & EDGE CASES" (1-2 hours)**
+Goal: Fix anything broken, handle edge cases, improve UX
+
+1. **Bug Fixes (30-60 mins)**
+   - You: Test everything thoroughly, report what's broken
+   - I: Generate fixes for any issues
+
+2. **UI Polish (30-60 mins)**
+   - Add basic season management admin UI
+   - Improve any rough edges in the frontend
+   - Make it look good
+
+**🧹 WEDNESDAY - "FINAL VALIDATION" (30-60 mins)**
+Goal: Test worker functions, final checks before Thursday
+
+1. **Worker Testing (30 mins)**
+   - Manually trigger background functions
+   - Verify all stats calculate correctly
+   - Check edge functions work
+
+2. **Final Polish (30 mins)**
+   - Any last tweaks or fixes
+   - Documentation updates
+   - Ready for Thursday worker run
+
+**THURSDAY MORNING - "FINAL VALIDATION"**
+- Let background worker run normally
+- Monitor for any issues
+- Quick fixes if needed
+________________________________________
+🌐 Core Concept (Simplified & Clean)
+•	**Clean Season Model**: id, start_date, half_date, end_date (no name, no is_active - Apple simple)
+•	**Date-Based Current Season**: Current season = where today's date falls between start/end dates
+•	**Overlap Prevention**: Database constraint prevents overlapping seasons
+•	**Computed Display Names**: Function-based, never out of sync, auto-generates "2025", "2025/26", "Spring '75"
+•	**Helper Functions**: get_current_season(), get_season_by_date() - single source of truth
+•	**No Over-Engineering**: No groups, timezones, backwards compatibility, or enterprise complexity
+•	**UX Continuity**: Existing users see identical interface ("2025", "2024", "2023")
+•	**Season Gap Protection**: Matches blocked when no active season (forces quick season creation)
+•	**Quick Season Creation**: 15-second process - just start/end dates, that's it
+•	**Decoupled Billing**: Season creation separate from billing setup (billing comes later)
+•	**Direct Migration**: No backwards compatibility needed - you control everything
+•	New Season defaults:
+o	If previous season exists → default start = previous end + 1 day, same length  
+o	If no previous season → default = current year (Jan–Dec)
+o	Half-date auto-set = midpoint between start & end
+o	Display name computed from date range
+________________________________________
+📊 Stats Model
+•	Worker aggregates stats into 3 ranges:
+o	start_date → half_date (first half).
+o	half_date → end_date (second half).
+o	start_date → end_date (full season).
+•	Legacy compatibility: existing “Full Season” and “Half Season” views keep working — now powered by Season lookups instead of hardcoded dates.
+________________________________________
+💰 Billing Model (planned for later)
+At Season setup, organiser can choose:
+•	Per-match fees (default per game, override per match).
+•	Season fees with tiers (e.g. Gold £100, Silver £60, Casual = per-game).
+•	Both (hybrid: some players on subs, others per-game).
+Schema elements:
+•	SeasonBilling → stores billing mode.
+•	SeasonTiers → defines tiers (name, fee, type, optional caps).
+•	SeasonMemberships → links players to Season/tier (null = casual).
+•	Games.override_fee → allows per-match pricing.
+________________________________________
+🧑‍🤝‍🧑 Player Membership & Tiers
+•	At Season start: organiser sees list of players with tickboxes for tiers.
+•	Tiers are A or B and can have different prices
+•	Unticked = casual (per-match).
+•	Mid-season joins:
+o	Default = casual.
+o	Organiser can promote into a tier any time.
+o	MVP billing = full season fee on promotion (no proration).
+________________________________________
+🔄 Season Lifecycle & Rollover
+•	At Season end:
+o	Games still schedulable.
+o	Stats + billing won’t show until new Season is created.
+o	Prompt organiser: “Create new season?” (pre-filled with defaults from last season).
+•	Manual rollover first (safe).
+•	Later: optional auto-rollover for recurring cycles.
+•	Billing grace period: games can continue, but payments/stats wait until Season exists.
+________________________________________
+🖥️ Admin / UI Structure
+•	Desktop sidebar:
+o	Matches
+o	Players
+o	Setup
+o	Admin (new):
+	Season → set start/end/half, adjust as needed.
+	Payments → view outstanding payments.
+•	Mobile footer (4 options max): replace "Info" with Admin. "Info" becomes desktop-only.
+
+**🆕 NEW ADMIN SCREENS DETAIL:**
+
+**1. Season Management Page (`/admin/seasons`) - Tuesday Priority**
+- **Current Season Card**: Shows which season is active (based on current date)
+- **Season List Table**: All seasons with edit/delete actions
+- **Quick Create Season Form**: Start/end dates, auto-calculated half-date (15-second process)
+- **Overlap Prevention**: No overlapping seasons allowed (database constraint)
+- **Season Gap Warning**: Alert if no current season exists
+
+**2. Enhanced Season Selectors - Monday (Frontend Updates)**
+- **Smart Dropdowns**: Replace hardcoded `yearOptions` arrays
+- **Display Names**: Computed "2025", "2025/26", "Spring '25" 
+- **API Integration**: Fetch from `/api/seasons` endpoint
+
+**3. API Endpoints - Monday (Backend)**
+- `GET /api/seasons` - List all seasons with computed display names
+- `GET /api/seasons/current` - Get current season (based on today's date)
+- `POST /api/seasons` - Create new season (with overlap validation)
+- `PUT /api/seasons/:id` - Update season dates/name
+- `DELETE /api/seasons/:id` - Delete season
+- `POST /api/seasons/validate-match` - Validate match can be created (has active season)
+
+**4. Future Enhancements (Phase 2)**
+- Billing integration
+- Advanced season types (tournaments, etc.)
+________________________________________
+📊 DETAILED COMPONENT IMPACT ANALYSIS
+
+**SQL FUNCTIONS REQUIRING UPDATES (10 files):**
+1. `/sql/update_half_and_full_season_stats.sql` - Core season/half-season logic
+2. `/sql/update_aggregated_season_race_data.sql` - Race graph data with hardcoded June 30th
+3. `/sql/update_aggregated_season_honours_and_records.sql` - Previous season winners
+4. ~~`/sql/update_aggregated_player_profile_stats.sql`~~ - **KEEP AS-IS** (uses calendar years)
+5. `/sql/update_aggregated_personal_bests.sql` - Season-based achievements
+6. `/sql/update_aggregated_match_report_cache.sql` - Season leaders
+7. `/sql/update_aggregated_hall_of_fame.sql` - Season-based hall of fame
+8. `/sql/update_aggregated_all_time_stats.sql` - May include season breakdowns
+9. `/sql/update_aggregated_recent_performance.sql` - Current season context
+10. `/sql/update_power_ratings.sql` - Season-based ratings
+11. `/sql/helpers.sql` - Date helper functions (get_current_half_season_start_date, etc.)
+
+**FRONTEND COMPONENTS REQUIRING UPDATES (4 files):**
+1. `CurrentHalfSeason.component.tsx` - getCurrentHalf() function hardcoded to Jan-Jun/Jul-Dec
+2. ~~`OverallSeasonPerformance.component.tsx`~~ - **KEEP AS-IS** (year selector for calendar years is perfect)
+3. `SeasonRaceGraph.component.tsx` - Hardcoded half-season line at June 30th
+4. `Legends.component.tsx` - Shows "season winners" by calendar year
+5. Table navigation components - Half Season/Whole Season tabs
+6. Various dashboard widgets showing "current season" stats
+
+**PLAYER PROFILE COMPONENTS - NO CHANGES NEEDED:**
+- Player profile stats stay as calendar years (2024, 2023, 2022...)
+- `aggregated_player_profile_stats.yearly_stats` remains unchanged
+- Personal progression by year makes more sense than by season
+- Separation of concerns: Seasons = competition context, Years = personal context
+
+**DATABASE TABLES REQUIRING UPDATES (6 tables):**
+1. `aggregated_season_stats` - Add season_id, migrate from season_start_date/season_end_date
+2. `aggregated_half_season_stats` - Add season_id (currently no season context)
+3. `aggregated_season_race_data` - Replace season_year with season_id
+4. `aggregated_season_honours` - Replace year with season_id
+5. `aggregated_match_report` - Add season_id for season leaders context
+6. `aggregated_match_streaks` - Add season_id for season/half-season stats
+
+**DATABASE TABLES NO CHANGES NEEDED (2 tables):**
+7. ~~`aggregated_personal_bests`~~ - **KEEP AS-IS** (tied to match_id, not seasons)
+8. ~~`aggregated_player_profile_stats`~~ - **KEEP AS-IS** (uses yearly_stats JSONB)
+
+**BACKGROUND WORKER SYSTEM (3 components):**
+1. **Worker Process** (`/worker/src/`) - Processes 10 stats functions in parallel
+2. **Edge Functions** (`/supabase/functions/`) - 10+ functions calling SQL procedures  
+3. **SQL Triggers** (`update_trigger.sql`) - Hardcoded half-season date logic
+
+⚡ PRAGMATIC SOLO-DEV APPROACH
+•	**Risk Level**: LOW - You're the only user, can break things safely
+•	**Rollback Plan**: Simple - rerun old worker manually if needed  
+•	**Testing Strategy**: Smoke test as you go, validate Thursday morning
+•	**Data Safety**: Quick DB backup before starting, but no complex rollback needed
+•	**No Enterprise Complexity**: Skip groups, timezones, backwards compatibility - you're not Google!
+•	**Simple Engineering Wins**: Computed display names, helper functions, clean constraints
+
+🎯 REVISED SUCCESS CRITERIA:
+•	**Monday (1-2 hours)**: 90% complete - seasons table, 10 SQL functions, 4 frontend components, historical data
+•	**Tuesday (1-2 hours)**: Polish, fix bugs, improve UX, add admin features
+•	**Wednesday (30-60 mins)**: Final validation, test worker functions manually
+•	**Thursday**: Worker runs successfully with new system
+
+**SCOPE REDUCTION BENEFITS:**
+•	**Less Risk**: Player profiles + personal bests untouched (major components stay stable)
+•	**Faster**: 8 SQL functions instead of 11, 4 frontend components instead of 6, 6 DB tables instead of 8
+•	**Cleaner Logic**: Clear separation - Seasons for competition, Years for personal stats
+•	**Well-Prepared DB**: Existing date structure maps perfectly to seasons, clean migration path
+
+🛠️ QUICK WINS TO PRIORITIZE:
+1. **Most Visible Impact**: Season race graph (users will notice immediately)
+2. **Most Critical**: Half/full season stats (core functionality)
+3. **Most Complex**: Historical data migration (but can be done in bulk)
+4. **Nice to Have**: Admin UI (can be added later)
+
+________________________________________
+🔑 UPDATED BOTTOM LINE
+•	**SOLO-DEV ADVANTAGE**: Move fast, iterate, fix as you go
+•	**3-DAY SPRINT**: Foundation → Implementation → Validation
+•	**LOW RISK**: Perfect opportunity to refactor without enterprise constraints
+•	One entity: Season = start, half, end.
+•	Stats + billing both run from those 3 dates.
+•	Legacy views work immediately, just driven by Season table.
+•	Admin UX can come later - focus on core functionality first.
+
