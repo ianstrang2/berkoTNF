@@ -5,7 +5,6 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'whole_season';
-    const currentYear = new Date().getFullYear();
     
     // Validate period parameter
     if (!['whole_season', 'current_half'].includes(period)) {
@@ -15,16 +14,34 @@ export async function GET(request: Request) {
       );
     }
     
+    // Get current season to find the correct season_year
+    const currentSeason = await prisma.$queryRaw`
+      SELECT id, start_date, end_date
+      FROM seasons 
+      WHERE CURRENT_DATE BETWEEN start_date AND end_date 
+      LIMIT 1
+    ` as Array<{ id: number; start_date: Date; end_date: Date }>;
+
+    if (currentSeason.length === 0) {
+      console.warn(`No current season found for race data`);
+      return NextResponse.json({
+        success: true,
+        data: { players: [], lastUpdated: null, periodType: period }
+      });
+    }
+
+    const seasonYear = currentSeason[0].start_date.getFullYear();
+    
     const raceData = await prisma.aggregated_season_race_data.findFirst({
       where: { 
-        season_year: currentYear,
+        season_year: seasonYear,
         period_type: period 
       },
       select: { player_data: true, last_updated: true, period_type: true }
     });
 
     if (!raceData) {
-      console.warn(`No season race data found for year ${currentYear}, period ${period}`);
+      console.warn(`No season race data found for year ${seasonYear}, period ${period}`);
       return NextResponse.json({
         success: true,
         data: { players: [], lastUpdated: null, periodType: period }
@@ -49,7 +66,7 @@ export async function GET(request: Request) {
       timestamp: new Date().toISOString(),
       endpoint: '/api/season-race-data',
       method: 'GET',
-      currentYear: new Date().getFullYear()
+      seasonYear: seasonYear
     };
     
     console.error('Season race data API error:', errorDetails);

@@ -14,7 +14,8 @@ interface Runner {
 }
 
 interface SeasonWinner {
-  year: number;
+  season_id: number;
+  season_name: string;
   winners: {
     winner: string;
     winner_points: number;
@@ -27,7 +28,8 @@ interface SeasonWinner {
 }
 
 interface TopScorer {
-  year: number;
+  season_id: number;
+  season_name: string;
   scorers: {
     winner: string;
     winner_goals: number;
@@ -175,7 +177,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
             <tr>
               {/* Sticky Headers */}
               <th className="sticky left-0 z-40 px-2 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-8">
-                Year
+                Season
               </th>
               <th className="sticky left-8 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-10"></th> {/* Icon Placeholder */}
               <th className="sticky left-[4.5rem] z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[120px]">
@@ -192,10 +194,10 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
           </thead>
           <tbody>
             {data.seasonWinners.map((season) => (
-              <tr key={season.year} className="hover:bg-gray-50">
+              <tr key={season.season_id} className="hover:bg-gray-50">
                 {/* Sticky Data */}
                 <td className="sticky left-0 z-20 p-2 text-center align-middle bg-white border-b whitespace-nowrap w-8">
-                  <span className="font-normal leading-normal text-sm">{season.year}</span>
+                  <span className="font-normal leading-normal text-sm">{season.season_name}</span>
                 </td>
                 <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
                   {/* Champion Icon */}
@@ -257,7 +259,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
             <tr>
               {/* Sticky Headers */}
               <th className="sticky left-0 z-40 px-2 py-3 font-bold text-center uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-8">
-                Year
+                Season
               </th>
               <th className="sticky left-8 z-40 px-1 py-3 font-bold uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 w-10"></th> {/* Icon Placeholder */}
               <th className="sticky left-[4.5rem] z-40 px-2 py-3 font-bold uppercase align-middle bg-white border-b border-gray-300 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70 min-w-[120px]">
@@ -274,10 +276,10 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
           </thead>
           <tbody>
             {data.topScorers.map((season) => (
-              <tr key={season.year} className="hover:bg-gray-50">
+              <tr key={season.season_name} className="hover:bg-gray-50">
                 {/* Sticky Data */}
                 <td className="sticky left-0 z-20 p-2 text-center align-middle bg-white border-b whitespace-nowrap w-8">
-                  <span className="font-normal leading-normal text-sm">{season.year}</span>
+                  <span className="font-normal leading-normal text-sm">{season.season_name}</span>
                 </td>
                 <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
                   {/* Top Scorer (Champion) Icon */}

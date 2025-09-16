@@ -5,6 +5,7 @@ import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import FantasyPointsTooltip from '@/components/ui-kit/FantasyPointsTooltip.component';
+import { useSeasonTitles } from '@/hooks/useSeasonTitles.hook';
 import { PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
 
 interface FormData {
@@ -31,6 +32,7 @@ interface CurrentHalfSeasonProps {
 }
 
 const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'points' }) => {
+  const { halfSeasonTitle, loading: seasonLoading } = useSeasonTitles();
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'stats' | 'goals'>(initialView === 'goals' ? 'goals' : 'stats');
   const [stats, setStats] = useState<StatsData>({
@@ -163,7 +165,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <div className="flex items-center">
-          <h5 className="mb-0">{`Points (${getCurrentHalf().half === 1 ? 'Jan to Jun' : 'Jul to Dec'})`}</h5>
+          <h5 className="mb-0">{`Points (${halfSeasonTitle})`}</h5>
           <button
             onClick={() => setIsFantasyPointsTooltipOpen(true)}
             className="ml-2 w-5 h-5 rounded-lg bg-white hover:bg-gray-50 flex items-center justify-center text-slate-600 hover:text-slate-700 transition-all shadow-soft-md hover:shadow-soft-lg hover:scale-102 focus:outline-none"
@@ -292,7 +294,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   const renderGoalStats = () => (
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-        <h5 className="mb-0">{`Goals (${getCurrentHalf().half === 1 ? 'Jan to Jun' : 'Jul to Dec'})`}</h5>
+        <h5 className="mb-0">{`Goals (${halfSeasonTitle})`}</h5>
       </div>
       {/* Container for horizontal scrolling only */}
       <div className="overflow-x-auto">

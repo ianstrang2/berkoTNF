@@ -70,6 +70,7 @@ const NAVIGATION_CONFIG = {
     secondary: {
       matches: { label: 'Matches', tertiary: ['next', 'results'] },
       players: { label: 'Players', tertiary: ['add-edit'] },
+      seasons: { label: 'Seasons' },
       info: { label: 'Info' },
       setup: { label: 'Setup', hasSections: true }
     }

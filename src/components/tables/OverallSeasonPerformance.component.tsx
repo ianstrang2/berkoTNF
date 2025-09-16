@@ -5,6 +5,7 @@ import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import FantasyPointsTooltip from '@/components/ui-kit/FantasyPointsTooltip.component';
+import { getSeasonTitles } from '@/utils/seasonTitles.util';
 import { PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
 
 interface FormData {
@@ -31,6 +32,8 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
     formData: []
   });
   const [selectedYear, setSelectedYear] = useState<number>(2025);
+  const [seasons, setSeasons] = useState<any[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<any | null>(null);
   const yearOptions: number[] = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011];
   const isMounted = useRef(true); // Track component mount state
   // Client-side only rendering for hydration safety
@@ -44,6 +47,34 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
 
   // Fantasy Points Tooltip state
   const [isFantasyPointsTooltipOpen, setIsFantasyPointsTooltipOpen] = useState<boolean>(false);
+
+  // Fetch seasons data
+  useEffect(() => {
+    const fetchSeasons = async () => {
+      try {
+        const response = await fetch('/api/seasons');
+        const data = await response.json();
+        if (data.success && data.data) {
+          setSeasons(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching seasons:', error);
+      }
+    };
+    
+    fetchSeasons();
+  }, []);
+
+  // Update selected season when year or seasons change
+  useEffect(() => {
+    if (seasons.length > 0) {
+      const season = seasons.find(s => {
+        const year = new Date(s.startDate).getFullYear();
+        return year === selectedYear;
+      });
+      setSelectedSeason(season || null);
+    }
+  }, [selectedYear, seasons]);
 
   useEffect(() => {
     // Set isMounted ref to true when component mounts
@@ -382,8 +413,8 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
         <>
           {/* Single table display controlled by tertiary navigation */}
           <div className="w-full px-3">
-            {activeTab === 'stats' && renderTable(stats.seasonStats, `Points (${selectedYear})`, 'points')}
-            {activeTab === 'goals' && renderTable(stats.goalStats, `Goals (${selectedYear})`, 'goals')}
+            {activeTab === 'stats' && renderTable(stats.seasonStats, `Points (${selectedSeason ? getSeasonTitles(selectedSeason.startDate, selectedSeason.halfDate, selectedSeason.endDate).wholeSeasonTitle : selectedYear})`, 'points')}
+            {activeTab === 'goals' && renderTable(stats.goalStats, `Goals (${selectedSeason ? getSeasonTitles(selectedSeason.startDate, selectedSeason.halfDate, selectedSeason.endDate).wholeSeasonTitle : selectedYear})`, 'goals')}
           </div>
         </>
       )}

@@ -41,17 +41,20 @@ BEGIN
     GROUP BY pm.player_id;
     RAISE NOTICE 'Finished calculating half-season stats.';
 
-    RAISE NOTICE 'Calculating full-season stats for all historical years...';
-    -- Loop through all years present in the matches table up to the current year
-    FOR historical_year IN
-        SELECT DISTINCT EXTRACT(YEAR FROM match_date)::INT
-        FROM matches
-        WHERE EXTRACT(YEAR FROM match_date) <= current_year
-        ORDER BY 1 -- Process years chronologically
+    RAISE NOTICE 'Calculating full-season stats for all seasons...';
+    -- Loop through all seasons in the seasons table
+    FOR v_season_start_date IN
+        SELECT start_date
+        FROM seasons
+        ORDER BY start_date -- Process seasons chronologically
     LOOP
-        RAISE NOTICE 'Processing year: %', historical_year;
-        v_season_start_date := MAKE_DATE(historical_year, 1, 1);
-        -- Delete existing stats for this specific year before inserting
+        RAISE NOTICE 'Processing season starting: %', v_season_start_date;
+        
+        -- Get the season record
+        SELECT end_date INTO half_season_end_date
+        FROM seasons WHERE start_date = v_season_start_date;
+        
+        -- Delete existing stats for this specific season before inserting
         DELETE FROM aggregated_season_stats WHERE aggregated_season_stats.season_start_date = v_season_start_date;
 
         INSERT INTO aggregated_season_stats (
@@ -60,7 +63,7 @@ BEGIN
             fantasy_points, points_per_game
         )
         SELECT
-            pm.player_id, v_season_start_date, MAKE_DATE(historical_year, 12, 31) AS season_end_date, COUNT(*),
+            pm.player_id, v_season_start_date, half_season_end_date AS season_end_date, COUNT(*),
             SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END), SUM(CASE WHEN pm.result = 'draw' THEN 1 ELSE 0 END), SUM(CASE WHEN pm.result = 'loss' THEN 1 ELSE 0 END),
             SUM(COALESCE(pm.goals, 0)),
             -- Calculated fields
@@ -74,7 +77,7 @@ BEGIN
         FROM player_matches pm
         JOIN matches m ON pm.match_id = m.match_id
         JOIN players p ON pm.player_id = p.player_id
-        WHERE p.is_ringer = false AND EXTRACT(YEAR FROM m.match_date::date) = historical_year
+        WHERE p.is_ringer = false AND m.match_date BETWEEN v_season_start_date AND half_season_end_date
         GROUP BY pm.player_id;
     END LOOP;
 

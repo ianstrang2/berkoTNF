@@ -73,22 +73,26 @@ BEGIN
     -- Update Honours
     RAISE NOTICE 'Updating aggregated_season_honours...';
     DELETE FROM aggregated_season_honours WHERE TRUE;
-    WITH yearly_stats AS (
-        SELECT p.name, EXTRACT(YEAR FROM m.match_date) as year,
+    WITH season_stats AS (
+        SELECT p.name, s.id as season_id, get_season_display_name(s.start_date, s.end_date) as season_name,
                SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))) as points,
                SUM(COALESCE(pm.goals, 0)) as goals, COUNT(*) as games_played
-        FROM players p JOIN player_matches pm ON p.player_id = pm.player_id JOIN matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = false AND EXTRACT(YEAR FROM m.match_date) < EXTRACT(YEAR FROM CURRENT_DATE) -- Only past years for honours
-        GROUP BY p.name, EXTRACT(YEAR FROM m.match_date)
+        FROM players p 
+        JOIN player_matches pm ON p.player_id = pm.player_id 
+        JOIN matches m ON pm.match_id = m.match_id
+        JOIN seasons s ON m.match_date BETWEEN s.start_date AND s.end_date
+        WHERE p.is_ringer = false AND s.end_date < CURRENT_DATE -- Only past seasons for honours
+        GROUP BY p.name, s.id, s.start_date, s.end_date
         HAVING COUNT(*) >= min_games_for_honours
     ),
-    ranked_points AS ( SELECT name, year, points, RANK() OVER (PARTITION BY year ORDER BY points DESC, name) as points_rank FROM yearly_stats ),
-    ranked_goals AS ( SELECT name, year, goals, RANK() OVER (PARTITION BY year ORDER BY goals DESC, name) as goals_rank FROM yearly_stats )
-    INSERT INTO aggregated_season_honours (year, season_winners, top_scorers)
-    SELECT year::integer,
-           ( SELECT jsonb_build_object('winners', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'points', points)) FILTER (WHERE points_rank = 1), '[]'::jsonb), 'runners_up', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'points', points)) FILTER (WHERE points_rank = 2), '[]'::jsonb), 'third_place', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'points', points)) FILTER (WHERE points_rank = 3), '[]'::jsonb)) FROM ranked_points rp_inner WHERE rp_inner.year = rp_outer.year AND points_rank <= 3 ) as season_winners,
-           ( SELECT jsonb_build_object('winners', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'goals', goals)) FILTER (WHERE goals_rank = 1), '[]'::jsonb), 'runners_up', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'goals', goals)) FILTER (WHERE goals_rank = 2), '[]'::jsonb), 'third_place', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'goals', goals)) FILTER (WHERE goals_rank = 3), '[]'::jsonb)) FROM ranked_goals rg_inner WHERE rg_inner.year = rp_outer.year AND goals_rank <= 3 ) as top_scorers
-    FROM ranked_points rp_outer GROUP BY year;
+    ranked_points AS ( SELECT name, season_id, season_name, points, RANK() OVER (PARTITION BY season_id ORDER BY points DESC, name) as points_rank FROM season_stats ),
+    ranked_goals AS ( SELECT name, season_id, season_name, goals, RANK() OVER (PARTITION BY season_id ORDER BY goals DESC, name) as goals_rank FROM season_stats )
+    INSERT INTO aggregated_season_honours (season_id, season_name, season_winners, top_scorers)
+    SELECT season_id,
+           season_name,
+           ( SELECT jsonb_build_object('winners', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'points', points)) FILTER (WHERE points_rank = 1), '[]'::jsonb), 'runners_up', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'points', points)) FILTER (WHERE points_rank = 2), '[]'::jsonb), 'third_place', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'points', points)) FILTER (WHERE points_rank = 3), '[]'::jsonb)) FROM ranked_points rp_inner WHERE rp_inner.season_id = rp_outer.season_id AND points_rank <= 3 ) as season_winners,
+           ( SELECT jsonb_build_object('winners', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'goals', goals)) FILTER (WHERE goals_rank = 1), '[]'::jsonb), 'runners_up', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'goals', goals)) FILTER (WHERE goals_rank = 2), '[]'::jsonb), 'third_place', COALESCE(jsonb_agg(jsonb_build_object('name', name, 'goals', goals)) FILTER (WHERE goals_rank = 3), '[]'::jsonb)) FROM ranked_goals rg_inner WHERE rg_inner.season_id = rp_outer.season_id AND goals_rank <= 3 ) as top_scorers
+    FROM ranked_points rp_outer GROUP BY season_id, season_name;
     RAISE NOTICE 'Finished aggregated_season_honours.';
 
     -- Update Records

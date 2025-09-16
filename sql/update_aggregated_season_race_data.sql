@@ -3,15 +3,24 @@
 CREATE OR REPLACE FUNCTION update_aggregated_season_race_data()
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
-    current_year INT := EXTRACT(YEAR FROM CURRENT_DATE);
-    is_first_half BOOLEAN := CURRENT_DATE <= DATE(current_year || '-06-30');
+    current_season_record RECORD;
+    is_first_half BOOLEAN;
     inserted_count INT := 0;
 BEGIN
-    RAISE NOTICE 'Starting update_aggregated_season_race_data for year %...', current_year;
-    RAISE NOTICE 'Current date: %, First half: %', CURRENT_DATE, is_first_half;
+    -- Get current season
+    SELECT * INTO current_season_record FROM get_current_season();
+    
+    IF current_season_record.id IS NULL THEN
+        RAISE EXCEPTION 'No current season found. Please create a season that includes today''s date.';
+    END IF;
+    
+    is_first_half := CURRENT_DATE <= current_season_record.half_date;
+    
+    RAISE NOTICE 'Starting update_aggregated_season_race_data for season %...', current_season_record.id;
+    RAISE NOTICE 'Current date: %, First half: %, Half date: %', CURRENT_DATE, is_first_half, current_season_record.half_date;
 
-    -- Delete existing data for current year
-    DELETE FROM aggregated_season_race_data WHERE season_year = current_year;
+    -- Delete existing data for current season
+    DELETE FROM aggregated_season_race_data WHERE season_year = EXTRACT(YEAR FROM current_season_record.start_date)::int;
 
     -- Calculate race data for both periods
     WITH all_season_matches AS (
@@ -25,7 +34,7 @@ BEGIN
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id  
         JOIN players p ON pm.player_id = p.player_id
-        WHERE EXTRACT(YEAR FROM m.match_date) = current_year
+        WHERE m.match_date BETWEEN current_season_record.start_date AND current_season_record.end_date
           AND p.is_ringer = false
         ORDER BY m.match_date, m.match_id
     ),
@@ -39,8 +48,8 @@ BEGIN
     current_half_totals AS (
         SELECT player_id, name, SUM(fantasy_points) as total_points
         FROM all_season_matches
-        WHERE (is_first_half AND match_date <= DATE(current_year || '-06-30')) 
-           OR (NOT is_first_half AND match_date > DATE(current_year || '-06-30'))
+        WHERE (is_first_half AND match_date <= current_season_record.half_date) 
+           OR (NOT is_first_half AND match_date > current_season_record.half_date)
         GROUP BY player_id, name
     ),
     -- Top 5 players for whole season
@@ -66,7 +75,7 @@ BEGIN
         SELECT
             player_id,
             name,
-            DATE(current_year || '-01-01') AS match_date,
+            current_season_record.start_date AS match_date,
             0 AS cumulative_points
         FROM top_5_whole_season
     ),
@@ -76,8 +85,8 @@ BEGIN
             player_id,
             name,
             CASE 
-                WHEN is_first_half THEN DATE(current_year || '-01-01')
-                ELSE DATE(current_year || '-07-01')
+                WHEN is_first_half THEN current_season_record.start_date
+                ELSE (current_season_record.half_date + INTERVAL '1 day')::DATE
             END AS match_date,
             0 AS cumulative_points
         FROM top_5_current_half
@@ -109,8 +118,8 @@ BEGIN
             ) as cumulative_points
         FROM top_5_current_half t5
         JOIN all_season_matches asm ON t5.player_id = asm.player_id
-        WHERE (is_first_half AND asm.match_date <= DATE(current_year || '-06-30')) 
-           OR (NOT is_first_half AND asm.match_date > DATE(current_year || '-06-30'))
+        WHERE (is_first_half AND asm.match_date <= current_season_record.half_date) 
+           OR (NOT is_first_half AND asm.match_date > current_season_record.half_date)
     ),
     -- Combine whole season match data with zero starting points
     whole_season_combined AS (
@@ -155,7 +164,7 @@ BEGIN
     -- Aggregate whole season data
     whole_season_final AS (
         SELECT 
-            current_year as season_year,
+            current_season_record.id as season_id,
             'whole_season' as period_type,
             jsonb_agg(
                 jsonb_build_object(
@@ -169,7 +178,7 @@ BEGIN
     -- Aggregate current half season data
     current_half_final AS (
         SELECT 
-            current_year as season_year,
+            current_season_record.id as season_id,
             'current_half' as period_type,
             jsonb_agg(
                 jsonb_build_object(
@@ -183,14 +192,14 @@ BEGIN
     
     -- Insert both period types
     INSERT INTO aggregated_season_race_data (season_year, period_type, player_data, last_updated)
-    SELECT season_year, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
+    SELECT EXTRACT(YEAR FROM current_season_record.start_date)::int, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
     FROM whole_season_final
     UNION ALL
-    SELECT season_year, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
+    SELECT EXTRACT(YEAR FROM current_season_record.start_date)::int, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
     FROM current_half_final;
 
     GET DIAGNOSTICS inserted_count = ROW_COUNT;
-    RAISE NOTICE 'Inserted % race data records for year %', inserted_count, current_year;
+    RAISE NOTICE 'Inserted % race data records for season %', inserted_count, current_season_record.id;
 
     -- Update cache metadata
     INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)

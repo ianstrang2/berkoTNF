@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 import { format, addWeeks, startOfWeek } from 'date-fns';
+import { useSeasonTitles } from '@/hooks/useSeasonTitles.hook';
 
 interface PlayerRaceData {
   player_id: number;
@@ -48,6 +49,7 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
   period = 'whole_season',
   showHalfSeasonLine = true 
 }) => {
+  const { halfSeasonTitle, wholeSeasonTitle } = useSeasonTitles();
   const [data, setData] = useState<SeasonRaceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -308,8 +310,8 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
         <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
           <h5 className="mb-0">
             {period === 'current_half' 
-              ? `Top 5 Race (${new Date() <= new Date(new Date().getFullYear(), 5, 30) ? 'Jan - Jun' : 'Jul - Dec'})`
-              : `Top 5 Race (${new Date().getFullYear()})`
+              ? `Top 5 Race (${halfSeasonTitle})`
+              : `Top 5 Race (${wholeSeasonTitle})`
             }
           </h5>
         </div>

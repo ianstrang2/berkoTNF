@@ -43,27 +43,32 @@ $$;
 
 -- Add other potential helper functions below, e.g., for calculating season dates
 
--- Function to get current season start date
+-- Function to get current season start date (uses seasons table)
 CREATE OR REPLACE FUNCTION get_current_season_start_date()
-RETURNS DATE LANGUAGE sql IMMUTABLE AS $$
-    SELECT MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int, 1, 1);
+RETURNS DATE LANGUAGE sql STABLE AS $$
+    SELECT COALESCE(
+        (SELECT start_date FROM seasons WHERE CURRENT_DATE BETWEEN start_date AND end_date LIMIT 1),
+        MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int, 1, 1) -- Fallback to calendar year
+    );
 $$;
 
--- Function to get current half-season start date
+-- Function to get current half-season start date (uses seasons table)
 CREATE OR REPLACE FUNCTION get_current_half_season_start_date()
 RETURNS DATE LANGUAGE sql STABLE AS $$
     SELECT CASE
-        WHEN EXTRACT(MONTH FROM CURRENT_DATE) <= 6 THEN MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int, 1, 1)
-        ELSE MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int, 7, 1)
+        WHEN CURRENT_DATE <= (SELECT half_date FROM seasons WHERE CURRENT_DATE BETWEEN start_date AND end_date LIMIT 1) 
+        THEN (SELECT start_date FROM seasons WHERE CURRENT_DATE BETWEEN start_date AND end_date LIMIT 1)
+        ELSE (SELECT half_date + INTERVAL '1 day' FROM seasons WHERE CURRENT_DATE BETWEEN start_date AND end_date LIMIT 1)::DATE
     END;
 $$;
 
--- Function to get current half-season end date
+-- Function to get current half-season end date (uses seasons table)
 CREATE OR REPLACE FUNCTION get_current_half_season_end_date()
 RETURNS DATE LANGUAGE sql STABLE AS $$
     SELECT CASE
-        WHEN EXTRACT(MONTH FROM CURRENT_DATE) <= 6 THEN MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int, 6, 30)
-        ELSE MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int, 12, 31)
+        WHEN CURRENT_DATE <= (SELECT half_date FROM seasons WHERE CURRENT_DATE BETWEEN start_date AND end_date LIMIT 1)
+        THEN (SELECT half_date FROM seasons WHERE CURRENT_DATE BETWEEN start_date AND end_date LIMIT 1)
+        ELSE (SELECT end_date FROM seasons WHERE CURRENT_DATE BETWEEN start_date AND end_date LIMIT 1)
     END;
 $$;
 

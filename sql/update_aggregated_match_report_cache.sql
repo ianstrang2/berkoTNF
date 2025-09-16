@@ -309,9 +309,9 @@ BEGIN
             name,
             SUM(COALESCE(goals, 0)) as total_goals,
             SUM(COALESCE(calculated_fantasy_points, 0)) as fantasy_points
-        FROM match_stats_with_points
-        WHERE match_date::date >= DATE_TRUNC('year', target_date)::date
-        AND match_date::date <= target_date::date
+        FROM match_stats_with_points mswp
+        WHERE mswp.match_date::date BETWEEN (SELECT start_date FROM seasons WHERE target_date BETWEEN start_date AND end_date LIMIT 1) 
+        AND target_date::date
         GROUP BY name
     ),
     previous_season_stats AS (
@@ -319,9 +319,9 @@ BEGIN
             name,
             SUM(COALESCE(goals, 0)) as total_goals,
             SUM(COALESCE(calculated_fantasy_points, 0)) as fantasy_points
-        FROM match_stats_with_points
-        WHERE match_date::date >= DATE_TRUNC('year', target_date)::date
-        AND match_date::date < target_date::date
+        FROM match_stats_with_points mswp
+        WHERE mswp.match_date::date BETWEEN (SELECT start_date FROM seasons WHERE target_date BETWEEN start_date AND end_date LIMIT 1)
+        AND (target_date::date - INTERVAL '1 day')
         GROUP BY name
     ),
     current_half_season_stats AS (

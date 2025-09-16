@@ -13,10 +13,11 @@ const getHonourRollData = unstable_cache(
   async () => {
     console.log('Fetching fresh honour roll data from DB.');
     
-    const seasonHonours: { year: number; season_winners: any; top_scorers: any; }[] = await prisma.$queryRaw`
-      SELECT year, season_winners, top_scorers 
+    const seasonHonours: { season_id: number; season_name: string; season_winners: any; top_scorers: any; }[] = await prisma.$queryRaw`
+      SELECT season_id, season_name, season_winners, top_scorers 
       FROM aggregated_season_honours
-      ORDER BY year DESC`;
+      WHERE season_id IS NOT NULL AND season_name IS NOT NULL
+      ORDER BY season_id DESC`;
 
     const records: { records: any; }[] = await prisma.$queryRaw`
       SELECT records FROM aggregated_records
@@ -63,7 +64,8 @@ const getHonourRollData = unstable_cache(
       const allRunnersUp = [...runnersUp, ...thirdPlace];
       
       return {
-        year: row.year,
+        season_id: row.season_id,
+        season_name: row.season_name,
         winners: {
           winner: winners.length > 0 ? winners[0].name : "",
           winner_points: winners.length > 0 ? winners[0].points : 0,
@@ -84,7 +86,8 @@ const getHonourRollData = unstable_cache(
       const allRunnersUp = [...runnersUp, ...thirdPlace];
 
       return {
-        year: row.year,
+        season_id: row.season_id,
+        season_name: row.season_name,
         scorers: {
           winner: winners.length > 0 ? winners[0].name : "",
           winner_goals: winners.length > 0 ? winners[0].goals : 0,
