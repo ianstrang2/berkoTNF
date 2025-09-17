@@ -1,6 +1,6 @@
 BerkoTNF RSVP & Player Invitation System — Complete Implementation Specification
 
-Version 3.1.2 • Codebase-Aligned Implementation Plan
+Version 3.1.5 • Final Production-Ready Implementation Plan
 
 **UPDATED FOR ACTUAL CODEBASE ARCHITECTURE**
 
@@ -40,7 +40,10 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 - Shows match details, current status, and RSVP buttons.
 - Works perfectly on mobile and desktop browsers.
 
-**On the berkotnf.com/upcoming page,** they can IN, OUT, or Join Waitlist if full.
+**On the berkotnf.com/upcoming page,** they can:
+- **IN** - Confirm attendance
+- **OUT** - Can't make it (with subtle "OUT (can sub late)" option underneath)
+- **Join Waitlist** - if match is full
 
 **If they're waitlisted and a spot opens:**
 - The system sends a push to the top 3 waitlisted players.
@@ -66,11 +69,11 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 
 **If someone drops OUT,** there is a dynamic grace period (5min normally, 2min if <24h, 1min if <3h to kick-off) so they can change their mind.
 
-**After grace,** the system checks capacity; if a spot is free it offers to the top 3 waitlisted (by position).
+**After grace,** the system checks capacity; if a spot is free it offers to the top 3 waitlisted (by queue order).
 
 **Offers have a time limit (TTL):**
 - **Dynamic TTL:** 4h normally, 1h if <24h to kick-off, 30min if <3h to kick-off
-- **TTL never runs past kick-off;** minimum hold 30min
+- **TTL never runs past kick-off;** minimum hold 5min; when <15m to kick-off → instant claim (no hold)
 - **Auto-cascade:** When offers expire, automatically offer to next top-3 players
 - **First to claim gets in;** the rest see "spot filled" and remain on the waitlist
 
@@ -80,34 +83,51 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 - **Waitlist offer push** (top 3 with TTL).
 - **Last-call push** if still short before kick-off:
   - **Enhanced system:** T-12h and T-3h messages (targeted to unresponded and "OUT but flexible").
-  - **Quiet hours guard:** delays 22:00-07:00 notifications to 08:00.
-  - **Early morning matches:** shifts to T-9h/T-2h to avoid 3am notifications.
+  - **No quiet hours:** All notifications send immediately when scheduled.
 - **Cancellation push** to all booked + waitlist.
-- **Spam guard:** max 3 dropout/last-call pushes per player per match. Tier-open and waitlist_offer pushes are uncapped (still deduped/batched); inside 24h events are batched (10-minute window).
-- **Quiet hours:** use the match's local timezone; all scheduling computed server-side in UTC.
+- **Spam guard:** max 3 dropout/last-call pushes per player per match. Tier-open and waitlist_offer pushes are uncapped (still deduped/batched).
+- **6h last-call cooldown:** Players who received last-call in past 6h are excluded from subsequent last-call messages.
 
 ### **6) What the admin sees in Match Control Centre**
 
 **A Booking panel (when enabled) with:**
-- **Invite mode toggle:** "All at once" | "Tiered" 
-- **Tiered mode controls:** Priority/Everyone windows (simple) or A/B/Casual (advanced)
-- Copy/Share link buttons and editable share text
-- Counters (Booked n/m, Waitlist k)
-- Lists: Pending / IN / OUT / WAITLIST, with tier badges
-- **Waitlist section:** Active offers + countdown + Offer log + "Reissue offers now" button
-- **Dropout controls:** "Process dropout now" for manual grace override
-- Activity Feed ("X confirmed (7/10)", "Top-3 waitlist notified", etc.)
-- "Send last-call now" button (manual override)
+
+**Top row (always visible):**
+- Enable RSVP toggle • Copy link button • "Booked 15/20" • "Waitlist 3"
+
+**Main controls:**
+- **Invite mode:** "All at once" (default) | "Tiered"
+- **Tiered controls:** Priority/Everyone windows + "Show advanced (A/B/C)" expander
+- Player lists: IN / OUT / WAITLIST / PENDING with ringer badges
+
+**Advanced sections (collapsible):**
+- **Waitlist management:** Active offers + countdown + Offer log + "Reissue offers now"
+- **Manual overrides:** "Process dropout now" | "Send last-call now"
+- **WhatsApp templates:** Pre-filled messages for manual sharing (tier-open, last-call, waitlist offers)
+- **Ringer controls:** "Include ringers in invites" | "Allow ringer self-booking"  
+- **Activity feed:** Real-time RSVP events and admin actions
 
 **The Lock/Balance/Complete steps behave exactly as today.**
 
-### **7) Billing (deferred to future release)**
+### **7) Ringers (guests/one-off players)**
 
-**Billing is completely out of scope** for v3.1 to keep the release lean and focused.
+**Ringers = one-off players** the admin adds manually (don't appear in season stats; same as today).
 
-**No billing fields, UI, or logic** are included in this implementation.
+**By default, ringers do not receive automatic invites** - admin keeps control over who gets notified.
 
-**Future billing implementation** is covered in the existing `Billing_Plan.md` specification.
+**Two simple toggles** (off by default) if admin wants ringers to participate more:
+- "Include ringers in invites" - they get tier-open and last-call notifications
+- "Allow ringer self-booking" - they can use the public booking link
+
+**If a ringer becomes a regular,** admin flips `is_ringer=false` - no duplicate profiles, no data loss.
+
+**Phone-based identity:** One phone number = one player record (prevents duplicates).
+
+**Auto-created ringer profiles** (when unknown phone books):
+- **Name**: User-provided (required, max 14 characters, must be globally unique)
+- **Phone**: Normalized E.164 format
+- **Profile**: `is_ringer=true`, all ratings=3, tier=null, club=null
+- **Validation**: Same rules as admin player creation (14-char limit, unique name check)
 
 ---
 
@@ -164,7 +184,7 @@ Clean RSVP-only implementation without billing complexity.
 
 One link for everything: deep-links to app or falls back to web landing.
 
-Capacity management: If admin lowers capacity below current IN, the last IN by timestamp moves to WAITLIST (FIFO), with a push explaining the change.
+Capacity management: If admin lowers capacity below current IN, the last IN by timestamp moves to WAITLIST (FIFO), with activity log entry and push notification. Outstanding waitlist offers are auto-expired/superseded when capacity drops to full.
 
 2) Modes (per match)
 
@@ -185,12 +205,56 @@ Optional tier open times (A→B→Casual). Admin can still add players manually 
 
 **REQUIRED ADDITIONS:**
 
-3.1 Players (Add Tier System)
+3.1 Players (Add Phone & Tier System)
 ```sql
+-- Add phone field for RSVP identity (international E.164 format)
 ALTER TABLE players
+  ADD COLUMN phone TEXT UNIQUE,
   ADD COLUMN tier TEXT CHECK (tier IN ('A','B')) NULL; -- NULL = casual
+
+-- Indexes for RSVP lookups
+CREATE INDEX IF NOT EXISTS idx_players_phone ON players(phone);
 CREATE INDEX IF NOT EXISTS idx_players_tier ON players(tier);
+CREATE INDEX IF NOT EXISTS idx_players_ringer ON players(is_ringer);
+
+-- Phone validation constraint (E.164 international format)
+ALTER TABLE players
+  ADD CONSTRAINT valid_e164_phone 
+  CHECK (phone IS NULL OR phone ~ '^\+[1-9]\d{7,14}$');
 ```
+
+**Phone Normalization:** All phone input must be normalized to E.164 format before storage to prevent duplicates
+
+**Normalization Examples:**
+- `07123456789` → `+447123456789` (UK mobile)
+- `+44 7123 456789` → `+447123456789` (remove spaces)
+- `+1 555 123 4567` → `+15551234567` (US number)
+
+**Implementation:**
+```typescript
+// src/utils/phone.util.ts
+export function normalizeToE164(phone: string, defaultCountry: string = 'GB'): string {
+  // Remove all non-digit characters except +
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  
+  // If starts with +, validate E.164 format
+  if (cleaned.startsWith('+')) {
+    return cleaned;
+  }
+  
+  // UK-specific normalization (07... → +447...)
+  if (defaultCountry === 'GB' && cleaned.startsWith('07')) {
+    return '+44' + cleaned.substring(1);
+  }
+  
+  // Add default country code if needed
+  // (Add other country logic as needed for SaaS expansion)
+  
+  return cleaned;
+}
+```
+
+**Note:** `is_ringer` field already exists - will be used for guest/one-off players
 
 3.2 Upcoming Matches (Add RSVP Features)
 ```sql
@@ -199,7 +263,9 @@ ALTER TABLE upcoming_matches
   ADD COLUMN invite_token TEXT,                           -- secure token for the public link
   ADD COLUMN a_open_at TIMESTAMPTZ NULL,
   ADD COLUMN b_open_at TIMESTAMPTZ NULL,
-  ADD COLUMN casual_open_at TIMESTAMPTZ NULL;
+  ADD COLUMN casual_open_at TIMESTAMPTZ NULL,
+  ADD COLUMN block_unknown_players BOOLEAN NOT NULL DEFAULT FALSE, -- per-match unknown player control
+  ADD COLUMN match_timezone TEXT NOT NULL DEFAULT 'Europe/London';  -- for display only (not used for scheduling)
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_upcoming_matches_invite_token
   ON upcoming_matches(invite_token);
@@ -252,6 +318,11 @@ CREATE INDEX IF NOT EXISTS idx_mpp_match_offer_exp
 CREATE INDEX IF NOT EXISTS idx_mpp_waitlist_active
   ON match_player_pool (upcoming_match_id, waitlist_position)
   WHERE response_status='WAITLIST' AND offer_expires_at IS NULL;
+
+-- Waitlist position integrity (prevents duplicate positions)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_mpp_waitpos_per_match
+  ON match_player_pool (upcoming_match_id, waitlist_position)
+  WHERE response_status = 'WAITLIST' AND waitlist_position IS NOT NULL;
 
 -- Integrity constraint for offer expiry
 ALTER TABLE match_player_pool
@@ -319,42 +390,137 @@ INSERT INTO app_config(config_key, config_value, config_description, config_grou
 ('tiered_invites_default', 'false', 'Default new matches to Tiered invites', 'rsvp'),
 ('tier_b_offset_hours', '0', 'Default Tier B opens +X hours after Tier A', 'rsvp'),
 ('tier_c_offset_hours', '0', 'Default Tier C opens +Y hours after Tier A', 'rsvp'),
-('advanced_tiers', 'false', 'Expose A/B/C instead of Priority/Everyone', 'rsvp')
+('advanced_tiers', 'false', 'Expose A/B/C instead of Priority/Everyone', 'rsvp'),
+-- Ringer/guest system configuration
+('enable_ringer_self_book', 'false', 'Allow ringers to self-book via public link', 'rsvp'),
+('include_ringers_in_invites', 'false', 'Include ringers in tier-open and last-call notifications', 'rsvp'),
+-- Performance and security
+('rsvp_burst_guard_enabled', 'false', 'Enable write-burst protection for leaked links', 'rsvp')
 ON CONFLICT (config_key) DO NOTHING;
 
 -- Note: enable_match_billing flag deferred to existing billing specification (Billing_Plan.md)
 ```
 
-**Helper Functions for Feature Flags:**
+**Feature Flag System (Hybrid: Environment Overrides Database):**
 ```typescript
-// src/lib/feature-flags.ts
-export const getFlag = async (key: string): Promise<boolean> => {
-  const row = await prisma.app_config.findUnique({ where: { config_key: key } });
+// src/lib/flags.ts
+import { prisma } from '@/lib/prisma';
+
+const envBool = (k: string) => (process.env[k] ?? '').trim().toLowerCase() === 'true';
+
+export async function getFlag(key: string, envKey?: string): Promise<boolean> {
+  if (envKey && process.env[envKey] !== undefined) return envBool(envKey);
+  const row = await prisma.app_config.findUnique({ where: { config_key: key }});
   return (row?.config_value ?? '').toString().trim().toLowerCase() === 'true';
+}
+
+export async function getNumberFlag(key: string, envKey?: string): Promise<number> {
+  if (envKey && process.env[envKey] !== undefined) return parseInt(process.env[envKey]!, 10) || 0;
+  const row = await prisma.app_config.findUnique({ where: { config_key: key }});
+  return parseInt((row?.config_value ?? '0').toString(), 10) || 0;
+}
+
+// Usage examples:
+// await getFlag('enable_push_notifications', 'ENABLE_NATIVE_PUSH')
+// await getFlag('rsvp_burst_guard_enabled', 'RSVP_BURST_GUARD')
+```
+
+4) Implementation Patterns (Match Existing Codebase)
+
+4.1 API Response Format (Consistent with Existing)
+```typescript
+// src/lib/api.ts
+export type ApiOk<T> = { success: true; data: T };
+export type ApiErr = { success: false; error: string; code?: string };
+export const ok = <T>(data: T): ApiOk<T> => ({ success: true, data });
+export const fail = (error: string, code?: string): ApiErr => ({ success: false, error, code });
+```
+
+4.2 PostgreSQL Error Mapping (Match Existing Patterns)
+```typescript
+// src/lib/pg-errors.ts
+export function httpFromPg(e: any): { status: number; message: string } {
+  const code = e?.code as string|undefined;
+  if (code === '23505') return { status: 409, message: 'Conflict' };          // unique
+  if (code === '23503') return { status: 400, message: 'Invalid reference' }; // FK
+  if (code === '23514') return { status: 400, message: 'Invalid value' };     // CHECK
+  if (code?.startsWith('23')) return { status: 409, message: 'Conflict' };
+  return { status: 500, message: 'Internal error' };
+}
+```
+
+4.3 Cache Integration (Extend Existing CACHE_TAGS)
+```typescript
+// src/lib/cache/constants.ts - ADD TO EXISTING
+export const CACHE_TAGS = {
+  // ... existing tags
+  RSVP_MATCH: (mid: number) => `RSVP_MATCH:${mid}`,
+  PLAYER_POOL: (mid: number) => `PLAYER_POOL:${mid}`,
 };
 
-export const getNumber = async (key: string): Promise<number> => {
-  const row = await prisma.app_config.findUnique({ where: { config_key: key } });
-  return parseInt((row?.config_value ?? '0').toString()) || 0;
+// src/lib/cache.ts
+import { revalidateTag } from 'next/cache';
+export async function revalidateRsvp(matchId: number) {
+  await Promise.allSettled([
+    revalidateTag(CACHE_TAGS.UPCOMING_MATCH),
+    revalidateTag(CACHE_TAGS.RSVP_MATCH(matchId)),
+    revalidateTag(CACHE_TAGS.PLAYER_POOL(matchId)),
+  ]);
+}
+```
+
+4.4 Transaction Patterns (Match Existing)
+```typescript
+// src/lib/rsvp-lock.ts
+import { prisma } from '@/lib/prisma';
+
+export async function withMatchLock<T>(matchId: number, fn: (tx: typeof prisma) => Promise<T>) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock($1)', matchId);
+    return fn(tx);
+  });
+}
+```
+
+4.5 Notification Interface (Stub for Push)
+```typescript
+// src/lib/notifier.ts
+export type PushKind = 'invite'|'waitlist_offer'|'last_call'|'cancellation';
+export interface Notifier { 
+  send(kind: PushKind, playerIds: number[], payload: any): Promise<void>; 
+}
+
+export const DevNotifier: Notifier = {
+  async send(kind, playerIds, payload) {
+    console.log('[DEV_PUSH]', kind, playerIds, payload);
+    // Write to notification_ledger for cooldown tracking
+  }
 };
 ```
 
-4) Access & Security
-4.1 One Smart Link (deep-links)
+```typescript
+// src/middleware/rate.ts
+const buckets = new Map<string, { n: number; t: number }>();
+
+export function burstGuard(key: string, limit = 50, windowMs = 10_000) {
+  const now = Date.now();
+  const b = buckets.get(key) ?? { n: 0, t: now };
+  if (now - b.t > windowMs) { b.n = 0; b.t = now; }
+  b.n++; buckets.set(key, b);
+  return b.n <= limit;
+}
+```
+
+4.7 One Smart Link & Security
 
 URL: https://berkotnf.com/upcoming/match/:id?token=...
 
-Universal Links (iOS) / App Links (Android): if the app is installed, the link opens the match in the app; otherwise, it opens the web landing.
-
 **Invite Token Security:** `invite_token` is a 32+ byte URL-safe random value; store hash of token server-side; compare on request. Rotate on demand; auto-expire after match date.
 
-4.2 Rate Limits & Abuse
-
-Respond endpoint: 10/min per IP + per device + per playerId per match.
-
-Magic links for one-tap actions carry short-lived signed tokens.
-
-Waitlist claim requires an active, unexpired offer.
+**Rate Limits:**
+- Standard: 10/min per IP + per device + per playerId per match
+- Burst protection: 50 writes/10s per match (feature-flagged)
+- Block unknown players: Per-match toggle for closed sessions
 
 4.3 RLS (Supabase or equivalent)
 
@@ -385,14 +551,12 @@ Public web: only booking flow via token; server performs writes.
 {
   "inviteMode": "all" | "tiered",
   "tierWindows": {
-    "priority_open_at": "2024-01-15T10:00:00Z",  // Simple mode
-    "everyone_open_at": "2024-01-15T12:00:00Z",  // Simple mode
-    // OR (if advanced_tiers=true)
-    "a_open_at": "2024-01-15T10:00:00Z",
-    "b_open_at": "2024-01-15T12:00:00Z", 
-    "casual_open_at": "2024-01-15T14:00:00Z"
+    "a_open_at": "2024-01-15T10:00:00Z",      // Priority (simple) or Tier A (advanced)
+    "b_open_at": "2024-01-15T12:00:00Z",      // Everyone (simple) or Tier B (advanced)
+    "casual_open_at": "2024-01-15T14:00:00Z"  // Only used in advanced mode
   }
 }
+// Note: Simple mode maps Priority→a_open_at, Everyone→b_open_at
 // API enforces monotonicity (A ≤ B ≤ C), past time clamping, kick-off limits
 
 // POST /api/admin/invites/[matchId]/send
@@ -408,6 +572,10 @@ Public web: only booking flow via token; server performs writes.
 // POST /api/admin/dropout/process-now  
 { "matchId": 123, "playerId": 456 }
 // Skip remaining grace period, finalize dropout, trigger offers
+
+// NEW: Regenerate invite link (token rotation)
+// POST /api/admin/upcoming-matches/[id]/rotate-invite-token
+// Generates new 32+ byte token, invalidates old, logs activity
 ```
 
 5.2 Public Booking Interface
@@ -425,13 +593,30 @@ Public web: only booking flow via token; server performs writes.
   "token": "secure_token", 
   "phone": "+447...", 
   "action": "IN" | "OUT" | "WAITLIST",
-  "source": "app" | "web"
+  "source": "app" | "web",
+  "outFlexible": true // optional, for "OUT (can sub late)"
 }
-// Implementation: Use transaction with SELECT ... FOR UPDATE to prevent race conditions
+// Implementation: 
+// - Phone normalization to E.164, check unique constraint violations
+// - Unknown player logic: 
+//   - If block_unknown_players=true → reject with "not registered" message
+//   - If false + enable_ringer_self_book=false → reject with ringer message  
+//   - If false + enable_ringer_self_book=true → auto-create as ringer
+// - Ringer access control: block if is_ringer=true and enable_ringer_self_book=false
+// - Burst protection: 50 writes/10s per matchId if rsvp_burst_guard_enabled=true
+// - Idempotent on (matchId, playerId) - ignores duplicates/no-ops, returns current state
+// - Use transaction with SELECT ... FOR UPDATE to prevent race conditions
+// - Atomic waitlist position assignment: ORDER BY waitlist_position ASC (pure FIFO queue)
 
 // POST /api/booking/waitlist/claim
-// Claim waitlist offer
+// Claim waitlist offer (with re-validation)
 { "matchId": 123, "token": "abc", "phone": "+447..." }
+// Implementation: prisma.$transaction with pg_advisory_xact_lock(matchId) to serialize mutations
+
+// GET /api/booking/match/[id]/live  
+// Live match status updates (15s polling for non-push users)
+// Returns: capacity, user status, active offer (with expiresAt), spots remaining
+// Headers: Cache-Control: no-store
 ```
 
 5.3 Background Job Integration
@@ -499,8 +684,6 @@ Batching windows:
 
 Use notification_ledger.batch_key to coalesce events.
 
-Quiet hours use the match's local timezone; all scheduling computed server-side in UTC.
-
 6.3 Grace Period
 
 5 minutes post-dropout before offers fan-out. Cancel if player returns to IN.
@@ -509,7 +692,7 @@ Quiet hours use the match's local timezone; all scheduling computed server-side 
 
 Visible by default (admin toggleable).
 
-Top-3 offers with dynamic TTL (4h normally, 1h if <24h to kick-off, 30min if <3h to kick-off), clamped to kickoff−15m, minimum TTL 30min.
+Top-3 offers with dynamic TTL (4h normally, 1h if <24h to kick-off, 30min if <3h to kick-off), clamped to kickoff−15m, minimum TTL 5min; when <15m to kick-off → instant claim (no hold).
 
 First to claim wins (transactionally enforced).
 
@@ -517,7 +700,21 @@ Others get "spot filled"; remain on waitlist.
 
 **Offer Log**: Admin can see offer history (issued time, Claimed/Expired/Superseded status) via notification_ledger data.
 
+**Offer Log Semantics:**
+- **Claimed**: Player moved WAITLIST → IN before offer_expires_at
+- **Expired**: No transition by offer_expires_at deadline
+- **Superseded**: Later offer batch issued before this offer was claimed
+
 **Manual Controls**: "Reissue offers now" button for immediate waitlist processing.
+
+**Edge Case Behaviors:**
+- **Capacity increase**: Auto-promote earliest bumped WAITLIST players by queue order with notification
+- **Near kick-off offers**: Auto-expire all offers at kick-off−15m with "No more offers after..." countdown
+- **Manual admin add**: Consumes capacity and supersedes outstanding offers (logged in activity feed)
+- **Instant claim mode**: When <15min to kick-off, switch to instant claim (no hold period)
+- Public page banner: "Instant claim only (less than 15m to kick-off)"
+- Push copy: "Spot open now. First to tap gets it."
+- UI: Hide timers, claim proceeds immediately
 
 8) UI/UX Implementation (BerkoTNF Design System)
 
@@ -625,6 +822,7 @@ export const RSVP_JOB_TYPES = {
 ```typescript
 // tier_open_notifications
 // - Triggered by cron at tier open times (a_open_at, b_open_at, casual_open_at)
+// - Target players: is_ringer=false (+ ringers if include_ringers_in_invites=true)
 // - Send push notifications to eligible players in that tier
 // - Mark as invited in match_player_pool
 // - Create notification_ledger entries
@@ -646,12 +844,15 @@ export const RSVP_JOB_TYPES = {
 
 // notification_batcher
 // - Adaptive last-call system:
+//   - Target players: is_ringer=false (+ ringers if include_ringers_in_invites=true)
 //   - T-12h: Send if confirmed < capacity (skip non-flexible OUT, capped players)
-//   - T-3h: Send if still short (6h cooldown from T-12h, skip recent waitlist offers)
-//   - Quiet hours guard: delay 22:00-07:00 notifications to 08:00 (match local timezone)
-//   - Early morning matches: shift to T-9h/T-2h to avoid 3am notifications
+//   - T-3h: Send if still short (exclude players with last-call in notification_ledger within 6h)
+//   - Send immediately when scheduled (no quiet hours)
+// - Waitlist offers: Send to ALL waitlisted players (including ringers) - always immediate
+// - Cancellation: Send to ALL confirmed + waitlist players (including ringers) - always immediate
 // - Respect notification caps (max 3 dropout/last-call per player per match)
 // - Worker prunes tokens on permanent errors (invalid/expired FCM tokens)
+// - Log token removal to notification_ledger (kind='push_token_removed') for observability
 ```
 
 **Integration with Existing Worker:**
@@ -661,7 +862,7 @@ export const RSVP_JOB_TYPES = {
 // Add RSVP job types to existing switch statement
 // Use existing database connection and error handling
 // Follow established retry and logging patterns
-// All cron scheduling computed UTC; convert using match timezone on send
+// All notifications send immediately when jobs run (no quiet hours)
 ```
 
 10) Future Enhancements
@@ -766,7 +967,7 @@ Push: use FCM for both Android and iOS (APNs keys added to Firebase).
 
 Tokens: 32+ byte URL-safe random for invite_token; sign one-tap RSVP links; short TTL.
 
-Phone: normalize to E.164.
+Phone: normalize to E.164 format before storage (prevents duplicates like 07123... vs +447123...).
 
 Timezone: store UTC; render local.
 
@@ -774,7 +975,9 @@ Copy templates: centralize (variables for date/time, slots left, claim link).
 
 ICS: harmless free fallback; attach after key actions.
 
-Privacy & logging: Redact phone numbers in logs; store E.164; do not log invite_token or push tokens.
+Privacy & logging: Redact phone numbers in logs; normalize and store E.164; do not log invite_token or push tokens.
+
+Phone normalization: Implement server-side E.164 normalization (e.g., 07123456789 → +447123456789) to prevent duplicate player creation.
 
 17) Example Flows
 
@@ -796,7 +999,17 @@ After grace, capacity frees → push waitlist_offer to top-3 with dynamic TTL (4
 
 First to tap Claim wins; others get “spot filled”.
 
-18) Copy Snippets (v3.1.2)
+18) Copy Snippets (v3.1.5)
+
+**WhatsApp Templates (for manual sharing - clean, Apple-style)**
+Tier open (manual fallback):
+"🏈 Booking now open for {date}! Tap to confirm: {link}"
+
+Last call (manual fallback):  
+"⚡ We're {n} short for {date}. Can you make it? {link}"
+
+Waitlist offers (manual fallback):
+"🎯 Spot just opened for {date}! First to claim: {link}"
 
 **Share Messages**
 All at once mode:
@@ -824,12 +1037,15 @@ Before window (simple mode):
 
 Too-early tap:
 "Booking opens for you at {time}. We'll show a big IN button here 👍"
+[Show disabled IN button with countdown: "Opens in 2h 15min"]
 
 After open:
 "Spots remaining: {n}. Tap IN to lock your place."
+[Show prominent counter next to IN button]
 
 Full match:
-"Game is full. Tap Join waitlist to be first in if someone drops."
+"Game is full — you'll be #4 if you join the waitlist (first to claim if a spot opens)."
+[Show prominent "Join Waitlist" button with queue position]
 
 **Status Display**
 Public match status:
@@ -838,7 +1054,28 @@ Public match status:
 **Error Messages**
 Invalid/expired link: "Sorry, this link is invalid or has expired. Contact the team admin for help."
 
-Unknown number: "This phone number isn't registered. Ask the admin to add you, or continue as a guest."
+**Ringer Access Control**
+Ringer blocked (self-book OFF):
+"This profile is set as a ringer. Ask the organiser to add you for this match."
+
+Ringer allowed (self-book ON, before open):
+"Booking opens for you at {time}. You're currently listed as a ringer."
+
+Unknown number (block_unknown_players=true):
+"This phone number isn't registered. Contact the admin to add you to the player list."
+
+Unknown number (block_unknown_players=false):
+"Please provide your name to complete booking:"
+[Show name input: max 14 characters, real-time validation]
+
+Name validation errors:
+"Name must be 14 characters or less" | "This name is already taken"
+
+Shared phone blocked:
+"This phone number is already registered to another player. Each player needs their own phone number."
+
+Offer expired/capacity unavailable:
+"Sorry, this offer has expired or the spot is no longer available. Check the current waitlist status below."
 
 **Admin UI Copy**
 Invite mode toggle: "All at once" | "Tiered"
@@ -846,6 +1083,11 @@ Simple tier labels: "Priority" | "Everyone"
 Advanced tier labels: "Tier A" | "Tier B" | "Casual"
 Reset button: "Reset to defaults"
 Manual actions: "Reissue offers now" | "Process dropout now" | "Send last-call now"
+Ringer controls: "Include ringers in invites" | "Allow ringer self-booking" | "Promote to regular"
+OUT options: "OUT" button with subtle "OUT (can sub late)" toggle underneath
+Link management: "Regenerate link" button with confirm dialog
+Unknown player control: "Block unknown players" toggle in advanced settings
+WhatsApp templates: Copy buttons for pre-filled messages (tier-open, last-call, waitlist offers)
 
 19) Open Questions (non-blocking)
 
@@ -917,6 +1159,22 @@ Notification frequency tuning based on user feedback?
   - [ ] Offer log display (Claimed/Expired/Superseded)
   - [ ] Manual override buttons (Reissue offers, Process dropout)
   - [ ] Adaptive last-call notifications (T-12h/T-3h)
+  - [ ] Mode switching semantics (Tiered→All opens to everyone, All→Tiered only affects new bookings)
+  - [ ] Capacity downshift behavior (FIFO demotion with notifications)
+  - [ ] Capacity increase auto-promotion of bumped waitlist players
+  - [ ] Ringer access control (blocked when enable_ringer_self_book=false)
+  - [ ] Ringer notification exclusion (tier-open/last-call skip ringers unless flag enabled)
+  - [ ] Ringer participation (waitlist offers + cancellation always sent to participating ringers)
+  - [ ] Phone-based identity (one phone = one player, no duplicates, strict enforcement)
+  - [ ] Admin "Promote to regular" (is_ringer=false) preserves all data
+  - [ ] Block unknown players toggle (per-match control)
+  - [ ] OUT with flexibility option ("can sub late")
+  - [ ] Instant claim mode (<15min to kick-off, no hold period)
+  - [ ] Live polling updates (15s refresh for non-push users)
+  - [ ] Invite link regeneration (token rotation)
+  - [ ] Last-call cooldown based on actual send time (6h from notification_ledger)
+  - [ ] Claim re-validation (capacity check at claim time)
+  - [ ] Burst protection (50 writes/10s per match, feature-flagged)
 - [ ] **Load Testing:**
   - [ ] Background job system under high load
   - [ ] Concurrent booking attempts
@@ -1021,39 +1279,47 @@ const newJobTypes = ['tier_open_notifications', 'dropout_grace_processor', 'wait
   - Skip: Non-flexible OUT players, players at 3-push cap
 - **T-3h**: Send only if still short  
   - Target: Same as T-12h minus recent T-12h recipients (6h cooldown) and recent waitlist offers
-- **Quiet Hours Guard**: If T-12h falls between 22:00–07:00 local, delay to 08:00
-  - For early morning matches: Shift to T-9h and T-2h to avoid 3am notifications
+- **No time-based delays:** All notifications send immediately when scheduled
+- **Spam control:** Relies on push caps, per-player mute flag, and 6h last-call cooldown
 
 **DYNAMIC WAITLIST TTL:**
 ```typescript
-// TTL Selection Logic (v3.1.2)
-const hoursToKickoff = (kickoff - now) / (1000 * 60 * 60);
+// TTL Selection Logic (v3.1.4 - Fixed)
+const minutesToKickoff = (kickoff - now) / (1000 * 60);
+const hoursToKickoff = minutesToKickoff / 60;
 
+// Base TTL selection
+let offer_ttl; // in minutes
 if (hoursToKickoff < 3) {
-  offer_ttl = 30; // minutes
+  offer_ttl = 30;
 } else if (hoursToKickoff < 24) {
-  offer_ttl = 60; // minutes  
+  offer_ttl = 60;  
 } else {
-  offer_ttl = 240; // minutes (4h)
+  offer_ttl = 240; // 4h
 }
 
-// Safety Guards  
-offer_ttl = Math.min(offer_ttl, (kickoff - now) / (1000 * 60) - 15); // Don't run past kickoff-15m
-offer_ttl = Math.max(offer_ttl, 30); // Minimum viable TTL
+// Safety Guards (fixed logic)
+const maxAllowedTTL = Math.max(0, minutesToKickoff - 15); // Don't run past kickoff-15m
+
+if (maxAllowedTTL < 15) {
+  // Too close to kickoff - switch to instant claim mode (no hold period)
+  offer_ttl = 0; // Instant claim
+} else {
+  offer_ttl = Math.min(offer_ttl, maxAllowedTTL);
+  offer_ttl = Math.max(offer_ttl, 5); // Minimum 5min when using hold period
+}
 ```
 
 **OTHER TIMINGS:**
 - Tier open notifications: Immediate when tier opens
 - **Dynamic dropout grace:** 5min normally, 2min if <24h to kickoff, 1min if <3h to kickoff
 - Max 3 dropout/last-call pushes per player per match. Tier-open and waitlist_offer pushes are uncapped (still deduped/batched)
-- Quiet hours use the match's local timezone; all scheduling computed server-side in UTC
+- **6h last-call cooldown:** Exclude players with last-call in notification_ledger within past 6h
 
-### 22.3 Capacitor vs Web-First Approach
-**QUESTION:** Should we prioritize mobile app development or web interface?
-**CURRENT PLAN:** Capacitor-first with web fallback
-**ALTERNATIVE:** Web-first with mobile app later
-
-**RECOMMENDATION:** Stick with Capacitor-first for proper push notifications, but ensure web interface is fully functional.
+### 22.3 Implementation Approach ✅ **CONFIRMED**
+**DECISION:** Web-first with Capacitor later
+**RATIONALE:** Build on existing berkotnf.com/upcoming infrastructure, add push notifications in Phase 2
+**BENEFIT:** Faster development, leverages existing trusted domain, progressive enhancement
 
 ### 22.4 Player Tier Management ✅ **CONFIRMED**
 **IMPLEMENTATION:** Add tier dropdown to existing admin player management interface
@@ -1073,6 +1339,13 @@ offer_ttl = Math.max(offer_ttl, 30); // Minimum viable TTL
 ### 22.5 Billing System Scope ✅ **CONFIRMED**
 **DECISION:** Billing is completely out of scope for v3.1 to keep the release lean and focused.
 **FUTURE:** Billing implementation is covered in the existing `Billing_Plan.md` specification.
+
+### 22.6 Ringer/Guest System ✅ **CONFIRMED**
+**APPROACH:** Use existing `players.is_ringer=true` for guest/one-off players
+**IDENTITY:** Phone-based (one phone = one player record, prevents duplicates)
+**DEFAULT POLICY:** Ringers excluded from auto-invites, admin retains control
+**FLEXIBILITY:** Two flags allow ringer self-booking and invite inclusion if desired
+**PROMOTION PATH:** `is_ringer=false` converts to regular (preserves all history/stats)
 
 ---
 
