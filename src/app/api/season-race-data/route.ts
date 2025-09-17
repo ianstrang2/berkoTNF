@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const period = searchParams.get('period') || 'whole_season';
+  let seasonYear = new Date().getFullYear(); // Default fallback
+  
   try {
-    const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'whole_season';
-    
     // Validate period parameter
     if (!['whole_season', 'current_half'].includes(period)) {
       return NextResponse.json(
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const seasonYear = currentSeason[0].start_date.getFullYear();
+    seasonYear = currentSeason[0].start_date.getFullYear();
     
     const raceData = await prisma.aggregated_season_race_data.findFirst({
       where: { 
