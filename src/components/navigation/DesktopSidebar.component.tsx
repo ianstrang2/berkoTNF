@@ -197,7 +197,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
           isAdminMode ? 'border-slate-700' : 'border-gray-700'
         }`}>
           <div className="text-xs text-gray-400">
-            StatKick v1.0
+            Capo v1.0
           </div>
         </div>
       )}

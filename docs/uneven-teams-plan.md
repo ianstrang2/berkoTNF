@@ -1,4 +1,4 @@
-Final Specification for Enabling Uneven Teams in StatKick App (v1.9.1 - Production Polish)
+Final Specification for Enabling Uneven Teams in Capo App (v1.9.1 - Production Polish)
 Version: 1.9.1
 
 Date: January 2025

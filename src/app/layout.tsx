@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>StatKick</title>
+        <title>Capo</title>
         {/* Material Icons still needs to be loaded this way */}
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
         {/* CSS stylesheets */}

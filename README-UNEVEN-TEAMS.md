@@ -2,7 +2,7 @@
 
 ## Overview
 
-This implementation adds support for uneven team sizes (e.g., 4v5, 5v6) to the StatKick app while maintaining the existing balanced team functionality.
+This implementation adds support for uneven team sizes (e.g., 4v5, 5v6) to the Capo app while maintaining the existing balanced team functionality.
 
 ## Key Features
 

@@ -61,7 +61,7 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 - **Simple mode (default):** "Priority" players can book first, then "Everyone" after a delay
 - **Advanced mode (optional):** Traditional A/B/Casual tiers with custom timing
 
-**Global defaults:** Admins can set default tier offsets (e.g., Everyone opens +2 hours after Priority) to minimize per-match configuration.
+**Global defaults:** Admins can set default tier offsets (e.g., Everyone opens +24 hours after Priority, Casual +48 hours) to minimize per-match configuration.
 
 ### **4) How the waitlist & offers work**
 
@@ -382,23 +382,29 @@ CREATE INDEX IF NOT EXISTS idx_push_tokens_player
 **CURRENT:** `app_config` table already exists with proper structure
 
 ```sql
--- Add RSVP feature flags to existing app_config table (using string values)
-INSERT INTO app_config(config_key, config_value, config_description, config_group) VALUES
-('enable_rsvp_system', 'false', 'Enable RSVP invitation system', 'rsvp'),
-('enable_push_notifications', 'false', 'Enable native push notifications', 'rsvp'),
--- Tiered invite system configuration
-('tiered_invites_default', 'false', 'Default new matches to Tiered invites', 'rsvp'),
-('tier_b_offset_hours', '0', 'Default Tier B opens +X hours after Tier A', 'rsvp'),
-('tier_c_offset_hours', '0', 'Default Tier C opens +Y hours after Tier A', 'rsvp'),
-('advanced_tiers', 'false', 'Expose A/B/C instead of Priority/Everyone', 'rsvp'),
--- Ringer/guest system configuration
-('enable_ringer_self_book', 'false', 'Allow ringers to self-book via public link', 'rsvp'),
-('include_ringers_in_invites', 'false', 'Include ringers in tier-open and last-call notifications', 'rsvp'),
--- Performance and security
-('rsvp_burst_guard_enabled', 'false', 'Enable write-burst protection for leaked links', 'rsvp')
+-- Add RSVP configuration to existing app_config table (integrate with admin setup)
+INSERT INTO app_config(config_key, config_value, config_description, config_group, display_name, display_group, sort_order) VALUES
+-- RSVP system configuration
+('enable_rsvp_system', 'false', 'Enable RSVP invitation system', 'rsvp', 'Enable RSVP', 'RSVP System', 1),
+('enable_push_notifications', 'false', 'Enable native push notifications', 'rsvp', 'Push Notifications', 'RSVP System', 2),
+-- Match creation defaults (appear in existing "Match Creation Defaults" section)
+('default_booking_enabled', 'false', 'Enable RSVP by default for new matches', 'match_settings', 'Default RSVP Enabled', 'Match Creation Defaults', 10),
+('default_invite_mode', 'all', 'Default invite mode for new matches', 'match_settings', 'Default Invite Mode', 'Match Creation Defaults', 11),
+('tier_b_offset_hours', '24', 'Default hours between Priority and Everyone tiers', 'match_settings', 'Tier B Offset (hours)', 'Match Creation Defaults', 12),
+('tier_c_offset_hours', '48', 'Default hours between Priority and Casual tiers', 'match_settings', 'Tier C Offset (hours)', 'Match Creation Defaults', 13),
+-- Advanced RSVP settings (new section)
+('advanced_tiers', 'false', 'Expose A/B/C instead of Priority/Everyone', 'rsvp_advanced', 'Advanced Tier Labels', 'RSVP Advanced', 1),
+('enable_ringer_self_book', 'false', 'Allow ringers to self-book via public link', 'rsvp_advanced', 'Ringer Self-Booking', 'RSVP Advanced', 2),
+('include_ringers_in_invites', 'false', 'Include ringers in automatic invitations', 'rsvp_advanced', 'Include Ringers in Invites', 'RSVP Advanced', 3),
+('rsvp_burst_guard_enabled', 'false', 'Enable write-burst protection for leaked links', 'rsvp_advanced', 'Burst Protection', 'RSVP Advanced', 4)
 ON CONFLICT (config_key) DO NOTHING;
 
 -- Note: enable_match_billing flag deferred to existing billing specification (Billing_Plan.md)
+-- Integration: These settings appear in your existing admin/setup interface:
+--   - "RSVP System" section for enable/disable flags
+--   - "Match Creation Defaults" section for new match defaults  
+--   - "RSVP Advanced" section for power-user settings
+-- Reset functionality: Uses existing app_config_defaults table for "Reset to Defaults" buttons
 ```
 
 **Feature Flag System (Hybrid: Environment Overrides Database):**

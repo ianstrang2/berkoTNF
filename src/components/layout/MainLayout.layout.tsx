@@ -44,11 +44,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3 p-1">
                   <img 
                     src="/img/logo.png" 
-                    alt="StatKick Logo" 
+                    alt="Capo Logo" 
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <span className="text-white font-semibold text-lg">StatKick</span>
+                <span className="text-white font-semibold text-lg">Capo</span>
               </div>
               <div className="flex items-center">
                 <AdminModeToggle />
@@ -80,11 +80,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center mr-4 p-2">
                   <img 
                     src="/img/logo.png" 
-                    alt="StatKick Logo" 
+                    alt="Capo Logo" 
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <span className="text-white font-semibold text-xl">StatKick</span>
+                <span className="text-white font-semibold text-xl">Capo</span>
               </div>
               <div className="flex items-center">
                 <AdminModeToggle />
