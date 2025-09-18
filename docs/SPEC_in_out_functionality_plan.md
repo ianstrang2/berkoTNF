@@ -1,6 +1,6 @@
 BerkoTNF RSVP & Player Invitation System — Complete Implementation Specification
 
-Version 3.1.5 • Final Production-Ready Implementation Plan
+Version 3.2.4 • Final Production-Ready Implementation Plan
 
 **UPDATED FOR ACTUAL CODEBASE ARCHITECTURE**
 
@@ -22,7 +22,7 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 
 **If they want bookings:** toggle "Allow self-serve booking", choose invite mode:
 - **All at once (default):** Everyone can book immediately
-- **Tiered mode:** Set Priority/Everyone windows (simple) or A/B/Casual (advanced)
+- **Tiered mode:** Set tier windows (A/B/C) with customizable timing
 - Global defaults minimize per-match configuration
 
 **Share one link** in WhatsApp (or anywhere).
@@ -42,7 +42,7 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 
 **On the berkotnf.com/upcoming page,** they can:
 - **IN** - Confirm attendance
-- **OUT** - Can't make it (with subtle "OUT (can sub late)" option underneath)
+- **OUT** - Can't make it (with subtle "Might be available later" option underneath)
 - **Join Waitlist** - if match is full
 
 **If they're waitlisted and a spot opens:**
@@ -57,11 +57,15 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 
 **All at once (default):** Anyone with the link can book immediately until capacity is reached.
 
-**Tiered mode:** Time-based booking windows:
-- **Simple mode (default):** "Priority" players can book first, then "Everyone" after a delay
-- **Advanced mode (optional):** Traditional A/B/Casual tiers with custom timing
+**Tiered mode:** Time-based booking windows with A/B/C tiers:
+- **Tier A** players can book first
+- **Tier B** players can book from a later time
+- **Tier C** players (default tier for all players) can book from an even later time
+- Admins can set any two tiers to open simultaneously for a two-window flow
 
-**Global defaults:** Admins can set default tier offsets (e.g., Everyone opens +24 hours after Priority, Casual +48 hours) to minimize per-match configuration.
+**Tier Assignment:** Tier C is the default for all players unless explicitly set to A or B by an admin.
+
+**Global defaults:** Admins can set default tier offsets (e.g., Tier B opens +24 hours after Tier A, Tier C +48 hours) to minimize per-match configuration.
 
 ### **4) How the waitlist & offers work**
 
@@ -97,15 +101,14 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 
 **Main controls:**
 - **Invite mode:** "All at once" (default) | "Tiered"
-- **Tiered controls:** Priority/Everyone windows + "Show advanced (A/B/C)" expander
+- **Tiered controls:** Tier A/B/C windows with customizable timing
 - Player lists: IN / OUT / WAITLIST / PENDING with ringer badges
 
 **Advanced sections (collapsible):**
-- **Waitlist management:** Active offers + countdown + Offer log + "Reissue offers now"
-- **Manual overrides:** "Process dropout now" | "Send last-call now"
-- **WhatsApp templates:** Pre-filled messages for manual sharing (tier-open, last-call, waitlist offers)
-- **Ringer controls:** "Include ringers in invites" | "Allow ringer self-booking"  
-- **Activity feed:** Real-time RSVP events and admin actions
+- **Waitlist management:** Active offers + countdown + Offer log + "Send new waitlist offers"
+- **Manual overrides:** "Release spot now" | "Send last-call"
+- **Quick-share messages (WhatsApp):** Pre-filled messages for manual sharing (tier-open, last-call, waitlist offers)
+- **RSVP Activity:** Real-time RSVP events and admin actions
 
 **The Lock/Balance/Complete steps behave exactly as today.**
 
@@ -115,9 +118,9 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 
 **By default, ringers do not receive automatic invites** - admin keeps control over who gets notified.
 
-**Two simple toggles** (off by default) if admin wants ringers to participate more:
+**Two global policy settings** (configured in admin settings, off by default):
 - "Include ringers in invites" - they get tier-open and last-call notifications
-- "Allow ringer self-booking" - they can use the public booking link
+- "Allow ringers to book" - they can use the public booking link
 
 **If a ringer becomes a regular,** admin flips `is_ringer=false` - no duplicate profiles, no data loss.
 
@@ -126,7 +129,7 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 **Auto-created ringer profiles** (when unknown phone books):
 - **Name**: User-provided (required, max 14 characters, must be globally unique)
 - **Phone**: Normalized E.164 format
-- **Profile**: `is_ringer=true`, all ratings=3, tier=null, club=null
+- **Profile**: `is_ringer=true`, all ratings=3, tier='C', club=null
 - **Validation**: Same rules as admin player creation (14-char limit, unique name check)
 
 ---
@@ -143,7 +146,7 @@ Manual only (default) — works exactly as today.
 
 Self-serve booking (shareable link) — optional toggle.
 
-Invitations & responses (IN / OUT / WAITLIST) with tier open windows (A | B | null).
+Invitations & responses (IN / OUT / WAITLIST) with tier open windows (A | B | C).
 
 Waitlist with top-3 simultaneous offers and offer TTL.
 
@@ -193,7 +196,7 @@ No public link. Admin adds players as today.
 
 Self-serve booking
 Toggle Allow self-serve booking → app generates a public booking link + editable share text.
-Optional tier open times (A→B→Casual). Admin can still add players manually at any time.
+Optional tier open times (A→B→C). Admin can still add players manually at any time.
 
 3) Database Schema Changes
 
@@ -208,9 +211,10 @@ Optional tier open times (A→B→Casual). Admin can still add players manually 
 3.1 Players (Add Phone & Tier System)
 ```sql
 -- Add phone field for RSVP identity (international E.164 format)
+-- Note: All new players default to Tier C unless explicitly assigned A or B by admin
 ALTER TABLE players
   ADD COLUMN phone TEXT UNIQUE,
-  ADD COLUMN tier TEXT CHECK (tier IN ('A','B')) NULL; -- NULL = casual
+  ADD COLUMN tier TEXT NOT NULL DEFAULT 'C' CHECK (tier IN ('A','B','C'));
 
 -- Indexes for RSVP lookups
 CREATE INDEX IF NOT EXISTS idx_players_phone ON players(phone);
@@ -263,8 +267,7 @@ ALTER TABLE upcoming_matches
   ADD COLUMN invite_token TEXT,                           -- secure token for the public link
   ADD COLUMN a_open_at TIMESTAMPTZ NULL,
   ADD COLUMN b_open_at TIMESTAMPTZ NULL,
-  ADD COLUMN casual_open_at TIMESTAMPTZ NULL,
-  ADD COLUMN block_unknown_players BOOLEAN NOT NULL DEFAULT FALSE, -- per-match unknown player control
+  ADD COLUMN c_open_at TIMESTAMPTZ NULL,
   ADD COLUMN match_timezone TEXT NOT NULL DEFAULT 'Europe/London';  -- for display only (not used for scheduling)
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_upcoming_matches_invite_token
@@ -287,7 +290,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_upcoming_matches_invite_token
 -- Extend existing match_player_pool table
 ALTER TABLE match_player_pool
   ADD COLUMN invited_at TIMESTAMPTZ NULL,
-  ADD COLUMN invite_stage TEXT NULL,                       -- 'A','B','CASUAL'
+  ADD COLUMN invite_stage TEXT NULL,                       -- 'A','B','C'
   ADD COLUMN reminder_count INTEGER NOT NULL DEFAULT 0,    -- used for caps
   ADD COLUMN muted BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN out_flexible BOOLEAN NOT NULL DEFAULT FALSE,  -- "I might be available later"
@@ -337,7 +340,7 @@ ALTER TABLE match_player_pool
 CREATE TABLE IF NOT EXISTS match_invites (
   id BIGSERIAL PRIMARY KEY,
   upcoming_match_id INT NOT NULL REFERENCES upcoming_matches(upcoming_match_id) ON DELETE CASCADE,
-  stage TEXT NOT NULL,                  -- 'A','B','CASUAL' or custom
+  stage TEXT NOT NULL,                  -- 'A','B','C' or custom
   created_by INT NOT NULL,              -- admin user ID
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   target_count INTEGER NULL
@@ -390,20 +393,22 @@ INSERT INTO app_config(config_key, config_value, config_description, config_grou
 -- Match creation defaults (appear in existing "Match Creation Defaults" section)
 ('default_booking_enabled', 'false', 'Enable RSVP by default for new matches', 'match_settings', 'Default RSVP Enabled', 'Match Creation Defaults', 10),
 ('default_invite_mode', 'all', 'Default invite mode for new matches', 'match_settings', 'Default Invite Mode', 'Match Creation Defaults', 11),
-('tier_b_offset_hours', '24', 'Default hours between Priority and Everyone tiers', 'match_settings', 'Tier B Offset (hours)', 'Match Creation Defaults', 12),
-('tier_c_offset_hours', '48', 'Default hours between Priority and Casual tiers', 'match_settings', 'Tier C Offset (hours)', 'Match Creation Defaults', 13),
--- Advanced RSVP settings (new section)
-('advanced_tiers', 'false', 'Expose A/B/C instead of Priority/Everyone', 'rsvp_advanced', 'Advanced Tier Labels', 'RSVP Advanced', 1),
-('enable_ringer_self_book', 'false', 'Allow ringers to self-book via public link', 'rsvp_advanced', 'Ringer Self-Booking', 'RSVP Advanced', 2),
-('include_ringers_in_invites', 'false', 'Include ringers in automatic invitations', 'rsvp_advanced', 'Include Ringers in Invites', 'RSVP Advanced', 3),
-('rsvp_burst_guard_enabled', 'false', 'Enable write-burst protection for leaked links', 'rsvp_advanced', 'Burst Protection', 'RSVP Advanced', 4)
+('tier_b_offset_hours', '24', 'Default hours between Tier A and Tier B', 'match_settings', 'Tier B Offset (hours)', 'Match Creation Defaults', 12),
+('tier_c_offset_hours', '48', 'Default hours between Tier A and Tier C', 'match_settings', 'Tier C Offset (hours)', 'Match Creation Defaults', 13),
+-- Global RSVP policies (new section - club-wide settings)
+('enable_ringer_self_book', 'false', 'Allow ringers to book via public links', 'rsvp_policies', 'Allow Ringers to Book', 'RSVP Policies', 1),
+('include_ringers_in_invites', 'false', 'Include ringers in automatic invitations', 'rsvp_policies', 'Include Ringers in Invites', 'RSVP Policies', 2),
+('block_unknown_players', 'false', 'Block unknown phone numbers from booking', 'rsvp_policies', 'Block Unknown Players', 'RSVP Policies', 3),
+-- Advanced RSVP settings (technical settings)
+('rsvp_burst_guard_enabled', 'false', 'Enable write-burst protection for leaked links', 'rsvp_advanced', 'Burst Protection', 'RSVP Advanced', 1)
 ON CONFLICT (config_key) DO NOTHING;
 
 -- Note: enable_match_billing flag deferred to existing billing specification (Billing_Plan.md)
 -- Integration: These settings appear in your existing admin/setup interface:
 --   - "RSVP System" section for enable/disable flags
---   - "Match Creation Defaults" section for new match defaults  
---   - "RSVP Advanced" section for power-user settings
+--   - "Match Creation Defaults" section for new match defaults
+--   - "RSVP Policies" section for club-wide booking policies
+--   - "RSVP Advanced" section for technical settings
 -- Reset functionality: Uses existing app_config_defaults table for "Reset to Defaults" buttons
 ```
 
@@ -553,35 +558,34 @@ Public web: only booking flow via token; server performs writes.
 // Returns match with RSVP data, invite mode, tier windows, booking status
 
 // PATCH /api/admin/upcoming-matches/[id]/enable-booking
-// Enables RSVP for a match, generates invite_token
+// Enables RSVP for a match, generates fresh invite_token (new token each time toggled ON)
 {
   "inviteMode": "all" | "tiered",
   "tierWindows": {
-    "a_open_at": "2024-01-15T10:00:00Z",      // Priority (simple) or Tier A (advanced)
-    "b_open_at": "2024-01-15T12:00:00Z",      // Everyone (simple) or Tier B (advanced)
-    "casual_open_at": "2024-01-15T14:00:00Z"  // Only used in advanced mode
+    "a_open_at": "2024-01-15T10:00:00Z",      // Tier A
+    "b_open_at": "2024-01-15T12:00:00Z",      // Tier B
+    "c_open_at": "2024-01-15T14:00:00Z"  // Tier C
   }
 }
-// Note: Simple mode maps Priority→a_open_at, Everyone→b_open_at
 // API enforces monotonicity (A ≤ B ≤ C), past time clamping, kick-off limits
+// Admins can set B and C to same time for two-window flow
 
 // POST /api/admin/invites/[matchId]/send
 // Send tier-based invitations (tiered mode only)
-{ "stages": ["priority", "everyone"], "targetCount": 20 }
+{ "stages": ["A", "B", "C"], "targetCount": 20 }
 
 // NEW: Waitlist management
 // POST /api/admin/waitlist/reissue
 { "matchId": 123 }
 // Immediately triggers waitlist offer logic (respects caps/muted)
+// UI: "Send new waitlist offers" button
 
 // NEW: Grace period override
 // POST /api/admin/dropout/process-now  
 { "matchId": 123, "playerId": 456 }
 // Skip remaining grace period, finalize dropout, trigger offers
+// UI: "Release spot now" button (clarifies it skips grace period)
 
-// NEW: Regenerate invite link (token rotation)
-// POST /api/admin/upcoming-matches/[id]/rotate-invite-token
-// Generates new 32+ byte token, invalidates old, logs activity
 ```
 
 5.2 Public Booking Interface
@@ -600,11 +604,11 @@ Public web: only booking flow via token; server performs writes.
   "phone": "+447...", 
   "action": "IN" | "OUT" | "WAITLIST",
   "source": "app" | "web",
-  "outFlexible": true // optional, for "OUT (can sub late)"
+  "outFlexible": true // optional, for "Might be available later"
 }
 // Implementation: 
 // - Phone normalization to E.164, check unique constraint violations
-// - Unknown player logic: 
+// - Unknown player logic (uses global block_unknown_players setting): 
 //   - If block_unknown_players=true → reject with "not registered" message
 //   - If false + enable_ringer_self_book=false → reject with ringer message  
 //   - If false + enable_ringer_self_book=true → auto-create as ringer
@@ -711,15 +715,15 @@ Others get "spot filled"; remain on waitlist.
 - **Expired**: No transition by offer_expires_at deadline
 - **Superseded**: Later offer batch issued before this offer was claimed
 
-**Manual Controls**: "Reissue offers now" button for immediate waitlist processing.
+**Manual Controls**: "Send new waitlist offers" button for immediate waitlist processing.
 
 **Edge Case Behaviors:**
 - **Capacity increase**: Auto-promote earliest bumped WAITLIST players by queue order with notification
 - **Near kick-off offers**: Auto-expire all offers at kick-off−15m with "No more offers after..." countdown
 - **Manual admin add**: Consumes capacity and supersedes outstanding offers (logged in activity feed)
 - **Instant claim mode**: When <15min to kick-off, switch to instant claim (no hold period)
-- Public page banner: "Instant claim only (less than 15m to kick-off)"
-- Push copy: "Spot open now. First to tap gets it."
+- Public page banner: "Kick-off soon! Spots are first-come, first-served."
+- Push copy: "Spot open now — first to tap gets it."
 - UI: Hide timers, claim proceeds immediately
 
 8) UI/UX Implementation (BerkoTNF Design System)
@@ -741,12 +745,12 @@ Others get "spot filled"; remain on waitlist.
 
 // Features:
 // - Toggle "Enable RSVP" with soft-UI switch
-// - Tier window configuration (A/B/Casual open times)
+// - Tier window configuration (A/B/C open times)
 // - Booking link generation with copy button (existing pattern)
 // - Share to WhatsApp integration
 // - Capacity counters: "Booked 12/20, Waitlist 3"
 // - Player lists with status badges (IN/OUT/WAITLIST/PENDING)
-// - Activity feed showing invitations, responses, offers
+// - RSVP Activity showing invitations, responses, offers
 ```
 
 **New Admin Components:**
@@ -761,8 +765,9 @@ Others get "spot filled"; remain on waitlist.
 // Uses existing Card and soft-UI styling
 
 // src/components/admin/matches/PlayerTierManager.component.tsx
-// Manage player tiers (A/B/Casual)
+// Manage player tiers (A/B/C)
 // Integrates with existing player management
+// Include tooltip: "Tier C = casual/default. All players start here unless assigned A or B."
 ```
 
 8.2 Capacitor Mobile App
@@ -827,7 +832,7 @@ export const RSVP_JOB_TYPES = {
 
 ```typescript
 // tier_open_notifications
-// - Triggered by cron at tier open times (a_open_at, b_open_at, casual_open_at)
+// - Triggered by cron at tier open times (a_open_at, b_open_at, c_open_at)
 // - Target players: is_ringer=false (+ ringers if include_ringers_in_invites=true)
 // - Send push notifications to eligible players in that tier
 // - Mark as invited in match_player_pool
@@ -875,7 +880,7 @@ export const RSVP_JOB_TYPES = {
 
 Optional enhancements that could be added in future releases:
 
-- Manual "Send last-call now" button in Match Control Centre
+- Manual "Send last-call" button in Match Control Centre
 - Admin test push notification endpoint for QA
 - Advanced tier assignment based on player power ratings
 - Enhanced activity feed with filtering and search
@@ -1005,11 +1010,15 @@ After grace, capacity frees → push waitlist_offer to top-3 with dynamic TTL (4
 
 First to tap Claim wins; others get “spot filled”.
 
-18) Copy Snippets (v3.1.5)
+18) Copy Snippets (v3.2.0)
+
+**Copy Logic Rules:**
+- **Tier B+C Collapse:** When `b_open_at` equals `c_open_at`, use "Tiers B+C" format instead of separate times
+- **Implementation:** Frontend checks if tier open times are identical and renders appropriate copy
 
 **WhatsApp Templates (for manual sharing - clean, Apple-style)**
 Tier open (manual fallback):
-"🏈 Booking now open for {date}! Tap to confirm: {link}"
+"⚽ Booking now open for {date}! Tap to confirm: {link}"
 
 Last call (manual fallback):  
 "⚡ We're {n} short for {date}. Can you make it? {link}"
@@ -1021,15 +1030,18 @@ Waitlist offers (manual fallback):
 All at once mode:
 "Book now for {date}. {booked}/{capacity} confirmed → {link}"
 
-Tiered mode (simple):
-"Book now for {date}. Priority players can book now, everyone else from {time} → {link}"
+Tiered mode:
+"Book now for {date}. Tier A now, Tier B from {time}, Tier C from {time} → {link}"
 
-Tiered mode (advanced):
-"Book now for {date}. Tier A now, B from {time}, Casual from {time} → {link}"
+Tiered mode (B+C simultaneous):
+"Book now for {date}. Tier A now, Tiers B+C from {time} → {link}"
 
 **Push Notifications**
-Tier open (simple):
-"Booking open for {date}. Tap to book: ✅ IN | ❌ OUT"
+Tier open:
+"Booking open for {date}. Tier {A/B/C} can now book. Tap to RSVP: ✅ IN | ❌ OUT"
+
+Tier open (B+C simultaneous):
+"Booking open for {date}. Tiers B+C can now book. Tap to RSVP: ✅ IN | ❌ OUT"
 
 Waitlist offer:
 "Spot open for {date}! First to claim gets it. Expires in {countdown}."
@@ -1038,62 +1050,81 @@ Last call:
 "We're {n} short for {date}. Can you make it? ✅ IN | ❌ OUT"
 
 **Public Page Messages**
-Before window (simple mode):
-"Booking opens for you at {time}. Priority players can book now."
+Before window (tiered mode):
+"Booking opens for Tier {tierLabel} at {time}."
+
+Before window (B+C simultaneous, player in B or C):
+"Booking opens for Tier {tierLabel} at {time}. (Tiers B+C open together)"
 
 Too-early tap:
-"Booking opens for you at {time}. We'll show a big IN button here 👍"
+"Too early — Tier {tierLabel} opens at {time}. The IN button will appear here 👍"
 [Show disabled IN button with countdown: "Opens in 2h 15min"]
 
 After open:
-"Spots remaining: {n}. Tap IN to lock your place."
+"{n} spots left — tap IN to secure yours."
 [Show prominent counter next to IN button]
 
 Full match:
-"Game is full — you'll be #4 if you join the waitlist (first to claim if a spot opens)."
+"Game is full. Join the waitlist as #{position} — first to claim gets in."
 [Show prominent "Join Waitlist" button with queue position]
 
 **Status Display**
-Public match status:
-"{booked}/{capacity} confirmed • {waitlistCount} on waitlist • Booking opens for you in {countdown}"
+Public match status (before open):
+"{booked}/{capacity} confirmed • {waitlistCount} waiting • Tier {tierLabel} opens in {countdown}"
+
+Public match status (before open, B+C simultaneous):
+"{booked}/{capacity} confirmed • {waitlistCount} waiting • Tiers B+C open in {countdown}"
+
+Public match status (after open):
+"{booked}/{capacity} confirmed • {waitlistCount} waiting"
 
 **Error Messages**
-Invalid/expired link: "Sorry, this link is invalid or has expired. Contact the team admin for help."
+Invalid/expired link: "This link isn't valid anymore. Please ask the organiser for a new one."
 
 **Ringer Access Control**
 Ringer blocked (self-book OFF):
-"This profile is set as a ringer. Ask the organiser to add you for this match."
+"Please ask the organiser to add you for this match."
 
 Ringer allowed (self-book ON, before open):
-"Booking opens for you at {time}. You're currently listed as a ringer."
+"Booking opens for your tier at {time}."
 
-Unknown number (block_unknown_players=true):
-"This phone number isn't registered. Contact the admin to add you to the player list."
+Unknown number (global block_unknown_players=true):
+"This number isn't registered. Please ask the organiser to add you."
 
-Unknown number (block_unknown_players=false):
-"Please provide your name to complete booking:"
+Unknown number (global block_unknown_players=false):
+"Enter your name to join the list:"
 [Show name input: max 14 characters, real-time validation]
 
 Name validation errors:
-"Name must be 14 characters or less" | "This name is already taken"
+"Use 14 characters or fewer" | "That name's already taken — try another"
 
 Shared phone blocked:
-"This phone number is already registered to another player. Each player needs their own phone number."
+"This number is already linked to another player — each player needs their own."
 
 Offer expired/capacity unavailable:
-"Sorry, this offer has expired or the spot is no longer available. Check the current waitlist status below."
+"This offer has expired — check the waitlist for your current place."
 
 **Admin UI Copy**
 Invite mode toggle: "All at once" | "Tiered"
-Simple tier labels: "Priority" | "Everyone"  
-Advanced tier labels: "Tier A" | "Tier B" | "Casual"
-Reset button: "Reset to defaults"
-Manual actions: "Reissue offers now" | "Process dropout now" | "Send last-call now"
-Ringer controls: "Include ringers in invites" | "Allow ringer self-booking" | "Promote to regular"
-OUT options: "OUT" button with subtle "OUT (can sub late)" toggle underneath
-Link management: "Regenerate link" button with confirm dialog
-Unknown player control: "Block unknown players" toggle in advanced settings
-WhatsApp templates: Copy buttons for pre-filled messages (tier-open, last-call, waitlist offers)
+- "All at once" tooltip: "Everyone can book immediately."
+- "Tiered" tooltip: "Set timed booking windows by tier (A/B/C)."
+
+Tier labels: "Tier A" | "Tier B" | "Tier C"
+Tier C tooltip: "Tier C is the default for all players (casual tier). Admins can upgrade to A or B."
+
+Reset button: "Use default timings"
+- Tooltip: "Restore global default offsets for tier windows."
+
+Manual actions: "Send new waitlist offers" | "Release spot now" | "Send last-call"
+- "Release spot now" tooltip: "Skip grace period and free this spot immediately"
+
+OUT options: "OUT" button with subtle "Might be available later" toggle underneath
+- Toggle tooltip: "Player is OUT, but open to being called back if needed."
+Quick-share messages (WhatsApp): Copy buttons for pre-filled messages
+- Tooltip: "Copy pre-filled messages to share manually if needed."
+
+RSVP Activity: Real-time event feed
+- Tooltip: "Shows all RSVP changes, offers, and admin actions in real time."
 
 19) Open Questions (non-blocking)
 
@@ -1123,7 +1154,7 @@ Notification frequency tuning based on user feedback?
 - [ ] RSVPBookingPane component for Match Control Centre
 - [ ] RSVP configuration modals (following existing patterns)
 - [ ] Player tier management interface  
-- [ ] Activity feed component
+- [ ] RSVP Activity component
 - [ ] Integration with existing useMatchState hook
 
 **PHASE 4: Public RSVP Interface (Week 4-5)**
@@ -1156,14 +1187,14 @@ Notification frequency tuning based on user feedback?
   - [ ] iOS Associated Domains / Android App Links
 - [ ] **End-to-End RSVP Flows:**
   - [ ] Invite mode switching (All at once ↔ Tiered)
-  - [ ] Simple vs Advanced tier modes
+  - [ ] Tier window configuration and validation
   - [ ] Tier window monotonicity validation (A ≤ B ≤ C)
   - [ ] Past time clamping and kick-off limits
   - [ ] Dynamic waitlist TTL behavior (4h/1h/30min based on time to kickoff)
   - [ ] Dynamic grace periods (5min/2min/1min based on time to kickoff)
   - [ ] Auto-cascade waitlist offers on expiry
   - [ ] Offer log display (Claimed/Expired/Superseded)
-  - [ ] Manual override buttons (Reissue offers, Process dropout)
+  - [ ] Manual override buttons (Send new waitlist offers, Release spot now)
   - [ ] Adaptive last-call notifications (T-12h/T-3h)
   - [ ] Mode switching semantics (Tiered→All opens to everyone, All→Tiered only affects new bookings)
   - [ ] Capacity downshift behavior (FIFO demotion with notifications)
@@ -1172,12 +1203,11 @@ Notification frequency tuning based on user feedback?
   - [ ] Ringer notification exclusion (tier-open/last-call skip ringers unless flag enabled)
   - [ ] Ringer participation (waitlist offers + cancellation always sent to participating ringers)
   - [ ] Phone-based identity (one phone = one player, no duplicates, strict enforcement)
-  - [ ] Admin "Promote to regular" (is_ringer=false) preserves all data
-  - [ ] Block unknown players toggle (per-match control)
+  - [ ] Global unknown player policy (block_unknown_players setting)
   - [ ] OUT with flexibility option ("can sub late")
   - [ ] Instant claim mode (<15min to kick-off, no hold period)
   - [ ] Live polling updates (15s refresh for non-push users)
-  - [ ] Invite link regeneration (token rotation)
+  - [ ] Invite link regeneration (automatic on toggle ON)
   - [ ] Last-call cooldown based on actual send time (6h from notification_ledger)
   - [ ] Claim re-validation (capacity check at claim time)
   - [ ] Burst protection (50 writes/10s per match, feature-flagged)
@@ -1230,7 +1260,7 @@ interface PlayerInPool extends PlayerProfile {
   responseStatus: 'IN' | 'OUT' | 'MAYBE' | 'PENDING' | 'WAITLIST'; // WAITLIST added
   // New RSVP fields:
   invitedAt?: Date;
-  inviteStage?: 'A' | 'B' | 'CASUAL';
+  inviteStage?: 'A' | 'B' | 'C';
   waitlistPosition?: number;
   offerExpiresAt?: Date;
   source?: 'app' | 'web' | 'admin';
@@ -1269,7 +1299,7 @@ const newJobTypes = ['tier_open_notifications', 'dropout_grace_processor', 'wait
 ## 22) Key Questions & Decisions Needed
 
 ### 22.1 Player Tier Assignment
-**QUESTION:** How should players be assigned to tiers (A/B/Casual)?
+**QUESTION:** How should players be assigned to tiers (A/B/C)?
 **OPTIONS:**
 1. Admin manual assignment
 2. Based on existing player ratings/stats
@@ -1329,7 +1359,8 @@ if (maxAllowedTTL < 15) {
 
 ### 22.4 Player Tier Management ✅ **CONFIRMED**
 **IMPLEMENTATION:** Add tier dropdown to existing admin player management interface
-- **Tier Field**: A | B | NULL (NULL = casual)
+- **Tier Field**: A | B | C (default: C)
+- **Default Behavior**: All new players automatically assigned to Tier C
 - **Scope**: Global player attribute (not per-season)
 - **Assignment**: Manual by admin initially
 
