@@ -95,6 +95,7 @@ export async function POST(
           team_a_score: score.team_a,
           team_b_score: score.team_b,
           team_a_own_goals: own_goals.team_a,
+          season_id: null,
           team_b_own_goals: own_goals.team_b,
           upcoming_match_id: matchId,
         } as any,

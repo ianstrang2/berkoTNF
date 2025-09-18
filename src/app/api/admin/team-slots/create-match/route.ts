@@ -34,6 +34,7 @@ export async function POST(request: Request) {
           match_date: new Date(match_date),
           team_a_score,
           team_b_score,
+          season_id: null,
         },
       });
 

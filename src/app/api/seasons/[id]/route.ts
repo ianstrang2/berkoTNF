@@ -107,51 +107,32 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const halfDate = new Date(start.getTime() + timeDiff / 2);
 
     try {
-      const updatedSeason = await prisma.$queryRaw`
-        UPDATE seasons 
-        SET 
-          start_date = ${startDate},
-          half_date = ${halfDate.toISOString().split('T')[0]},
-          end_date = ${endDate},
-          updated_at = NOW()
-        WHERE id = ${seasonId}
-        RETURNING 
-          id,
-          start_date,
-          half_date,
-          end_date,
-          get_season_display_name(start_date, end_date) as display_name,
-          created_at,
-          updated_at
-      ` as Array<{
-        id: number;
-        start_date: Date;
-        half_date: Date;
-        end_date: Date;
-        display_name: string;
-        created_at: Date;
-        updated_at: Date;
-      }>;
+      // Update the season using Prisma's standard update
+      const updatedSeason = await prisma.seasons.update({
+        where: { id: seasonId },
+        data: {
+          start_date: new Date(startDate),
+          half_date: halfDate,
+          end_date: new Date(endDate),
+          updated_at: new Date()
+        }
+      });
 
-      if (updatedSeason.length === 0) {
-        return NextResponse.json(
-          { success: false, error: 'Season not found' },
-          { status: 404 }
-        );
-      }
-
-      const season = updatedSeason[0];
+      // Get the display name using a separate query since we can't use the function in Prisma
+      const displayNameResult = await prisma.$queryRaw`
+        SELECT get_season_display_name(${startDate}::date, ${endDate}::date) as display_name
+      ` as Array<{ display_name: string }>;
 
       return NextResponse.json({
         success: true,
         data: {
-          id: season.id.toString(),
-          startDate: season.start_date.toISOString().split('T')[0],
-          halfDate: season.half_date.toISOString().split('T')[0],
-          endDate: season.end_date.toISOString().split('T')[0],
-          displayName: season.display_name,
-          createdAt: season.created_at.toISOString(),
-          updatedAt: season.updated_at.toISOString()
+          id: updatedSeason.id.toString(),
+          startDate: updatedSeason.start_date.toISOString().split('T')[0],
+          halfDate: updatedSeason.half_date.toISOString().split('T')[0],
+          endDate: updatedSeason.end_date.toISOString().split('T')[0],
+          displayName: displayNameResult[0]?.display_name || 'Unknown',
+          createdAt: updatedSeason.created_at?.toISOString() || '',
+          updatedAt: updatedSeason.updated_at?.toISOString() || ''
         }
       });
     } catch (dbError: any) {
@@ -161,6 +142,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           { status: 409 }
         );
       }
+      console.error('Season update error:', dbError);
       throw dbError;
     }
   } catch (error) {
@@ -184,17 +166,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check if season has matches
-    const matchCount = await prisma.$queryRaw`
-      SELECT COUNT(*) as count FROM matches WHERE season_id = ${seasonId}
-    ` as Array<{ count: bigint }>;
-
-    if (Number(matchCount[0].count) > 0) {
-      return NextResponse.json(
-        { success: false, error: 'Cannot delete season that has matches' },
-        { status: 409 }
-      );
-    }
 
     const deletedSeason = await prisma.$queryRaw`
       DELETE FROM seasons WHERE id = ${seasonId}

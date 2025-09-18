@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
       data: {
         match_date: plannedMatch.match_date,
         team_a_score: 0,
-        team_b_score: 0
+        team_b_score: 0,
+        season_id: null
       }
     });
 

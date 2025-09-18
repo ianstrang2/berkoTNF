@@ -19,10 +19,10 @@ model matches {
   upcoming_match_id         Int?
   team_a_own_goals          Int?                       @default(0)
   team_b_own_goals          Int?                       @default(0)
-  season_id                 Int
+  season_id                 Int?
   aggregated_personal_bests aggregated_personal_bests?
   upcoming_matches          upcoming_matches?          @relation(fields: [upcoming_match_id], references: [upcoming_match_id], map: "fk_matches_upcoming_match_id")
-  seasons                   seasons                    @relation(fields: [season_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seasons                   seasons?                   @relation(fields: [season_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   player_matches            player_matches[]
 
   @@index([upcoming_match_id], map: "idx_matches_upcoming_match_id")
@@ -559,8 +559,8 @@ model seasons {
   end_date                    DateTime                      @db.Date
   created_at                  DateTime?                     @default(now()) @db.Timestamptz(6)
   updated_at                  DateTime?                     @default(now()) @db.Timestamptz(6)
-  aggregated_season_honours   aggregated_season_honours[]   @ignore
-  aggregated_season_race_data aggregated_season_race_data[]
+  aggregated_season_honours   aggregated_season_honours[] @ignore
+  aggregated_season_race_data aggregated_season_race_data[] @ignore
   matches                     matches[]
 }
 

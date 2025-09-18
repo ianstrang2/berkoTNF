@@ -145,6 +145,7 @@ export async function POST(request: Request) {
           match_date: new Date(match_date),
           team_a_score,
           team_b_score,
+          season_id: null,
         },
       });
       console.log(`2. Match created with ID: ${newMatch.match_id}`);
