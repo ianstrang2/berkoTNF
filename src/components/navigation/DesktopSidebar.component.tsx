@@ -3,6 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { NAVIGATION_CONFIG } from '@/contexts/NavigationContext';
+import { useClubConfig } from '@/hooks/useClubConfig.hook';
 
 interface DesktopSidebarProps {
   className?: string;
@@ -17,6 +18,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
     isAdminMode, 
     isAdminAuthenticated 
   } = useNavigation();
+  
+  const { clubName } = useClubConfig();
 
   // Admin navigation icons
   const getAdminIcon = (section: string) => {
@@ -135,8 +138,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
             <span className="text-xs text-gray-400 uppercase tracking-wide">
               Club
             </span>
-            <span className="text-sm text-white font-medium mt-1">
-              BerkoTNF
+            <span className="text-sm text-white font-medium mt-1 truncate" title={clubName}>
+              {clubName.length > 20 ? `${clubName.substring(0, 20)}...` : clubName}
             </span>
           </div>
         )}
