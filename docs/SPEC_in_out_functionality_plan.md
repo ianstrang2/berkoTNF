@@ -34,8 +34,9 @@ This specification has been streamlined based on real-world usage patterns:
 
 **Watch real-time updates** in Match Control Centre:
 - "Booked 15/20" and "Waitlist 3" counters
-- Player list with source badges: 📱 App, 🌐 Web, 👤 Admin
-- Activity feed showing who joined when and how
+- Player list with source badges: 📱 App, 🌐 Web, 👤 Admin, 🎯 Ringer
+- **Activity feed** showing reverse-chronological timeline: invites sent, offers issued/claimed, teams balanced
+- **Manual controls:** "Auto-balance now" button (Draft state), waitlist management
 
 **Add ringers manually** using existing "Add Player" modal:
 - **Ringers = guests/one-off players** who don't self-book or pay online
@@ -43,9 +44,11 @@ This specification has been streamlined based on real-world usage patterns:
 - **No complexity** - same workflow as today, just with RSVP happening around them
 
 **Teams auto-balance when full** (if enabled):
-- **Auto-balance triggers:** When confirmed IN count first reaches capacity (not on every IN/OUT toggle)
-- **Manual trigger:** Admin can click "Auto-balance now" button anytime
-- **Auto-lock behavior:** Only locks pool if `auto_lock_when_full=true` (default OFF)
+- **Auto-balance triggers:** When confirmed IN count first reaches capacity (strict - not on every IN/OUT toggle)
+- **Manual trigger:** Admin can click "Auto-balance now" button in Draft state
+- **State behavior:** 
+  - `auto_lock_when_full=false` (default): Teams balance and publish, match stays Draft for waitlist flow
+  - `auto_lock_when_full=true`: Teams balance and match locks to TeamsBalanced state
 - **Manual override:** Admin can disable auto-balance and manage teams manually as today
 
 **When ready:** Lock Pool → Balance Teams → Complete (unchanged workflow).
@@ -87,8 +90,9 @@ This specification has been streamlined based on real-world usage patterns:
 - Dynamic offer timing: 4 hours normally, faster near kick-off
 
 **Last-call notifications:**
-- T-12h and T-3h if match is short of players
-- Only sent to people who haven't responded or marked "OUT but flexible"
+- **Fixed windows:** T-12h and T-3h if match is short of players (sent only once each)
+- **Smart targeting:** Unresponded players + "OUT but flexible" players only
+- **Respect preferences:** Excludes muted players and those at notification caps
 
 ### **3) Who gets invited when (invite modes)**
 
@@ -192,9 +196,9 @@ This specification has been streamlined based on real-world usage patterns:
 - **Future paid players:** "💳" strong warning about refunds and payment processing
 
 **Advanced tools (collapsible):**
-- **Activity Feed:** `<ActivityFeed />` component below RSVP pane, reverse-chron timeline from notification_ledger
-- **Manual triggers:** "Auto-balance now" (visible in Draft) | "Send new waitlist offers" | "Release spot now" | "Send last-call"
-- **Waitlist dashboard:** Active offers with countdown timers, offer history grouped by batch_key
+- **Activity Feed:** Real-time timeline (📣 invites, 🎯 offers, ✅ claims, ⚖️ auto-balance, 👤 admin actions)
+- **Manual triggers:** "Auto-balance now" (Draft only) | "Send new waitlist offers" | "Release spot now" 
+- **Waitlist dashboard:** Active offers with countdown timers, offer history with Claimed/Expired status
 - **Share templates:** Pre-filled WhatsApp messages for manual sharing
 
 **Unchanged workflow:**
@@ -291,7 +295,7 @@ Clean RSVP-only implementation without billing complexity.
 
 One link for everything: deep-links to app or falls back to web landing.
 
-**Enhanced Capacity Management:** If admin lowers capacity below current IN count, demote the most-recent IN players (by `invited_at`/`updated_at`) to WAITLIST (FIFO), log to `notification_ledger`, send polite notification. Expire/supersede any active offers to prevent over-issue. All capacity changes use `withMatchLock` for race safety.
+**Enhanced Capacity Management:** If admin lowers capacity below current IN count, demote the most-recent IN players (by `invited_at`/`updated_at`) to WAITLIST (LIFO), log to `notification_ledger`, send polite notification. Expire/supersede any active offers to prevent over-issue. All capacity changes use `withTenantMatchLock` for race safety.
 
 2) Modes (per match)
 
@@ -357,6 +361,11 @@ export function normalizeToE164(phone: string, defaultCountry: string = 'GB'): s
   // Country-specific normalization (per-tenant configurable)
   if (defaultCountry === 'GB' && cleaned.startsWith('07')) {
     return '+44' + cleaned.substring(1);
+  }
+  
+  // For non-GB tenants, if number lacks '+', hard-reject unless default country configured
+  if (defaultCountry !== 'GB' && !cleaned.startsWith('+')) {
+    throw new Error('Invalid phone format - international number required');
   }
   
   // Add other country logic as needed for SaaS expansion
@@ -486,7 +495,7 @@ CREATE TABLE IF NOT EXISTS notification_ledger (
   kind TEXT NOT NULL
     CHECK (kind IN (
       -- Push notifications
-      'invite','dropout','waitlist_offer','last_call','cancellation','digest',
+      'invite','dropout','waitlist_offer','last_call','cancellation',
       -- Admin action audit (prefixed for separation, never log PII)
       'audit/admin_add_player','audit/admin_remove_player','audit/admin_capacity_change',
       'audit/admin_override_grace','audit/admin_manual_offer',
@@ -825,10 +834,20 @@ CREATE POLICY tenant_isolation_players ON players
 // NEW: Activity feed
 // GET /api/admin/matches/[id]/activity
 // Returns last 200 events from notification_ledger, ORDER BY sent_at DESC, tenant-scoped
+// Implementation:
+// - Require admin auth + validate tenant access to match
+// - Query: WHERE tenant_id = $1 AND upcoming_match_id = $2 ORDER BY sent_at DESC LIMIT 200
+// - Response: { success: true, data: ActivityEvent[] }
+// - Never include raw phone numbers or tokens in response
 
 // NEW: Manual auto-balance trigger
 // POST /api/admin/matches/[id]/autobalance
 // Manually trigger auto-balance job (same logic as automatic trigger)
+// Implementation:
+// - Require admin auth + validate tenant access to match
+// - Only allow if match.state = 'Draft' and match.auto_balance_enabled = true
+// - Enqueue AUTO_BALANCE_PROCESSOR with tenant context
+// - Response: { success: true, data: { jobId: string } } or error
 
 // NEW: Waitlist management
 // POST /api/admin/waitlist/reissue
@@ -888,9 +907,16 @@ CREATE POLICY tenant_isolation_players ON players
 // - Never log full phone numbers or raw tokens
 
 // POST /api/booking/waitlist/claim
-// Claim waitlist offer (with re-validation)
+// Claim waitlist offer (with re-validation and full tenant security)
 { "matchId": 123, "token": "abc", "phone": "+447..." }
-// Implementation: prisma.$transaction with pg_advisory_xact_lock(matchId) to serialize mutations
+// Enhanced Implementation:
+// - Derive tenantId from (matchId, token hash) - don't trust client
+// - Set app.tenant_id before any writes for RLS compliance
+// - Phone normalization to E.164 with validation
+// - Token TTL: Reject if current_time > kickoff_at + 24h
+// - Use withTenantMatchLock(tenantId, matchId) for race safety
+// - SELECT ... FOR UPDATE on waitlist rows to prevent double-claims
+// - Emit: notification_ledger(kind='waitlist_offer_claimed', batch_key=original_offer_batch_key)
 
 // GET /api/booking/match/[id]/live  
 // Live match status updates (15s polling for non-push users)
@@ -1172,12 +1198,15 @@ export const RSVP_JOB_TYPES = {
 // - Use withTenantMatchLock(tenantId, matchId) for concurrency protection
 // - Idempotency: check if already processed (is_balanced=true)
 // - Only process if auto_balance_enabled=true and match.state='Draft'
+// - State handling:
+//   - If auto_lock_when_full=false (default): Keep state='Draft', just balance and publish teams
+//   - If auto_lock_when_full=true: Lock → Balance → state='TeamsBalanced'
 // - Flow: balanceTeams → publishTeams → sendTeamsReleasedNotification
-// - If auto_lock_when_full=true → also lockPool (but default is false)
 // - Job deduplication via match state version + tenant scoping
 // - Uses explicit match.capacity field (not team_size*2 inference)
 // - Tenant context: Set app.tenant_id for RLS compliance
 // - Emit: notification_ledger(kind='autobalance.balanced') on success
+// - Emit: notification_ledger(kind='teams.published') when teams become visible
 
 // last_call_processor (NEW - FIXED WINDOWS)
 // - Runs every 5-10 minutes via cron
@@ -1236,7 +1265,7 @@ Players can SELECT limited fields for matches they’re invited to or have a val
 
 **Waitlist claim/IN/OUT transitions** use `SELECT ... FOR UPDATE` on pool rows to prevent double-claims.
 
-**Offer TTL calculation** must clamp to kickoff−15m; <15m switches to instant claim (no hold). **Token TTL:** Links expire at kickoff+24h with friendly "link expired" copy.
+**Offer TTL calculation** must clamp to kickoff−15m; <15m switches to instant claim (no hold). Minimum 5min applies only when not in instant mode. **Token TTL:** Links expire at kickoff+24h with friendly "link expired" copy.
 
 **Drop-out grace period** (5m/2m/1m) cancels if player returns to IN during grace.
 
@@ -2149,6 +2178,15 @@ interface ActivityEvent {
 - [ ] Phone normalization runs server-side with E.164 validation
 - [ ] PII masking in all logs and UI
 
+**✅ Lightweight Focused Tests:**
+- [ ] **Idempotent auto-balance:** Double-trigger protection works
+- [ ] **Last-call single-fire:** T-12h/T-3h timestamps prevent duplicates
+- [ ] **Offer issuance → claim:** Both events appear in activity feed
+- [ ] **Ringer block enforcement:** Public endpoints reject with friendly message
+- [ ] **Token TTL enforcement:** Expired tokens rejected with friendly copy
+- [ ] **Tenant isolation:** Two tenants with same phone/match IDs don't collide
+- [ ] **Advisory lock isolation:** Tenant-aware locks prevent cross-tenant blocking
+
 **✅ ICS Calendar:**
 - [ ] Returns valid single-event .ics file
 - [ ] Minimal implementation (UTC, no alarms)
@@ -2168,7 +2206,7 @@ interface ActivityEvent {
 - [ ] **RLS policies:** Users can only access their tenant's data
 
 ### **26.2 Capacity & Waitlist Correctness**
-- [ ] **Capacity downshift:** When capacity drops, most-recent IN players move to WAITLIST (FIFO)
+- [ ] **Capacity downshift:** When capacity drops, most-recent IN players move to WAITLIST (LIFO)
 - [ ] **Concurrent claims:** Multiple waitlist offers, first to claim wins, others see "spot filled"
 - [ ] **Grace period cancellation:** Player returns to IN during grace, waitlist offers cancelled
 - [ ] **Offer TTL clamping:** Offers expire at kickoff−15m, switch to instant claim <15m
@@ -2193,15 +2231,48 @@ interface ActivityEvent {
 
 ---
 
-This **production-ready multi-tenant specification** provides a comprehensive implementation plan that builds on your existing architecture while adding:
+---
 
-✅ **Multi-Tenant SaaS Architecture** with proper data isolation and RLS  
+## **27) Final Implementation Summary**
+
+### **27.1 Complete Feature Set**
+This **production-ready multi-tenant specification** delivers:
+
+✅ **Multi-Tenant SaaS Architecture** with proper data isolation, RLS, and tenant-aware advisory locks  
 ✅ **Streamlined RSVP System** with unified `/upcoming/match/[id]?token=...` experience  
-✅ **Auto-Balance with Optional Auto-Lock** for hands-off management  
+✅ **Strict Auto-Balance Triggers** (capacity reached OR manual) with optional auto-lock  
 ✅ **Admin-Only Ringer Management** using existing "Add Player" modal  
-✅ **Comprehensive Audit Trail** with tenant-scoped activity feed  
+✅ **Real-Time Activity Feed** with comprehensive event tracking and emoji display  
+✅ **Fixed Last-Call Windows** (T-12h/T-3h) with timestamp-based idempotency  
+✅ **Enhanced Waitlist System** with offer logging and batch tracking  
 ✅ **Production Security** with token hashing, rate limiting, and tenant isolation  
 ✅ **WhatsApp-Simple Workflow** without complex approval flows  
 
-The phased approach allows for incremental development and testing, with each phase building on the previous one while maintaining backward compatibility and focusing on core RSVP functionality with enterprise-grade multi-tenancy.
+### **27.2 Database Changes Summary**
+- **6 tables enhanced** with tenant_id and RSVP fields
+- **3 new tables** (match_invites, notification_ledger, push_tokens)
+- **20+ new indexes** optimized for multi-tenant queries
+- **FK integrity triggers** preventing cross-tenant data corruption
+- **RLS policies** for complete tenant isolation
+
+### **27.3 API Surface Complete**
+- **10 new endpoints** (5 admin, 5 public)
+- **6 enhanced background jobs** with tenant scoping
+- **Complete security** (token derivation, rate limiting, PII protection)
+- **Backward compatibility** maintained throughout
+
+### **27.4 UI Components Added**
+- **ActivityFeed.component.tsx** (minimal, no filters)
+- **Auto-balance button** in Match Control Centre
+- **Enhanced removal modals** with waitlist context
+- **Source badges** (📱 App, 🌐 Web, 👤 Admin, 🎯 Ringer)
+
+### **27.5 Production Readiness**
+- **Multi-tenant advisory locks** prevent cross-tenant collisions
+- **Safe backfill strategy** for zero-downtime migration
+- **Redis-backed rate limiting** for production scale
+- **Comprehensive testing criteria** for all critical paths
+- **Complete error handling** with friendly user messages
+
+The phased approach allows for incremental development and testing, with each phase building on the previous one while maintaining backward compatibility and focusing on core RSVP functionality with enterprise-grade multi-tenancy and production reliability.
 
