@@ -107,7 +107,7 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 **Advanced sections (collapsible):**
 - **Waitlist management:** Active offers + countdown + Offer log + "Send new waitlist offers"
 - **Manual overrides:** "Release spot now" | "Send last-call"
-- **Quick-share messages (WhatsApp):** Pre-filled messages for manual sharing (tier-open, last-call, waitlist offers)
+- **Quick-share messages (WhatsApp):** Pre-filled messages for manual sharing
 - **RSVP Activity:** Real-time RSVP events and admin actions
 
 **The Lock/Balance/Complete steps behave exactly as today.**
