@@ -1,16 +1,20 @@
-BerkoTNF RSVP & Player Invitation System — Complete Implementation Specification
+BerkoTNF RSVP & Player Invitation System — Simplified Implementation Specification
 
-Version 3.2.4 • Final Production-Ready Implementation Plan
+Version 4.1.0 • Streamlined Production-Ready Implementation
 
-**UPDATED FOR ACTUAL CODEBASE ARCHITECTURE**
+**SIMPLIFIED FOR WHATSAPP-SIMPLE WORKFLOW**
 
-This specification has been thoroughly reviewed against the existing BerkoTNF codebase and updated to align with:
-- Existing database schema and naming conventions
+This specification has been streamlined based on real-world usage patterns:
+- Existing BerkoTNF codebase architecture and patterns
 - Current match lifecycle system (Draft → PoolLocked → TeamsBalanced → Completed)
 - Established UI patterns and soft-UI styling
-- Background worker infrastructure
-- API patterns using Prisma
+- Background worker infrastructure and API patterns using Prisma
 - Component architecture and file organization
+- **SIMPLIFIED**: Admin-only ringer management (no self-booking approval flows)
+- **ENHANCED**: Auto-balance with optional auto-lock for hands-off management
+- **STREAMLINED**: Single unified RSVP flow for all users
+- **FOCUSED**: Core RSVP functionality without complex onboarding
+- **SECURE**: Token hashing and production reliability built-in
 
 ---
 
@@ -18,119 +22,221 @@ This specification has been thoroughly reviewed against the existing BerkoTNF co
 
 ### **1) What the admin does**
 
-**Create match as usual.**
+**Create match as usual.** Set capacity (e.g., 20 players for 10v10).
 
-**If they want bookings:** toggle "Allow self-serve booking", choose invite mode:
-- **All at once (default):** Everyone can book immediately
-- **Tiered mode:** Set tier windows (A/B/C) with customizable timing
-- Global defaults minimize per-match configuration
+**If they want self-serve bookings:** toggle "Allow self-serve booking" and configure:
+- **Invite mode:** "All at once" (everyone can book immediately) or "Tiered" (A/B/C windows)
+- **Auto-balance:** When match fills up, automatically balance teams (default ON)
+- **Auto-lock:** When match fills up, automatically lock the pool (default OFF)
+- **Why separate toggles?** Most admins want teams balanced but prefer to keep the match open for waitlist flow until they manually lock
 
-**Share one link** in WhatsApp (or anywhere).
+**Share one link** in WhatsApp: "Book for Sunday's match: [link]"
 
-**Watch "Booked n/m" (and "Waitlist k")** tick up in the Match Control Centre.
+**Watch real-time updates** in Match Control Centre:
+- "Booked 15/20" and "Waitlist 3" counters
+- Player list with source badges: 📱 App, 🌐 Web, 👤 Admin
+- Activity feed showing who joined when and how
 
-**Add ringers manually any time** (manual add always works).
+**Add ringers manually** using existing "Add Player" modal:
+- **Ringers = guests/one-off players** who don't self-book or pay online
+- **Admin retains full control** - ringers can't use the public booking link
+- **No complexity** - same workflow as today, just with RSVP happening around them
+
+**Teams auto-balance when full** (if enabled):
+- **Auto-balance triggers:** When confirmed IN count first reaches capacity (not on every IN/OUT toggle)
+- **Manual trigger:** Admin can click "Auto-balance now" button anytime
+- **Auto-lock behavior:** Only locks pool if `auto_lock_when_full=true` (default OFF)
+- **Manual override:** Admin can disable auto-balance and manage teams manually as today
 
 **When ready:** Lock Pool → Balance Teams → Complete (unchanged workflow).
 
-### **2) What players see / do**
+### **2) What regular players see / do**
 
 **Tap the shared link:**
-- Opens the familiar berkotnf.com/upcoming page with match-specific RSVP interface.
-- Shows match details, current status, and RSVP buttons.
-- Works perfectly on mobile and desktop browsers.
+- Opens unified RSVP page: berkotnf.com/upcoming/match/[id]?token=...
+- **Same interface for everyone** - app users, web users, logged-in users
+- **App users:** Deep-linked, no phone entry needed (best experience)
+- **Web users:** Same page, phone entry required for identity
+- Shows match details, current booking status, and simple RSVP buttons
 
-**On the berkotnf.com/upcoming page,** they can:
-- **IN** - Confirm attendance
-- **OUT** - Can't make it (with subtle "Might be available later" option underneath)
-- **Join Waitlist** - if match is full
+**Three simple actions:**
+- **IN** - "I'm coming" (counts toward capacity)
+- **OUT** - "Can't make it" (with optional "Might be available later" for last-call notifications)  
+- **Join Waitlist** - if match is full (first-come-first-served queue)
 
-**If they're waitlisted and a spot opens:**
-- The system sends a push to the top 3 waitlisted players.
-- First to claim gets the spot. Others get a "spot filled" notification.
+**If they're a ringer or unknown player:**
+- **Ringers blocked:** "Please ask the organiser to add you for this match."
+- **Unknown numbers:** "This number isn't registered with this club. Please ask the organiser to add you."
+- **Too early (tiered):** "Too early — Tier C opens at 2pm. The IN button will appear here 👍"
 
-**Near kick-off** (if the match is short of players), the system sends a last-call push (see timings below).
+**Real-time updates:**
+- See live booking count: "15/20 confirmed, 3 waiting"
+- Get push notifications for tier opens, waitlist offers, last-calls
+- View teams once they're balanced (if auto-balance enabled)
+
+**Enhanced /upcoming overview** shows match cards with:
+- 📅 Sunday 15th Jan, 2pm at Berko Astro
+- 👥 15/20 confirmed • 3 waiting  
+- 🟢 You're IN | ⏸️ Waitlist #2
+- **Tap to view teams or change RSVP**
+
+**Waitlist system:**
+- Join queue when match is full
+- Get offered spots when someone drops out (top 3 get offers simultaneously)
+- First to claim wins, others stay on waitlist
+- Dynamic offer timing: 4 hours normally, faster near kick-off
+
+**Last-call notifications:**
+- T-12h and T-3h if match is short of players
+- Only sent to people who haven't responded or marked "OUT but flexible"
 
 ### **3) Who gets invited when (invite modes)**
 
 **Two invite modes per match:**
 
-**All at once (default):** Anyone with the link can book immediately until capacity is reached.
+**All at once (default):** 
+- Anyone with the link can book immediately until capacity is reached
+- **Best for:** Casual matches, smaller groups, when timing isn't critical
 
-**Tiered mode:** Time-based booking windows with A/B/C tiers:
-- **Tier A** players can book first
-- **Tier B** players can book from a later time
-- **Tier C** players (default tier for all players) can book from an even later time
-- Admins can set any two tiers to open simultaneously for a two-window flow
+**Tiered mode:** 
+- Time-based booking windows with A/B/C tiers
+- **Tier A** players (regulars/committed) can book first
+- **Tier B** players (semi-regulars) can book from a later time  
+- **Tier C** players (casuals/default) can book from an even later time
+- **Best for:** Popular matches, managing demand, rewarding regular attendance
+- **Implementation:** When a tier opens, write one `match_invites` row (stage A/B/C) and mark invited players' `invited_at` + `invite_stage`
 
-**Tier Assignment:** Tier C is the default for all players unless explicitly set to A or B by an admin.
+**Tier assignment logic:**
+- **New players default to Tier C** (casual tier)
+- **Admins manually promote** committed players to A or B
+- **Future enhancement:** Auto-assignment based on attendance history
 
-**Global defaults:** Admins can set default tier offsets (e.g., Tier B opens +24 hours after Tier A, Tier C +48 hours) to minimize per-match configuration.
+**Flexible timing:**
+- Admins can set B and C to open simultaneously for a two-window flow
+- Global defaults (e.g., A→B +24h, A→C +48h) minimize per-match setup
+
+**Who gets notifications:**
+- **Regular players:** Get tier-open and last-call pushes based on their tier
+- **Ringers:** Excluded from invite/last-call pushes; they do get transactional pushes when participating (teams released, cancellation, waitlist offers)
 
 ### **4) How the waitlist & offers work**
 
-**When the match is full,** players can Join Waitlist.
+**When the match reaches capacity,** players can still join the waitlist.
 
-**If someone drops OUT,** there is a dynamic grace period (5min normally, 2min if <24h, 1min if <3h to kick-off) so they can change their mind.
+**If someone drops OUT,** there's a grace period so they can change their mind:
+- **5 minutes normally** (people change their minds quickly)
+- **2 minutes if <24h to kick-off** (less time for indecision)
+- **1 minute if <3h to kick-off** (almost game time)
 
-**After grace,** the system checks capacity; if a spot is free it offers to the top 3 waitlisted (by queue order).
+**After grace expires,** the spot becomes available and the system:
+- **Offers to top 3 waitlisted players simultaneously** (by queue order)
+- **First to claim wins** - others get "spot filled" and stay on waitlist
+- **No favoritism** - pure first-come-first-served
 
-**Offers have a time limit (TTL):**
-- **Dynamic TTL:** 4h normally, 1h if <24h to kick-off, 30min if <3h to kick-off
-- **TTL never runs past kick-off;** minimum hold 5min; when <15m to kick-off → instant claim (no hold)
-- **Auto-cascade:** When offers expire, automatically offer to next top-3 players
-- **First to claim gets in;** the rest see "spot filled" and remain on the waitlist
+**Offers have smart time limits:**
+- **4 hours normally** (plenty of time to see and respond)
+- **1 hour if <24h to kick-off** (match is soon)
+- **30 minutes if <3h to kick-off** (almost game time)
+- **Instant claim if <15min to kick-off** (no hold period, first tap wins)
+- **Banner shows:** "Kick-off soon — spots are first-come, first-served."
 
-### **5) Notifications (push only; no SMS/email)**
+**Auto-cascade system:**
+- When offers expire, automatically offer to next 3 players
+- Continues until spot is claimed or waitlist is empty
+- Admin can manually trigger offers anytime
 
-- **Tier-open push** (when a player's tier window opens).
-- **Waitlist offer push** (top 3 with TTL).
-- **Last-call push** if still short before kick-off:
-  - **Enhanced system:** T-12h and T-3h messages (targeted to unresponded and "OUT but flexible").
-  - **No quiet hours:** All notifications send immediately when scheduled.
-- **Cancellation push** to all booked + waitlist.
-- **Spam guard:** max 3 dropout/last-call pushes per player per match. Tier-open and waitlist_offer pushes are uncapped (still deduped/batched).
-- **6h last-call cooldown:** Players who received last-call in past 6h are excluded from subsequent last-call messages.
+### **5) Smart notifications (push only; no SMS/email)**
+
+**Targeted notifications:**
+- **Tier-open:** "Booking open for Sunday's match. ✅ IN | ❌ OUT"
+- **Waitlist offers:** "Spot just opened! First to claim gets it. Expires in 2h 30m."
+- **Last-call:** "We're 3 short for Sunday. Can you make it? ✅ IN | ❌ OUT"
+- **Teams released:** "Teams are out for Sunday's match!" (when auto-balance completes)
+- **Cancellation:** "Sunday's match has been cancelled" (to all participants)
+
+**Smart targeting:**
+- **Regular players only** get automatic invites (tier-open, last-call)
+- **Ringers excluded** from auto-notifications (admin controls their participation)
+- **Last-call targeting:** Unresponded players + "OUT but flexible" players only
+
+**Spam protection:**
+- **Max 3 last-call messages** per player per match
+- **6-hour cooldown** between last-call notifications
+- **No quiet hours** - notifications send immediately when triggered
+- **Batching** for efficiency without delaying important messages
 
 ### **6) What the admin sees in Match Control Centre**
 
-**A Booking panel (when enabled) with:**
+**Enhanced booking panel (when RSVP enabled):**
 
-**Top row (always visible):**
-- Enable RSVP toggle • Copy link button • "Booked 15/20" • "Waitlist 3"
+**Quick overview (always visible):**
+- **Enable RSVP toggle** with instant link generation
+- **Copy link button** for WhatsApp sharing
+- **Live counters:** "Booked 15/20" • "Waitlist 3" (with tenant-scoped cache tags)
+- **Auto-balance status:** "Teams will balance at 20" or "Manual balancing"
 
 **Main controls:**
-- **Invite mode:** "All at once" (default) | "Tiered"
-- **Tiered controls:** Tier A/B/C windows with customizable timing
-- Player lists: IN / OUT / WAITLIST / PENDING with ringer badges
+- **Invite mode:** "All at once" (everyone immediately) | "Tiered" (A/B/C windows)
+- **Auto-balance:** Balance teams when full (default ON, recommended)
+- **Auto-lock:** Lock pool when full (default OFF, keeps waitlist flowing)
+- **Why these defaults?** Most admins want teams ready but prefer manual control over locking
 
-**Advanced sections (collapsible):**
-- **Waitlist management:** Active offers + countdown + Offer log + "Send new waitlist offers"
-- **Manual overrides:** "Release spot now" | "Send last-call"
-- **Quick-share messages (WhatsApp):** Pre-filled messages for manual sharing
-- **RSVP Activity:** Real-time RSVP events and admin actions
+**Player lists with smart badges:**
+- **📱 App / 🌐 Web:** Self-RSVP'd regular players
+- **👤 Admin:** Admin-added players (regulars and ringers)
+- **🎯 Ringer:** Optional badge when `is_ringer=true` for quick identification
 
-**The Lock/Balance/Complete steps behave exactly as today.**
+**Smart removal system:**
+- **Admin-added players:** Simple "❌" remove (admin added, admin removes)
+- **Self-RSVP'd players:** "⚠️" confirmation ("Removing will free 1 spot. Waitlist: 3 players.")
+- **Future paid players:** "💳" strong warning about refunds and payment processing
 
-### **7) Ringers (guests/one-off players)**
+**Advanced tools (collapsible):**
+- **Activity Feed:** `<ActivityFeed />` component below RSVP pane, reverse-chron timeline from notification_ledger
+- **Manual triggers:** "Auto-balance now" (visible in Draft) | "Send new waitlist offers" | "Release spot now" | "Send last-call"
+- **Waitlist dashboard:** Active offers with countdown timers, offer history grouped by batch_key
+- **Share templates:** Pre-filled WhatsApp messages for manual sharing
 
-**Ringers = one-off players** the admin adds manually (don't appear in season stats; same as today).
+**Unchanged workflow:**
+- **Lock Pool → Balance Teams → Complete** works exactly as today
+- **Auto-balance just speeds it up** - teams appear automatically when full
+- **Admin can still override** everything manually
 
-**By default, ringers do not receive automatic invites** - admin keeps control over who gets notified.
+### **7) Ringers explained - Why they're different**
 
-**Two global policy settings** (configured in admin settings, off by default):
-- "Include ringers in invites" - they get tier-open and last-call notifications
-- "Allow ringers to book" - they can use the public booking link
+**What's a ringer in RSVP context?**
+- **Guest players** the admin brings occasionally (friends, subs, one-offs)
+- **Don't self-book or pay online** - admin handles their participation directly
+- **Don't get automatic notifications** - admin decides when to include them
+- **Same as today's workflow** - admin adds them via "Add Player" modal when needed
 
-**If a ringer becomes a regular,** admin flips `is_ringer=false` - no duplicate profiles, no data loss.
+**Why keep ringers separate from RSVP?**
+- **Admin control:** Some players shouldn't have direct booking access
+- **Payment simplicity:** Ringers often pay cash or are comped by admin
+- **Notification control:** Avoid spamming occasional players with regular match invites
+- **Flexibility:** Admin can promote ringers to regulars anytime
 
-**Phone-based identity:** One phone number = one player record (prevents duplicates).
+**How ringers work with RSVP:**
+- **Admin adds them manually** to any match (same as today)
+- **They appear in player lists** with 👤 Admin badge (and optional 🎯 Ringer badge)
+- **They count toward capacity** once added
+- **They don't receive invite/last-call pushes** (unless admin enables `include_ringers_in_invites=true`)
+- **They DO get transactional pushes** when participating (teams released, cancellation, waitlist offers)
+- **They can't use the public booking link** (blocked with message: "Please ask the organiser to add you for this match.")
 
-**Auto-created ringer profiles** (when unknown phone books):
-- **Name**: User-provided (required, max 14 characters, must be globally unique)
-- **Phone**: Normalized E.164 format
-- **Profile**: `is_ringer=true`, all ratings=3, tier='C', club=null
-- **Validation**: Same rules as admin player creation (14-char limit, unique name check)
+**Promoting ringers to regulars:**
+- **Admin decision:** Open player profile → toggle `is_ringer=false`
+- **Instant upgrade:** Player becomes Tier C regular
+- **New capabilities:** Can self-RSVP, will get notifications, can (future) pay online
+- **No data loss:** All match history and stats preserved
+
+**Global policy controls:**
+- `include_ringers_in_invites = false` (default) - ringers don't get invite/last-call pushes
+- `enable_ringer_self_book = false` (default) - ringers can't use public links
+- **Admin can enable either** if they want more ringer autonomy
+- **Important:** No visible UI control for "Include ringers in invites" - keep it config-only
+
+**The key insight:** Ringers represent **admin-managed participation** vs. **self-service participation** for regulars.
 
 ---
 
@@ -140,27 +246,25 @@ Add in/out (RSVP) functionality to keep matches full with minimal admin effort a
 
 In scope
 
-Two match modes per match:
+**Core RSVP System:**
+- Two match modes: Manual only (default) | Self-serve booking (optional toggle)
+- Invitations & responses (IN / OUT / WAITLIST) with tier open windows (A | B | C)
+- Waitlist with top-3 simultaneous offers and offer TTL
+- Native push notifications via Capacitor (FCM/APNs)
+- Unified RSVP experience: `/upcoming/match/[id]?token=...` for all users
+- Optional calendar .ics files for reminders
 
-Manual only (default) — works exactly as today.
+**Enhanced Admin Features:**
+- Comprehensive audit trail and activity feed with source tracking
+- Auto-balance system with optional auto-lock for hands-off management
+- Enhanced player removal warnings based on source (admin vs self-RSVP)
+- Real-time RSVP activity monitoring
+- Admin-only ringer management (no self-booking approval flows)
 
-Self-serve booking (shareable link) — optional toggle.
-
-Invitations & responses (IN / OUT / WAITLIST) with tier open windows (A | B | C).
-
-Waitlist with top-3 simultaneous offers and offer TTL.
-
-Native push notifications via Capacitor (FCM/APNs).
-
-Deep links: the same URL opens the app if installed, web booking otherwise.
-
-Optional calendar .ics files for reminders.
-
-Admin Activity Feed.
-
-Secure booking link; “remember me” for web hold-outs.
-
-DB schema, APIs, background jobs (Render worker), RLS, and UI.
+**Technical Infrastructure:**
+- DB schema, APIs, background jobs (Render worker), RLS, and UI
+- Production reliability: concurrency protection, rate limiting, security
+- App installation tracking (passive monitoring only)
 
 Out of scope (deferred to separate specification)
 
@@ -187,7 +291,7 @@ Clean RSVP-only implementation without billing complexity.
 
 One link for everything: deep-links to app or falls back to web landing.
 
-Capacity management: If admin lowers capacity below current IN, the last IN by timestamp moves to WAITLIST (FIFO), with activity log entry and push notification. Outstanding waitlist offers are auto-expired/superseded when capacity drops to full.
+**Enhanced Capacity Management:** If admin lowers capacity below current IN count, demote the most-recent IN players (by `invited_at`/`updated_at`) to WAITLIST (FIFO), log to `notification_ledger`, send polite notification. Expire/supersede any active offers to prevent over-issue. All capacity changes use `withMatchLock` for race safety.
 
 2) Modes (per match)
 
@@ -208,18 +312,22 @@ Optional tier open times (A→B→C). Admin can still add players manually at an
 
 **REQUIRED ADDITIONS:**
 
-3.1 Players (Add Phone & Tier System)
+3.1 Players (Add Phone, Tier & Multi-Tenant Support)
 ```sql
--- Add phone field for RSVP identity (international E.164 format)
--- Note: All new players default to Tier C unless explicitly assigned A or B by admin
+-- Add phone field, tier system, and multi-tenant support
 ALTER TABLE players
-  ADD COLUMN phone TEXT UNIQUE,
+  ADD COLUMN tenant_id UUID NOT NULL,                     -- Multi-tenant isolation
+  ADD COLUMN phone TEXT,                                  -- E.164 format
   ADD COLUMN tier TEXT NOT NULL DEFAULT 'C' CHECK (tier IN ('A','B','C'));
 
--- Indexes for RSVP lookups
-CREATE INDEX IF NOT EXISTS idx_players_phone ON players(phone);
-CREATE INDEX IF NOT EXISTS idx_players_tier ON players(tier);
-CREATE INDEX IF NOT EXISTS idx_players_ringer ON players(is_ringer);
+-- Multi-tenant phone uniqueness (one phone per player per tenant)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_players_tenant_phone 
+  ON players (tenant_id, phone) WHERE phone IS NOT NULL;
+
+-- Multi-tenant optimized indexes (tenant_id first for query performance)
+CREATE INDEX IF NOT EXISTS idx_players_tenant_phone ON players(tenant_id, phone);
+CREATE INDEX IF NOT EXISTS idx_players_tenant_tier ON players(tenant_id, tier);
+CREATE INDEX IF NOT EXISTS idx_players_tenant_ringer ON players(tenant_id, is_ringer);
 
 -- Phone validation constraint (E.164 international format)
 ALTER TABLE players
@@ -246,13 +354,13 @@ export function normalizeToE164(phone: string, defaultCountry: string = 'GB'): s
     return cleaned;
   }
   
-  // UK-specific normalization (07... → +447...)
+  // Country-specific normalization (per-tenant configurable)
   if (defaultCountry === 'GB' && cleaned.startsWith('07')) {
     return '+44' + cleaned.substring(1);
   }
   
-  // Add default country code if needed
-  // (Add other country logic as needed for SaaS expansion)
+  // Add other country logic as needed for SaaS expansion
+  // defaultCountry comes from per-tenant app_config: default_phone_country
   
   return cleaned;
 }
@@ -260,18 +368,35 @@ export function normalizeToE164(phone: string, defaultCountry: string = 'GB'): s
 
 **Note:** `is_ringer` field already exists - will be used for guest/one-off players
 
-3.2 Upcoming Matches (Add RSVP Features)
+3.2 Upcoming Matches (Add RSVP Features & Multi-Tenant Support)
 ```sql
 ALTER TABLE upcoming_matches
+  ADD COLUMN tenant_id UUID NOT NULL,                     -- Multi-tenant isolation
   ADD COLUMN booking_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-  ADD COLUMN invite_token TEXT,                           -- secure token for the public link
+  ADD COLUMN invite_token_hash TEXT,                      -- hashed token for security
+  ADD COLUMN invite_token_created_at TIMESTAMPTZ NULL,    -- token creation time
   ADD COLUMN a_open_at TIMESTAMPTZ NULL,
   ADD COLUMN b_open_at TIMESTAMPTZ NULL,
   ADD COLUMN c_open_at TIMESTAMPTZ NULL,
-  ADD COLUMN match_timezone TEXT NOT NULL DEFAULT 'Europe/London';  -- for display only (not used for scheduling)
+  ADD COLUMN match_timezone TEXT NOT NULL DEFAULT 'Europe/London',  -- for display only
+  ADD COLUMN capacity INT NULL,                           -- explicit capacity (if NULL, fallback to team_size*2 for backward compatibility)
+  -- NEW: Auto-balance and auto-lock system
+  ADD COLUMN auto_balance_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN auto_balance_method TEXT NOT NULL DEFAULT 'performance'
+    CHECK (auto_balance_method IN ('ability','performance','random')),
+  ADD COLUMN auto_lock_when_full BOOLEAN NOT NULL DEFAULT FALSE,
+  -- NEW: Fixed last-call tracking (simplifies idempotency)
+  ADD COLUMN last_call_12_sent_at TIMESTAMPTZ NULL,       -- T-12h last-call timestamp
+  ADD COLUMN last_call_3_sent_at TIMESTAMPTZ NULL;        -- T-3h last-call timestamp
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_upcoming_matches_invite_token
-  ON upcoming_matches(invite_token);
+-- Multi-tenant token uniqueness (per tenant, partial index to avoid NULL collisions)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_upcoming_matches_tenant_token_hash
+  ON upcoming_matches(tenant_id, invite_token_hash)
+  WHERE invite_token_hash IS NOT NULL;
+
+-- Multi-tenant optimized indexes (tenant_id first)
+CREATE INDEX IF NOT EXISTS idx_upcoming_matches_tenant_tier_opens
+  ON upcoming_matches(tenant_id, a_open_at, b_open_at, c_open_at);
 ```
 
 3.3 Match Player Pool (Extend Existing Table)
@@ -282,13 +407,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_upcoming_matches_invite_token
 - **OUT**: Cannot attend  
 - **MAYBE**: Soft interest (excluded from capacity counts, kept for backward compatibility)
 - **WAITLIST**: Wants to attend but match is full
-- **PENDING**: No response yet
+- **PENDING**: No response yet (excluded from capacity counts, displays as "No response yet" - not "awaiting approval")
 
 **CAPACITY CALCULATION:** Capacity counts IN only. MAYBE, PENDING, and WAITLIST are excluded.
 
 ```sql
--- Extend existing match_player_pool table
+-- Extend existing match_player_pool table with multi-tenant support
 ALTER TABLE match_player_pool
+  ADD COLUMN tenant_id UUID NOT NULL,                     -- Multi-tenant isolation
   ADD COLUMN invited_at TIMESTAMPTZ NULL,
   ADD COLUMN invite_stage TEXT NULL,                       -- 'A','B','C'
   ADD COLUMN reminder_count INTEGER NOT NULL DEFAULT 0,    -- used for caps
@@ -305,26 +431,26 @@ ALTER TABLE match_player_pool
   ADD CONSTRAINT match_player_pool_response_status_check 
   CHECK (response_status IN ('PENDING','IN','OUT','MAYBE','WAITLIST'));
 
--- Unique constraint to prevent duplicate player entries
+-- Multi-tenant unique constraints
 ALTER TABLE match_player_pool
-  ADD CONSTRAINT uniq_mpp_player_match UNIQUE (upcoming_match_id, player_id);
+  ADD CONSTRAINT uniq_mpp_tenant_player_match UNIQUE (tenant_id, upcoming_match_id, player_id);
 
--- Performance and integrity indexes
-CREATE INDEX IF NOT EXISTS idx_mpp_match_status
-  ON match_player_pool(upcoming_match_id, response_status);
-CREATE INDEX IF NOT EXISTS idx_mpp_match_waitpos
-  ON match_player_pool(upcoming_match_id, waitlist_position);
-CREATE INDEX IF NOT EXISTS idx_mpp_match_offer_exp
-  ON match_player_pool(upcoming_match_id, offer_expires_at);
+-- Multi-tenant performance indexes (tenant_id first for hot paths)
+CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_status
+  ON match_player_pool(tenant_id, upcoming_match_id, response_status);
+CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_waitpos
+  ON match_player_pool(tenant_id, upcoming_match_id, waitlist_position);
+CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_offer_exp
+  ON match_player_pool(tenant_id, upcoming_match_id, offer_expires_at);
 
--- Optimized waitlist query index
-CREATE INDEX IF NOT EXISTS idx_mpp_waitlist_active
-  ON match_player_pool (upcoming_match_id, waitlist_position)
+-- Optimized waitlist query index (tenant-scoped)
+CREATE INDEX IF NOT EXISTS idx_mpp_tenant_waitlist_active
+  ON match_player_pool (tenant_id, upcoming_match_id, waitlist_position)
   WHERE response_status='WAITLIST' AND offer_expires_at IS NULL;
 
--- Waitlist position integrity (prevents duplicate positions)
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_mpp_waitpos_per_match
-  ON match_player_pool (upcoming_match_id, waitlist_position)
+-- Waitlist position integrity (prevents duplicate positions per tenant)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_mpp_tenant_waitpos_per_match
+  ON match_player_pool (tenant_id, upcoming_match_id, waitlist_position)
   WHERE response_status = 'WAITLIST' AND waitlist_position IS NOT NULL;
 
 -- Integrity constraint for offer expiry
@@ -335,50 +461,109 @@ ALTER TABLE match_player_pool
 
 3.4 New Tables (Following BerkoTNF Conventions)
 
-**Invitation Waves (Audit Trail)**
+**Invitation Waves (Audit Trail) - Multi-Tenant**
 ```sql
 CREATE TABLE IF NOT EXISTS match_invites (
   id BIGSERIAL PRIMARY KEY,
+  tenant_id UUID NOT NULL,             -- Multi-tenant isolation
   upcoming_match_id INT NOT NULL REFERENCES upcoming_matches(upcoming_match_id) ON DELETE CASCADE,
   stage TEXT NOT NULL,                  -- 'A','B','C' or custom
   created_by INT NOT NULL,              -- admin user ID
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   target_count INTEGER NULL
 );
-CREATE INDEX IF NOT EXISTS idx_match_invites_match
-  ON match_invites(upcoming_match_id);
+CREATE INDEX IF NOT EXISTS idx_match_invites_tenant_match
+  ON match_invites(tenant_id, upcoming_match_id);
 ```
 
-**Notification Ledger (Push Audit, Caps, Batching)**
+**Enhanced Notification Ledger (Push Audit + Activity Feed) - Multi-Tenant**
 ```sql
 CREATE TABLE IF NOT EXISTS notification_ledger (
   id BIGSERIAL PRIMARY KEY,
+  tenant_id UUID NOT NULL,             -- Multi-tenant isolation
   upcoming_match_id INT NOT NULL REFERENCES upcoming_matches(upcoming_match_id) ON DELETE CASCADE,
   player_id INT NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
   kind TEXT NOT NULL
-    CHECK (kind IN ('invite','dropout','waitlist_offer','last_call','cancellation','digest')),
+    CHECK (kind IN (
+      -- Push notifications
+      'invite','dropout','waitlist_offer','last_call','cancellation','digest',
+      -- Admin action audit (prefixed for separation, never log PII)
+      'audit/admin_add_player','audit/admin_remove_player','audit/admin_capacity_change',
+      'audit/admin_override_grace','audit/admin_manual_offer',
+      -- NEW: Enhanced activity tracking
+      'waitlist_offer_claimed','autobalance.balanced','teams.published'
+    )),
   batch_key TEXT NULL,                  -- window key to coalesce pushes
-  sent_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Additional context for audit events (no PII)
+  actor_name TEXT NULL,                 -- "Admin" or player display name (masked phone)
+  source TEXT NULL,                     -- 'app'|'web'|'admin'
+  details TEXT NULL                     -- Additional context (no sensitive data)
 );
-CREATE INDEX IF NOT EXISTS idx_notif_ledger_match_player
-  ON notification_ledger(upcoming_match_id, player_id);
-CREATE INDEX IF NOT EXISTS idx_notif_ledger_match_kind
-  ON notification_ledger(upcoming_match_id, kind);
+-- Multi-tenant optimized indexes (tenant_id first for hot paths)
+CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_match_player
+  ON notification_ledger(tenant_id, upcoming_match_id, player_id);
+CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_kind
+  ON notification_ledger(tenant_id, kind, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_audit
+  ON notification_ledger(tenant_id, upcoming_match_id, kind, sent_at DESC)
+  WHERE kind LIKE 'audit/%';
 ```
 
-**Native Push Tokens (Capacitor App)**
+**Native Push Tokens (Capacitor App) - Multi-Tenant**
 ```sql
 CREATE TABLE IF NOT EXISTS push_tokens (
   id BIGSERIAL PRIMARY KEY,
+  tenant_id UUID NOT NULL,             -- Multi-tenant isolation
   player_id INT NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
   device_id TEXT NOT NULL,
   platform TEXT NOT NULL CHECK (platform IN ('ios','android')),
   fcm_token TEXT NOT NULL,              -- FCM for Android, APNs via FCM for iOS
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (player_id, device_id, platform)
+  UNIQUE (tenant_id, player_id, device_id, platform)
 );
-CREATE INDEX IF NOT EXISTS idx_push_tokens_player
-  ON push_tokens(player_id);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_tenant_player
+  ON push_tokens(tenant_id, player_id);
+```
+
+**REMOVED: Profile Claiming & Club Onboarding System**
+```sql
+-- These tables are NOT needed in the simplified version:
+-- join_requests (removed - no approval flow)
+-- claim_tokens (removed - no profile claiming)
+-- 
+-- Ringers are added directly by admin using existing "Add Player" modal
+```
+
+**Enhanced Performance Indexes (Multi-Tenant)**
+```sql
+-- Critical performance indexes for common queries (tenant-scoped)
+CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_player
+  ON match_player_pool(tenant_id, upcoming_match_id, player_id);
+-- REMOVED: idx_mpp_pending_expiry (no longer needed since PENDING holds are removed)
+```
+
+**Multi-Tenant Data Integrity (FK + Tenant Consistency)**
+```sql
+-- Tenant consistency enforcement for match_player_pool
+CREATE OR REPLACE FUNCTION enforce_tenant_match_pool()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.tenant_id IS DISTINCT FROM (SELECT tenant_id FROM upcoming_matches WHERE upcoming_match_id = NEW.upcoming_match_id) THEN
+    RAISE EXCEPTION 'tenant mismatch between player pool and match';
+  END IF;
+  IF NEW.tenant_id IS DISTINCT FROM (SELECT tenant_id FROM players WHERE player_id = NEW.player_id) THEN
+    RAISE EXCEPTION 'tenant mismatch between player pool and player';
+  END IF;
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_mpp_tenant_enforce ON match_player_pool;
+CREATE TRIGGER trg_mpp_tenant_enforce
+  BEFORE INSERT OR UPDATE ON match_player_pool
+  FOR EACH ROW EXECUTE FUNCTION enforce_tenant_match_pool();
+
+-- Similar triggers needed for other cross-table references
 ```
 
 **Feature Flags (Extend Existing app_config)**
@@ -395,12 +580,18 @@ INSERT INTO app_config(config_key, config_value, config_description, config_grou
 ('default_invite_mode', 'all', 'Default invite mode for new matches', 'match_settings', 'Default Invite Mode', 'Match Creation Defaults', 11),
 ('tier_b_offset_hours', '24', 'Default hours between Tier A and Tier B', 'match_settings', 'Tier B Offset (hours)', 'Match Creation Defaults', 12),
 ('tier_c_offset_hours', '48', 'Default hours between Tier A and Tier C', 'match_settings', 'Tier C Offset (hours)', 'Match Creation Defaults', 13),
--- Global RSVP policies (new section - club-wide settings)
+-- NEW: Auto-balance defaults (simplified)
+('default_auto_balance_enabled', 'true', 'Enable auto-balance by default for new matches', 'match_settings', 'Default Auto-Balance', 'Match Creation Defaults', 14),
+('default_auto_balance_method', 'performance', 'Default auto-balance method', 'match_settings', 'Default Balance Method', 'Match Creation Defaults', 15),
+('default_auto_lock_when_full', 'false', 'Auto-lock matches when full', 'match_settings', 'Default Auto-Lock', 'Match Creation Defaults', 16),
+-- Global RSVP policies (simplified - no growth mode)
 ('enable_ringer_self_book', 'false', 'Allow ringers to book via public links', 'rsvp_policies', 'Allow Ringers to Book', 'RSVP Policies', 1),
 ('include_ringers_in_invites', 'false', 'Include ringers in automatic invitations', 'rsvp_policies', 'Include Ringers in Invites', 'RSVP Policies', 2),
-('block_unknown_players', 'false', 'Block unknown phone numbers from booking', 'rsvp_policies', 'Block Unknown Players', 'RSVP Policies', 3),
+('block_unknown_players', 'true', 'Block unknown phone numbers from booking', 'rsvp_policies', 'Block Unknown Players', 'RSVP Policies', 3),
 -- Advanced RSVP settings (technical settings)
-('rsvp_burst_guard_enabled', 'false', 'Enable write-burst protection for leaked links', 'rsvp_advanced', 'Burst Protection', 'RSVP Advanced', 1)
+('rsvp_burst_guard_enabled', 'true', 'Enable write-burst protection for leaked links', 'rsvp_advanced', 'Burst Protection', 'RSVP Advanced', 1),
+-- NEW: Per-tenant phone normalization
+('default_phone_country', 'GB', 'Default country for phone normalization', 'rsvp_advanced', 'Default Phone Country', 'RSVP Advanced', 2)
 ON CONFLICT (config_key) DO NOTHING;
 
 -- Note: enable_match_billing flag deferred to existing billing specification (Billing_Plan.md)
@@ -460,31 +651,43 @@ export function httpFromPg(e: any): { status: number; message: string } {
 }
 ```
 
-4.3 Cache Integration (Extend Existing CACHE_TAGS)
+4.3 Cache Integration (Multi-Tenant Cache Tags)
 ```typescript
 // src/lib/cache/constants.ts - ADD TO EXISTING
 export const CACHE_TAGS = {
   // ... existing tags
-  RSVP_MATCH: (mid: number) => `RSVP_MATCH:${mid}`,
-  PLAYER_POOL: (mid: number) => `PLAYER_POOL:${mid}`,
+  RSVP_MATCH: (tenantId: string, mid: number) => `RSVP_MATCH:${tenantId}:${mid}`,
+  PLAYER_POOL: (tenantId: string, mid: number) => `PLAYER_POOL:${tenantId}:${mid}`,
 };
 
 // src/lib/cache.ts
 import { revalidateTag } from 'next/cache';
-export async function revalidateRsvp(matchId: number) {
+export async function revalidateRsvp(tenantId: string, matchId: number) {
   await Promise.allSettled([
     revalidateTag(CACHE_TAGS.UPCOMING_MATCH),
-    revalidateTag(CACHE_TAGS.RSVP_MATCH(matchId)),
-    revalidateTag(CACHE_TAGS.PLAYER_POOL(matchId)),
+    revalidateTag(CACHE_TAGS.RSVP_MATCH(tenantId, matchId)),
+    revalidateTag(CACHE_TAGS.PLAYER_POOL(tenantId, matchId)),
   ]);
 }
 ```
 
-4.4 Transaction Patterns (Match Existing)
+4.4 Transaction Patterns (Multi-Tenant Advisory Locks)
 ```typescript
 // src/lib/rsvp-lock.ts
 import { prisma } from '@/lib/prisma';
 
+export async function withTenantMatchLock<T>(tenantId: string, matchId: number, fn: (tx: typeof prisma) => Promise<T>) {
+  // Hash tenantId (UUID) into a 32-bit int; keep matchId as the second key
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `SELECT pg_advisory_xact_lock(hashtextextended($1, 0)::int, $2::int)`,
+      tenantId, matchId
+    );
+    return fn(tx);
+  });
+}
+
+// Legacy single-tenant lock (deprecated - use withTenantMatchLock)
 export async function withMatchLock<T>(matchId: number, fn: (tx: typeof prisma) => Promise<T>) {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock($1)', matchId);
@@ -510,10 +713,20 @@ export const DevNotifier: Notifier = {
 ```
 
 ```typescript
-// src/middleware/rate.ts
+// src/middleware/rate.ts - Multi-tenant rate limiting
 const buckets = new Map<string, { n: number; t: number }>();
 
-export function burstGuard(key: string, limit = 50, windowMs = 10_000) {
+export function burstGuard(tenantId: string, matchId: number, limit = 50, windowMs = 10_000) {
+  const key = `tenant:${tenantId}:match:${matchId}`;
+  const now = Date.now();
+  const b = buckets.get(key) ?? { n: 0, t: now };
+  if (now - b.t > windowMs) { b.n = 0; b.t = now; }
+  b.n++; buckets.set(key, b);
+  return b.n <= limit;
+}
+
+export function phoneRateLimit(tenantId: string, matchId: number, phone: string, limit = 10, windowMs = 60_000) {
+  const key = `tenant:${tenantId}:match:${matchId}:phone:${phone}`;
   const now = Date.now();
   const b = buckets.get(key) ?? { n: 0, t: now };
   if (now - b.t > windowMs) { b.n = 0; b.t = now; }
@@ -524,22 +737,40 @@ export function burstGuard(key: string, limit = 50, windowMs = 10_000) {
 
 4.7 One Smart Link & Security
 
-URL: https://berkotnf.com/upcoming/match/:id?token=...
+**Unified URL:** https://berkotnf.com/upcoming/match/[id]?token=...
 
-**Invite Token Security:** `invite_token` is a 32+ byte URL-safe random value; store hash of token server-side; compare on request. Rotate on demand; auto-expire after match date.
+**Invite Token Security:** `invite_token` is a 32+ byte URL-safe random value in URL; store `invite_token_hash` server-side; compare hash on request. Rotate on demand; auto-expire after match date.
 
-**Rate Limits:**
-- Standard: 10/min per IP + per device + per playerId per match
-- Burst protection: 50 writes/10s per match (feature-flagged)
-- Block unknown players: Per-match toggle for closed sessions
+**Multi-Tenant Rate Limits:**
+- **Respond rate limit:** `tenant:{tenantId}:match:{matchId}:phone:{E164}` (10/min)
+- **Burst protection:** `tenant:{tenantId}:match:{matchId}` (50 writes/10s, feature-flagged)
+- **Token validation:** `tenant:{tenantId}:token:{tokenHash}` (50/hour per IP)
+- **Token TTL:** Auto-expire at kickoff+24h; rotation invalidates old hash
 
-4.3 RLS (Supabase or equivalent)
+4.3 RLS (Multi-Tenant Row Level Security)
 
-Admins: full CRUD on RSVP for matches they own.
+**Enable RLS on all tables:**
+```sql
+-- Enable RLS and set tenant context
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE upcoming_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_player_pool ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
 
-Players: SELECT limited match info; SELECT/UPDATE only their own match_player_pool row.
+-- Tenant isolation policies (example for players table)
+CREATE POLICY tenant_isolation_players ON players
+  USING (tenant_id = current_setting('app.tenant_id')::uuid);
 
-Public web: only booking flow via token; server performs writes.
+-- Set tenant context at session start:
+-- SELECT set_config('app.tenant_id', $1, false); -- where $1 = tenantId
+```
+
+**Access Control:**
+- **Admins:** Full CRUD on RSVP for matches within their tenant
+- **Players:** SELECT limited match info; SELECT/UPDATE only their own match_player_pool row within tenant
+- **Public booking:** Derive `tenantId` by loading `(upcoming_match_id, invite_token_hash) → tenant_id`, then run writes in that tenant context. Don't trust client-supplied `tenantId`.
 
 5) API Surface (Following BerkoTNF Patterns)
 
@@ -549,13 +780,25 @@ Public web: only booking flow via token; server performs writes.
 - Follow established Prisma patterns and error handling
 - Integrate with existing background job system
 
+**AUTHENTICATION & RATE LIMITING (Multi-Tenant):**
+- **Admin endpoints**: Require admin authentication + tenant scope validation
+- **Public endpoints**: Multi-tenant rate limited for security
+  - `/api/booking/respond`: `tenant:{tenantId}:match:{matchId}:phone:{E164}` (10/min)
+  - **Burst protection**: `tenant:{tenantId}:match:{matchId}` (50 writes/10s)
+- **Token security**: 
+  - Raw token in URL, hashed storage in DB, tenant-scoped uniqueness
+  - Auto-expire at kickoff+24h; rotation invalidates old hash
+- **PII protection**: Never log full phone numbers, always mask in UI (+447******789)
+- **Tenant isolation**: All Prisma queries must scope by `tenant_id`
+
 5.1 Match RSVP Management (Admin)
 
-**Extend existing admin endpoints:**
+**Enhanced admin endpoints with tenant scoping:**
 
 ```typescript
 // GET /api/admin/upcoming-matches?matchId={id}&includeRsvp=true
 // Returns match with RSVP data, invite mode, tier windows, booking status
+// All queries scoped by tenant_id from admin session
 
 // PATCH /api/admin/upcoming-matches/[id]/enable-booking
 // Enables RSVP for a match, generates fresh invite_token (new token each time toggled ON)
@@ -564,59 +807,85 @@ Public web: only booking flow via token; server performs writes.
   "tierWindows": {
     "a_open_at": "2024-01-15T10:00:00Z",      // Tier A
     "b_open_at": "2024-01-15T12:00:00Z",      // Tier B
-    "c_open_at": "2024-01-15T14:00:00Z"  // Tier C
+    "c_open_at": "2024-01-15T14:00:00Z"       // Tier C
+  },
+  "autoBalance": {
+    "enabled": true,
+    "method": "performance" | "ability" | "random",
+    "autoLockWhenFull": false
   }
 }
 // API enforces monotonicity (A ≤ B ≤ C), past time clamping, kick-off limits
-// Admins can set B and C to same time for two-window flow
+// Auto-balance triggers only when capacity first reached or manual trigger
 
 // POST /api/admin/invites/[matchId]/send
 // Send tier-based invitations (tiered mode only)
 { "stages": ["A", "B", "C"], "targetCount": 20 }
 
+// NEW: Activity feed
+// GET /api/admin/matches/[id]/activity
+// Returns last 200 events from notification_ledger, ORDER BY sent_at DESC, tenant-scoped
+
+// NEW: Manual auto-balance trigger
+// POST /api/admin/matches/[id]/autobalance
+// Manually trigger auto-balance job (same logic as automatic trigger)
+
 // NEW: Waitlist management
 // POST /api/admin/waitlist/reissue
 { "matchId": 123 }
 // Immediately triggers waitlist offer logic (respects caps/muted)
-// UI: "Send new waitlist offers" button
 
 // NEW: Grace period override
 // POST /api/admin/dropout/process-now  
 { "matchId": 123, "playerId": 456 }
 // Skip remaining grace period, finalize dropout, trigger offers
-// UI: "Release spot now" button (clarifies it skips grace period)
-
 ```
 
-5.2 Public Booking Interface
-
-**New public endpoints for RSVP:**
+**SIMPLIFIED: No Complex Onboarding APIs**
 
 ```typescript
-// GET /api/booking/match/[id]?token={invite_token}
+// These endpoints are NOT needed in the simplified version:
+// - No profile claiming system
+// - No join request approval flows  
+// - No guest pass or smart invite mechanics
+//
+// Instead: Ringers are added directly by admin using existing "Add Player" modal
+// If admin wants someone to self-serve later, they toggle is_ringer=false
+```
+
+5.2 Public Booking Interface (Simplified)
+
+**Core public endpoints for RSVP:**
+
+```typescript
+// GET /api/booking/match/[id]?token={token}
 // Public match details for RSVP (no auth required)
+// Uses raw token in URL, hashed comparison server-side
 
 // POST /api/booking/respond
-// Player RSVP response (idempotent per matchId+playerId)
+// Enhanced player RSVP response with full tenant scoping and security
 { 
   "matchId": 123, 
   "token": "secure_token", 
   "phone": "+447...", 
-  "action": "IN" | "OUT" | "WAITLIST",
+  "action": "IN" | "OUT" | "WAITLIST",  // REMOVED: "PENDING"
   "source": "app" | "web",
   "outFlexible": true // optional, for "Might be available later"
 }
-// Implementation: 
-// - Phone normalization to E.164, check unique constraint violations
-// - Unknown player logic (uses global block_unknown_players setting): 
-//   - If block_unknown_players=true → reject with "not registered" message
-//   - If false + enable_ringer_self_book=false → reject with ringer message  
-//   - If false + enable_ringer_self_book=true → auto-create as ringer
+// Enhanced Implementation: 
+// - Derive tenantId from (upcoming_match_id, invite_token_hash) - don't trust client
+// - Set app.tenant_id before any writes for RLS compliance
+// - Phone normalization to E.164 (normalizeToE164), reject invalid formats
 // - Ringer access control: block if is_ringer=true and enable_ringer_self_book=false
-// - Burst protection: 50 writes/10s per matchId if rsvp_burst_guard_enabled=true
-// - Idempotent on (matchId, playerId) - ignores duplicates/no-ops, returns current state
-// - Use transaction with SELECT ... FOR UPDATE to prevent race conditions
+//   → Return: "Please ask the organiser to add you for this match."
+// - Unknown player handling: if block_unknown_players=true → "This number isn't registered with this club. Please ask the organiser to add you."
+// - Token TTL: Reject if current_time > kickoff_at + 24h → "This link has expired. Ask the organiser for a new one."
+// - Rate limiting: tenant:{tenantId}:match:{matchId}:phone:{E164} (10/min)
+// - Burst protection: tenant:{tenantId}:match:{matchId} (50 writes/10s)
+// - Use withTenantMatchLock(tenantId, matchId) for race safety
 // - Atomic waitlist position assignment: ORDER BY waitlist_position ASC (pure FIFO queue)
+// - Activity logging: All responses logged to notification_ledger
+// - Never log full phone numbers or raw tokens
 
 // POST /api/booking/waitlist/claim
 // Claim waitlist offer (with re-validation)
@@ -629,7 +898,7 @@ Public web: only booking flow via token; server performs writes.
 // Headers: Cache-Control: no-store
 ```
 
-5.3 Background Job Integration
+5.3 Background Job Integration (Simplified)
 
 **Extend existing background job system:**
 
@@ -637,11 +906,16 @@ Public web: only booking flow via token; server performs writes.
 // Use existing /api/admin/enqueue-stats-job endpoint
 // Add new job types to existing worker:
 
-// Background jobs run on existing Render worker:
+// Simplified background jobs run on existing Render worker:
 // - tier_open_notifications
 // - dropout_grace_processor  
 // - waitlist_offer_processor
 // - notification_batcher
+// - auto_balance_processor (NEW: triggers automatic team balancing when capacity reached)
+// 
+// REMOVED:
+// - pending_hold_processor (no longer needed)
+// - join_request_notifier (no longer needed)
 ```
 
 5.4 Push Notification System (New)
@@ -664,23 +938,36 @@ Public web: only booking flow via token; server performs writes.
 { "message": "Test notification" }
 ```
 
-5.5 Calendar Integration (Optional)
+5.5 Calendar Integration (Minimal ICS Implementation)
 
 ```typescript
-// GET /api/calendar/match/[id].ics?token={token}&playerId={id}
-// Generate .ics calendar file for match reminders
+// GET /api/calendar/match/[id].ics?token={token}
+// Generate minimal .ics calendar file for match reminders
+// After tenant+token validation, return minimal ICS (UTC, no alarms)
+
+// Implementation:
+export function toIcs(dtUtc: Date): string {
+  return dtUtc.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+}
+
+// Response:
+// Content-Type: text/calendar
+// Content-Disposition: attachment; filename="match-${id}.ics"
+// Body: Minimal VEVENT with DTSTART, DTEND, SUMMARY, LOCATION
 ```
 
-6) Notifications (Native Push Only)
+6) Notifications (Enhanced Push System)
 6.1 Triggers
 
-Tier open → push to that tier: “Booking open. ✅ IN | ❌ OUT”
+**Player Notifications:**
+- Tier open → push to that tier: "Booking open. ✅ IN | ❌ OUT"
+- Waitlist offer (after 5-min grace) → push top-3 with TTL
+- Last-call (near kickoff if short) → push likely responders
+- Cancellation → push to confirmed + waitlist
+- **NEW**: Teams released (auto-balance) → push to participants only: "Teams released for Sunday's match!"
 
-Waitlist offer (after 5-min grace) → push top-3 with TTL.
-
-Last-call (near kickoff if short) → push likely responders.
-
-Cancellation → push to confirmed + waitlist.
+**Admin Notifications:**
+- **FUTURE**: Payment failed → push to admins: "Payment failed for confirmed booking"
 
 6.2 Caps & Batching
 
@@ -749,7 +1036,7 @@ Others get "spot filled"; remain on waitlist.
 // - Booking link generation with copy button (existing pattern)
 // - Share to WhatsApp integration
 // - Capacity counters: "Booked 12/20, Waitlist 3"
-// - Player lists with status badges (IN/OUT/WAITLIST/PENDING)
+// - Player lists with status badges (IN/OUT/WAITLIST)
 // - RSVP Activity showing invitations, responses, offers
 ```
 
@@ -761,8 +1048,20 @@ Others get "spot filled"; remain on waitlist.
 // Follows SeasonFormModal.component.tsx patterns
 
 // src/components/admin/matches/ActivityFeed.component.tsx  
-// Shows RSVP activity timeline
-// Uses existing Card and soft-UI styling
+// Minimal reverse-chronological activity timeline (no filters/search)
+// Props: events: ActivityEvent[] from GET /api/admin/matches/{id}/activity
+// Displays: timestamp (relative), emoji + copy, masked player names
+// Activity kinds with display mapping:
+//   invite → "📣 Tier opened / invite sent"
+//   waitlist_offer → "🎯 Waitlist offer issued"  
+//   waitlist_offer_claimed → "✅ Offer claimed by {player}"
+//   last_call → "⚡ Last-call sent"
+//   cancellation → "🛑 Match cancelled notice sent"
+//   audit/admin_add_player → "👤 Admin added {player}"
+//   audit/admin_remove_player → "➖ Admin removed {player}"
+//   audit/admin_capacity_change → "📏 Capacity changed {old}→{new}"
+//   autobalance.balanced → "⚖️ Teams auto-balanced"
+//   teams.published → "📝 Teams published"
 
 // src/components/admin/matches/PlayerTierManager.component.tsx
 // Manage player tiers (A/B/C)
@@ -775,16 +1074,18 @@ Others get "spot filled"; remain on waitlist.
 **New Mobile Components:**
 
 ```typescript
-// src/app/booking/[id]/page.tsx
-// Public booking page (mobile-first)
+// UPDATED: Unified RSVP components
+// src/app/upcoming/match/[id]/page.tsx
+// Unified RSVP page for all users (app, web, logged-in)
 // Uses existing MainLayout.layout.tsx
 
-// src/components/booking/RSVPInterface.component.tsx
+// src/components/rsvp/RSVPInterface.component.tsx
 // One-tap IN/OUT/WAITLIST buttons
 // Waitlist offer banner with countdown
 // Deep-link handling from WhatsApp/SMS
+// Context-aware: phone entry for web users, skip for app users
 
-// src/components/booking/CalendarIntegration.component.tsx
+// src/components/rsvp/CalendarIntegration.component.tsx
 // Add to calendar functionality
 // Optional .ics file generation
 ```
@@ -794,27 +1095,23 @@ Others get "spot filled"; remain on waitlist.
 **Minimal Web Interface:**
 
 ```typescript
-// src/app/match/[id]/booking/page.tsx
-// Public web booking (if app not installed)
-// Minimal interface with app install prompts
-// Uses existing soft-UI components
-
-// Features:
-// - App detection and deep-linking
-// - Install app prompts with store badges
-// - Basic booking functionality (no push notifications)
-// - Post-booking app install nudges
+// REMOVED: Separate booking pages
+// All users now use unified experience: /upcoming/match/[id]?token=...
+// - App users: Deep-linked, no phone entry
+// - Web users: Same page, phone entry required
+// - Ringer users: Blocked with friendly message
 ```
 
-9) Background Jobs (Existing Render Worker Integration)
+9) Background Jobs (Enhanced Render Worker Integration)
 
 **EXTEND EXISTING BACKGROUND JOB SYSTEM:**
 - Use existing `background_job_status` table
 - Integrate with current Render worker infrastructure  
 - Follow established job patterns and error handling
 - Add new job types to existing worker
+- **NEW**: Production reliability with concurrency protection and idempotency
 
-**New Job Types:**
+**Simplified Job Types:**
 
 ```typescript
 // worker/src/jobs/rsvp-jobs.ts
@@ -824,8 +1121,13 @@ export const RSVP_JOB_TYPES = {
   TIER_OPEN_NOTIFICATIONS: 'tier_open_notifications',
   DROPOUT_GRACE_PROCESSOR: 'dropout_grace_processor', 
   WAITLIST_OFFER_PROCESSOR: 'waitlist_offer_processor',
-  NOTIFICATION_BATCHER: 'notification_batcher'
+  NOTIFICATION_BATCHER: 'notification_batcher',
+  AUTO_BALANCE_PROCESSOR: 'auto_balance_processor'
 } as const;
+
+// REMOVED: 
+// - PENDING_HOLD_PROCESSOR (no pending holds)
+// - JOIN_REQUEST_NOTIFIER (no approval flows)
 ```
 
 **Job Implementations:**
@@ -851,19 +1153,41 @@ export const RSVP_JOB_TYPES = {
 // - TTL selection: 4h normally, 1h if <24h to kickoff, 30min if <3h to kickoff
 // - Apply TTL safety guards (min 30m, max kickoff-15m)
 // - Auto-cascade: Send offers to next 3 players when current offers expire
-// - Log all offers to notification_ledger for admin visibility
+// - Enhanced logging: 
+//   - When issuing offers: notification_ledger(kind='waitlist_offer', batch_key='offer:<tenantId>:<matchId>:<runId>', details='positions:[p1,p2,p3]')
+//   - On claim: notification_ledger(kind='waitlist_offer_claimed', batch_key='offer:<tenantId>:<matchId>:<runId>', player_id=<claimantId>)
+// - All targeting queries include AND muted=false
 
 // notification_batcher
-// - Adaptive last-call system:
-//   - Target players: is_ringer=false (+ ringers if include_ringers_in_invites=true)
-//   - T-12h: Send if confirmed < capacity (skip non-flexible OUT, capped players)
-//   - T-3h: Send if still short (exclude players with last-call in notification_ledger within 6h)
-//   - Send immediately when scheduled (no quiet hours)
-// - Waitlist offers: Send to ALL waitlisted players (including ringers) - always immediate
+// - Teams released: Send only to participants + waitlist (not entire roster)
 // - Cancellation: Send to ALL confirmed + waitlist players (including ringers) - always immediate
 // - Respect notification caps (max 3 dropout/last-call per player per match)
+// - All targeting queries include AND muted=false
 // - Worker prunes tokens on permanent errors (invalid/expired FCM tokens)
 // - Log token removal to notification_ledger (kind='push_token_removed') for observability
+// - Emit: notification_ledger(kind='teams.published') when teams are published
+
+// auto_balance_processor (NEW - STRICT TRIGGERS)
+// - Triggered when match first reaches capacity (confirmed IN count >= match.capacity) OR manual admin trigger
+// - Use withTenantMatchLock(tenantId, matchId) for concurrency protection
+// - Idempotency: check if already processed (is_balanced=true)
+// - Only process if auto_balance_enabled=true and match.state='Draft'
+// - Flow: balanceTeams → publishTeams → sendTeamsReleasedNotification
+// - If auto_lock_when_full=true → also lockPool (but default is false)
+// - Job deduplication via match state version + tenant scoping
+// - Uses explicit match.capacity field (not team_size*2 inference)
+// - Tenant context: Set app.tenant_id for RLS compliance
+// - Emit: notification_ledger(kind='autobalance.balanced') on success
+
+// last_call_processor (NEW - FIXED WINDOWS)
+// - Runs every 5-10 minutes via cron
+// - Find matches with kickoff within [12h±5m] and last_call_12_sent_at IS NULL
+// - Find matches with kickoff within [3h±5m] and last_call_3_sent_at IS NULL
+// - Compute shortfall (capacity - IN_count). If shortfall > 0:
+//   - Target: unresponded + OUT with out_flexible=true
+//   - Exclude: muted=true, per-player cap/cooldown from notification_ledger
+// - Send push via notifier; write notification_ledger(kind='last_call', batch_key='t12'|'t3')
+// - Set last_call_12_sent_at or last_call_3_sent_at timestamp for idempotency
 ```
 
 **Integration with Existing Worker:**
@@ -902,13 +1226,25 @@ upcoming_matches
 
 Players can SELECT limited fields for matches they’re invited to or have a valid token for.
 
-12) Transactions & Concurrency
+12) Transactions & Concurrency (Multi-Tenant & Race-Safe)
 
-Book/Claim run within a single transaction.
+**All booking/claim operations** run within `withTenantMatchLock(tenantId, matchId)` transaction.
 
-Use SELECT … FOR UPDATE on an “active IN count” or capacity row to prevent over-allocation.
+**Tenant scoping:** Every Prisma query touching RSVP data must include `tenant_id` in WHERE clauses. Public routes derive `tenantId` from `(upcoming_match_id, invite_token_hash)` and set `app.tenant_id` before writes.
 
-Background jobs are idempotent and keyed via batch_key.
+**Phone normalization:** Server-side E.164 normalization runs on all public booking endpoints; reject invalid; never log full numbers (mask as +447******789).
+
+**Waitlist claim/IN/OUT transitions** use `SELECT ... FOR UPDATE` on pool rows to prevent double-claims.
+
+**Offer TTL calculation** must clamp to kickoff−15m; <15m switches to instant claim (no hold). **Token TTL:** Links expire at kickoff+24h with friendly "link expired" copy.
+
+**Drop-out grace period** (5m/2m/1m) cancels if player returns to IN during grace.
+
+**Auto-balance triggers** when IN count first reaches capacity (not on every IN/OUT toggle) or via admin manual trigger. Uses tenant-aware advisory locks.
+
+**Ringer blocking:** Public booking respects `enable_ringer_self_book=false`; ringers can't IN/WAITLIST, show friendly block message.
+
+**Background jobs** are idempotent and keyed via batch_key with tenant scoping.
 
 13) Analytics & Observability
 
@@ -1088,21 +1424,31 @@ Ringer blocked (self-book OFF):
 Ringer allowed (self-book ON, before open):
 "Booking opens for your tier at {time}."
 
-Unknown number (global block_unknown_players=true):
-"This number isn't registered. Please ask the organiser to add you."
+Unknown number (global block_unknown_players=true - DEFAULT):
+"This number isn't registered with this club. Please ask the organiser to add you."
 
-Unknown number (global block_unknown_players=false):
+Unknown number (global block_unknown_players=false - OPTIONAL):
 "Enter your name to join the list:"
 [Show name input: max 14 characters, real-time validation]
+**Note:** Default is `block_unknown_players=true`; the unknown-player UI appears only when this is disabled.
 
 Name validation errors:
 "Use 14 characters or fewer" | "That name's already taken — try another"
 
 Shared phone blocked:
-"This number is already linked to another player — each player needs their own."
+"This number is already linked to another player. Ask the organiser to help."
 
 Offer expired/capacity unavailable:
 "This offer has expired — check the waitlist for your current place."
+
+Too early (tiered mode):
+"Too early — Tier {tierLabel} opens at {time}. The IN button will appear here 👍"
+
+Rate limited:
+"Too many attempts. Please wait a moment and try again."
+
+Public page banner when <15min to kick-off:
+"Kick-off soon — spots are first-come, first-served." (instant claim mode)
 
 **Admin UI Copy**
 Invite mode toggle: "All at once" | "Tiered"
@@ -1134,45 +1480,46 @@ Configurable “viable number” to encourage early locking?
 
 Notification frequency tuning based on user feedback?
 
-20) Implementation Roadmap & Deliverables
+20) Enhanced Implementation Roadmap & Deliverables
 
 **PHASE 1: Database & Core Backend (Week 1-2)**
-- [ ] Database migrations (extend existing tables + new tables)
+- [ ] **Simplified database migrations** (extend existing tables, remove PENDING complexity)
 - [ ] Update Prisma schema with new fields and relationships
+- [ ] **Production reliability fixes**: indexes, constraints, concurrency protection
 - [ ] Extend existing API endpoints for RSVP functionality
-- [ ] Add new public booking endpoints
+- [ ] **SIMPLIFIED**: Core booking API (IN/OUT/WAITLIST only)
 - [ ] Feature flag integration with existing app_config system
+- [ ] Token hashing security implementation
 
 **PHASE 2: Background Jobs & Notifications (Week 2-3)**  
 - [ ] Extend existing Render worker with RSVP job types
+- [ ] **NEW**: Auto-balance processor with optional auto-lock
 - [ ] Implement push notification system (FCM integration)
-- [ ] Add notification ledger and batching logic
+- [ ] Add enhanced notification ledger with audit trail
 - [ ] Tier-based invitation processing
 - [ ] Waitlist management and grace periods
 
 **PHASE 3: Admin Interface (Week 3-4)**
-- [ ] RSVPBookingPane component for Match Control Centre
-- [ ] RSVP configuration modals (following existing patterns)
-- [ ] Player tier management interface  
-- [ ] RSVP Activity component
+- [ ] **Enhanced RSVPBookingPane** with source badges and removal warnings
+- [ ] **SIMPLIFIED**: Auto-balance and auto-lock toggles in match creation
+- [ ] **Enhanced**: RSVP Activity Feed with comprehensive event logging
+- [ ] **SIMPLIFIED**: Use existing "Add Player" modal for ringers
 - [ ] Integration with existing useMatchState hook
 
-**PHASE 4: Public RSVP Interface (Week 4-5)**
-- [ ] Extend existing `/upcoming` page with RSVP functionality
-- [ ] Match-specific RSVP pages: `/upcoming/match/[id]?token=...`
-- [ ] RSVP buttons and status display
-- [ ] Live match status updates
-- [ ] Phone number capture and validation
-- [ ] Rate limiting and security
+**PHASE 4: Unified RSVP Interface (Week 4-5)**
+- [ ] **Enhanced `/upcoming` overview** with RSVP status cards
+- [ ] **Unified RSVP experience**: `/upcoming/match/[id]?token=...` for all users
+- [ ] Phone number capture and validation with E.164 normalization
+- [ ] **Production**: Rate limiting, burst protection, and security
+- [ ] Ringer access control (friendly blocking messages)
 
-**PHASE 5: Mobile Optimization (Week 5-6)**
-- [ ] Mobile-responsive RSVP interface
-- [ ] Touch-friendly buttons and interactions
-- [ ] Optional: Capacitor app wrapper for push notifications
+**PHASE 5: Polish & Testing (Week 5-6)**
+- [ ] **Enhanced**: App installation tracking (passive monitoring)
 - [ ] Calendar integration (.ics files)
-- [ ] Progressive Web App features
+- [ ] Ringer management UI polish (badges, quick actions)
+- [ ] Name uniqueness handling (per-club or UI disambiguation)
 
-**PHASE 6: Testing & Polish (Week 6-7)**
+**PHASE 6: Testing & Production Readiness (Week 6-7)**
 - [ ] **Critical Race Condition Tests:**
   - [ ] Concurrent claims on final slot (SELECT ... FOR UPDATE)
   - [ ] Grace cancel vs waitlist fan-out timing
@@ -1185,32 +1532,25 @@ Notification frequency tuning based on user feedback?
   - [ ] WhatsApp → app (if installed)
   - [ ] WhatsApp → web fallback (if not installed)
   - [ ] iOS Associated Domains / Android App Links
-- [ ] **End-to-End RSVP Flows:**
+- [ ] **End-to-End RSVP Flows (Simplified):**
   - [ ] Invite mode switching (All at once ↔ Tiered)
   - [ ] Tier window configuration and validation
-  - [ ] Tier window monotonicity validation (A ≤ B ≤ C)
-  - [ ] Past time clamping and kick-off limits
+  - [ ] Auto-balance and auto-lock behavior testing
   - [ ] Dynamic waitlist TTL behavior (4h/1h/30min based on time to kickoff)
   - [ ] Dynamic grace periods (5min/2min/1min based on time to kickoff)
   - [ ] Auto-cascade waitlist offers on expiry
-  - [ ] Offer log display (Claimed/Expired/Superseded)
   - [ ] Manual override buttons (Send new waitlist offers, Release spot now)
   - [ ] Adaptive last-call notifications (T-12h/T-3h)
-  - [ ] Mode switching semantics (Tiered→All opens to everyone, All→Tiered only affects new bookings)
-  - [ ] Capacity downshift behavior (FIFO demotion with notifications)
-  - [ ] Capacity increase auto-promotion of bumped waitlist players
-  - [ ] Ringer access control (blocked when enable_ringer_self_book=false)
-  - [ ] Ringer notification exclusion (tier-open/last-call skip ringers unless flag enabled)
-  - [ ] Ringer participation (waitlist offers + cancellation always sent to participating ringers)
-  - [ ] Phone-based identity (one phone = one player, no duplicates, strict enforcement)
-  - [ ] Global unknown player policy (block_unknown_players setting)
+  - [ ] Capacity management (increase/decrease with proper notifications)
+  - [ ] Ringer access control (blocked with friendly message)
+  - [ ] Ringer notification exclusion (skip ringers unless flag enabled)
+  - [ ] Phone-based identity (one phone = one player, no duplicates)
+  - [ ] Unknown player blocking (block_unknown_players=true by default)
   - [ ] OUT with flexibility option ("can sub late")
   - [ ] Instant claim mode (<15min to kick-off, no hold period)
   - [ ] Live polling updates (15s refresh for non-push users)
-  - [ ] Invite link regeneration (automatic on toggle ON)
-  - [ ] Last-call cooldown based on actual send time (6h from notification_ledger)
-  - [ ] Claim re-validation (capacity check at claim time)
-  - [ ] Burst protection (50 writes/10s per match, feature-flagged)
+  - [ ] Token hashing security (no raw tokens stored)
+  - [ ] Burst protection (50 writes/10s per match)
 - [ ] **Load Testing:**
   - [ ] Background job system under high load
   - [ ] Concurrent booking attempts
@@ -1228,12 +1568,12 @@ Notification frequency tuning based on user feedback?
   - [ ] Player onboarding materials
   - [ ] Technical documentation
 
-**TECHNICAL REQUIREMENTS:**
+**SIMPLIFIED TECHNICAL REQUIREMENTS:**
 - Node.js 18+ (existing requirement met)
-- Capacitor CLI and mobile development environment
 - Firebase project for FCM push notifications  
-- App Store / Google Play developer accounts
+- App Store / Google Play developer accounts (optional - for native app)
 - Existing Render worker and Supabase infrastructure
+- Phone validation library for E.164 normalization
 
 ---
 
@@ -1405,5 +1745,463 @@ if (maxAllowedTTL < 15) {
 - **Target:** 99%+ push notification delivery rate
 - **Target:** Zero data loss or corruption in RSVP system
 
-This specification provides a comprehensive, codebase-aligned implementation plan that builds on your existing architecture while adding the requested RSVP functionality. The phased approach allows for incremental development and testing.
+---
+
+## **21) Production Reliability & Security Enhancements**
+
+### **21.1 Concurrency Protection**
+```typescript
+// All critical operations use tenant-aware advisory locks
+export async function processAutoBalance(tenantId: string, matchId: number) {
+  await withTenantMatchLock(tenantId, matchId, async (tx) => {
+    const match = await tx.upcoming_matches.findUnique({ 
+      where: { upcoming_match_id: matchId, tenant_id: tenantId }
+    });
+    
+    // Idempotency checks
+    if (!match?.auto_balance_enabled || match.state !== 'Draft') return;
+    if (match.is_balanced) return; // Already processed
+    
+    // Atomic operations within transaction
+    await lockPoolTx(tx, matchId);
+    await balanceTeamsTx(tx, matchId, match.auto_balance_method ?? 'performance');
+    await confirmTeamsTx(tx, matchId);
+  });
+}
+```
+
+### **21.2 Rate Limiting & Security**
+```typescript
+// API endpoint protection
+// - Admin endpoints: Require admin auth
+// - Public endpoints: Rate limited by phone/IP/token
+// - Token security: Hashed storage, TTL enforcement
+// - PII protection: Never log full phone numbers
+
+// Multi-tenant rate limit implementation
+const rateLimits = {
+  bookingRespond: 'tenant:{tenantId}:match:{matchId}:phone:{E164} (10/min)',
+  burstProtection: 'tenant:{tenantId}:match:{matchId} (50 writes/10s)',
+  tokenValidation: 'tenant:{tenantId}:token:{tokenHash} (50/hour per IP)'
+};
+
+// Production: Back with Redis when REDIS_URL is set
+// Development: In-memory Map (as implemented above)
+const useRedis = !!process.env.REDIS_URL;
+```
+
+### **21.3 Data Integrity (Simplified)**
+```sql
+-- Critical performance indexes
+CREATE INDEX IF NOT EXISTS idx_mpp_match_player
+  ON match_player_pool(upcoming_match_id, player_id);
+
+-- Unique token hashing
+CREATE UNIQUE INDEX IF NOT EXISTS idx_upcoming_matches_invite_token_hash
+  ON upcoming_matches(invite_token_hash);
+
+-- Phone uniqueness (adjust based on tenant architecture)
+-- Single-tenant: Global unique constraint (as shown in schema section)
+-- Multi-tenant: Per-club unique constraint (see schema section for alternative)
+```
+
+### **21.4 Activity Feed & Audit Trail**
+```typescript
+// Simplified event tracking with PII protection
+type ActivityEvent = 
+  | 'player.marked_in' | 'player.marked_out' | 'player.marked_waitlist'
+  | 'admin.add_player' | 'admin.remove_player' 
+  | 'capacity.changed' | 'tier.opened'
+  | 'offer.issued' | 'offer.claimed' | 'offer.expired'
+  | 'autobalance.balanced' | 'teams.published';
+
+// All events: {actor, source, before→after?, timestamp, matchId}
+// Phone numbers always masked: +447******789
+```
+
+### **21.5 Error Handling & Copy**
+```typescript
+// Enhanced security error messages (multi-tenant aware)
+const SECURITY_COPY = {
+  phoneConflict: "This number is already linked to another player. Ask the organiser to help.",
+  tokenExpired: "This link has expired. Ask the organiser for a new one.",
+  rateLimited: "Too many attempts. Please wait a moment and try again.",
+  unknownBlocked: "This number isn't registered with this club. Please ask the organiser to add you.",
+  ringerBlocked: "Please ask the organiser to add you for this match.",
+  tooEarly: "Too early — Tier {tierLabel} opens at {time}. The IN button will appear here 👍",
+  offerExpired: "This offer has expired — check the waitlist for your current place.",
+  kickoffSoon: "Kick-off soon — spots are first-come, first-served."
+};
+```
+
+---
+
+## **22) Future Problems Documentation**
+
+**NEW FILE:** `docs/FUTURE_PROBLEMS.md`
+
+```markdown
+# Future Technical Debt & Scaling Challenges
+
+## Multi-League Identity
+**Problem**: Player in multiple Capo leagues with same phone number
+**Current**: Each instance separate (works fine for new product)
+**Future Solution**: Cross-instance identity service when needed
+**Priority**: Low (unlikely scenario initially)
+
+## Payment Authorization Timing
+**Problem**: How long can we hold payment auth for confirmed bookings?
+**Current**: Payment auth on confirmation only (no pending holds)
+**Constraint**: Stripe auth holds expire after 7 days (plenty of time)
+**Future**: May need immediate auth for high-demand matches
+
+## Profile Name Conflicts
+**Problem**: Multiple players with same display name
+**Current**: 14-char limit forces unique-ish names
+**Future**: May need surname initials or numbers (John S., John M.)
+
+## Bulk Operations
+**Problem**: Admin managing 100+ player leagues
+**Current**: One-by-one approval workflow
+**Future**: Bulk approval tools, CSV import/export
+
+## Cross-Platform Notifications
+**Problem**: Ensuring all admins get critical notifications
+**Current**: Push to mobile app only
+**Future**: Email fallback, SMS backup, web notifications
+```
+
+---
+
+## **23) Technical Requirements & Dependencies**
+
+### **23.1 New Dependencies**
+- **Firebase Admin SDK**: For push notifications (FCM)
+- **Phone validation library**: For E.164 normalization
+- **Rate limiting middleware**: For API protection
+
+### **23.2 Infrastructure Requirements**
+- **Firebase project**: FCM push notification setup
+- **App Store/Google Play**: For mobile app distribution
+- **Webhook endpoints**: For real-time admin notifications
+- **Background job scaling**: Enhanced worker capacity
+
+### **23.3 Security Requirements**
+- **Token hashing**: Never store raw tokens in database
+- **PII masking**: Phone numbers always masked in logs/UI
+- **Rate limiting**: Per-IP, per-phone, per-token limits
+- **Admin authentication**: All admin endpoints protected
+
+---
+
+## **24) Multi-Tenant Database Migration Summary**
+
+### **24.1 Fields to Remove**
+```sql
+-- Remove PENDING-related fields from match_player_pool
+ALTER TABLE match_player_pool
+  DROP COLUMN IF EXISTS pending_expires_at,
+  DROP COLUMN IF EXISTS payment_intent_id,
+  DROP COLUMN IF EXISTS payment_status;
+
+-- Remove tables that are no longer needed
+DROP TABLE IF EXISTS join_requests CASCADE;
+DROP TABLE IF EXISTS claim_tokens CASCADE;
+
+-- Remove old single-tenant indexes
+DROP INDEX IF EXISTS idx_players_phone_unique;
+DROP INDEX IF EXISTS idx_upcoming_matches_invite_token_hash;
+```
+
+### **24.2 Multi-Tenant Fields to Add**
+```sql
+-- Add tenant_id to all tables (backfill strategy)
+-- Step 1: Add as nullable
+ALTER TABLE players ADD COLUMN tenant_id UUID;
+ALTER TABLE upcoming_matches ADD COLUMN tenant_id UUID;
+ALTER TABLE match_player_pool ADD COLUMN tenant_id UUID;
+ALTER TABLE background_job_status ADD COLUMN tenant_id UUID;
+
+-- Step 2: Backfill existing rows with a default tenant_id
+-- UPDATE players SET tenant_id = 'your-default-tenant-uuid' WHERE tenant_id IS NULL;
+-- (Repeat for all tables)
+
+-- Step 3: Set NOT NULL after backfill
+ALTER TABLE players ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE upcoming_matches ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE match_player_pool ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE background_job_status ALTER COLUMN tenant_id SET NOT NULL;
+
+-- Add RSVP fields to upcoming_matches
+ALTER TABLE upcoming_matches
+  ADD COLUMN booking_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN invite_token_hash TEXT,
+  ADD COLUMN invite_token_created_at TIMESTAMPTZ NULL,
+  ADD COLUMN a_open_at TIMESTAMPTZ NULL,
+  ADD COLUMN b_open_at TIMESTAMPTZ NULL,
+  ADD COLUMN c_open_at TIMESTAMPTZ NULL,
+  ADD COLUMN match_timezone TEXT NOT NULL DEFAULT 'Europe/London',
+  ADD COLUMN capacity INT NULL,
+  ADD COLUMN auto_balance_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN auto_balance_method TEXT NOT NULL DEFAULT 'performance',
+  ADD COLUMN auto_lock_when_full BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN last_call_12_sent_at TIMESTAMPTZ NULL,
+  ADD COLUMN last_call_3_sent_at TIMESTAMPTZ NULL;
+
+-- Add RSVP fields to match_player_pool
+ALTER TABLE match_player_pool
+  ADD COLUMN invited_at TIMESTAMPTZ NULL,
+  ADD COLUMN invite_stage TEXT NULL,
+  ADD COLUMN reminder_count INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN muted BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN out_flexible BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN waitlist_position INTEGER NULL,
+  ADD COLUMN offer_expires_at TIMESTAMPTZ NULL,
+  ADD COLUMN source TEXT NULL;
+
+-- Add phone and tier to players
+ALTER TABLE players
+  ADD COLUMN phone TEXT,
+  ADD COLUMN tier TEXT NOT NULL DEFAULT 'C' CHECK (tier IN ('A','B','C'));
+```
+
+### **24.3 Multi-Tenant Constraints & Indexes**
+```sql
+-- Multi-tenant unique constraints (add CONCURRENTLY for large tables)
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uniq_players_tenant_phone 
+  ON players (tenant_id, phone) WHERE phone IS NOT NULL;
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uniq_upcoming_matches_tenant_token_hash
+  ON upcoming_matches(tenant_id, invite_token_hash) WHERE invite_token_hash IS NOT NULL;
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uniq_mpp_tenant_waitpos_per_match
+  ON match_player_pool (tenant_id, upcoming_match_id, waitlist_position)
+  WHERE response_status = 'WAITLIST' AND waitlist_position IS NOT NULL;
+
+-- Multi-tenant performance indexes (tenant_id first)
+CREATE INDEX IF NOT EXISTS idx_players_tenant_phone ON players(tenant_id, phone);
+CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_status
+  ON match_player_pool(tenant_id, upcoming_match_id, response_status);
+CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_kind
+  ON notification_ledger(tenant_id, kind, sent_at DESC);
+
+-- Data integrity constraints
+ALTER TABLE players ADD CONSTRAINT valid_e164_phone 
+  CHECK (phone IS NULL OR phone ~ '^\+[1-9]\d{7,14}$');
+ALTER TABLE match_player_pool ADD CONSTRAINT offer_expiry_only_for_waitlist
+  CHECK (offer_expires_at IS NULL OR response_status='WAITLIST');
+```
+
+### **24.4 Row Level Security Setup**
+```sql
+-- Enable RLS on all tables
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE upcoming_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_player_pool ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Create tenant isolation policies
+CREATE POLICY tenant_isolation_players ON players
+  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+CREATE POLICY tenant_isolation_upcoming_matches ON upcoming_matches
+  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+-- (Repeat for all tables)
+
+-- Worker/service account RLS handling
+-- Option 1: BYPASS RLS for worker accounts
+-- Option 2: SET app.tenant_id per job run (recommended)
+-- Workers should set tenant context: SELECT set_config('app.tenant_id', $1, false);
+```
+
+### **24.5 Prisma Schema Multi-Tenant Updates**
+```prisma
+// Mirror multi-tenant constraints in Prisma schema
+model players {
+  player_id   Int     @id @default(autoincrement())
+  tenant_id   String  @db.Uuid
+  phone       String?
+  tier        String  @default("C")
+  is_ringer   Boolean @default(false)
+  // ... existing fields
+  
+  @@unique([tenant_id, phone], map: "uniq_players_tenant_phone", where: { phone: { not: null } })
+  @@index([tenant_id, phone], map: "idx_players_tenant_phone")
+  @@index([tenant_id, tier], map: "idx_players_tenant_tier")
+  @@index([tenant_id, is_ringer], map: "idx_players_tenant_ringer")
+}
+
+model upcoming_matches {
+  upcoming_match_id        Int      @id @default(autoincrement())
+  tenant_id               String   @db.Uuid
+  invite_token_hash       String?
+  capacity                Int?
+  auto_balance_enabled    Boolean  @default(true)
+  auto_lock_when_full     Boolean  @default(false)
+  // ... existing fields
+  
+  @@unique([tenant_id, invite_token_hash], map: "uniq_upcoming_matches_tenant_token_hash", where: { invite_token_hash: { not: null } })
+  @@index([tenant_id, a_open_at, b_open_at, c_open_at], map: "idx_upcoming_matches_tenant_tier_opens")
+}
+
+model match_player_pool {
+  id                 Int      @id @default(autoincrement())
+  tenant_id         String   @db.Uuid
+  upcoming_match_id Int
+  player_id         Int
+  response_status   String   @default("PENDING")
+  waitlist_position Int?
+  source            String?  // 'app'|'web'|'admin'
+  // ... other RSVP fields
+  
+  @@unique([tenant_id, upcoming_match_id, player_id], map: "uniq_mpp_tenant_player_match")
+  @@unique([tenant_id, upcoming_match_id, waitlist_position], map: "uniq_mpp_tenant_waitpos_per_match", where: { response_status: "WAITLIST", waitlist_position: { not: null } })
+  @@index([tenant_id, upcoming_match_id, response_status], map: "idx_mpp_tenant_match_status")
+}
+```
+
+---
+
+## **25) Complete Endpoint Summary & Acceptance Criteria**
+
+### **25.1 New API Endpoints Added**
+
+```typescript
+// Admin endpoints (tenant-scoped)
+GET  /api/admin/matches/[id]/activity          // Activity feed (last 200 events)
+POST /api/admin/matches/[id]/autobalance      // Manual auto-balance trigger
+POST /api/admin/waitlist/reissue              // Manual waitlist offer trigger  
+POST /api/admin/dropout/process-now           // Grace period override
+
+// Public endpoints (tenant-derived from token)
+GET  /api/booking/match/[id]?token={token}    // Match details for RSVP
+POST /api/booking/respond                     // Enhanced RSVP with full security
+POST /api/booking/waitlist/claim              // Claim waitlist offer
+GET  /api/booking/match/[id]/live             // Live status updates (15s polling)
+GET  /api/calendar/match/[id].ics?token={token} // Minimal ICS calendar file
+
+// Push notification endpoints
+POST /api/push/register                       // Register FCM token
+DELETE /api/push/register                     // Unregister FCM token
+POST /api/push/send                           // Internal push sending
+POST /api/push/test                           // Admin test notifications
+```
+
+### **25.2 Enhanced Background Jobs**
+
+```typescript
+// Updated job types with tenant scoping
+export const RSVP_JOB_TYPES = {
+  TIER_OPEN_NOTIFICATIONS: 'tier_open_notifications',
+  DROPOUT_GRACE_PROCESSOR: 'dropout_grace_processor', 
+  WAITLIST_OFFER_PROCESSOR: 'waitlist_offer_processor',
+  NOTIFICATION_BATCHER: 'notification_batcher',
+  AUTO_BALANCE_PROCESSOR: 'auto_balance_processor',
+  LAST_CALL_PROCESSOR: 'last_call_processor'  // NEW: Fixed T-12h/T-3h windows
+} as const;
+```
+
+### **25.3 UI Components Added**
+
+```typescript
+// Match Control Centre enhancements
+<ActivityFeed events={activityEvents} />              // Below RSVP pane
+<Button onClick={triggerAutoBalance}>Auto-balance now</Button>  // Visible in Draft
+
+// Activity feed displays (no filters, lean UI)
+interface ActivityEvent {
+  timestamp: Date;
+  kind: string;
+  actorName: string;   // Masked phone for players
+  source: 'app' | 'web' | 'admin';
+  details?: string;
+}
+```
+
+### **25.4 Acceptance Criteria**
+
+**✅ Auto-Balance Behavior:**
+- [ ] Reaching capacity triggers auto-balance job exactly once (idempotent under concurrency)
+- [ ] Manual "Auto-balance now" button works in Draft state
+- [ ] Does NOT re-balance on every IN/OUT toggle (only first capacity reach or manual)
+- [ ] Emits `autobalance.balanced` and `teams.published` to activity feed
+
+**✅ Activity Feed:**
+- [ ] Shows recent events in reverse chronological order
+- [ ] Includes: invite, last_call (t12/t3), waitlist_offer, waitlist_offer_claimed, admin add/remove, capacity changes
+- [ ] No filters/search (lean UI)
+- [ ] Pulls from notification_ledger with tenant scoping
+
+**✅ Fixed Last-Call Windows:**
+- [ ] T-12h last-call fires only once (uses `last_call_12_sent_at` timestamp)
+- [ ] T-3h last-call fires only once (uses `last_call_3_sent_at` timestamp)  
+- [ ] Respects `muted=false`, caps/cooldowns
+- [ ] Logs `last_call` per batch to notification_ledger
+
+**✅ Waitlist Offer Logging:**
+- [ ] Offer issuance logged with batch_key and position details
+- [ ] Claim logged with batch_key and claimant player_id
+- [ ] Activity feed reflects both issued and claimed events
+
+**✅ Multi-Tenant Security:**
+- [ ] All Prisma queries include tenant_id scoping
+- [ ] Public endpoints derive tenantId from token, don't trust client
+- [ ] Rate limiting uses tenant-scoped keys
+- [ ] Phone normalization runs server-side with E.164 validation
+- [ ] PII masking in all logs and UI
+
+**✅ ICS Calendar:**
+- [ ] Returns valid single-event .ics file
+- [ ] Minimal implementation (UTC, no alarms)
+- [ ] Proper Content-Type and filename headers
+
+**✅ Ringer & Access Control:**
+- [ ] Public booking respects ringer blocking with friendly message
+- [ ] Unknown player blocking with club-specific copy
+- [ ] Token TTL enforcement with friendly expiry message
+
+## **26) Production Testing Checklist**
+
+### **26.1 Multi-Tenant Isolation Tests**
+- [ ] **Tenant data isolation:** Two tenants with identical phone numbers don't collide
+- [ ] **Token uniqueness:** Same token hash across tenants works independently  
+- [ ] **Rate limiting:** Tenant-scoped rate limits don't affect other tenants
+- [ ] **RLS policies:** Users can only access their tenant's data
+
+### **26.2 Capacity & Waitlist Correctness**
+- [ ] **Capacity downshift:** When capacity drops, most-recent IN players move to WAITLIST (FIFO)
+- [ ] **Concurrent claims:** Multiple waitlist offers, first to claim wins, others see "spot filled"
+- [ ] **Grace period cancellation:** Player returns to IN during grace, waitlist offers cancelled
+- [ ] **Offer TTL clamping:** Offers expire at kickoff−15m, switch to instant claim <15m
+
+### **26.3 Auto-Balance Idempotency**
+- [ ] **Capacity threshold:** Auto-balance triggers when IN count >= capacity
+- [ ] **NO re-balance on changes:** Does NOT re-balance on every IN/OUT toggle (strict trigger only)
+- [ ] **Auto-lock behavior:** Only locks if `auto_lock_when_full=true` (default false)
+- [ ] **Concurrent protection:** `withMatchLock` prevents double-processing
+
+### **26.4 Ringer Access Control**
+- [ ] **Ringer blocking:** `is_ringer=true` + `enable_ringer_self_book=false` blocks with friendly message
+- [ ] **Admin addition:** Ringers show 👤 Admin badge, count toward capacity
+- [ ] **Notification exclusion:** Ringers don't get invite/last-call pushes (default)
+- [ ] **Transactional pushes:** Ringers DO get teams released, cancellation when participating
+
+### **26.5 Token Security & Rotation**
+- [ ] **Hash comparison:** Raw token in URL, hash stored in DB, secure comparison
+- [ ] **Token rotation:** Disabling/re-enabling RSVP invalidates old links
+- [ ] **TTL enforcement:** Tokens auto-expire at kickoff+24h
+- [ ] **Multi-tenant uniqueness:** Token hashes unique per tenant
+
+---
+
+This **production-ready multi-tenant specification** provides a comprehensive implementation plan that builds on your existing architecture while adding:
+
+✅ **Multi-Tenant SaaS Architecture** with proper data isolation and RLS  
+✅ **Streamlined RSVP System** with unified `/upcoming/match/[id]?token=...` experience  
+✅ **Auto-Balance with Optional Auto-Lock** for hands-off management  
+✅ **Admin-Only Ringer Management** using existing "Add Player" modal  
+✅ **Comprehensive Audit Trail** with tenant-scoped activity feed  
+✅ **Production Security** with token hashing, rate limiting, and tenant isolation  
+✅ **WhatsApp-Simple Workflow** without complex approval flows  
+
+The phased approach allows for incremental development and testing, with each phase building on the previous one while maintaining backward compatibility and focusing on core RSVP functionality with enterprise-grade multi-tenancy.
 
