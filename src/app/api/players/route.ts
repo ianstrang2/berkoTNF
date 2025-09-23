@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerProfile } from '@/lib/transform/player.transform';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS } from '@/lib/cache/constants';
 
-export async function GET(request: NextRequest) {
-  try {
+const getPlayersData = unstable_cache(
+  async () => {
+    console.log('Fetching fresh players data from DB.');
+    
     const playersFromDb = await prisma.players.findMany({
       orderBy: {
         name: 'asc'
@@ -11,12 +15,24 @@ export async function GET(request: NextRequest) {
     });
 
     const transformedPlayers = playersFromDb.map(toPlayerProfile);
+    return transformedPlayers;
+  },
+  ['players_data'],
+  {
+    tags: [CACHE_TAGS.PLAYER_PROFILE],
+    revalidate: 3600, // 1 hour cache
+  }
+);
+
+export async function GET(request: NextRequest) {
+  try {
+    const transformedPlayers = await getPlayersData();
 
     return NextResponse.json({
       data: transformedPlayers
     }, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=60'
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=3600'
       }
     });
 

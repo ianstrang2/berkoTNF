@@ -181,6 +181,21 @@ export async function POST(
       return updatedUpcomingMatch;
     });
 
+    // IMMEDIATE: Invalidate dashboard cache for instant refresh
+    console.log(`INVALIDATING DASHBOARD CACHE for immediate refresh after match ${matchId}`);
+    const { DASHBOARD_CACHE_TAGS } = await import('@/lib/cache/constants');
+    const { revalidateTag } = await import('next/cache');
+    
+    // Invalidate all dashboard-related cache tags immediately
+    DASHBOARD_CACHE_TAGS.forEach(tag => {
+      try {
+        revalidateTag(tag);
+        console.log(`✅ Invalidated cache tag: ${tag}`);
+      } catch (error) {
+        console.warn(`⚠️ Failed to invalidate cache tag ${tag}:`, error);
+      }
+    });
+
     // Trigger stats recalculation after successful completion (non-blocking)
     console.log(`TRIGGERING STATS UPDATE for completed match ${matchId}`);
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';

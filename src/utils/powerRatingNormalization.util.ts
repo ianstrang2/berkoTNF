@@ -84,9 +84,10 @@ export function formatStreakDates(dates: string | null): string {
     const endDate = new Date(parts[1]);
     
     const formatDate = (date: Date): string => {
-      const year = date.getFullYear().toString().slice(-2);
+      const year = date.getFullYear().toString();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      return `${year}-${month}`;
+      const day = date.getDate().toString().padStart(2, '0');
+      return `${year}-${month}-${day}`;
     };
     
     return `(${formatDate(startDate)} to ${formatDate(endDate)})`;

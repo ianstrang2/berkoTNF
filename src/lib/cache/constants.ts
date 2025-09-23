@@ -21,6 +21,9 @@ export const CACHE_TAGS = {
   
   // Admin & Config
   UPCOMING_MATCH: 'upcoming_match',
+  
+  // Dashboard Meta-tag
+  DASHBOARD: 'dashboard', // Meta-tag for all dashboard-related data
 };
 
 // A list of all tags that should be invalidated when a match is updated
@@ -37,4 +40,13 @@ export const ALL_MATCH_RELATED_TAGS = [
   CACHE_TAGS.MATCH_REPORT,
   CACHE_TAGS.RECENT_PERFORMANCE,
   CACHE_TAGS.SEASON_RACE_DATA,
+];
+
+// Dashboard-specific cache tags for immediate invalidation
+export const DASHBOARD_CACHE_TAGS = [
+  CACHE_TAGS.MATCH_REPORT,      // MatchReport component
+  CACHE_TAGS.PERSONAL_BESTS,    // PersonalBests component
+  CACHE_TAGS.PLAYER_PROFILE,    // Players data used across all components
+  CACHE_TAGS.RECENT_PERFORMANCE, // CurrentForm component
+  CACHE_TAGS.SEASON_STATS,      // Milestones component
 ]; 
