@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       SELECT id, start_date, end_date
       FROM seasons 
       WHERE CURRENT_DATE BETWEEN start_date AND end_date 
-        AND tenant_id = ${tenantId}
+        AND tenant_id = ${tenantId}::uuid
       LIMIT 1
     ` as Array<{ id: number; start_date: Date; end_date: Date }>;
 

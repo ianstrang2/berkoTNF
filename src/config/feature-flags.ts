@@ -22,14 +22,6 @@ export const BACKGROUND_JOB_FLAGS: BackgroundJobFeatureFlags = {
  * Check if background jobs should be used for a specific trigger type
  */
 export function shouldUseBackgroundJobs(triggerType: 'admin' | 'cron' | 'match'): boolean {
-  // Debug logging
-  console.log('ENV VARS', {
-    NEXT_PUBLIC_USE_BG_JOBS: process.env.NEXT_PUBLIC_USE_BG_JOBS,
-    NEXT_PUBLIC_USE_BG_JOBS_ADMIN: process.env.NEXT_PUBLIC_USE_BG_JOBS_ADMIN,
-    NEXT_PUBLIC_USE_BG_JOBS_MATCH: process.env.NEXT_PUBLIC_USE_BG_JOBS_MATCH,
-    NEXT_PUBLIC_USE_BG_JOBS_CRON: process.env.NEXT_PUBLIC_USE_BG_JOBS_CRON,
-  });
-
   // Master switch check first
   if (!BACKGROUND_JOB_FLAGS.USE_BG_JOBS) {
     return false;

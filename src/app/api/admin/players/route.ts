@@ -35,8 +35,8 @@ export async function GET(request: Request) {
           FROM 
             players p
           LEFT JOIN 
-            player_matches pm ON p.player_id = pm.player_id AND pm.tenant_id = ${tenantId}
-          WHERE p.tenant_id = ${tenantId}
+            player_matches pm ON p.player_id = pm.player_id AND pm.tenant_id = ${tenantId}::uuid
+          WHERE p.tenant_id = ${tenantId}::uuid
           GROUP BY 
             p.player_id
           ORDER BY 
@@ -50,8 +50,8 @@ export async function GET(request: Request) {
           FROM 
             players p
           LEFT JOIN 
-            player_matches pm ON p.player_id = pm.player_id AND pm.tenant_id = ${tenantId}
-          WHERE p.tenant_id = ${tenantId} AND p.is_retired = false
+            player_matches pm ON p.player_id = pm.player_id AND pm.tenant_id = ${tenantId}::uuid
+          WHERE p.tenant_id = ${tenantId}::uuid AND p.is_retired = false
           GROUP BY 
             p.player_id
           ORDER BY 

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring orphaned matches are tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export interface OrphanedMatch {
   match_id: number;
@@ -11,6 +13,9 @@ export interface OrphanedMatch {
 // GET /api/matches/orphaned - Find matches not covered by any season
 export async function GET() {
   try {
+    // Multi-tenant: Get tenant context for scoped queries
+    const tenantId = getCurrentTenantId();
+    
     const orphanedMatches = await prisma.$queryRaw`
       SELECT 
         m.match_id,
@@ -18,10 +23,12 @@ export async function GET() {
         m.team_a_score,
         m.team_b_score
       FROM matches m
-      WHERE NOT EXISTS (
-        SELECT 1 FROM seasons s 
-        WHERE m.match_date BETWEEN s.start_date AND s.end_date
-      )
+      WHERE m.tenant_id = ${tenantId}::uuid
+        AND NOT EXISTS (
+          SELECT 1 FROM seasons s 
+          WHERE m.match_date BETWEEN s.start_date AND s.end_date
+            AND s.tenant_id = ${tenantId}::uuid
+        )
       ORDER BY m.match_date DESC
     ` as Array<{
       match_id: number;

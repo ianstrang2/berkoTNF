@@ -86,7 +86,6 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
           throw new Error(result.error || 'Unknown error');
         }
         
-        console.log(`Raw API data for ${period}:`, result.data);
         setData(result.data);
       } catch (err) {
         console.error('Error fetching season race data:', err);
@@ -115,12 +114,7 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
 
     const sortedPlayers = playersWithFinalPoints.sort((a, b) => b.finalPoints - a.finalPoints);
     
-    // Debug: show final points from database
-    console.log('Final points from database:');
-    sortedPlayers.forEach(player => {
-      const lastPoint = player.cumulative_data[player.cumulative_data.length - 1];
-      console.log(`${player.name}: ${lastPoint?.points} points (last match: ${lastPoint?.date})`);
-    });
+    // Final points validation (debug logs removed for production)
 
     // Calculate period dates
     const currentYear = new Date().getFullYear();
@@ -147,8 +141,7 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
     // Create filtered ticks for mobile (every 4th tick)
     const mobileTicksFiltered = weeklyTicks.filter((_, index) => index % 4 === 0);
 
-    console.log(`Period: ${period}, Start: ${startDate.toISOString().split('T')[0]}, End: ${endDate.toISOString().split('T')[0]}`);
-    console.log(`Generated ${weeklyTicks.length} weekly ticks, ${mobileTicksFiltered.length} mobile ticks`);
+    // Period and ticks calculation (debug logs removed for production)
 
     // Transform player data to include starting points and timestamps
     const transformedPlayers = sortedPlayers.map(player => {
@@ -191,7 +184,7 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
     // Sort timestamps chronologically
     const sortedTimestamps = Array.from(allTimestamps).sort();
     
-    console.log(`Found ${sortedTimestamps.length} unique timestamps`);
+    // Timestamps processing (debug logs removed for production)
 
     // Create chart data using timestamps for time-based plotting
     const chartData = sortedTimestamps.map(timestamp => {
@@ -227,10 +220,9 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
     });
 
     // Debug: verify chart data accuracy
-    console.log('Chart data verification:');
+    // Chart data verification (debug logs removed for production)
     if (chartData.length > 0) {
       const lastDataPoint = chartData[chartData.length - 1];
-      console.log('Final chart values:', lastDataPoint);
       
       // Compare with database final values
       transformedPlayers.forEach(player => {
@@ -250,7 +242,7 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
     const currentYear = new Date().getFullYear();
     const date = new Date(currentYear, 5, 30); // June 30th
     const timestamp = date.getTime();
-    console.log(`Half-season timestamp: ${timestamp} (${date.toISOString().split('T')[0]}), showLine: ${showHalfSeasonLine}, period: ${period}`);
+    // Half-season line calculation (debug logs removed for production)
     return timestamp;
   }, [showHalfSeasonLine, period]);
 

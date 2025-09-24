@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring season operations are tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 interface RouteParams {
   params: {
@@ -19,6 +21,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Multi-tenant: Get tenant context for scoped queries
+    const tenantId = getCurrentTenantId();
+    
     const season = await prisma.$queryRaw`
       SELECT 
         id,
@@ -30,6 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         updated_at
       FROM seasons
       WHERE id = ${seasonId}
+        AND tenant_id = ${tenantId}::uuid
     ` as Array<{
       id: number;
       start_date: Date;
@@ -167,8 +173,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
 
+    // Multi-tenant: Get tenant context for scoped deletion
+    const tenantId = getCurrentTenantId();
+    
     const deletedSeason = await prisma.$queryRaw`
       DELETE FROM seasons WHERE id = ${seasonId}
+        AND tenant_id = ${tenantId}::uuid
       RETURNING id
     ` as Array<{ id: number }>;
 

@@ -15,19 +15,17 @@ export async function GET() {
         start_date,
         half_date,
         end_date,
-        get_season_display_name(start_date, end_date) as display_name,
         created_at,
         updated_at
       FROM seasons
       WHERE CURRENT_DATE BETWEEN start_date AND end_date
-      AND tenant_id = ${tenantId}
+      AND tenant_id = ${tenantId}::uuid
       LIMIT 1
     ` as Array<{
       id: number;
       start_date: Date;
       half_date: Date;
       end_date: Date;
-      display_name: string;
       created_at: Date;
       updated_at: Date;
     }>;
@@ -41,6 +39,11 @@ export async function GET() {
     }
 
     const season = currentSeason[0];
+    
+    // Generate display name from dates (fallback for when SQL function isn't available)
+    const startYear = season.start_date.getFullYear();
+    const endYear = season.end_date.getFullYear();
+    const displayName = startYear === endYear ? startYear.toString() : `${startYear}-${endYear}`;
 
     return NextResponse.json({
       success: true,
@@ -49,7 +52,7 @@ export async function GET() {
         startDate: season.start_date.toISOString().split('T')[0],
         halfDate: season.half_date.toISOString().split('T')[0],
         endDate: season.end_date.toISOString().split('T')[0],
-        displayName: season.display_name,
+        displayName: displayName,
         createdAt: season.created_at.toISOString(),
         updatedAt: season.updated_at.toISOString()
       }

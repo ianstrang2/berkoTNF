@@ -18,7 +18,7 @@ const getAllTimeStats = unstable_cache(
     
     const preAggregatedData = await tenantPrisma.aggregated_all_time_stats.findMany({
       include: {
-        player: {
+        players: {
           select: {
             name: true,
             is_retired: true,
@@ -32,7 +32,7 @@ const getAllTimeStats = unstable_cache(
     });
 
     const allTimeStats = preAggregatedData.map(stat => {
-      const dbPlayer = { ...stat, ...(stat as any).player };
+      const dbPlayer = { ...stat, ...(stat as any).players };
       return toPlayerWithStats(dbPlayer);
     });
 

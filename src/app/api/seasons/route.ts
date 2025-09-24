@@ -19,7 +19,7 @@ export async function GET() {
         created_at,
         updated_at
       FROM seasons
-      WHERE tenant_id = ${tenantId}
+      WHERE tenant_id = ${tenantId}::uuid
       ORDER BY start_date DESC
     ` as Array<{
       id: number;

@@ -1,9 +1,14 @@
 // src/app/api/admin/player-profile-metadata/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring player profile metadata is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export async function GET() {
   try {
+    // Multi-tenant: Get tenant context for scoped queries
+    const tenantId = getCurrentTenantId();
+    
     // Get profile generation statistics
     const profileStats = await prisma.$queryRaw`
       SELECT 
@@ -17,6 +22,7 @@ export async function GET() {
         COUNT(CASE WHEN is_retired = false AND profile_text IS NULL THEN 1 END) as active_without_profiles
       FROM players 
       WHERE is_ringer = false
+        AND tenant_id = ${tenantId}::uuid
     ` as any[];
 
     // Get all players with profile status, ordered by oldest profile update first
@@ -27,6 +33,7 @@ export async function GET() {
         is_ringer,
         profile_generated_at
       FROM players
+      WHERE tenant_id = ${tenantId}::uuid
       ORDER BY 
         profile_generated_at ASC NULLS FIRST,
         name ASC

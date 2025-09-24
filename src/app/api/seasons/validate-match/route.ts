@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring match validation is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // POST /api/seasons/validate-match - Validate match can be created (has active season)
 export async function POST(request: NextRequest) {
@@ -14,6 +16,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Multi-tenant: Get tenant context for scoped queries
+    const tenantId = getCurrentTenantId();
+    
     const season = await prisma.$queryRaw`
       SELECT 
         id,
@@ -23,6 +28,7 @@ export async function POST(request: NextRequest) {
         get_season_display_name(start_date, end_date) as display_name
       FROM seasons
       WHERE ${matchDate}::date BETWEEN start_date AND end_date
+        AND tenant_id = ${tenantId}::uuid
       LIMIT 1
     ` as Array<{
       id: number;

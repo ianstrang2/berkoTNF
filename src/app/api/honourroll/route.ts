@@ -22,12 +22,12 @@ const getHonourRollData = unstable_cache(
       SELECT season_id, season_name, season_winners, top_scorers 
       FROM aggregated_season_honours
       WHERE season_id IS NOT NULL AND season_name IS NOT NULL 
-      AND tenant_id = ${tenantId}
+      AND tenant_id = ${tenantId}::uuid
       ORDER BY season_id DESC`;
 
     const records: { records: any; }[] = await prisma.$queryRaw`
       SELECT records FROM aggregated_records
-      WHERE tenant_id = ${tenantId}
+      WHERE tenant_id = ${tenantId}::uuid
       LIMIT 1`;
 
     let playerNames = new Set<string>();
@@ -58,7 +58,10 @@ const getHonourRollData = unstable_cache(
 
     if (uniquePlayerNames.length > 0) {
       const playersData = await prisma.players.findMany({
-        where: { name: { in: uniquePlayerNames } },
+        where: { 
+          name: { in: uniquePlayerNames },
+          tenant_id: tenantId
+        },
         select: { name: true, selected_club: true }
       });
       playersData.forEach(p => playerClubMap.set(p.name, p.selected_club));
