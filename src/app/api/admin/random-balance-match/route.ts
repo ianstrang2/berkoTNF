@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { players } from '@prisma/client';
 import { splitSizesFromPool, MIN_PLAYERS, MAX_PLAYERS } from '@/utils/teamSplit.util';
+// Multi-tenant imports - ensuring random balance is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // Define interface for player pool entries
 interface PoolPlayer {
@@ -27,6 +29,8 @@ const shuffleArray = <T>(array: T[]): T[] => {
 // POST: Randomly balance teams
 export async function POST(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure random balancing is tenant-scoped
+    const tenantId = getCurrentTenantId();
     // Get matchId from URL query parameters
     const url = new URL(request.url);
     const matchId = url.searchParams.get('matchId');
@@ -117,7 +121,7 @@ export async function POST(request: NextRequest) {
     
     // Delete existing slot assignments for this match
     await prisma.upcoming_match_players.deleteMany({
-      where: { upcoming_match_id: matchIdInt }
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId }
     });
     
     // Create new slot assignments - both teams use 1-N slot numbering
@@ -125,7 +129,8 @@ export async function POST(request: NextRequest) {
       upcoming_match_id: matchIdInt,
       player_id: player.player_id,
       team: 'A',
-      slot_number: index + 1 // Slots 1 to sizeA
+      slot_number: index + 1, // Slots 1 to sizeA
+      tenant_id: tenantId
     }));
     
     // Create new slot assignments for Team B
@@ -133,7 +138,8 @@ export async function POST(request: NextRequest) {
       upcoming_match_id: matchIdInt,
       player_id: player.player_id,
       team: 'B',
-      slot_number: index + 1 // Slots 1 to sizeB
+      slot_number: index + 1, // Slots 1 to sizeB
+      tenant_id: tenantId
     }));
     
     // Combine assignments and insert them

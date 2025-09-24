@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring team slots operations are tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // Get all slots with their assigned players
 export async function GET() {
   try {
-    const slots = await prisma.team_slots.findMany({
+    // Multi-tenant setup - ensure team slots operations are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
+    const slots = await tenantPrisma.team_slots.findMany({
       orderBy: {
         slot_number: 'asc'
       },
       include: {
-        player: true // Include player details
+        players: true // Include player details
       }
     });
 
@@ -29,6 +36,10 @@ export async function GET() {
 // Update a slot's player assignment
 export async function PUT(request: Request) {
   try {
+    // Multi-tenant setup - ensure team slots operations are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const { slot_number, player_id } = await request.json();
 
     // Validate input
@@ -41,7 +52,7 @@ export async function PUT(request: Request) {
 
     // If player_id is provided, check if player is already assigned to another slot
     if (player_id) {
-      const existingSlot = await prisma.team_slots.findFirst({
+      const existingSlot = await tenantPrisma.team_slots.findFirst({
         where: {
           player_id: player_id,
           NOT: {
@@ -52,22 +63,32 @@ export async function PUT(request: Request) {
 
       if (existingSlot) {
         // Clear the player from their existing slot
-        await prisma.team_slots.update({
-          where: { slot_number: existingSlot.slot_number },
+        await tenantPrisma.team_slots.update({
+          where: { 
+            tenant_id_slot_number: {
+              tenant_id: tenantId,
+              slot_number: existingSlot.slot_number
+            }
+          },
           data: { player_id: null }
         });
       }
     }
 
     // Update the slot
-    const updatedSlot = await prisma.team_slots.update({
-      where: { slot_number: slot_number },
+    const updatedSlot = await tenantPrisma.team_slots.update({
+      where: { 
+        tenant_id_slot_number: {
+          tenant_id: tenantId,
+          slot_number: slot_number
+        }
+      },
       data: { 
         player_id: player_id,
         updated_at: new Date()
       },
       include: {
-        player: true // Include player details in response
+        players: true // Include player details in response
       }
     });
 

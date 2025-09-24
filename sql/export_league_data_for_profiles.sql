@@ -6,7 +6,8 @@ CREATE OR REPLACE FUNCTION export_league_data_for_profiles(
     recent_days_threshold INT DEFAULT 7,
     p_offset INT DEFAULT 0,
     p_limit INT DEFAULT 50,
-    p_league_id INT DEFAULT NULL
+    p_league_id INT DEFAULT NULL,
+    target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID
 )
 RETURNS JSONB LANGUAGE plpgsql AS $$
 DECLARE
@@ -14,16 +15,16 @@ DECLARE
 BEGIN
     SELECT jsonb_build_object(
         'league_context', jsonb_build_object(
-            'total_games', (SELECT COUNT(*) FROM matches),
-            'total_players', (SELECT COUNT(*) FROM players WHERE is_ringer = FALSE),
+            'total_games', (SELECT COUNT(*) FROM matches WHERE tenant_id = target_tenant_id),
+            'total_players', (SELECT COUNT(*) FROM players WHERE is_ringer = FALSE AND tenant_id = target_tenant_id),
             'total_seasons', (
                 SELECT COUNT(DISTINCT EXTRACT(YEAR FROM match_date)) 
                 FROM matches 
-                WHERE match_date IS NOT NULL
+                WHERE match_date IS NOT NULL AND tenant_id = target_tenant_id
             ),
             'date_range', jsonb_build_object(
-                'start_date', (SELECT MIN(match_date) FROM matches),
-                'end_date', (SELECT MAX(match_date) FROM matches)
+                'start_date', (SELECT MIN(match_date) FROM matches WHERE tenant_id = target_tenant_id),
+                'end_date', (SELECT MAX(match_date) FROM matches WHERE tenant_id = target_tenant_id)
             ),
             'league_age_years', (SELECT EXTRACT(YEAR FROM AGE(MAX(match_date), MIN(match_date))) FROM matches),
             'max_games_played', (SELECT MAX(games_played) FROM aggregated_player_profile_stats),

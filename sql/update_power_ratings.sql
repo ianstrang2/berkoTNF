@@ -3,7 +3,7 @@
 -- REPLACES: 6-month period-based system with smooth recency weighting
 -- SAME FUNCTION NAME: update_power_ratings() - maintains compatibility
 
-CREATE OR REPLACE FUNCTION update_power_ratings()
+CREATE OR REPLACE FUNCTION update_power_ratings(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
     half_life numeric;
@@ -11,23 +11,23 @@ DECLARE
     prior_weight CONSTANT numeric := 5;  -- Bayesian prior strength
     qualification_threshold numeric;
 BEGIN
-    -- Fetch configuration values from app_config table
+    -- Fetch configuration values from app_config table (tenant-scoped)
     SELECT COALESCE(
-        (SELECT config_value::numeric FROM app_config WHERE config_key = 'performance_half_life_days'),
+        (SELECT config_value::numeric FROM app_config WHERE config_key = 'performance_half_life_days' AND tenant_id = target_tenant_id LIMIT 1),
         730  -- Default: 2-year half-life
     ) INTO half_life;
     
     SELECT COALESCE(
-        (SELECT config_value::numeric FROM app_config WHERE config_key = 'performance_qualification_threshold'), 
+        (SELECT config_value::numeric FROM app_config WHERE config_key = 'performance_qualification_threshold' AND tenant_id = target_tenant_id LIMIT 1), 
         5   -- Default: minimum 5 games
     ) INTO qualification_threshold;
     
     -- Calculate lambda from half_life
     lambda_val := LN(2) / half_life;
     
-    -- Main EWMA calculation pipeline
+    -- Main EWMA calculation pipeline (tenant-scoped)
     WITH all_players AS (
-        SELECT player_id FROM players WHERE is_retired = false
+        SELECT player_id FROM players WHERE is_retired = false AND tenant_id = target_tenant_id
     ),
     player_join_dates AS (
         SELECT 
@@ -35,6 +35,7 @@ BEGIN
             MIN(m.match_date) AS join_date
         FROM player_matches pm
         JOIN matches m ON m.match_id = pm.match_id
+        WHERE pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
         GROUP BY player_id
     ),
     matches_weighted AS (
@@ -43,7 +44,7 @@ BEGIN
             match_date,
             EXP(-lambda_val * (CURRENT_DATE - match_date)::numeric) AS weight
         FROM matches
-        WHERE match_date <= CURRENT_DATE
+        WHERE match_date <= CURRENT_DATE AND tenant_id = target_tenant_id
     ),
     player_raw_stats AS (
         SELECT 
@@ -61,7 +62,7 @@ BEGIN
         FROM all_players ap
         LEFT JOIN player_join_dates pjd ON pjd.player_id = ap.player_id
         CROSS JOIN matches_weighted mw
-        LEFT JOIN player_matches pm ON pm.match_id = mw.match_id AND pm.player_id = ap.player_id
+        LEFT JOIN player_matches pm ON pm.match_id = mw.match_id AND pm.player_id = ap.player_id AND pm.tenant_id = target_tenant_id
         GROUP BY ap.player_id, pjd.join_date
     ),
     league_means AS (
@@ -70,7 +71,7 @@ BEGIN
             SUM(weighted_goals) / NULLIF(SUM(weighted_played), 0) AS mean_goal_threat
         FROM player_raw_stats prs
         JOIN players p ON p.player_id = prs.player_id
-        WHERE weighted_played >= (qualification_threshold * 0.6) AND p.is_ringer = false
+        WHERE weighted_played >= (qualification_threshold * 0.6) AND p.is_ringer = false AND p.tenant_id = target_tenant_id
     ),
     player_adjusted AS (
         SELECT 
@@ -104,20 +105,21 @@ BEGIN
                  ELSE 50 END AS participation_percentile
         FROM player_adjusted pa
         JOIN players p ON p.player_id = pa.player_id
-        -- Include ALL non-retired players (both qualified and unqualified)
-        WHERE p.is_retired = false
+        -- Include ALL non-retired players (both qualified and unqualified) within tenant
+        WHERE p.is_retired = false AND p.tenant_id = target_tenant_id
     )
-    -- Insert into EWMA table
+    -- Insert into EWMA table (tenant-scoped)
     INSERT INTO aggregated_performance_ratings 
-        (player_id, power_rating, goal_threat, participation, weighted_played, 
+        (player_id, tenant_id, power_rating, goal_threat, participation, weighted_played, 
          weighted_available, is_qualified, power_percentile, goal_percentile, 
          participation_percentile, first_match_date, updated_at)
     SELECT 
-        player_id, power_rating, goal_threat, participation, weighted_played,
+        player_id, target_tenant_id, power_rating, goal_threat, participation, weighted_played,
         weighted_available, is_qualified, power_percentile, goal_percentile,
         participation_percentile, first_match_date, NOW()
     FROM player_percentiles
     ON CONFLICT (player_id) DO UPDATE SET
+        tenant_id = EXCLUDED.tenant_id,
         power_rating = EXCLUDED.power_rating,
         goal_threat = EXCLUDED.goal_threat,
         participation = EXCLUDED.participation,
@@ -130,10 +132,10 @@ BEGIN
         first_match_date = EXCLUDED.first_match_date,
         updated_at = NOW();
 
-    -- Update cache metadata
-    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('player_power_rating', NOW(), 'function_execution')
-    ON CONFLICT (cache_key) DO UPDATE
+    -- Update cache metadata (tenant-scoped)
+    INSERT INTO cache_metadata (cache_key, tenant_id, last_invalidated, dependency_type)
+    VALUES ('player_power_rating', target_tenant_id, NOW(), 'function_execution')
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE
     SET last_invalidated = NOW(), dependency_type = 'function_execution';
     
 END;

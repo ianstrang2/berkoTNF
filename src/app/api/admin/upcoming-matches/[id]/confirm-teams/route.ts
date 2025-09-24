@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring team confirmation is tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 /**
  * API route to confirm balanced teams for an upcoming match.
@@ -10,6 +13,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Multi-tenant setup - ensure team confirmation is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const matchId = parseInt(params.id, 10);
     const { state_version } = await request.json();
 
@@ -21,7 +28,8 @@ export async function PATCH(
         return NextResponse.json({ success: false, error: 'state_version is required' }, { status: 400 });
     }
 
-    const match = await prisma.upcoming_matches.findUnique({
+    // Multi-tenant: Query scoped to current tenant only
+    const match = await tenantPrisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: matchId },
     });
 
@@ -38,7 +46,8 @@ export async function PATCH(
     }
 
     // Check if all team slots are properly filled
-    const teamPlayers = await prisma.upcoming_match_players.findMany({
+    // Multi-tenant: Query scoped to current tenant only
+    const teamPlayers = await tenantPrisma.upcoming_match_players.findMany({
       where: { 
         upcoming_match_id: matchId,
         team: { in: ['A', 'B'] }
@@ -89,7 +98,8 @@ export async function PATCH(
       }, { status: 400 });
     }
 
-    const updatedMatch = await prisma.upcoming_matches.update({
+    // Multi-tenant: Update match state within tenant only
+    const updatedMatch = await tenantPrisma.upcoming_matches.update({
       where: { 
           upcoming_match_id: matchId,
           state_version: state_version

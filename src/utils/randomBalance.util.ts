@@ -29,6 +29,7 @@ export async function randomBalance(
   matchId: number,
   playerIds: number[], 
   sizes: { a: number; b: number },
+  tenantId: string,
   seed?: string,
   state_version?: number
 ) {
@@ -57,12 +58,14 @@ export async function randomBalance(
       player_id: playerId,
       team: 'A' as const,
       slot_number: index + 1,
+      tenant_id: tenantId,
     })),
     ...teamBPlayerIds.map((playerId, index) => ({
       upcoming_match_id: matchIdInt,
       player_id: playerId,
       team: 'B' as const,
       slot_number: index + 1,
+      tenant_id: tenantId,
     }))
   ];
 
@@ -70,7 +73,7 @@ export async function randomBalance(
   return await prisma.$transaction(async (tx) => {
     // Clear existing assignments for this match
     await tx.upcoming_match_players.deleteMany({
-      where: { upcoming_match_id: matchIdInt }
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId }
     });
 
     // Insert new assignments

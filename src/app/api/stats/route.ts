@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
+// Multi-tenant imports - ensuring stats are tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 interface RecentGame {
   goals: number;
@@ -15,15 +18,19 @@ const getFullSeasonStats = unstable_cache(
   async (startDate: string, endDate: string) => {
     console.log(`Cache miss, fetching fresh data for ${startDate} to ${endDate}`);
 
-    const preAggregatedData = await prisma.aggregated_season_stats.findMany({
+    // Multi-tenant: Use tenant-scoped query for season stats
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+
+    const preAggregatedData = await tenantPrisma.aggregated_season_stats.findMany({
       where: {
         season_start_date: new Date(startDate),
-        player: {
+        players: {
           is_ringer: false
         }
       },
       include: {
-        player: {
+        players: {
           select: {
             name: true,
             selected_club: true
@@ -32,9 +39,9 @@ const getFullSeasonStats = unstable_cache(
       }
     });
     
-    const recentPerformance = await prisma.aggregated_recent_performance.findMany({
+    const recentPerformance = await tenantPrisma.aggregated_recent_performance.findMany({
       include: {
-        player: {
+        players: {
           select: { name: true, selected_club: true, player_id: true }
         }
       }
@@ -44,8 +51,8 @@ const getFullSeasonStats = unstable_cache(
       const dbPlayer = {
         id: stat.player_id,
         player_id: stat.player_id,
-        name: stat.player?.name,
-        selected_club: stat.player?.selected_club,
+        name: (stat as any).players?.name,
+        selected_club: (stat as any).players?.selected_club,
         games_played: stat.games_played || 0,
         wins: stat.wins || 0,
         draws: stat.draws || 0,
@@ -67,21 +74,21 @@ const getFullSeasonStats = unstable_cache(
       club: player.club,
       totalGoals: player.goals,
       minutesPerGoal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
-      lastFiveGames: recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games 
-        ? (recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games as RecentGame[])
+      lastFiveGames: recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games 
+        ? (recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as RecentGame[])
             .map(g => g.goals)
             .reverse()
             .join(',') 
         : '0,0,0,0,0',
-      maxGoalsInGame: recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games 
-        ? Math.max(...(recentPerformance.find(perf => perf.player.name === player.name)?.last_5_games as RecentGame[] || [])
+      maxGoalsInGame: recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games 
+        ? Math.max(...(recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as RecentGame[] || [])
             .map(g => g.goals)) 
         : 0
     })).filter(player => player.totalGoals > 0)
       .sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
 
     const formData = recentPerformance.map(perf => ({
-      name: perf.player.name,
+      name: (perf as any).players?.name || '',
       last_5_games: perf.last_5_games ? (perf.last_5_games as RecentGame[]).map(g => {
         if (g.heavy_win) return 'HW';
         if (g.heavy_loss) return 'HL';

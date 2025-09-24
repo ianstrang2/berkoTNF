@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring match undo is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
+import { withTenantMatchLock } from '@/lib/tenantLocks';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Multi-tenant setup - ensure match undo is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    
     const upcomingMatchId = parseInt(params.id, 10);
     const { state_version } = await request.json();
 
@@ -13,9 +19,13 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Invalid request payload' }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    // Multi-tenant: Use tenant-aware transaction with advisory locking
+    const result = await withTenantMatchLock(tenantId, upcomingMatchId, async (tx) => {
       const upcomingMatch = await tx.upcoming_matches.findUnique({
-        where: { upcoming_match_id: upcomingMatchId },
+        where: { 
+          upcoming_match_id: upcomingMatchId,
+          tenant_id: tenantId
+        },
       });
 
       if (!upcomingMatch) throw new Error('Match not found');
@@ -23,21 +33,30 @@ export async function PATCH(
       if ((upcomingMatch as any).state_version !== state_version) throw new Error('Conflict');
 
       const historicalMatch = await tx.matches.findFirst({
-        where: { upcoming_match_id: upcomingMatchId } as any,
+        where: { 
+          upcoming_match_id: upcomingMatchId,
+          tenant_id: tenantId
+        } as any,
       });
 
       if (historicalMatch) {
         await tx.player_matches.deleteMany({
-          where: { match_id: historicalMatch.match_id },
+          where: { 
+            match_id: historicalMatch.match_id,
+            tenant_id: tenantId
+          },
         });
         await tx.matches.delete({
-          where: { match_id: historicalMatch.match_id },
+          where: { 
+            match_id: historicalMatch.match_id
+          },
         });
       }
 
       return await tx.upcoming_matches.update({
         where: {
           upcoming_match_id: upcomingMatchId,
+          tenant_id: tenantId,
           state_version: state_version,
         } as any,
         data: {

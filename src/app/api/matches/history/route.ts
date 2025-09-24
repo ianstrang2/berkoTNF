@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { revalidateTag } from 'next/cache';
 import { ALL_MATCH_RELATED_TAGS } from '@/lib/cache/constants';
+// Multi-tenant imports - ensuring match history is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 async function revalidateMatchCaches() {
   console.log('Revalidating all match-related cache tags...');
@@ -95,6 +97,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('Received request body:', body);  // Log the request body
 
+    // Multi-tenant: Get tenant context for scoped operations
+    const tenantId = getCurrentTenantId();
+    
     const { match_date, team_a_score, team_b_score, players } = body;
 
     // Calculate win/loss/clean sheet for each player
@@ -146,6 +151,7 @@ export async function POST(request: Request) {
           team_a_score,
           team_b_score,
           season_id: null,
+          tenant_id: tenantId,
         },
       });
       console.log(`2. Match created with ID: ${newMatch.match_id}`);
@@ -155,7 +161,8 @@ export async function POST(request: Request) {
       await prisma.player_matches.createMany({
         data: processedPlayers.map(player => ({
           match_id: newMatch.match_id,
-          ...player
+          ...player,
+          tenant_id: tenantId
         })),
       });
       console.log(`4. Created ${processedPlayers.length} player matches`);
@@ -204,6 +211,9 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
     const { match_id, match_date, team_a_score, team_b_score, players } = body;
+
+    // Multi-tenant: Get tenant context for scoped operations
+    const tenantId = getCurrentTenantId();
 
     console.log(`Updating match with ID: ${match_id}`);
 
@@ -272,7 +282,8 @@ export async function PUT(request: Request) {
       await prisma.player_matches.createMany({
         data: processedPlayers.map(player => ({
           match_id,
-          ...player
+          ...player,
+          tenant_id: tenantId
         })),
       });
       console.log(`6. Created ${processedPlayers.length} player matches`);

@@ -29,5 +29,14 @@
       "Use .component.tsx suffix for all React components",
       "Organize components by feature in the directory structure"
     ]
+  },
+  "terminal.integrated.profiles": {
+  "PowerShell": {
+    "path": "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+  },
+  "Command Prompt": {
+    "path": "C:\\Windows\\System32\\cmd.exe"
   }
+},
+"terminal.integrated.defaultProfile.windows": "PowerShell"
 } 

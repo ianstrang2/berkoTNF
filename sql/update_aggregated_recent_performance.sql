@@ -1,5 +1,5 @@
 -- sql/update_aggregated_recent_performance.sql
-CREATE OR REPLACE FUNCTION update_aggregated_recent_performance()
+CREATE OR REPLACE FUNCTION update_aggregated_recent_performance(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID -- Or return some status/count
 LANGUAGE plpgsql
 AS $$
@@ -36,7 +36,7 @@ BEGIN
         FOR player_batch IN
             SELECT player_id
             FROM players
-            WHERE is_ringer = false
+            WHERE tenant_id = target_tenant_id AND is_ringer = false
             ORDER BY player_id
             LIMIT batch_size OFFSET offset_num
         LOOP
@@ -59,7 +59,9 @@ BEGIN
                     pm.heavy_loss
                 FROM player_matches pm
                 JOIN matches m ON pm.match_id = m.match_id
-                WHERE pm.player_id = player_batch.player_id
+                WHERE pm.player_id = player_batch.player_id 
+                AND pm.tenant_id = target_tenant_id 
+                AND m.tenant_id = target_tenant_id
                 ORDER BY m.match_date DESC
                 LIMIT 5
             )
@@ -89,7 +91,7 @@ BEGIN
         END LOOP;
 
         -- Check if the last batch was smaller than batch_size or empty
-        IF NOT FOUND OR (SELECT COUNT(*) FROM (SELECT player_id FROM players WHERE is_ringer = false ORDER BY player_id LIMIT batch_size OFFSET offset_num) AS sub) < batch_size THEN
+        IF NOT FOUND OR (SELECT COUNT(*) FROM (SELECT player_id FROM players WHERE tenant_id = target_tenant_id AND is_ringer = false ORDER BY player_id LIMIT batch_size OFFSET offset_num) AS sub) < batch_size THEN
             RAISE NOTICE 'Last batch processed.';
             EXIT; -- Exit the loop
         END IF;
@@ -100,23 +102,24 @@ BEGIN
     RAISE NOTICE 'Finished processing % players.', processed_players;
     RAISE NOTICE 'Deleting old data from aggregated_recent_performance...';
 
-    DELETE FROM aggregated_recent_performance WHERE TRUE;
+    DELETE FROM aggregated_recent_performance WHERE tenant_id = target_tenant_id;
 
     RAISE NOTICE 'Inserting new data into aggregated_recent_performance from temporary table...';
 
     EXECUTE format('
-        INSERT INTO aggregated_recent_performance (player_id, last_5_games, last_5_goals, last_updated)
-        SELECT player_id, last_5_games, last_5_goals, last_updated
-        FROM %I;', temp_recent_perf_table);
+        INSERT INTO aggregated_recent_performance (player_id, tenant_id, last_5_games, last_5_goals, last_updated)
+        SELECT player_id, $1, last_5_games, last_5_goals, last_updated
+        FROM %I;', temp_recent_perf_table)
+    USING target_tenant_id;
 
     GET DIAGNOSTICS inserted_count = ROW_COUNT;
     RAISE NOTICE 'Inserted % rows into aggregated_recent_performance.', inserted_count;
     
     -- Update Cache Metadata
     RAISE NOTICE 'Updating recent_performance cache metadata...';
-    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('recent_performance', NOW(), 'recent_performance')
-    ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
+    VALUES ('recent_performance', NOW(), 'recent_performance', target_tenant_id)
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE SET last_invalidated = NOW();
 
     -- Temp table is dropped automatically ON COMMIT
     RAISE NOTICE 'update_aggregated_recent_performance completed.';

@@ -1,21 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerInPool } from '@/lib/transform/player.transform';
+// Multi-tenant imports - gradually introducing tenant-aware functionality
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET: Fetch upcoming matches for public view
 export async function GET(request: NextRequest) {
   try {
+    // Multi-tenant setup - get current tenant context
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
 
     if (matchId) {
       // Get specific match with full details for expansion
-      const match = await prisma.upcoming_matches.findUnique({
+      // Multi-tenant: Using tenant-scoped query for data isolation
+      const match = await tenantPrisma.upcoming_matches.findUnique({
         where: { upcoming_match_id: parseInt(matchId) },
         include: {
-          players: {
+          upcoming_match_players: {
             include: {
-              player: true
+              players: true
             },
             orderBy: [
               { slot_number: 'asc' },
@@ -30,10 +38,10 @@ export async function GET(request: NextRequest) {
       }
 
       // Format the response
-      const { players, ...matchData } = match;
+      const { upcoming_match_players, ...matchData } = match as any;
       const formattedMatch = {
         ...matchData,
-        players: players.map(p => toPlayerInPool(p))
+        players: upcoming_match_players.map(p => toPlayerInPool(p))
       };
 
       return NextResponse.json({ success: true, data: formattedMatch }, {
@@ -48,7 +56,8 @@ export async function GET(request: NextRequest) {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today
 
-      const matches = await prisma.upcoming_matches.findMany({
+      // Multi-tenant: Using tenant-scoped query for data isolation
+      const matches = await tenantPrisma.upcoming_matches.findMany({
         where: {
           state: {
             not: 'Completed'

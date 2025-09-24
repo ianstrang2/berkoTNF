@@ -3,12 +3,20 @@ import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
+// Multi-tenant imports - ensuring all-time stats are tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // Define a function to fetch and cache the data
 const getAllTimeStats = unstable_cache(
   async () => {
     console.log('Fetching fresh all-time stats data from DB.');
-    const preAggregatedData = await prisma.aggregated_all_time_stats.findMany({
+    
+    // Multi-tenant: Use tenant-scoped query for all-time stats
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
+    const preAggregatedData = await tenantPrisma.aggregated_all_time_stats.findMany({
       include: {
         player: {
           select: {
@@ -24,7 +32,7 @@ const getAllTimeStats = unstable_cache(
     });
 
     const allTimeStats = preAggregatedData.map(stat => {
-      const dbPlayer = { ...stat, ...stat.player };
+      const dbPlayer = { ...stat, ...(stat as any).player };
       return toPlayerWithStats(dbPlayer);
     });
 

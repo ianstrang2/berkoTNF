@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring current season is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET /api/seasons/current - Get current season based on today's date
 export async function GET() {
   try {
+    // Multi-tenant: Get tenant context for scoped queries
+    const tenantId = getCurrentTenantId();
+    
     const currentSeason = await prisma.$queryRaw`
       SELECT 
         id,
@@ -15,6 +20,7 @@ export async function GET() {
         updated_at
       FROM seasons
       WHERE CURRENT_DATE BETWEEN start_date AND end_date
+      AND tenant_id = ${tenantId}
       LIMIT 1
     ` as Array<{
       id: number;

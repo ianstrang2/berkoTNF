@@ -5,6 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+// Multi-tenant imports - ensuring background jobs include tenant context
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 interface StatsUpdateJobPayload {
   triggeredBy: 'post-match' | 'admin' | 'cron';
@@ -13,6 +15,8 @@ interface StatsUpdateJobPayload {
   requestId: string;
   userId?: string;
   retryOf?: string;
+  // Multi-tenant: Include tenant context in job payloads
+  tenantId: string;
 }
 
 interface EnqueueResponse {
@@ -26,8 +30,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   console.log('📥 Stats job enqueue request received');
 
   try {
+    // Multi-tenant setup - ensure background jobs include tenant context
+    const tenantId = getCurrentTenantId();
+    
     // Parse request body
     const payload: StatsUpdateJobPayload = await request.json();
+    
+    // Multi-tenant: Ensure tenant context is included in job payload
+    payload.tenantId = tenantId;
     
     // Validate required fields
     if (!payload.triggeredBy || !payload.requestId) {
@@ -63,7 +73,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       matchId: payload.matchId,
       requestId: payload.requestId,
       userId: payload.userId,
-      retryOf: payload.retryOf
+      retryOf: payload.retryOf,
+      // Multi-tenant: Log tenant context for background job tracking
+      tenantId: payload.tenantId
     });
 
     // Initialize Supabase client
@@ -85,6 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     // Insert job into background_job_status table
+    // Multi-tenant: Include tenant_id in job record for proper isolation
     const { data, error } = await supabase
       .from('background_job_status')
       .insert({
@@ -92,7 +105,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         job_payload: payload,
         status: 'queued',
         priority: payload.triggeredBy === 'post-match' ? 2 : 1, // Higher priority for post-match
-        retry_count: 0
+        retry_count: 0,
+        tenant_id: payload.tenantId // Multi-tenant: Ensure job is associated with correct tenant
       })
       .select('id')
       .single();

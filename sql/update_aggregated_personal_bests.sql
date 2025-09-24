@@ -1,5 +1,5 @@
 -- sql/update_aggregated_personal_bests.sql
-CREATE OR REPLACE FUNCTION update_aggregated_personal_bests()
+CREATE OR REPLACE FUNCTION update_aggregated_personal_bests(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
     v_latest_match_id INT;
@@ -30,6 +30,7 @@ BEGIN
 
     SELECT match_id, match_date INTO v_latest_match_id, v_latest_match_date
     FROM public.matches
+    WHERE tenant_id = target_tenant_id
     ORDER BY match_date DESC, match_id DESC
     LIMIT 1;
 
@@ -46,6 +47,8 @@ BEGIN
         FROM public.player_matches pm
         JOIN public.players p ON pm.player_id = p.player_id
         WHERE pm.match_id = v_latest_match_id
+          AND pm.tenant_id = target_tenant_id
+          AND p.tenant_id = target_tenant_id
           AND p.is_ringer = false
     LOOP
         v_player_id := v_player_records.player_id;
@@ -57,10 +60,10 @@ BEGIN
         -- Metric 1: Most Goals in a Game
         SELECT COALESCE(goals, 0) INTO v_current_goals
         FROM public.player_matches
-        WHERE match_id = v_latest_match_id AND player_id = v_player_id;
+        WHERE match_id = v_latest_match_id AND player_id = v_player_id AND tenant_id = target_tenant_id;
         SELECT COALESCE(MAX(goals), 0) INTO v_previous_max_goals
         FROM public.player_matches
-        WHERE player_id = v_player_id AND match_id < v_latest_match_id;
+        WHERE player_id = v_player_id AND match_id < v_latest_match_id AND tenant_id = target_tenant_id;
         IF v_current_goals >= MIN_GOALS_FOR_PB AND v_current_goals > v_previous_max_goals THEN
             v_player_pb_array := v_player_pb_array || jsonb_build_object(
                 'metric_type', 'most_goals_in_game',
@@ -86,7 +89,10 @@ BEGIN
                 ROW_NUMBER() OVER (ORDER BY m.match_date, m.match_id) as played_match_seq_num
             FROM public.matches m
             JOIN public.player_matches pm ON m.match_id = pm.match_id
-                            WHERE pm.player_id = v_player_id AND m.match_date::date <= v_latest_match_date::date -- Ensure context of played matches
+            WHERE pm.player_id = v_player_id 
+            AND m.tenant_id = target_tenant_id 
+            AND pm.tenant_id = target_tenant_id 
+            AND m.match_date::date <= v_latest_match_date::date -- Ensure context of played matches
         ),
         played_game_streak_groups AS (
             SELECT
@@ -117,7 +123,7 @@ BEGIN
                 m.match_date,
                 ROW_NUMBER() OVER (ORDER BY m.match_date, m.match_id) as overall_match_seq_num
             FROM public.matches m
-            WHERE m.match_date::date <= v_latest_match_date::date
+            WHERE m.tenant_id = target_tenant_id AND m.match_date::date <= v_latest_match_date::date
         ),
         player_attendance_status_for_all_matches AS (
             SELECT
@@ -126,7 +132,7 @@ BEGIN
                 am.overall_match_seq_num,
                 (pm.player_id IS NOT NULL) AS attended_this_match
             FROM all_matches_ranked am
-            LEFT JOIN public.player_matches pm ON am.match_id = pm.match_id AND pm.player_id = v_player_id
+            LEFT JOIN public.player_matches pm ON am.match_id = pm.match_id AND pm.player_id = v_player_id AND pm.tenant_id = target_tenant_id
         ),
         attendance_streak_break_groups AS (
             SELECT
@@ -162,7 +168,7 @@ BEGIN
             FROM public.matches m -- Base for all matches in context
             LEFT JOIN result_streaks_by_played_match rsbpm ON m.match_id = rsbpm.match_id
             JOIN attendance_streaks_by_match asbm ON m.match_id = asbm.match_id
-            WHERE m.match_date::date <= v_latest_match_date::date -- Critical filter for context
+            WHERE m.tenant_id = target_tenant_id AND m.match_date::date <= v_latest_match_date::date -- Critical filter for context
         )
         -- Final SELECT statement to populate variables
         SELECT
@@ -218,6 +224,7 @@ BEGIN
                SELECT 1 FROM public.player_matches pm_latest 
                WHERE pm_latest.match_id = v_latest_match_id 
                AND pm_latest.player_id = v_player_id
+               AND pm_latest.tenant_id = target_tenant_id
            ) THEN
              v_player_pb_array := v_player_pb_array || jsonb_build_object('metric_type', 'attendance_streak', 'value', v_current_attendance_streak, 'previous_best_value', v_previous_max_attendance_streak);
         END IF;
@@ -241,25 +248,25 @@ BEGIN
 
     IF v_final_json_payload <> '{}'::jsonb THEN
         RAISE NOTICE 'PBs found for match_id: %. Inserting/Updating aggregated_personal_bests: %', v_latest_match_id, v_final_json_payload;
-        INSERT INTO public.aggregated_personal_bests (match_id, broken_pbs_data, created_at, updated_at)
-        VALUES (v_latest_match_id, v_final_json_payload, NOW(), NOW())
-        ON CONFLICT (match_id) DO UPDATE
+        INSERT INTO public.aggregated_personal_bests (match_id, tenant_id, broken_pbs_data, created_at, updated_at)
+        VALUES (v_latest_match_id, target_tenant_id, v_final_json_payload, NOW(), NOW())
+        ON CONFLICT (match_id, tenant_id) DO UPDATE
         SET broken_pbs_data = excluded.broken_pbs_data,
             updated_at = NOW();
     ELSE
         RAISE NOTICE 'No new PBs found for match_id: %. Upserting empty record.', v_latest_match_id;
-        INSERT INTO public.aggregated_personal_bests (match_id, broken_pbs_data, created_at, updated_at)
-        VALUES (v_latest_match_id, '{}'::jsonb, NOW(), NOW())
-        ON CONFLICT (match_id) DO UPDATE
+        INSERT INTO public.aggregated_personal_bests (match_id, tenant_id, broken_pbs_data, created_at, updated_at)
+        VALUES (v_latest_match_id, target_tenant_id, '{}'::jsonb, NOW(), NOW())
+        ON CONFLICT (match_id, tenant_id) DO UPDATE
         SET broken_pbs_data = '{}'::jsonb,
             updated_at = NOW();
     END IF;
 
     -- Update cache_metadata
     RAISE NOTICE 'Updating cache_metadata for personal_bests...';
-    INSERT INTO public.cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('personal_bests', NOW(), 'personal_bests')
-    ON CONFLICT (cache_key) DO UPDATE
+    INSERT INTO public.cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
+    VALUES ('personal_bests', NOW(), 'personal_bests', target_tenant_id)
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE
     SET last_invalidated = NOW(),
         dependency_type = excluded.dependency_type; -- Ensures dependency_type is also set/updated
 

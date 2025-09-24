@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
+// Multi-tenant imports - ensuring honour roll is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 const serializeData = (data: any) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
@@ -13,14 +15,19 @@ const getHonourRollData = unstable_cache(
   async () => {
     console.log('Fetching fresh honour roll data from DB.');
     
+    // Multi-tenant: Get tenant context for scoped queries
+    const tenantId = getCurrentTenantId();
+    
     const seasonHonours: { season_id: number; season_name: string; season_winners: any; top_scorers: any; }[] = await prisma.$queryRaw`
       SELECT season_id, season_name, season_winners, top_scorers 
       FROM aggregated_season_honours
-      WHERE season_id IS NOT NULL AND season_name IS NOT NULL
+      WHERE season_id IS NOT NULL AND season_name IS NOT NULL 
+      AND tenant_id = ${tenantId}
       ORDER BY season_id DESC`;
 
     const records: { records: any; }[] = await prisma.$queryRaw`
       SELECT records FROM aggregated_records
+      WHERE tenant_id = ${tenantId}
       LIMIT 1`;
 
     let playerNames = new Set<string>();

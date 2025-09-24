@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring pool unlocking is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
+import { withTenantMatchLock } from '@/lib/tenantLocks';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Multi-tenant setup - ensure pool unlocking is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    
     const matchId = parseInt(params.id, 10);
     const { state_version } = await request.json();
 
@@ -13,19 +19,24 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Invalid request payload' }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    // Multi-tenant: Use tenant-aware transaction with advisory locking
+    const result = await withTenantMatchLock(tenantId, matchId, async (tx) => {
       const match = await tx.upcoming_matches.findUnique({
-        where: { upcoming_match_id: matchId },
+        where: { 
+          upcoming_match_id: matchId,
+          tenant_id: tenantId  // Multi-tenant: Ensure match belongs to tenant
+        },
       });
 
       if (!match) throw new Error('Match not found');
       if ((match as any).state !== 'PoolLocked') throw new Error(`Cannot unlock pool for match with state ${(match as any).state}.`);
       if ((match as any).state_version !== state_version) throw new Error('Conflict');
 
-      // Update the match state
+      // Update the match state (tenant-scoped)
       return await tx.upcoming_matches.update({
         where: {
           upcoming_match_id: matchId,
+          tenant_id: tenantId,
           state_version: state_version,
         } as any,
         data: {

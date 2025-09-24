@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerInPool } from '@/lib/transform/player.transform';
+// Multi-tenant imports - ensuring admin match operations are tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
+import { withTenantMatchLock } from '@/lib/tenantLocks';
 
 // GET: Fetch upcoming matches
 export async function GET(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure admin operations are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
     const active = searchParams.get('active');
@@ -29,13 +37,14 @@ export async function GET(request: NextRequest) {
 
     if (active === 'true') {
       // Get active match
+      // Multi-tenant: Query scoped to current tenant only
       console.log('Fetching active match...');
-      const activeMatch = await prisma.upcoming_matches.findFirst({
+      const activeMatch = await tenantPrisma.upcoming_matches.findFirst({
         where: { is_active: true },
         include: {
-          players: {
+          upcoming_match_players: {
             include: {
-              player: true
+              players: true
             },
             orderBy: [
               { slot_number: 'asc' },
@@ -49,10 +58,10 @@ export async function GET(request: NextRequest) {
 
       if (activeMatch) {
         // Format the response
-        const { players, ...matchData } = activeMatch;
+        const { upcoming_match_players, ...matchData } = activeMatch as any;
         formattedMatch = {
           ...matchData,
-          players: players.map(p => toPlayerInPool(p))
+          players: upcoming_match_players.map(p => toPlayerInPool(p))
         };
         return new NextResponse(JSON.stringify({ success: true, data: formattedMatch }), {
           headers: {
@@ -71,12 +80,13 @@ export async function GET(request: NextRequest) {
       });
     } else if (matchId) {
       // Get specific match
-      const match = await prisma.upcoming_matches.findUnique({
+      // Multi-tenant: Query scoped to current tenant only
+      const match = await tenantPrisma.upcoming_matches.findUnique({
         where: { upcoming_match_id: parseInt(matchId) },
         include: {
-          players: {
+          upcoming_match_players: {
             include: {
-              player: true
+              players: true
             },
             orderBy: [
               { slot_number: 'asc' },
@@ -91,10 +101,10 @@ export async function GET(request: NextRequest) {
       }
 
       // Format the response
-      const { players, ...matchData } = match;
+      const { upcoming_match_players, ...matchData } = match as any;
       formattedMatch = {
         ...matchData,
-        players: players.map(p => toPlayerInPool(p))
+        players: upcoming_match_players.map(p => toPlayerInPool(p))
       };
 
       return NextResponse.json({ success: true, data: formattedMatch }, {
@@ -106,7 +116,8 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // Fetch all upcoming matches
-      const matches = await prisma.upcoming_matches.findMany({
+      // Multi-tenant: Query scoped to current tenant only
+      const matches = await tenantPrisma.upcoming_matches.findMany({
         orderBy: {
           match_date: 'asc'
         },
@@ -142,6 +153,10 @@ export async function GET(request: NextRequest) {
 // POST: Create a new upcoming match
 export async function POST(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure new matches are created in the correct tenant
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const body = await request.json();
     const { match_date, team_size } = body;
 
@@ -157,15 +172,17 @@ export async function POST(request: NextRequest) {
     }
 
     // If creating a new active match, deactivate any existing active matches
+    // Multi-tenant: Only deactivate matches within the same tenant
     if (body.is_active === true) {
-      await prisma.upcoming_matches.updateMany({
+      await tenantPrisma.upcoming_matches.updateMany({
         where: { is_active: true },
         data: { is_active: false }
       });
     }
 
     // Create new match
-    const newMatch = await prisma.upcoming_matches.create({
+    // Multi-tenant: Create match in the current tenant
+    const newMatch = await tenantPrisma.upcoming_matches.create({
       data: {
         match_date: new Date(match_date),
         team_size: team_size,
@@ -184,6 +201,10 @@ export async function POST(request: NextRequest) {
 // PUT: Update an existing upcoming match
 export async function PUT(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure match updates are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const body = await request.json();
     const { match_id, upcoming_match_id, state_version, match_date, team_size, is_balanced, is_active } = body;
     
@@ -201,10 +222,11 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get current match to check current team size
-    const currentMatch = await prisma.upcoming_matches.findUnique({
+    // Multi-tenant: Query scoped to current tenant only
+    const currentMatch = await tenantPrisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: targetMatchId },
       include: { 
-        _count: { select: { players: true } } 
+        _count: { select: { upcoming_match_players: true } } 
       }
     });
 
@@ -221,16 +243,17 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if team size is being reduced and there are more players than the new size would allow
-    if (team_size && team_size < currentMatch.team_size && currentMatch._count.players > team_size * 2) {
+    if (team_size && team_size < currentMatch.team_size && (currentMatch as any)._count.upcoming_match_players > team_size * 2) {
       return NextResponse.json({ 
         success: false, 
-        error: `Cannot reduce team size: ${currentMatch._count.players} players are assigned but new team size would only allow ${team_size * 2} players.`
+        error: `Cannot reduce team size: ${(currentMatch as any)._count.upcoming_match_players} players are assigned but new team size would only allow ${team_size * 2} players.`
       }, { status: 400 });
     }
 
     // If setting match as active, deactivate any other active matches
+    // Multi-tenant: Only deactivate matches within the same tenant
     if (is_active === true && !currentMatch.is_active) {
-      await prisma.upcoming_matches.updateMany({
+      await tenantPrisma.upcoming_matches.updateMany({
         where: { 
           is_active: true,
           upcoming_match_id: { not: targetMatchId }
@@ -240,7 +263,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update match with state_version increment
-    const updatedMatch = await prisma.upcoming_matches.update({
+    // Multi-tenant: Update within the current tenant only
+    const updatedMatch = await tenantPrisma.upcoming_matches.update({
       where: { upcoming_match_id: targetMatchId },
       data: {
         match_date: match_date ? new Date(match_date) : undefined,
@@ -261,6 +285,10 @@ export async function PUT(request: NextRequest) {
 // DELETE: Remove an upcoming match
 export async function DELETE(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure deletion is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('id');
 
@@ -274,7 +302,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get the match to check its state
-    const upcomingMatch = await prisma.upcoming_matches.findUnique({
+    // Multi-tenant: Query scoped to current tenant only
+    const upcomingMatch = await tenantPrisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: upcomingMatchId }
     });
 
@@ -284,23 +313,35 @@ export async function DELETE(request: NextRequest) {
 
     let shouldTriggerStatsUpdate = false;
 
-    await prisma.$transaction(async (tx) => {
+    // Multi-tenant: Use tenant-aware transaction with advisory locking for safety
+    await withTenantMatchLock(tenantId, upcomingMatchId, async (tx) => {
       // If this is a completed match, we need to delete historical data too
       if (upcomingMatch.state === 'Completed') {
         // Find the linked historical match
+        // Multi-tenant: Search within tenant only
         const historicalMatch = await tx.matches.findFirst({
-          where: { upcoming_match_id: upcomingMatchId }
+          where: { 
+            upcoming_match_id: upcomingMatchId,
+            tenant_id: tenantId
+          }
         });
 
         if (historicalMatch) {
           // Delete player_matches first (referential integrity)
+          // Multi-tenant: Delete within tenant only
           await tx.player_matches.deleteMany({
-            where: { match_id: historicalMatch.match_id }
+            where: { 
+              match_id: historicalMatch.match_id,
+              tenant_id: tenantId
+            }
           });
 
           // Delete the historical match
+          // Multi-tenant: Delete within tenant only
           await tx.matches.delete({
-            where: { match_id: historicalMatch.match_id }
+            where: { 
+              match_id: historicalMatch.match_id
+            }
           });
 
           // Flag that we need stats recalculation
@@ -309,18 +350,29 @@ export async function DELETE(request: NextRequest) {
       }
 
       // Delete player assignments
+      // Multi-tenant: Delete within tenant only
       await tx.upcoming_match_players.deleteMany({
-        where: { upcoming_match_id: upcomingMatchId }
+        where: { 
+          upcoming_match_id: upcomingMatchId,
+          tenant_id: tenantId
+        }
       });
 
       // Delete player pool data
+      // Multi-tenant: Delete within tenant only
       await tx.match_player_pool.deleteMany({
-        where: { upcoming_match_id: upcomingMatchId }
+        where: { 
+          upcoming_match_id: upcomingMatchId,
+          tenant_id: tenantId
+        }
       });
 
       // Delete the upcoming match
+      // Multi-tenant: Delete within tenant only
       await tx.upcoming_matches.delete({
-        where: { upcoming_match_id: upcomingMatchId }
+        where: { 
+          upcoming_match_id: upcomingMatchId
+        }
       });
     });
 

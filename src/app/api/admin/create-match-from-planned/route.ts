@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring match creation is tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // POST: Create a real match from a planned match
 export async function POST(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure match creation is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const body = await request.json();
     // Accept either field name for compatibility
     const { match_id, upcoming_match_id } = body;
@@ -13,7 +20,8 @@ export async function POST(request: NextRequest) {
     
     // If no match ID provided, use the active match
     if (!targetMatchId) {
-      const activeMatch = await prisma.upcoming_matches.findFirst({
+      // Multi-tenant: Query scoped to current tenant only
+      const activeMatch = await tenantPrisma.upcoming_matches.findFirst({
         where: { is_active: true },
         select: { upcoming_match_id: true }
       });
@@ -29,12 +37,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch match details
-    const plannedMatch = await prisma.upcoming_matches.findUnique({
+    // Multi-tenant: Query scoped to current tenant only
+    const plannedMatch = await tenantPrisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: targetMatchId },
       include: {
-        players: {
+        upcoming_match_players: {
           include: {
-            player: true
+            players: true
           }
         }
       }
@@ -56,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if there are player assignments
-    if (!plannedMatch.players || plannedMatch.players.length === 0) {
+    if (!(plannedMatch as any).upcoming_match_players || (plannedMatch as any).upcoming_match_players.length === 0) {
       return NextResponse.json({ 
         success: false, 
         error: 'No player assignments found for this match' 
@@ -64,7 +73,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create match record
-    const newMatch = await prisma.matches.create({
+    // Multi-tenant: Create match in current tenant
+    const newMatch = await tenantPrisma.matches.create({
       data: {
         match_date: plannedMatch.match_date,
         team_a_score: 0,
@@ -74,10 +84,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Create player match records
-    const playerPromises = plannedMatch.players.map(player => {
+    const playerPromises = (plannedMatch as any).upcoming_match_players.map(player => {
       const teamName = player.team || 'A'; // Default to team A if not assigned
       
-      return prisma.player_matches.create({
+      // Multi-tenant: Create player match record in current tenant
+      return tenantPrisma.player_matches.create({
         data: {
           match_id: newMatch.match_id,
           player_id: player.player_id,
@@ -97,7 +108,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         match_id: newMatch.match_id,
-        player_count: plannedMatch.players.length
+        player_count: (plannedMatch as any).upcoming_match_players.length
       },
       message: 'Match created successfully'
     });

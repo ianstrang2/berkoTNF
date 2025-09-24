@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring match completion is tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
+import { withTenantMatchLock } from '@/lib/tenantLocks';
 
 /**
  * API route to complete a match.
@@ -11,6 +15,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Multi-tenant setup - ensure match completion is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const matchId = parseInt(params.id, 10);
     const { state_version, score, own_goals, player_stats } = await request.json();
 
@@ -35,9 +43,10 @@ export async function POST(
 
     // Validate score integrity: team_score should equal player_goals + own_goals
     // First, get team assignments from database to properly validate
-    const upcomingMatchForValidation = await prisma.upcoming_matches.findUnique({
+    // Multi-tenant: Query scoped to current tenant only
+    const upcomingMatchForValidation = await tenantPrisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: matchId },
-      include: { players: true },
+      include: { upcoming_match_players: true },
     });
     
     if (!upcomingMatchForValidation) {
@@ -46,7 +55,7 @@ export async function POST(
     
     // Create a map of player_id to team
     const playerTeamMap = new Map(
-      upcomingMatchForValidation.players.map(p => [p.player_id, p.team])
+      (upcomingMatchForValidation as any).upcoming_match_players.map(p => [p.player_id, p.team])
     );
     
     // Calculate total goals by team using the team assignments
@@ -84,11 +93,12 @@ export async function POST(
       }, { status: 409 });
     }
 
-    const completedMatch = await prisma.$transaction(async (tx) => {
+    // Multi-tenant: Use tenant-aware transaction with advisory locking
+    const completedMatch = await withTenantMatchLock(tenantId, matchId, async (tx) => {
       // Use the already-fetched match data
       const upcomingMatch = upcomingMatchForValidation;
 
-      // 1. Create the historical match record with own goals
+      // 1. Create the historical match record with own goals (tenant-scoped)
       const newMatch = await tx.matches.create({
         data: {
           match_date: upcomingMatch.match_date,
@@ -98,6 +108,7 @@ export async function POST(
           season_id: null,
           team_b_own_goals: own_goals.team_b,
           upcoming_match_id: matchId,
+          tenant_id: tenantId  // Multi-tenant: Include tenant in new match record
         } as any,
       });
 
@@ -110,7 +121,7 @@ export async function POST(
       
       console.log(`MATCH COMPLETION DEBUG: Match ${matchId}, Score: ${score.team_a}-${score.team_b}, Own Goals: ${own_goals.team_a}-${own_goals.team_b}, ScoreDiff: ${scoreDiff}, IsHeavyWin: ${isHeavyWin}`);
       
-      const assignedPlayers = upcomingMatch.players.filter(p => p.team === 'A' || p.team === 'B');
+      const assignedPlayers = (upcomingMatch as any).upcoming_match_players.filter(p => p.team === 'A' || p.team === 'B');
       console.log(`ASSIGNED PLAYERS: ${assignedPlayers.length} players found`);
       
       const playerMatchesData = assignedPlayers.map(p => {
@@ -135,6 +146,7 @@ export async function POST(
             heavy_win,
             heavy_loss,
             clean_sheet,
+            tenant_id: tenantId  // Multi-tenant: Include tenant in player match records
           };
           
           console.log(`PLAYER ${p.player_id} (Team ${p.team}): result=${result}, heavy_win=${heavy_win}, heavy_loss=${heavy_loss}, clean_sheet=${clean_sheet}`);

@@ -4,7 +4,7 @@
 -- CREATE OR REPLACE FUNCTION calculate_match_fantasy_points(...) ...
 
 
-CREATE OR REPLACE FUNCTION update_aggregated_all_time_stats()
+CREATE OR REPLACE FUNCTION update_aggregated_all_time_stats(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 -- No config_json parameter needed
 RETURNS VOID
 LANGUAGE plpgsql
@@ -19,9 +19,9 @@ BEGIN
     RAISE NOTICE 'Using config: match_duration=% min, min_games_for_hof=%',
                  match_duration, min_games_for_hof;
 
-    -- Calculate base stats directly into insert statement
-    RAISE NOTICE 'Deleting existing all-time stats...';
-    DELETE FROM aggregated_all_time_stats WHERE TRUE;
+    -- Calculate base stats directly into insert statement (tenant-scoped)
+    RAISE NOTICE 'Deleting existing all-time stats for tenant %...', target_tenant_id;
+    DELETE FROM aggregated_all_time_stats WHERE tenant_id = target_tenant_id;
 
     RAISE NOTICE 'Calculating and inserting new all-time stats...';
     WITH player_base_stats AS (
@@ -44,19 +44,19 @@ BEGIN
             )) as fantasy_points
         FROM player_matches pm
         JOIN players p ON pm.player_id = p.player_id
-        WHERE p.is_ringer = false
+        WHERE p.is_ringer = false AND pm.tenant_id = target_tenant_id AND p.tenant_id = target_tenant_id
         GROUP BY pm.player_id
         HAVING SUM(calculate_match_fantasy_points(pm.result, COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))) IS NOT NULL
            AND COUNT(*) >= min_games_for_hof -- Add this condition
     )
     INSERT INTO aggregated_all_time_stats (
-        player_id, games_played, wins, draws, losses, goals,
+        player_id, tenant_id, games_played, wins, draws, losses, goals,
         win_percentage, minutes_per_goal, heavy_wins, heavy_win_percentage,
         heavy_losses, heavy_loss_percentage, clean_sheets, clean_sheet_percentage,
         fantasy_points, points_per_game, last_updated
     )
     SELECT
-        player_id, games_played, wins, draws, losses, goals,
+        player_id, target_tenant_id, games_played, wins, draws, losses, goals,
         ROUND((CASE WHEN games_played > 0 THEN wins::numeric / games_played * 100 ELSE 0 END), 1),
         CASE WHEN goals > 0 THEN ROUND((games_played::numeric * match_duration / goals), 1) ELSE NULL END,
         heavy_wins,

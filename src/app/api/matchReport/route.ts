@@ -4,6 +4,9 @@ import { Prisma } from '@prisma/client';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { FeatBreakingItem } from '@/types/feat-breaking.types';
+// Multi-tenant imports - ensuring match reports are tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // Add dynamic configuration to prevent static generation
 export const dynamic = 'force-dynamic';

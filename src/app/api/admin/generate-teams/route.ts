@@ -132,7 +132,7 @@ export async function POST(request: Request) {
   try {
     // Get current slot assignments and create any missing slots
     const currentSlots = await prisma.team_slots.findMany({
-      include: { player: true },
+      include: { players: true },
       orderBy: { slot_number: 'asc' }
     });
 
@@ -280,7 +280,7 @@ export async function POST(request: Request) {
     // Return the final slot assignments with player details
     const finalSlots = await prisma.team_slots.findMany({
       orderBy: { slot_number: 'asc' },
-      include: { player: true }
+      include: { players: true }
     });
 
     return NextResponse.json({ 

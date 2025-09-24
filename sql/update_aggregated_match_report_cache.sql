@@ -2,7 +2,7 @@
 
 -- Helper function calculate_match_fantasy_points is defined in sql/helpers.sql
 
-CREATE OR REPLACE FUNCTION update_aggregated_match_report_cache()
+CREATE OR REPLACE FUNCTION update_aggregated_match_report_cache(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 -- No config_json parameter needed
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
@@ -78,7 +78,9 @@ BEGIN
 
     -- 1. Get Latest Match
     SELECT * INTO latest_match
-    FROM matches ORDER BY match_date DESC, match_id DESC LIMIT 1;
+    FROM matches 
+    WHERE tenant_id = target_tenant_id 
+    ORDER BY match_date DESC, match_id DESC LIMIT 1;
     
     IF latest_match.match_id IS NULL THEN
         RAISE EXCEPTION 'No matches found in the database';
@@ -108,9 +110,11 @@ BEGIN
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id
         JOIN players p ON pm.player_id = p.player_id
-        WHERE m.match_date::date >= (target_date::date - (v_window_days || ' days')::interval)::date
+        WHERE m.tenant_id = target_tenant_id 
+        AND pm.tenant_id = target_tenant_id 
+        AND p.tenant_id = target_tenant_id
+        AND m.match_date::date >= (target_date::date - (v_window_days || ' days')::interval)::date
         AND m.match_date::date <= target_date::date
-        AND p.is_ringer = false 
         AND p.is_ringer = false
     ),
     player_recent_stats AS (
@@ -206,9 +210,9 @@ BEGIN
     IF player_ids_in_match IS NULL OR array_length(player_ids_in_match, 1) = 0 THEN
         RAISE NOTICE 'No regular players found in the latest match. Skipping streak/leader calculations.';
         -- Still need to update the basic match report info
-        DELETE FROM aggregated_match_report WHERE TRUE; -- Keep WHERE TRUE fix
+        DELETE FROM aggregated_match_report WHERE tenant_id = target_tenant_id;
         INSERT INTO aggregated_match_report (
-            match_id, match_date, team_a_score, team_b_score,
+            match_id, tenant_id, match_date, team_a_score, team_b_score,
             team_a_players, team_b_players, team_a_scorers, team_b_scorers,
             config_values, game_milestones, goal_milestones,
             half_season_goal_leaders, half_season_fantasy_leaders,
@@ -216,7 +220,7 @@ BEGIN
             on_fire_player_id, grim_reaper_player_id, -- NEW
             last_updated
         ) VALUES (
-            latest_match.match_id, latest_match.match_date, latest_match.team_a_score, latest_match.team_b_score,
+            latest_match.match_id, target_tenant_id, latest_match.match_date, latest_match.team_a_score, latest_match.team_b_score,
             team_a_players_json, team_b_players_json, team_a_scorers, team_b_scorers,
             jsonb_build_object(
                 'game_milestone_threshold', milestone_game_threshold,
@@ -228,23 +232,23 @@ BEGIN
             NOW()
         );
         -- Update Cache Metadata
-        INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
-        VALUES ('match_report', NOW(), 'match_report')
-        ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
+        INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
+        VALUES ('match_report', NOW(), 'match_report', target_tenant_id)
+        ON CONFLICT (cache_key, tenant_id) DO UPDATE SET last_invalidated = NOW();
         RAISE NOTICE 'update_aggregated_match_report_cache completed (basic info only).';
         RETURN;
     END IF;
 
     -- 4. Calculate Milestones (for players in the match)
     RAISE NOTICE 'Calculating milestones...';
-    WITH player_totals_base AS ( -- Renamed original CTE
+    WITH     player_totals_base AS ( -- Renamed original CTE
         SELECT player_id, COUNT(*) as total_games, SUM(COALESCE(goals, 0)) as total_goals
-        FROM player_matches WHERE player_id = ANY(player_ids_in_match) GROUP BY player_id
+        FROM player_matches WHERE player_id = ANY(player_ids_in_match) AND tenant_id = target_tenant_id GROUP BY player_id
     ),
     latest_match_goals AS (
          SELECT player_id, COALESCE(goals, 0) as goals_in_latest_match
          FROM player_matches
-         WHERE match_id = latest_match.match_id AND player_id = ANY(player_ids_in_match)
+         WHERE match_id = latest_match.match_id AND player_id = ANY(player_ids_in_match) AND tenant_id = target_tenant_id
     ),
     player_totals AS ( -- Combine base totals with latest match goals
         SELECT
@@ -296,7 +300,8 @@ BEGIN
         FROM players p
         JOIN player_matches pm ON p.player_id = pm.player_id
         JOIN matches m ON pm.match_id = m.match_id
-        WHERE p.is_ringer = false AND p.is_ringer = false
+        WHERE p.tenant_id = target_tenant_id AND pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
+        AND p.is_ringer = false AND p.is_ringer = false
     ),
     match_stats_with_points AS (
         SELECT
@@ -310,7 +315,7 @@ BEGIN
             SUM(COALESCE(goals, 0)) as total_goals,
             SUM(COALESCE(calculated_fantasy_points, 0)) as fantasy_points
         FROM match_stats_with_points mswp
-        WHERE mswp.match_date::date BETWEEN (SELECT start_date FROM seasons WHERE target_date BETWEEN start_date AND end_date LIMIT 1) 
+        WHERE mswp.match_date::date BETWEEN (SELECT start_date FROM seasons WHERE target_date BETWEEN start_date AND end_date AND tenant_id = target_tenant_id LIMIT 1) 
         AND target_date::date
         GROUP BY name
     ),
@@ -320,7 +325,7 @@ BEGIN
             SUM(COALESCE(goals, 0)) as total_goals,
             SUM(COALESCE(calculated_fantasy_points, 0)) as fantasy_points
         FROM match_stats_with_points mswp
-        WHERE mswp.match_date::date BETWEEN (SELECT start_date FROM seasons WHERE target_date BETWEEN start_date AND end_date LIMIT 1)
+        WHERE mswp.match_date::date BETWEEN (SELECT start_date FROM seasons WHERE target_date BETWEEN start_date AND end_date AND tenant_id = target_tenant_id LIMIT 1)
         AND (target_date::date - INTERVAL '1 day')
         GROUP BY name
     ),
@@ -458,7 +463,7 @@ BEGIN
     WITH all_active_players AS (
         SELECT player_id, name 
         FROM players 
-        WHERE is_ringer = false
+        WHERE tenant_id = target_tenant_id AND is_ringer = false
     ),
     -- Calculate current streaks using the same logic as player_profile_stats
     player_current_streaks AS (
@@ -469,7 +474,8 @@ BEGIN
             FROM player_matches pm 
             JOIN matches m ON pm.match_id = m.match_id
             JOIN players p ON pm.player_id = p.player_id
-            WHERE p.is_ringer = false AND p.is_ringer = false
+            WHERE p.tenant_id = target_tenant_id AND pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
+            AND p.is_ringer = false AND p.is_ringer = false
         ),
         streak_groups AS (
             SELECT
@@ -545,7 +551,8 @@ BEGIN
             FROM player_matches pm 
             JOIN matches m ON pm.match_id = m.match_id
             JOIN players p ON pm.player_id = p.player_id
-            WHERE p.is_ringer = false AND p.is_ringer = false
+            WHERE p.tenant_id = target_tenant_id AND pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
+            AND p.is_ringer = false AND p.is_ringer = false
         ),
         goal_streak_groups AS (
             SELECT
@@ -656,8 +663,9 @@ BEGIN
         -- NEW: Feat Breaking Detection Logic (Always Enabled)
         (
                 WITH current_records AS (
-                    SELECT records FROM aggregated_records 
-                    ORDER BY last_updated DESC LIMIT 1
+                SELECT records FROM aggregated_records 
+                WHERE tenant_id = target_tenant_id
+                ORDER BY last_updated DESC LIMIT 1
                 ),
                 feat_breaking_candidates AS (
                     -- Most Goals in Game Detection (only check if meets milestone threshold)
@@ -676,6 +684,8 @@ BEGIN
                     JOIN players p ON pm.player_id = p.player_id
                     CROSS JOIN current_records
                     WHERE pm.match_id = latest_match.match_id 
+                      AND pm.tenant_id = target_tenant_id
+                      AND p.tenant_id = target_tenant_id
                       AND pm.goals >= milestone_goal_threshold
                       AND p.is_ringer = false
                     
@@ -723,6 +733,8 @@ BEGIN
                     CROSS JOIN current_records
                     CROSS JOIN generate_series(0, jsonb_array_length(v_streaks_json) - 1) AS i
                     WHERE pm.match_id = latest_match.match_id 
+                      AND pm.tenant_id = target_tenant_id
+                      AND p.tenant_id = target_tenant_id
                       AND p.is_ringer = false
                       AND v_streaks_json->i->>'name' = p.name
                       AND v_streaks_json->i->>'streak_type' = 'win'
@@ -772,6 +784,8 @@ BEGIN
                     CROSS JOIN current_records
                     CROSS JOIN generate_series(0, jsonb_array_length(v_streaks_json) - 1) AS i
                     WHERE pm.match_id = latest_match.match_id 
+                      AND pm.tenant_id = target_tenant_id
+                      AND p.tenant_id = target_tenant_id
                       AND p.is_ringer = false
                       AND v_streaks_json->i->>'name' = p.name
                       AND v_streaks_json->i->>'streak_type' = 'loss'
@@ -821,6 +835,8 @@ BEGIN
                     CROSS JOIN current_records
                     CROSS JOIN generate_series(0, jsonb_array_length(v_streaks_json) - 1) AS i
                     WHERE pm.match_id = latest_match.match_id 
+                      AND pm.tenant_id = target_tenant_id
+                      AND p.tenant_id = target_tenant_id
                       AND p.is_ringer = false
                       AND v_streaks_json->i->>'name' = p.name
                       AND v_streaks_json->i->>'streak_type' = 'unbeaten'
@@ -870,6 +886,8 @@ BEGIN
                     CROSS JOIN current_records
                     CROSS JOIN generate_series(0, jsonb_array_length(v_streaks_json) - 1) AS i
                     WHERE pm.match_id = latest_match.match_id 
+                      AND pm.tenant_id = target_tenant_id
+                      AND p.tenant_id = target_tenant_id
                       AND p.is_ringer = false
                       AND v_streaks_json->i->>'name' = p.name
                       AND v_streaks_json->i->>'streak_type' = 'winless'
@@ -919,6 +937,8 @@ BEGIN
                     CROSS JOIN current_records
                     CROSS JOIN generate_series(0, jsonb_array_length(v_goal_streaks_json) - 1) AS i
                     WHERE pm.match_id = latest_match.match_id 
+                      AND pm.tenant_id = target_tenant_id
+                      AND p.tenant_id = target_tenant_id
                       AND p.is_ringer = false
                       AND v_goal_streaks_json->i->>'name' = p.name
                       AND (v_goal_streaks_json->i->>'matches_with_goals')::int >= v_goal_streak_threshold
@@ -983,8 +1003,10 @@ BEGIN
                     FROM player_matches pm
                     JOIN players p ON pm.player_id = p.player_id
                     CROSS JOIN current_records
-                    LEFT JOIN aggregated_personal_bests pb_data ON pb_data.match_id = latest_match.match_id
+                    LEFT JOIN aggregated_personal_bests pb_data ON pb_data.match_id = latest_match.match_id AND pb_data.tenant_id = target_tenant_id
                     WHERE pm.match_id = latest_match.match_id 
+                      AND pm.tenant_id = target_tenant_id
+                      AND p.tenant_id = target_tenant_id
                       AND p.is_ringer = false
                       AND COALESCE((pb_data.broken_pbs_data->p.name->>'attendance_streak')::int, 0) >= 3
                 )
@@ -1014,9 +1036,9 @@ BEGIN
 
     -- Update Cache Metadata
     RAISE NOTICE 'Updating match_report cache metadata...';
-    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('match_report', NOW(), 'match_report')
-    ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
+    VALUES ('match_report', NOW(), 'match_report', target_tenant_id)
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE SET last_invalidated = NOW();
 
     RAISE NOTICE 'update_aggregated_match_report_cache completed successfully.';
 

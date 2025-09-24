@@ -7,19 +7,20 @@ CREATE OR REPLACE FUNCTION calculate_match_fantasy_points(
     result TEXT,
     heavy_win BOOLEAN,
     heavy_loss BOOLEAN,
-    clean_sheet BOOLEAN
+    clean_sheet BOOLEAN,
+    target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID
 )
 RETURNS INT LANGUAGE plpgsql STABLE AS $$
 DECLARE
-    -- Fantasy Points Config (fetched from app_config with defaults)
-    v_win_points INT               := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_win_points'), 20);
-    v_draw_points INT              := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_draw_points'), 10);
-    v_loss_points INT              := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_loss_points'), -10);
-    v_heavy_win_bonus INT          := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_win_points'), v_win_points + 10) - v_win_points;
-    v_heavy_loss_penalty INT       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_loss_points'), v_loss_points - 10) - v_loss_points;
-    v_cs_win_bonus INT             := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_win_points'), v_win_points + 10) - v_win_points;
-    v_cs_draw_bonus INT            := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_draw_points'), v_draw_points + 10) - v_draw_points;
-    v_heavy_cs_win_bonus INT       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_clean_sheet_win_points'), v_win_points + 20) - v_win_points - v_heavy_win_bonus - v_cs_win_bonus;
+    -- Fantasy Points Config (fetched from app_config with defaults, tenant-scoped)
+    v_win_points INT               := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_win_points' AND tenant_id = target_tenant_id LIMIT 1), 20);
+    v_draw_points INT              := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_draw_points' AND tenant_id = target_tenant_id LIMIT 1), 10);
+    v_loss_points INT              := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_loss_points' AND tenant_id = target_tenant_id LIMIT 1), -10);
+    v_heavy_win_bonus INT          := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 10) - v_win_points;
+    v_heavy_loss_penalty INT       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_loss_points' AND tenant_id = target_tenant_id LIMIT 1), v_loss_points - 10) - v_loss_points;
+    v_cs_win_bonus INT             := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 10) - v_win_points;
+    v_cs_draw_bonus INT            := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_draw_points' AND tenant_id = target_tenant_id LIMIT 1), v_draw_points + 10) - v_draw_points;
+    v_heavy_cs_win_bonus INT       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 20) - v_win_points - v_heavy_win_bonus - v_cs_win_bonus;
     points INT := 0;
 BEGIN
     -- Fetch config only once (optimization - removed redundant fetches)
@@ -73,14 +74,15 @@ RETURNS DATE LANGUAGE sql STABLE AS $$
 $$;
 
 -- Function to fetch a single config value with default
-CREATE OR REPLACE FUNCTION get_config_value(p_config_key TEXT, p_default_value TEXT)
+CREATE OR REPLACE FUNCTION get_config_value(p_config_key TEXT, p_default_value TEXT, target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS TEXT LANGUAGE plpgsql STABLE AS $$
 DECLARE
     v_config_value TEXT;
 BEGIN
     SELECT config_value INTO v_config_value
     FROM app_config
-    WHERE config_key = p_config_key;
+    WHERE config_key = p_config_key AND tenant_id = target_tenant_id
+    LIMIT 1;
 
     RETURN COALESCE(v_config_value, p_default_value);
 END;

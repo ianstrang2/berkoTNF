@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring match creation is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export async function POST(request: Request) {
   try {
     const { match_date, team_a_score, team_b_score } = await request.json();
+    
+    // Multi-tenant: Get tenant context for scoped operations
+    const tenantId = getCurrentTenantId();
 
     // Get current slot assignments
     const slots = await prisma.team_slots.findMany({
@@ -16,7 +21,7 @@ export async function POST(request: Request) {
         slot_number: 'asc'
       },
       include: {
-        player: true
+        players: true
       }
     });
 
@@ -35,6 +40,7 @@ export async function POST(request: Request) {
           team_a_score,
           team_b_score,
           season_id: null,
+          tenant_id: tenantId,
         },
       });
 
@@ -77,8 +83,12 @@ export async function POST(request: Request) {
         .filter(data => data.team === 'A' || data.team === 'B');
 
       if (validPlayerMatchData.length > 0) { // Only call createMany if there's valid data
+        const validPlayerMatchDataWithTenant = validPlayerMatchData.map(playerMatch => ({
+          ...playerMatch,
+          tenant_id: tenantId
+        }));
         await prisma.player_matches.createMany({
-          data: validPlayerMatchData,
+          data: validPlayerMatchDataWithTenant,
         });
       }
 

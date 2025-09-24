@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring seasons are tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET /api/seasons - List all seasons with computed display names
 export async function GET() {
   try {
+    // Multi-tenant: Get tenant context for scoped queries
+    const tenantId = getCurrentTenantId();
+    
     const seasons = await prisma.$queryRaw`
       SELECT 
         id,
@@ -14,6 +19,7 @@ export async function GET() {
         created_at,
         updated_at
       FROM seasons
+      WHERE tenant_id = ${tenantId}
       ORDER BY start_date DESC
     ` as Array<{
       id: number;
@@ -49,6 +55,9 @@ export async function GET() {
 // POST /api/seasons - Create new season
 export async function POST(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure season creation is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    
     const body = await request.json();
     const { startDate, endDate } = body;
 
@@ -76,8 +85,8 @@ export async function POST(request: NextRequest) {
     // Check for overlaps using database constraint
     try {
       const newSeason = await prisma.$queryRaw`
-        INSERT INTO seasons (start_date, half_date, end_date)
-        VALUES (${startDate}, ${halfDate.toISOString().split('T')[0]}, ${endDate})
+        INSERT INTO seasons (start_date, half_date, end_date, tenant_id)
+        VALUES (${startDate}, ${halfDate.toISOString().split('T')[0]}, ${endDate}, ${tenantId})
         RETURNING 
           id,
           start_date,

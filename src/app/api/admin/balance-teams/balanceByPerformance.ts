@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { balanceByPastPerformance } from '../balance-by-past-performance/utils';
 import { MIN_PLAYERS, MAX_PLAYERS, MIN_TEAM } from '@/utils/teamSplit.util';
+// Multi-tenant imports - ensuring team balancing is tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
 
 // This logic uses the sophisticated performance algorithm with configurable weights
 
@@ -8,6 +10,7 @@ export async function balanceByPerformance(
   matchId: string, 
   playerIds: string[], 
   sizes: { a: number; b: number },
+  tenantId: string, // Multi-tenant: Required tenant context
   state_version?: number // For concurrency control
 ) {
   const matchIdInt = parseInt(matchId, 10);
@@ -23,14 +26,26 @@ export async function balanceByPerformance(
     throw new Error(`Size mismatch. Expected ${sizes.a}+${sizes.b}=${sizes.a + sizes.b}, got ${poolSize}.`);
   }
   
+  // Multi-tenant: Use tenant-scoped queries if tenant context provided
+  const tenantPrisma = tenantId ? await createTenantPrisma(tenantId) : null;
+  
   // Fetch performance weights from app config
-  const performanceConfigs = await prisma.app_config.findMany({
-    where: {
-      config_key: {
-        in: ['performance_power_weight', 'performance_goal_weight']
-      }
-    }
-  });
+  // Multi-tenant: Query scoped to tenant if context available
+  const performanceConfigs = tenantPrisma 
+    ? await tenantPrisma.app_config.findMany({
+        where: {
+          config_key: {
+            in: ['performance_power_weight', 'performance_goal_weight']
+          }
+        }
+      })
+    : await prisma.app_config.findMany({
+        where: {
+          config_key: {
+            in: ['performance_power_weight', 'performance_goal_weight']
+          }
+        }
+      });
 
   // Convert to expected format (no hardcoded defaults - values should exist in DB)
   const performanceWeights = {
@@ -72,11 +87,11 @@ export async function balanceByPerformance(
   await prisma.$transaction(async (tx) => {
     // Clear and recreate assignments
     await tx.upcoming_match_players.deleteMany({
-      where: { upcoming_match_id: matchIdInt }
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId }
     });
     
     await tx.upcoming_match_players.createMany({
-      data: assignments.map(a => ({ ...a, upcoming_match_id: matchIdInt }))
+      data: assignments.map(a => ({ ...a, upcoming_match_id: matchIdInt, tenant_id: tenantId }))
     });
     
     // Update match state with concurrency check

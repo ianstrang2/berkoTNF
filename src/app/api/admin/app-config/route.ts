@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring app config is tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET: Fetch all app configuration settings
 export async function GET(request: Request) {
   try {
+    // Multi-tenant setup - ensure config operations are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     // First, check if the app_config table exists and is accessible
     try {
-      const testConfig = await prisma.app_config.findFirst();
+      const testConfig = await tenantPrisma.app_config.findFirst();
       if (!testConfig) {
         console.log('Warning: app_config table seems empty but accessible');
       }
@@ -33,7 +40,8 @@ export async function GET(request: Request) {
     if (groupsQueryParam) {
       const groupArray = groupsQueryParam.split(',').map(g => g.trim()).filter(g => g);
       if (groupArray.length > 0) {
-        configs = await prisma.app_config.findMany({
+        // Multi-tenant: Query scoped to current tenant only
+        configs = await tenantPrisma.app_config.findMany({
           where: {
             config_group: {
               in: groupArray
@@ -42,12 +50,14 @@ export async function GET(request: Request) {
           orderBy: orderByClause
         });
       } else {
-        configs = await prisma.app_config.findMany({
+        // Multi-tenant: Query scoped to current tenant only
+        configs = await tenantPrisma.app_config.findMany({
           orderBy: orderByClause
         });
       }
     } else {
-      configs = await prisma.app_config.findMany({
+      // Multi-tenant: Query scoped to current tenant only
+      configs = await tenantPrisma.app_config.findMany({
         orderBy: orderByClause
       });
     }

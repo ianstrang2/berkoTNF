@@ -2,7 +2,7 @@
 -- Dedicated function for teammate chemistry calculations
 -- Extracted from update_aggregated_player_profile_stats to resolve PostgREST timeout issues
 DROP FUNCTION IF EXISTS update_aggregated_player_teammate_stats();
-CREATE OR REPLACE FUNCTION update_aggregated_player_teammate_stats()
+CREATE OR REPLACE FUNCTION update_aggregated_player_teammate_stats(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
     start_time TIMESTAMPTZ;
@@ -14,11 +14,11 @@ BEGIN
     -- Clear the table before repopulating
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Clearing existing data from aggregated_player_teammate_stats...';
-    TRUNCATE TABLE public.aggregated_player_teammate_stats;
+    DELETE FROM public.aggregated_player_teammate_stats WHERE tenant_id = target_tenant_id;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_teammate_stats', 'TRUNCATE completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_teammate_stats', 'TRUNCATE completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 1: Calculate teammate chemistry data
     block_start_time := clock_timestamp();
@@ -41,7 +41,11 @@ BEGIN
         JOIN public.matches m ON pm_player.match_id = m.match_id
         JOIN public.player_matches pm_teammate ON m.match_id = pm_teammate.match_id AND pm_player.team = pm_teammate.team AND pm_player.player_id != pm_teammate.player_id
         JOIN public.players p_teammate ON pm_teammate.player_id = p_teammate.player_id
-        WHERE p_teammate.is_ringer = FALSE AND p_teammate.is_retired = FALSE
+        WHERE pm_player.tenant_id = target_tenant_id 
+        AND m.tenant_id = target_tenant_id 
+        AND pm_teammate.tenant_id = target_tenant_id 
+        AND p_teammate.tenant_id = target_tenant_id
+        AND p_teammate.is_ringer = FALSE AND p_teammate.is_retired = FALSE
         GROUP BY pm_player.player_id, pm_teammate.player_id, p_teammate.name
         HAVING COUNT(DISTINCT m.match_id) >= 10
     )
@@ -60,40 +64,41 @@ BEGIN
     GROUP BY player_id;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_teammate_stats', 'Step 1 (teammate_data) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_teammate_stats', 'Step 1 (teammate_data) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 2: Insert data into aggregated_player_teammate_stats
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Step 2: Inserting teammate data...';
     
     INSERT INTO public.aggregated_player_teammate_stats (
-        player_id, teammate_chemistry_all, last_updated
+        player_id, tenant_id, teammate_chemistry_all, last_updated
     )
     SELECT
         tsj.player_id,
+        target_tenant_id,
         tsj.teammate_chemistry_all,
         NOW()
     FROM temp_teammate_stats_json tsj;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_teammate_stats', 'Step 2 (data insertion) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_teammate_stats', 'Step 2 (data insertion) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     RAISE NOTICE 'Finished calculating teammate chemistry stats.';
 
     -- Update cache_metadata
     RAISE NOTICE 'Updating cache_metadata for player_teammate_stats...';
-    INSERT INTO public.cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('player_teammate_stats', NOW(), 'player_teammate_stats')
-    ON CONFLICT (cache_key) DO UPDATE
+    INSERT INTO public.cache_metadata (cache_key, tenant_id, last_invalidated, dependency_type)
+    VALUES ('player_teammate_stats', target_tenant_id, NOW(), 'player_teammate_stats')
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE
     SET last_invalidated = NOW(),
         dependency_type = excluded.dependency_type;
 
     -- Log total execution time
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_teammate_stats', 'TOTAL EXECUTION TIME: ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_teammate_stats', 'TOTAL EXECUTION TIME: ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - start_time) || 'ms', NOW(), target_tenant_id);
 
     RAISE NOTICE 'Finished update_aggregated_player_teammate_stats processing. Total time: %ms', EXTRACT(MILLISECONDS FROM clock_timestamp() - start_time);
 END;

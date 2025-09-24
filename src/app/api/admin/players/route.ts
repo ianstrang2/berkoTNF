@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerProfile } from '@/lib/transform/player.transform';
+// Multi-tenant imports - ensuring admin routes are tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 const serializeData = (data) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
@@ -11,6 +14,10 @@ const serializeData = (data) => {
 // Get all players
 export async function GET(request: Request) {
   try {
+    // Multi-tenant setup - ensure admin operations are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const url = new URL(request.url);
     const includeMatchCounts = url.searchParams.get('include_match_counts') === 'true';
     const showRetired = url.searchParams.get('show_retired') === 'true';
@@ -19,6 +26,7 @@ export async function GET(request: Request) {
     
     if (includeMatchCounts) {
       // Fetch players with match counts - conditionally include retired players
+      // Multi-tenant: Adding tenant_id filter to raw queries for data isolation
       if (showRetired) {
         players = await prisma.$queryRaw`
           SELECT 
@@ -27,7 +35,8 @@ export async function GET(request: Request) {
           FROM 
             players p
           LEFT JOIN 
-            player_matches pm ON p.player_id = pm.player_id
+            player_matches pm ON p.player_id = pm.player_id AND pm.tenant_id = ${tenantId}
+          WHERE p.tenant_id = ${tenantId}
           GROUP BY 
             p.player_id
           ORDER BY 
@@ -41,8 +50,8 @@ export async function GET(request: Request) {
           FROM 
             players p
           LEFT JOIN 
-            player_matches pm ON p.player_id = pm.player_id
-          WHERE p.is_retired = false
+            player_matches pm ON p.player_id = pm.player_id AND pm.tenant_id = ${tenantId}
+          WHERE p.tenant_id = ${tenantId} AND p.is_retired = false
           GROUP BY 
             p.player_id
           ORDER BY 
@@ -51,8 +60,9 @@ export async function GET(request: Request) {
       }
     } else {
       // Just fetch players without match counts - conditionally include retired players
+      // Multi-tenant: Using tenant-scoped query for data isolation
       const whereClause = showRetired ? {} : { is_retired: false };
-      players = await prisma.players.findMany({
+      players = await tenantPrisma.players.findMany({
         where: whereClause,
         orderBy: {
           name: 'asc',
@@ -89,6 +99,10 @@ export async function GET(request: Request) {
 // Add a new player
 export async function POST(request: Request) {
   try {
+    // Multi-tenant setup - ensure new players are created in the correct tenant
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const body = await request.json();
     const {
       name,
@@ -128,7 +142,8 @@ export async function POST(request: Request) {
       createData.selected_club = selected_club;
     }
 
-    const player = await prisma.players.create({
+    // Multi-tenant: Create player in the current tenant
+    const player = await tenantPrisma.players.create({
       data: createData,
     });
     
@@ -154,6 +169,10 @@ export async function POST(request: Request) {
 // Update a player
 export async function PUT(request: Request) {
   try {
+    // Multi-tenant setup - ensure player updates are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const body = await request.json();
     const { 
       player_id, 
@@ -202,7 +221,8 @@ export async function PUT(request: Request) {
       updateData.selected_club = selected_club;
     }
 
-    const player = await prisma.players.update({
+    // Multi-tenant: Update player within the current tenant only
+    const player = await tenantPrisma.players.update({
       where: {
         player_id: Number(player_id), // Ensure player_id is a number if schema expects Int
       },

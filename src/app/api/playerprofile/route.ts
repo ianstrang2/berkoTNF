@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+// Multi-tenant imports - ensuring player profiles are tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 const prisma = new PrismaClient();
 
@@ -10,6 +13,10 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     console.log("Fetching player profile from aggregated table...");
+
+    // Multi-tenant setup - ensure player profile is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -28,14 +35,15 @@ export async function GET(request: Request) {
     console.log('Fetching aggregated profile for ID:', numericId);
 
     // Fetch profile data and power ratings in parallel
+    // Multi-tenant: All queries scoped to current tenant
     const [profile, teammateStats, playerData, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
       // Existing profile query
-      prisma.aggregated_player_profile_stats.findUnique({
+      tenantPrisma.aggregated_player_profile_stats.findUnique({
         where: { player_id: numericId },
       }),
       
       // NEW: Fetch teammate stats from separate table
-      prisma.aggregated_player_teammate_stats.findUnique({
+      tenantPrisma.aggregated_player_teammate_stats.findUnique({
         where: { player_id: numericId },
         select: {
           teammate_chemistry_all: true
@@ -43,7 +51,7 @@ export async function GET(request: Request) {
       }),
       
       // NEW: Fetch player data including profile_text
-      prisma.players.findUnique({
+      tenantPrisma.players.findUnique({
         where: { player_id: numericId },
         select: {
           profile_text: true,
@@ -54,7 +62,7 @@ export async function GET(request: Request) {
       }),
       
       // UPDATED: New EWMA performance ratings query
-      prisma.aggregated_performance_ratings.findUnique({
+      tenantPrisma.aggregated_performance_ratings.findUnique({
         where: { player_id: numericId },
         select: {
           power_rating: true,
@@ -71,6 +79,7 @@ export async function GET(request: Request) {
       }),
       
       // League normalization data (for power ratings and streaks) - EWMA system
+      // Multi-tenant: Query scoped to current tenant only
       prisma.$queryRaw`
         SELECT 
           -- Power rating stats (EWMA) - FILTERED for qualified players only
@@ -83,6 +92,7 @@ export async function GET(request: Request) {
         FROM aggregated_performance_ratings
         WHERE is_qualified = true 
         AND weighted_played >= 5  -- EWMA qualification threshold
+        AND tenant_id = ${tenantId}
         UNION ALL
         SELECT 
           -- Streak stats
@@ -93,6 +103,7 @@ export async function GET(request: Request) {
           MAX(undefeated_streak::numeric) as undefeated_streak_max,
           AVG(undefeated_streak::numeric) as undefeated_streak_avg
         FROM aggregated_player_profile_stats
+        WHERE tenant_id = ${tenantId}
         UNION ALL
         SELECT 
           -- More streak stats  
@@ -103,6 +114,7 @@ export async function GET(request: Request) {
           MAX(winless_streak::numeric) as winless_streak_max,
           AVG(winless_streak::numeric) as winless_streak_avg
         FROM aggregated_player_profile_stats
+        WHERE tenant_id = ${tenantId}
         UNION ALL
         SELECT 
           -- Additional streak stats
@@ -111,10 +123,12 @@ export async function GET(request: Request) {
           AVG(attendance_streak::numeric) as attendance_streak_avg,
           0 as placeholder1, 0 as placeholder2, 0 as placeholder3
         FROM aggregated_player_profile_stats
+        WHERE tenant_id = ${tenantId}
       `,
        
       // Current streaks from latest match report
-      prisma.aggregated_match_report.findFirst({
+      // Multi-tenant: Query scoped to current tenant only
+      tenantPrisma.aggregated_match_report.findFirst({
         select: {
           streaks: true,
           goal_streaks: true,
@@ -126,7 +140,8 @@ export async function GET(request: Request) {
       }),
 
       // Fetch aggregated_records for max values
-      prisma.aggregated_records.findFirst({
+      // Multi-tenant: Query scoped to current tenant only
+      tenantPrisma.aggregated_records.findFirst({
         select: {
           records: true
         }

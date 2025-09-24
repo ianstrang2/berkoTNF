@@ -6,6 +6,8 @@
  */
 import { prisma } from '@/lib/prisma';
 import { players as Player, team_balance_weights as TeamBalanceWeight, team_size_templates as TeamSizeTemplate } from '@prisma/client';
+// Multi-tenant imports - ensuring rating balance is tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
 
 // This is a simplified recreation of the logic from the deleted balance-planned-match route.
 // It focuses on fetching players and their attributes to perform a balance.
@@ -166,7 +168,8 @@ function calculateBalanceScore(
 export async function balanceByRating(
   matchId: string, 
   sizes?: { a: number; b: number }, 
-  state_version?: number
+  state_version?: number,
+  tenantId?: string // Multi-tenant: Accept tenant context
 ) {
   const matchIdInt = parseInt(matchId, 10);
   if (isNaN(matchIdInt)) {
@@ -174,7 +177,12 @@ export async function balanceByRating(
   }
 
   // === PHASE 1: Authoritative Data Gathering ===
-  const match = await prisma.upcoming_matches.findUnique({ where: { upcoming_match_id: matchIdInt }});
+  // Multi-tenant: Use tenant-scoped queries if tenant context provided
+  const tenantPrisma = tenantId ? await createTenantPrisma(tenantId) : null;
+  
+  const match = tenantPrisma 
+    ? await tenantPrisma.upcoming_matches.findUnique({ where: { upcoming_match_id: matchIdInt }})
+    : await prisma.upcoming_matches.findUnique({ where: { upcoming_match_id: matchIdInt }});
   if (!match) throw new Error(`Match with ID ${matchIdInt} not found.`);
   
   // Use actual sizes if provided, otherwise fall back to original team_size
@@ -182,18 +190,29 @@ export async function balanceByRating(
   const actualSizeB = sizes?.b || match.actual_size_b || match.team_size;
   const totalPlayers = actualSizeA + actualSizeB;
 
-  const confirmedPlayerPool = await prisma.upcoming_match_players.findMany({ 
-    where: { upcoming_match_id: matchIdInt },
-    select: { player_id: true }
-  });
+  const confirmedPlayerPool = tenantPrisma
+    ? await tenantPrisma.upcoming_match_players.findMany({ 
+        where: { upcoming_match_id: matchIdInt },
+        select: { player_id: true }
+      })
+    : await prisma.upcoming_match_players.findMany({ 
+        where: { upcoming_match_id: matchIdInt },
+        select: { player_id: true }
+      });
   const playerIds = confirmedPlayerPool.map(p => p.player_id);
 
-  const players = await prisma.players.findMany({ where: { player_id: { in: playerIds } } });
-  const balanceWeights = await prisma.team_balance_weights.findMany();
+  const players = tenantPrisma
+    ? await tenantPrisma.players.findMany({ where: { player_id: { in: playerIds } } })
+    : await prisma.players.findMany({ where: { player_id: { in: playerIds } } });
+  const balanceWeights = tenantPrisma
+    ? await tenantPrisma.team_balance_weights.findMany()
+    : await prisma.team_balance_weights.findMany();
   
   // For uneven teams, we need to use the larger team size for template
   const templateSize = Math.max(actualSizeA, actualSizeB);
-  const template = await prisma.team_size_templates.findFirst({ where: { team_size: templateSize } });
+  const template = tenantPrisma
+    ? await tenantPrisma.team_size_templates.findFirst({ where: { team_size: templateSize } })
+    : await prisma.team_size_templates.findFirst({ where: { team_size: templateSize } });
   
   if (!template) throw new Error(`No team size template found for team size: ${templateSize}`);
   
@@ -333,6 +352,7 @@ export async function balanceByRating(
       player_id: player.player_id,
       team,
       slot_number: baseSlot + index,
+      tenant_id: tenantId,
     }));
   };
 
@@ -354,10 +374,14 @@ export async function balanceByRating(
 
   await prisma.$transaction(async (tx) => {
     // Step 1: Delete Old Assignments
-    await tx.upcoming_match_players.deleteMany({ where: { upcoming_match_id: matchIdInt } });
+    await tx.upcoming_match_players.deleteMany({ where: { upcoming_match_id: matchIdInt, tenant_id: tenantId } });
     
     // Step 2: Create New Assignments
-    await tx.upcoming_match_players.createMany({ data: finalAssignments });
+    const finalAssignmentsWithTenant = finalAssignments.map(assignment => ({
+      ...assignment,
+      tenant_id: tenantId!
+    }));
+    await tx.upcoming_match_players.createMany({ data: finalAssignmentsWithTenant });
 
     // Step 3: Update Match State
     await tx.upcoming_matches.update({

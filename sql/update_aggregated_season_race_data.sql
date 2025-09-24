@@ -1,14 +1,19 @@
 -- sql/update_aggregated_season_race_data.sql
 -- Updated version that uses actual match dates with zero-point starting records
-CREATE OR REPLACE FUNCTION update_aggregated_season_race_data()
+CREATE OR REPLACE FUNCTION update_aggregated_season_race_data(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
     current_season_record RECORD;
     is_first_half BOOLEAN;
     inserted_count INT := 0;
 BEGIN
-    -- Get current season
-    SELECT * INTO current_season_record FROM get_current_season();
+    -- Get current season for this tenant
+    SELECT id, start_date, end_date, half_date
+    INTO current_season_record
+    FROM seasons 
+    WHERE tenant_id = target_tenant_id 
+    AND CURRENT_DATE BETWEEN start_date AND end_date 
+    LIMIT 1;
     
     IF current_season_record.id IS NULL THEN
         RAISE EXCEPTION 'No current season found. Please create a season that includes today''s date.';
@@ -20,7 +25,7 @@ BEGIN
     RAISE NOTICE 'Current date: %, First half: %, Half date: %', CURRENT_DATE, is_first_half, current_season_record.half_date;
 
     -- Delete existing data for current season
-    DELETE FROM aggregated_season_race_data WHERE season_year = EXTRACT(YEAR FROM current_season_record.start_date)::int;
+    DELETE FROM aggregated_season_race_data WHERE tenant_id = target_tenant_id AND season_year = EXTRACT(YEAR FROM current_season_record.start_date)::int;
 
     -- Calculate race data for both periods
     WITH all_season_matches AS (
@@ -34,7 +39,8 @@ BEGIN
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id  
         JOIN players p ON pm.player_id = p.player_id
-        WHERE m.match_date BETWEEN current_season_record.start_date AND current_season_record.end_date
+        WHERE m.tenant_id = target_tenant_id AND pm.tenant_id = target_tenant_id AND p.tenant_id = target_tenant_id
+          AND m.match_date BETWEEN current_season_record.start_date AND current_season_record.end_date
           AND p.is_ringer = false
         ORDER BY m.match_date, m.match_id
     ),
@@ -191,20 +197,20 @@ BEGIN
     )
     
     -- Insert both period types
-    INSERT INTO aggregated_season_race_data (season_year, period_type, player_data, last_updated)
-    SELECT EXTRACT(YEAR FROM current_season_record.start_date)::int, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
+    INSERT INTO aggregated_season_race_data (season_year, tenant_id, period_type, player_data, last_updated)
+    SELECT EXTRACT(YEAR FROM current_season_record.start_date)::int, target_tenant_id, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
     FROM whole_season_final
     UNION ALL
-    SELECT EXTRACT(YEAR FROM current_season_record.start_date)::int, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
+    SELECT EXTRACT(YEAR FROM current_season_record.start_date)::int, target_tenant_id, period_type, COALESCE(player_data, '[]'::jsonb), NOW()
     FROM current_half_final;
 
     GET DIAGNOSTICS inserted_count = ROW_COUNT;
     RAISE NOTICE 'Inserted % race data records for season %', inserted_count, current_season_record.id;
 
     -- Update cache metadata
-    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('season_race_data', NOW(), 'season_race_data')
-    ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
+    VALUES ('season_race_data', NOW(), 'season_race_data', target_tenant_id)
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE SET last_invalidated = NOW();
 
     RAISE NOTICE 'update_aggregated_season_race_data completed successfully.';
 

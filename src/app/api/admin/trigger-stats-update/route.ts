@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
+// Multi-tenant imports - ensuring background jobs include tenant context
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // Define the list of Edge Functions to call and their associated cache tags
 // UPDATED: EWMA system has no execution order dependencies
@@ -167,11 +169,15 @@ export async function GET() {
   if (useBackgroundJobs) {
     console.log('🔄 Using background job system for cron trigger');
     
+    // Multi-tenant: Get tenant context for background job
+    const tenantId = getCurrentTenantId();
+    
     // Enqueue job instead of processing directly
     const jobPayload = {
       triggeredBy: 'cron' as const,
       requestId: crypto.randomUUID(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      tenantId: tenantId // Multi-tenant: Include tenant context in background job
     };
 
     try {
@@ -210,5 +216,8 @@ export async function GET() {
 // POST handler for manual admin triggers
 export async function POST() {
   console.log('👤 Manual stats update triggered');
+  // Multi-tenant: Manual triggers also use tenant context
+  const tenantId = getCurrentTenantId();
+  console.log(`👤 Manual stats update triggered for tenant: ${tenantId}`);
   return triggerStatsUpdate();
 }

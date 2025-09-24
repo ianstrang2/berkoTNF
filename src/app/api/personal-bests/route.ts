@@ -3,12 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { PersonalBestsAPIResponseData } from '@/types/personal-bests.types';
+// Multi-tenant imports - ensuring personal bests are tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 const getPersonalBestsData = unstable_cache(
   async (): Promise<PersonalBestsAPIResponseData | null> => {
     console.log('Fetching fresh personal bests data from DB.');
     
-    const latestPb = await prisma.aggregated_personal_bests.findFirst({
+    // Multi-tenant: Use tenant-scoped query for personal bests
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
+    const latestPb = await tenantPrisma.aggregated_personal_bests.findFirst({
       orderBy: {
         created_at: 'desc',
       },
@@ -28,7 +35,7 @@ const getPersonalBestsData = unstable_cache(
     // Restore the correct data structure expected by the frontend
     const responseData: PersonalBestsAPIResponseData = {
       match_id: latestPb.match_id,
-      match_date: latestPb.matches.match_date,
+      match_date: (latestPb as any).matches.match_date,
       broken_pbs_data: latestPb.broken_pbs_data as unknown as PersonalBestsAPIResponseData['broken_pbs_data'],
     };
 

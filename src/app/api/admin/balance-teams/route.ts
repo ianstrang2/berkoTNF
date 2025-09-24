@@ -3,9 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { balanceByRating } from './balanceByRating';
 import { balanceByPerformance } from './balanceByPerformance';
 import { splitSizesFromPool } from '@/utils/teamSplit.util';
+// Multi-tenant imports - ensuring team balancing is tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export async function POST(request: Request) {
   try {
+    // Multi-tenant setup - ensure team balancing is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const body = await request.json();
     const { matchId, playerIds, method, state_version } = body;
 
@@ -14,7 +21,8 @@ export async function POST(request: Request) {
     }
 
     // Get match info including actual team sizes
-    const match = await prisma.upcoming_matches.findUnique({
+    // Multi-tenant: Query scoped to current tenant only
+    const match = await tenantPrisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: parseInt(matchId) },
       select: { 
         actual_size_a: true, 
@@ -55,9 +63,11 @@ export async function POST(request: Request) {
 
     let result;
     if (method === 'balanceByRating') {
-      result = await balanceByRating(matchId, { a: sizeA, b: sizeB }, state_version);
+      // Multi-tenant: Pass tenant context to balance function
+      result = await balanceByRating(matchId, { a: sizeA, b: sizeB }, state_version, tenantId);
     } else if (method === 'balanceByPerformance') {
-      result = await balanceByPerformance(matchId, playerIdsAsStrings, { a: sizeA, b: sizeB }, state_version);
+      // Multi-tenant: Pass tenant context to balance function
+      result = await balanceByPerformance(matchId, playerIdsAsStrings, { a: sizeA, b: sizeB }, tenantId, state_version);
     } else if (method === 'random') {
       // Call the existing random balance endpoint directly
       const baseUrl = new URL(request.url).origin;

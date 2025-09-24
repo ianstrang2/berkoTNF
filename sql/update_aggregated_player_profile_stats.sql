@@ -2,7 +2,7 @@
 -- Optimized single function with schema fixes and performance improvements
 -- Based on original logic but with correct column order and data types
 DROP FUNCTION IF EXISTS update_aggregated_player_profile_stats();
-CREATE OR REPLACE FUNCTION update_aggregated_player_profile_stats()
+CREATE OR REPLACE FUNCTION update_aggregated_player_profile_stats(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
     start_time TIMESTAMPTZ;
@@ -14,11 +14,11 @@ BEGIN
     -- Clear the table before repopulating
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Clearing existing data from aggregated_player_profile_stats...';
-    TRUNCATE TABLE public.aggregated_player_profile_stats;
+    DELETE FROM public.aggregated_player_profile_stats WHERE tenant_id = target_tenant_id;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'TRUNCATE completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'DELETE completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     RAISE NOTICE 'Breaking down calculation into timed steps...';
     
@@ -43,14 +43,14 @@ BEGIN
             )
         ) as fantasy_points
     FROM public.players p
-    LEFT JOIN public.player_matches pm ON p.player_id = pm.player_id
-    LEFT JOIN public.matches m ON pm.match_id = m.match_id
-    WHERE p.is_ringer = FALSE
+    LEFT JOIN public.player_matches pm ON p.player_id = pm.player_id AND pm.tenant_id = target_tenant_id
+    LEFT JOIN public.matches m ON pm.match_id = m.match_id AND m.tenant_id = target_tenant_id
+    WHERE p.tenant_id = target_tenant_id AND p.is_ringer = FALSE
     GROUP BY p.player_id, p.name, p.selected_club;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Step 1 (player_match_stats) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'Step 1 (player_match_stats) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 2: Most goals in a game
     block_start_time := clock_timestamp();
@@ -69,12 +69,12 @@ BEGIN
             ROW_NUMBER() OVER(PARTITION BY pm.player_id ORDER BY pm.goals DESC, m.match_date DESC, m.match_id DESC) as rn
         FROM public.player_matches pm
         JOIN public.matches m ON pm.match_id = m.match_id
-        WHERE pm.goals > 0
+        WHERE pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id AND pm.goals > 0
     ) q WHERE rn = 1;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Step 2 (player_most_goals_game) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'Step 2 (player_most_goals_game) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 3: Most goals in a season
     block_start_time := clock_timestamp();
@@ -93,13 +93,13 @@ BEGIN
             ROW_NUMBER() OVER (PARTITION BY pm.player_id ORDER BY SUM(pm.goals) DESC, EXTRACT(YEAR FROM m.match_date) DESC) as rn
         FROM public.player_matches pm
         JOIN public.matches m ON pm.match_id = m.match_id
-        WHERE pm.goals > 0
+        WHERE pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id AND pm.goals > 0
         GROUP BY pm.player_id, EXTRACT(YEAR FROM m.match_date)
     ) q WHERE rn = 1;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Step 3 (player_most_goals_season) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'Step 3 (player_most_goals_season) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 4: Player streaks (this is the complex one)
     block_start_time := clock_timestamp();
@@ -112,6 +112,7 @@ BEGIN
             pm.player_id, m.match_date, m.match_id, pm.result,
             ROW_NUMBER() OVER (PARTITION BY pm.player_id ORDER BY m.match_date, m.match_id) as match_num
         FROM public.player_matches pm JOIN public.matches m ON pm.match_id = m.match_id
+        WHERE pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
     ),
     streak_groups AS (
         SELECT
@@ -151,8 +152,8 @@ BEGIN
     GROUP BY player_id;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Step 4 (player_streaks) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'Step 4 (player_streaks) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 5: Scoring streaks
     block_start_time := clock_timestamp();
@@ -167,7 +168,7 @@ BEGIN
         FROM public.player_matches pm 
         JOIN public.matches m ON pm.match_id = m.match_id
         JOIN public.players p ON pm.player_id = p.player_id
-        WHERE p.is_ringer = FALSE
+        WHERE pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id AND p.tenant_id = target_tenant_id AND p.is_ringer = FALSE
     ),
     scoring_groups AS (
         SELECT 
@@ -197,8 +198,8 @@ BEGIN
     FROM max_scoring_streaks WHERE rn = 1;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Step 5 (player_scoring_streak) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'Step 5 (player_scoring_streak) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 6: Attendance streaks (this is expensive due to CROSS JOIN)
     block_start_time := clock_timestamp();
@@ -209,13 +210,14 @@ BEGIN
     all_matches AS (
         SELECT match_id, match_date, ROW_NUMBER() OVER (ORDER BY match_date, match_id) as seq
         FROM public.matches
+        WHERE tenant_id = target_tenant_id
     ),
     player_attendance AS (
         SELECT p.player_id, am.seq, am.match_date, (pm.player_id IS NOT NULL) as attended
         FROM public.players p
         CROSS JOIN all_matches am
-        LEFT JOIN public.player_matches pm ON p.player_id = pm.player_id AND am.match_id = pm.match_id
-        WHERE p.is_ringer = FALSE
+        LEFT JOIN public.player_matches pm ON p.player_id = pm.player_id AND am.match_id = pm.match_id AND pm.tenant_id = target_tenant_id
+        WHERE p.tenant_id = target_tenant_id AND p.is_ringer = FALSE
     ),
     attendance_groups AS (
         SELECT player_id, attended, seq, match_date, seq - ROW_NUMBER() OVER (PARTITION BY player_id, attended ORDER BY seq) as grp
@@ -243,8 +245,8 @@ BEGIN
     FROM max_streaks WHERE rn = 1;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Step 6 (player_attendance_streak) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'Step 6 (player_attendance_streak) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 7: Yearly stats
     block_start_time := clock_timestamp();
@@ -270,13 +272,14 @@ BEGIN
                 CASE WHEN pm.team = 'A' AND m.team_b_score = 0 THEN TRUE WHEN pm.team = 'B' AND m.team_a_score = 0 THEN TRUE ELSE FALSE END
             )) as fantasy_points
         FROM public.player_matches pm JOIN public.matches m ON pm.match_id = m.match_id
+        WHERE pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
         GROUP BY pm.player_id, EXTRACT(YEAR FROM m.match_date)
     ) ys
     GROUP BY player_id;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Step 7 (player_yearly_stats) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'Step 7 (player_yearly_stats) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     -- Step 8: Teammate data calculation moved to separate function
     -- This step has been extracted to update_aggregated_player_teammate_stats()
@@ -288,7 +291,7 @@ BEGIN
     
     -- UPDATED: Removed teammate_chemistry_all column (now in separate table)
     INSERT INTO public.aggregated_player_profile_stats (
-        player_id, name, games_played, fantasy_points, most_game_goals,
+        player_id, tenant_id, name, games_played, fantasy_points, most_game_goals,
         most_game_goals_date, most_season_goals, most_season_goals_year,
         win_streak, win_streak_dates, losing_streak, losing_streak_dates,
         undefeated_streak, undefeated_streak_dates, winless_streak,
@@ -296,7 +299,7 @@ BEGIN
         last_updated, attendance_streak_dates, scoring_streak, scoring_streak_dates
     )
     SELECT
-        pms.player_id, pms.name,
+        pms.player_id, target_tenant_id, pms.name,
         COALESCE(pms.games_played, 0)::integer, COALESCE(pms.fantasy_points, 0)::integer,
         pmgg.most_game_goals, pmgg.most_game_goals_date,
         pmgs.most_season_goals::integer, pmgs.most_season_goals_year,
@@ -320,23 +323,23 @@ BEGIN
     LEFT JOIN temp_player_yearly_stats pys ON pms.player_id = pys.player_id;
     
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'Final step (data combination) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'Final step (data combination) completed in ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - block_start_time) || 'ms', NOW(), target_tenant_id);
 
     RAISE NOTICE 'Finished calculating all player profiles.';
 
     -- Update cache_metadata
     RAISE NOTICE 'Updating cache_metadata for player_profile_stats...';
-    INSERT INTO public.cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('player_profile_stats', NOW(), 'player_profile_stats')
-    ON CONFLICT (cache_key) DO UPDATE
+    INSERT INTO public.cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
+    VALUES ('player_profile_stats', NOW(), 'player_profile_stats', target_tenant_id)
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE
     SET last_invalidated = NOW(),
         dependency_type = excluded.dependency_type;
 
     -- Log total execution time
     PERFORM pg_sleep(0); -- dummy to keep position
-    INSERT INTO debug_logs (source, message, timestamp)
-    VALUES ('update_aggregated_player_profile_stats', 'TOTAL EXECUTION TIME: ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - start_time) || 'ms', NOW());
+    INSERT INTO debug_logs (source, message, timestamp, tenant_id)
+    VALUES ('update_aggregated_player_profile_stats', 'TOTAL EXECUTION TIME: ' || EXTRACT(MILLISECONDS FROM clock_timestamp() - start_time) || 'ms', NOW(), target_tenant_id);
 
     RAISE NOTICE 'Finished update_aggregated_player_profile_stats processing (v6, teammate stats extracted). Total time: %ms', EXTRACT(MILLISECONDS FROM clock_timestamp() - start_time);
 END;

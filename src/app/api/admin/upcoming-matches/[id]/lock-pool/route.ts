@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { splitSizesFromPool, getPoolValidation, MIN_PLAYERS, MAX_PLAYERS, MIN_TEAM } from '@/utils/teamSplit.util';
+// Multi-tenant imports - ensuring pool locking is tenant-scoped
+import { createTenantPrisma } from '@/lib/tenantPrisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
+import { withTenantMatchLock } from '@/lib/tenantLocks';
 
 /**
  * API route to lock the player pool for an upcoming match.
@@ -11,6 +15,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Multi-tenant setup - ensure pool locking is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    const tenantPrisma = await createTenantPrisma(tenantId);
+    
     const matchId = parseInt(params.id, 10);
     const { playerIds, state_version } = await request.json();
 
@@ -26,7 +34,8 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'state_version is required' }, { status: 400 });
     }
 
-    const match = await prisma.upcoming_matches.findUnique({
+    // Multi-tenant: Query scoped to current tenant only
+    const match = await tenantPrisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: matchId },
     });
 
@@ -78,25 +87,31 @@ export async function PATCH(
       }, { status: 400 });
     }
 
-    const updatedMatch = await prisma.$transaction(async (tx) => {
-      // 1. Clear any existing player pool for this match
+    // Multi-tenant: Use tenant-aware transaction with advisory locking
+    const updatedMatch = await withTenantMatchLock(tenantId, matchId, async (tx) => {
+      // 1. Clear any existing player pool for this match (tenant-scoped)
       await tx.upcoming_match_players.deleteMany({
-        where: { upcoming_match_id: matchId },
+        where: { 
+          upcoming_match_id: matchId,
+          tenant_id: tenantId
+        },
       });
 
-      // 2. Create the new player pool
+      // 2. Create the new player pool (tenant-scoped)
       await tx.upcoming_match_players.createMany({
         data: playerIds.map((playerId: number) => ({
           upcoming_match_id: matchId,
           player_id: playerId,
-          team: 'Unassigned',
+          tenant_id: tenantId,
+          team: 'Unassigned'
         })),
       });
 
-      // 3. Update the match state with actual team sizes
+      // 3. Update the match state with actual team sizes (tenant-scoped)
       const newMatchState = await tx.upcoming_matches.update({
         where: { 
           upcoming_match_id: matchId,
+          tenant_id: tenantId,
           state_version: state_version // Concurrency check
         } as any,
         data: {

@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { balanceByPastPerformance } from './utils'; // Import the helper function
 import { createClient } from '@supabase/supabase-js'; // Import createClient
+// Multi-tenant imports - ensuring balance by past performance is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // POST handler for API route
 export async function POST(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure balance by past performance is tenant-scoped
+    const tenantId = getCurrentTenantId();
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     // Use SUPABASE_SERVICE_ROLE_KEY consistent with personal-bests/route.ts
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Delete existing slot assignments
     await prisma.upcoming_match_players.deleteMany({
-      where: { upcoming_match_id: matchIdInt },
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId },
     });
 
     // Create new slot assignments
@@ -85,6 +89,7 @@ export async function POST(request: NextRequest) {
       player_id: pId,
       team: 'A',
       slot_number: index + 1,
+      tenant_id: tenantId,
     }));
 
     const teamBAssignments = result.teamB.map((pId, index) => ({
@@ -92,6 +97,7 @@ export async function POST(request: NextRequest) {
       player_id: pId,
       team: 'B',
       slot_number: teamSize + index + 1,
+      tenant_id: tenantId,
     }));
 
     await prisma.upcoming_match_players.createMany({
