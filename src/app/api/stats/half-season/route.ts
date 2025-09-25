@@ -4,7 +4,6 @@ import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring half-season stats are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 interface RecentGame {
@@ -20,10 +19,11 @@ const getHalfSeasonStats = unstable_cache(
 
     // Multi-tenant: Use tenant-scoped query for half-season stats
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
-    const preAggregatedData = await tenantPrisma.aggregated_half_season_stats.findMany({
+    const preAggregatedData = await prisma.aggregated_half_season_stats.findMany({
       where: {
+        tenant_id: tenantId,
         players: {
           is_ringer: false
         }
@@ -38,7 +38,8 @@ const getHalfSeasonStats = unstable_cache(
       }
     });
     
-    const recentPerformance = await tenantPrisma.aggregated_recent_performance.findMany({
+    const recentPerformance = await prisma.aggregated_recent_performance.findMany({
+      where: { tenant_id: tenantId },
       include: {
         players: {
           select: { name: true, selected_club: true, player_id: true }

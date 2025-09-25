@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match creation is tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // POST: Create a real match from a planned match
@@ -9,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure match creation is tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
     // Accept either field name for compatibility
@@ -21,8 +20,8 @@ export async function POST(request: NextRequest) {
     // If no match ID provided, use the active match
     if (!targetMatchId) {
       // Multi-tenant: Query scoped to current tenant only
-      const activeMatch = await tenantPrisma.upcoming_matches.findFirst({
-        where: { is_active: true },
+      const activeMatch = await prisma.upcoming_matches.findFirst({
+        where: { is_active: true, tenant_id: tenantId },
         select: { upcoming_match_id: true }
       });
       
@@ -38,10 +37,11 @@ export async function POST(request: NextRequest) {
 
     // Fetch match details
     // Multi-tenant: Query scoped to current tenant only
-    const plannedMatch = await tenantPrisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: targetMatchId },
+    const plannedMatch = await prisma.upcoming_matches.findUnique({
+      where: { upcoming_match_id: targetMatchId, tenant_id: tenantId },
       include: {
         upcoming_match_players: {
+          where: { tenant_id: tenantId },
           include: {
             players: true
           }
@@ -74,8 +74,9 @@ export async function POST(request: NextRequest) {
 
     // Create match record
     // Multi-tenant: Create match in current tenant
-    const newMatch = await tenantPrisma.matches.create({
+    const newMatch = await prisma.matches.create({
       data: {
+        tenant_id: tenantId,
         match_date: plannedMatch.match_date,
         team_a_score: 0,
         team_b_score: 0,
@@ -88,8 +89,9 @@ export async function POST(request: NextRequest) {
       const teamName = player.team || 'A'; // Default to team A if not assigned
       
       // Multi-tenant: Create player match record in current tenant
-      return tenantPrisma.player_matches.create({
+      return prisma.player_matches.create({
         data: {
+          tenant_id: tenantId,
           match_id: newMatch.match_id,
           player_id: player.player_id,
           team: teamName,

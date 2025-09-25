@@ -27,7 +27,9 @@ export function getCurrentTenantId(): string {
   // - Request headers
   // - Default tenant fallback
   
-  return DEFAULT_TENANT_ID;
+  const tenantId = DEFAULT_TENANT_ID;
+  console.log(`[TENANT_CONTEXT] getCurrentTenantId() returning: ${tenantId}`);
+  return tenantId;
 }
 
 /**

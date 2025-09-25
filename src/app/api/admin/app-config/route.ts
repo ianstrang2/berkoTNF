@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring app config is tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET: Fetch all app configuration settings
@@ -9,11 +8,13 @@ export async function GET(request: Request) {
   try {
     // Multi-tenant setup - ensure config operations are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // First, check if the app_config table exists and is accessible
     try {
-      const testConfig = await tenantPrisma.app_config.findFirst();
+      const testConfig = await prisma.app_config.findFirst({
+        where: { tenant_id: tenantId }
+      });
       if (!testConfig) {
         console.log('Warning: app_config table seems empty but accessible');
       }
@@ -41,8 +42,9 @@ export async function GET(request: Request) {
       const groupArray = groupsQueryParam.split(',').map(g => g.trim()).filter(g => g);
       if (groupArray.length > 0) {
         // Multi-tenant: Query scoped to current tenant only
-        configs = await tenantPrisma.app_config.findMany({
+        configs = await prisma.app_config.findMany({
           where: {
+            tenant_id: tenantId,
             config_group: {
               in: groupArray
             }
@@ -51,13 +53,15 @@ export async function GET(request: Request) {
         });
       } else {
         // Multi-tenant: Query scoped to current tenant only
-        configs = await tenantPrisma.app_config.findMany({
+        configs = await prisma.app_config.findMany({
+          where: { tenant_id: tenantId },
           orderBy: orderByClause
         });
       }
     } else {
       // Multi-tenant: Query scoped to current tenant only
-      configs = await tenantPrisma.app_config.findMany({
+      configs = await prisma.app_config.findMany({
+        where: { tenant_id: tenantId },
         orderBy: orderByClause
       });
     }

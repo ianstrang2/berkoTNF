@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma';
 import { balanceByPastPerformance } from '../balance-by-past-performance/utils';
 import { MIN_PLAYERS, MAX_PLAYERS, MIN_TEAM } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring team balancing is tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 
 // This logic uses the sophisticated performance algorithm with configurable weights
 
@@ -26,26 +25,19 @@ export async function balanceByPerformance(
     throw new Error(`Size mismatch. Expected ${sizes.a}+${sizes.b}=${sizes.a + sizes.b}, got ${poolSize}.`);
   }
   
-  // Multi-tenant: Use tenant-scoped queries if tenant context provided
-  const tenantPrisma = tenantId ? await createTenantPrisma(tenantId) : null;
+  // Set RLS context for tenant isolation
+  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
   
   // Fetch performance weights from app config
-  // Multi-tenant: Query scoped to tenant if context available
-  const performanceConfigs = tenantPrisma 
-    ? await tenantPrisma.app_config.findMany({
-        where: {
-          config_key: {
-            in: ['performance_power_weight', 'performance_goal_weight']
-          }
-        }
-      })
-    : await prisma.app_config.findMany({
-        where: {
-          config_key: {
-            in: ['performance_power_weight', 'performance_goal_weight']
-          }
-        }
-      });
+  // Multi-tenant: Query scoped to current tenant
+  const performanceConfigs = await prisma.app_config.findMany({
+    where: {
+      tenant_id: tenantId,
+      config_key: {
+        in: ['performance_power_weight', 'performance_goal_weight']
+      }
+    }
+  });
 
   // Convert to expected format (no hardcoded defaults - values should exist in DB)
   const performanceWeights = {

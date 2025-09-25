@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match pool operations are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET: Fetch player pool for a match
@@ -9,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure player pool operations are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('match_id');
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
     } else if (activeOnly) {
       // Get player pool for the active match
       // Multi-tenant: Query scoped to current tenant only
-      const activeMatch = await tenantPrisma.upcoming_matches.findFirst({
+      const activeMatch = await prisma.upcoming_matches.findFirst({
         where: { is_active: true },
         select: { upcoming_match_id: true }
       });
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     // Get player pool with player details
     // Multi-tenant: Query scoped to current tenant only
-    const playerPool = await tenantPrisma.match_player_pool.findMany({
+    const playerPool = await prisma.match_player_pool.findMany({
       where: whereClause,
       include: {
         players: {
@@ -105,7 +104,7 @@ export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure player pool operations are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const { match_id, player_id } = await request.json();
     if (!match_id || !player_id) {
@@ -113,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Multi-tenant: Create player assignment in the current tenant
-    const newPlayer = await tenantPrisma.upcoming_match_players.create({
+    const newPlayer = await prisma.upcoming_match_players.create({
       data: {
         upcoming_match_id: parseInt(match_id),
         player_id: parseInt(player_id),
@@ -132,7 +131,7 @@ export async function DELETE(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure player removal is tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('match_id');
@@ -143,7 +142,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Multi-tenant: Remove player assignment within the current tenant only
-    await tenantPrisma.upcoming_match_players.deleteMany({
+    await prisma.upcoming_match_players.deleteMany({
       where: {
         upcoming_match_id: parseInt(matchId),
         player_id: parseInt(playerId),

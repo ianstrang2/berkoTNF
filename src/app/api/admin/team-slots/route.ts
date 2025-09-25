@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team slots operations are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // Get all slots with their assigned players
@@ -9,9 +8,10 @@ export async function GET() {
   try {
     // Multi-tenant setup - ensure team slots operations are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
-    const slots = await tenantPrisma.team_slots.findMany({
+    const slots = await prisma.team_slots.findMany({
+      where: { tenant_id: tenantId },
       orderBy: {
         slot_number: 'asc'
       },
@@ -38,7 +38,7 @@ export async function PUT(request: Request) {
   try {
     // Multi-tenant setup - ensure team slots operations are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const { slot_number, player_id } = await request.json();
 
@@ -52,8 +52,9 @@ export async function PUT(request: Request) {
 
     // If player_id is provided, check if player is already assigned to another slot
     if (player_id) {
-      const existingSlot = await tenantPrisma.team_slots.findFirst({
+      const existingSlot = await prisma.team_slots.findFirst({
         where: {
+          tenant_id: tenantId,
           player_id: player_id,
           NOT: {
             slot_number: slot_number
@@ -63,7 +64,7 @@ export async function PUT(request: Request) {
 
       if (existingSlot) {
         // Clear the player from their existing slot
-        await tenantPrisma.team_slots.update({
+        await prisma.team_slots.update({
           where: { 
             tenant_id_slot_number: {
               tenant_id: tenantId,
@@ -76,7 +77,7 @@ export async function PUT(request: Request) {
     }
 
     // Update the slot
-    const updatedSlot = await tenantPrisma.team_slots.update({
+    const updatedSlot = await prisma.team_slots.update({
       where: { 
         tenant_id_slot_number: {
           tenant_id: tenantId,

@@ -14,7 +14,7 @@ interface ActiveMatch {
   match_date: string;
   state: string;
   _count: {
-    players: number;
+    upcoming_match_players: number;
   };
 }
 
@@ -93,7 +93,7 @@ const MatchListPageContent = () => {
         case 'Draft':
           return `Delete this match on ${dateStr}?`;
         case 'PoolLocked':
-          return `Delete this match on ${dateStr}? ${activeMatch._count.players} players will be removed from the pool.`;
+          return `Delete this match on ${dateStr}? ${activeMatch._count.upcoming_match_players} players will be removed from the pool.`;
         case 'TeamsBalanced':
           return `Delete this match on ${dateStr}? Teams have been balanced and will be lost.`;
         case 'Completed':
@@ -251,7 +251,7 @@ const MatchListPageContent = () => {
           <div className="flex justify-between items-center">
             <div>
               <p className="font-semibold text-slate-700">{format(new Date(match.match_date), 'EEEE, MMMM d, yyyy')}</p>
-              <p className="text-sm text-slate-500">Players in pool: {match._count.players}</p>
+              <p className="text-sm text-slate-500">Players in pool: {match._count.upcoming_match_players}</p>
             </div>
             <div className="flex items-center gap-3 sm:gap-4">
               <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm">{formatStateDisplay(match.state)}</span>

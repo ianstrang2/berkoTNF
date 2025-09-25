@@ -10,7 +10,6 @@ import Button from '@/components/ui-kit/Button.component';
 
 import { format } from 'date-fns';
 import { shouldUseBackgroundJobs } from '@/config/feature-flags';
-import { supabase } from '@/lib/supabaseClient';
 
 interface CacheMetadata {
   cache_key: string;
@@ -312,14 +311,14 @@ const AdminInfoPage = () => {
     setIsLoadingJobs(true);
     setJobError(null);
     try {
-      const { data, error } = await supabase
-        .from('background_job_status')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const response = await fetch('/api/admin/background-jobs');
+      const result = await response.json();
 
-      if (error) throw error;
-      setJobStatusData(data || []);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch job status');
+      }
+      
+      setJobStatusData(result.data || []);
     } catch (err: any) {
       console.error('Error fetching job status:', err);
       setJobError(err.message);

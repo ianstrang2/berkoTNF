@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerInPool } from '@/lib/transform/player.transform';
 // Multi-tenant imports - gradually introducing tenant-aware functionality
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET: Fetch upcoming matches for public view
@@ -10,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - get current tenant context
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
@@ -18,10 +17,14 @@ export async function GET(request: NextRequest) {
     if (matchId) {
       // Get specific match with full details for expansion
       // Multi-tenant: Using tenant-scoped query for data isolation
-      const match = await tenantPrisma.upcoming_matches.findUnique({
-        where: { upcoming_match_id: parseInt(matchId) },
+      const match = await prisma.upcoming_matches.findUnique({
+        where: { 
+          upcoming_match_id: parseInt(matchId),
+          tenant_id: tenantId
+        },
         include: {
           upcoming_match_players: {
+            where: { tenant_id: tenantId },
             include: {
               players: true
             },
@@ -57,8 +60,9 @@ export async function GET(request: NextRequest) {
       today.setHours(0, 0, 0, 0); // Start of today
 
       // Multi-tenant: Using tenant-scoped query for data isolation
-      const matches = await tenantPrisma.upcoming_matches.findMany({
+      const matches = await prisma.upcoming_matches.findMany({
         where: {
+          tenant_id: tenantId,
           state: {
             not: 'Completed'
           },

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 // Multi-tenant imports - ensuring player profiles are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 const prisma = new PrismaClient();
@@ -16,7 +15,7 @@ export async function GET(request: Request) {
 
     // Multi-tenant setup - ensure player profile is tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -38,21 +37,21 @@ export async function GET(request: Request) {
     // Multi-tenant: All queries scoped to current tenant
     const [profile, teammateStats, playerData, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
       // Existing profile query
-      tenantPrisma.aggregated_player_profile_stats.findUnique({
-        where: { player_id: numericId },
+      prisma.aggregated_player_profile_stats.findUnique({
+        where: { player_id: numericId, tenant_id: tenantId },
       }),
       
       // NEW: Fetch teammate stats from separate table
-      tenantPrisma.aggregated_player_teammate_stats.findUnique({
-        where: { player_id: numericId },
+      prisma.aggregated_player_teammate_stats.findUnique({
+        where: { player_id: numericId, tenant_id: tenantId },
         select: {
           teammate_chemistry_all: true
         }
       }),
       
       // NEW: Fetch player data including profile_text
-      tenantPrisma.players.findUnique({
-        where: { player_id: numericId },
+      prisma.players.findUnique({
+        where: { player_id: numericId, tenant_id: tenantId },
         select: {
           profile_text: true,
           profile_generated_at: true,
@@ -62,8 +61,8 @@ export async function GET(request: Request) {
       }),
       
       // UPDATED: New EWMA performance ratings query
-      tenantPrisma.aggregated_performance_ratings.findUnique({
-        where: { player_id: numericId },
+      prisma.aggregated_performance_ratings.findUnique({
+        where: { player_id: numericId, tenant_id: tenantId },
         select: {
           power_rating: true,
           goal_threat: true,
@@ -128,7 +127,8 @@ export async function GET(request: Request) {
        
       // Current streaks from latest match report
       // Multi-tenant: Query scoped to current tenant only
-      tenantPrisma.aggregated_match_report.findFirst({
+      prisma.aggregated_match_report.findFirst({
+        where: { tenant_id: tenantId },
         select: {
           streaks: true,
           goal_streaks: true,
@@ -141,7 +141,8 @@ export async function GET(request: Request) {
 
       // Fetch aggregated_records for max values
       // Multi-tenant: Query scoped to current tenant only
-      tenantPrisma.aggregated_records.findFirst({
+      prisma.aggregated_records.findFirst({
+        where: { tenant_id: tenantId },
         select: {
           records: true
         }

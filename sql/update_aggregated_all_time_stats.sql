@@ -74,9 +74,9 @@ BEGIN
     RAISE NOTICE 'update_aggregated_all_time_stats completed. Inserted % rows.', inserted_count;
 
     -- Update Cache Metadata
-    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('all_time_stats', NOW(), 'match_result') -- Assuming depends on match results
-    ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
+    VALUES ('all_time_stats', NOW(), 'match_result', target_tenant_id) -- Assuming depends on match results
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE SET last_invalidated = NOW();
 
 EXCEPTION
     WHEN OTHERS THEN

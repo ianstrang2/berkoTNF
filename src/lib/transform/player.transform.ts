@@ -59,8 +59,14 @@ export const toPlayerProfile = (dbPlayer: any): PlayerProfile => {
  * to the canonical PlayerInPool type.
  */
 export const toPlayerInPool = (dbUpcomingMatchPlayer: any): PlayerInPool => {
-  const dbPlayer = dbUpcomingMatchPlayer.player;
+  const dbPlayer = dbUpcomingMatchPlayer.players;
   if (!dbPlayer) {
+    console.error('Invalid dbUpcomingMatchPlayer object: missing nested player data.', {
+      upcoming_player_id: dbUpcomingMatchPlayer.upcoming_player_id,
+      player_id: dbUpcomingMatchPlayer.player_id,
+      available_keys: Object.keys(dbUpcomingMatchPlayer),
+      full_object: JSON.stringify(dbUpcomingMatchPlayer, null, 2)
+    });
     throw new Error('Invalid dbUpcomingMatchPlayer object: missing nested player data.');
   }
   const baseProfile = transformBasePlayerFromDb(dbPlayer);

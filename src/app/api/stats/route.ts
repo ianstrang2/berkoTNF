@@ -4,7 +4,6 @@ import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring stats are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 interface RecentGame {
@@ -20,10 +19,11 @@ const getFullSeasonStats = unstable_cache(
 
     // Multi-tenant: Use tenant-scoped query for season stats
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
-    const preAggregatedData = await tenantPrisma.aggregated_season_stats.findMany({
+    const preAggregatedData = await prisma.aggregated_season_stats.findMany({
       where: {
+        tenant_id: tenantId,
         season_start_date: new Date(startDate),
         players: {
           is_ringer: false
@@ -39,7 +39,8 @@ const getFullSeasonStats = unstable_cache(
       }
     });
     
-    const recentPerformance = await tenantPrisma.aggregated_recent_performance.findMany({
+    const recentPerformance = await prisma.aggregated_recent_performance.findMany({
+      where: { tenant_id: tenantId },
       include: {
         players: {
           select: { name: true, selected_club: true, player_id: true }

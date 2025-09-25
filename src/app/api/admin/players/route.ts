@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerProfile } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring admin routes are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 const serializeData = (data) => {
@@ -16,7 +15,7 @@ export async function GET(request: Request) {
   try {
     // Multi-tenant setup - ensure admin operations are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const url = new URL(request.url);
     const includeMatchCounts = url.searchParams.get('include_match_counts') === 'true';
@@ -61,8 +60,8 @@ export async function GET(request: Request) {
     } else {
       // Just fetch players without match counts - conditionally include retired players
       // Multi-tenant: Using tenant-scoped query for data isolation
-      const whereClause = showRetired ? {} : { is_retired: false };
-      players = await tenantPrisma.players.findMany({
+      const whereClause = showRetired ? { tenant_id: tenantId } : { tenant_id: tenantId, is_retired: false };
+      players = await prisma.players.findMany({
         where: whereClause,
         orderBy: {
           name: 'asc',
@@ -101,7 +100,7 @@ export async function POST(request: Request) {
   try {
     // Multi-tenant setup - ensure new players are created in the correct tenant
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
     const {
@@ -143,8 +142,8 @@ export async function POST(request: Request) {
     }
 
     // Multi-tenant: Create player in the current tenant
-    const player = await tenantPrisma.players.create({
-      data: createData,
+    const player = await prisma.players.create({
+      data: { ...createData, tenant_id: tenantId },
     });
     
     // Transform the created player to canonical format
@@ -171,7 +170,7 @@ export async function PUT(request: Request) {
   try {
     // Multi-tenant setup - ensure player updates are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
     const { 
@@ -222,9 +221,10 @@ export async function PUT(request: Request) {
     }
 
     // Multi-tenant: Update player within the current tenant only
-    const player = await tenantPrisma.players.update({
+    const player = await prisma.players.update({
       where: {
         player_id: Number(player_id), // Ensure player_id is a number if schema expects Int
+        tenant_id: tenantId
       },
       data: updateData,
     });

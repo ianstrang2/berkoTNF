@@ -4,7 +4,6 @@ import { toPlayerProfile } from '@/lib/transform/player.transform';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 // Multi-tenant imports - ensuring public routes are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 const getPlayersData = unstable_cache(
@@ -13,9 +12,10 @@ const getPlayersData = unstable_cache(
     
     // Multi-tenant: Use tenant-scoped query for public player data
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
-    const playersFromDb = await tenantPrisma.players.findMany({
+    const playersFromDb = await prisma.players.findMany({
+      where: { tenant_id: tenantId },
       orderBy: {
         name: 'asc'
       }

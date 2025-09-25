@@ -4,7 +4,6 @@ import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { PersonalBestsAPIResponseData } from '@/types/personal-bests.types';
 // Multi-tenant imports - ensuring personal bests are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 const getPersonalBestsData = unstable_cache(
@@ -13,9 +12,10 @@ const getPersonalBestsData = unstable_cache(
     
     // Multi-tenant: Use tenant-scoped query for personal bests
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
-    const latestPb = await tenantPrisma.aggregated_personal_bests.findFirst({
+    const latestPb = await prisma.aggregated_personal_bests.findFirst({
+      where: { tenant_id: tenantId },
       orderBy: {
         created_at: 'desc',
       },

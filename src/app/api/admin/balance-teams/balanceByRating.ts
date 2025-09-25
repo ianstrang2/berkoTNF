@@ -7,7 +7,6 @@
 import { prisma } from '@/lib/prisma';
 import { players as Player, team_balance_weights as TeamBalanceWeight, team_size_templates as TeamSizeTemplate } from '@prisma/client';
 // Multi-tenant imports - ensuring rating balance is tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 
 // This is a simplified recreation of the logic from the deleted balance-planned-match route.
 // It focuses on fetching players and their attributes to perform a balance.
@@ -177,11 +176,13 @@ export async function balanceByRating(
   }
 
   // === PHASE 1: Authoritative Data Gathering ===
-  // Multi-tenant: Use tenant-scoped queries if tenant context provided
-  const tenantPrisma = tenantId ? await createTenantPrisma(tenantId) : null;
+  // Set RLS context for tenant isolation
+  if (tenantId) {
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+  }
   
-  const match = tenantPrisma 
-    ? await tenantPrisma.upcoming_matches.findUnique({ where: { upcoming_match_id: matchIdInt }})
+  const match = tenantId 
+    ? await prisma.upcoming_matches.findUnique({ where: { upcoming_match_id: matchIdInt, tenant_id: tenantId }})
     : await prisma.upcoming_matches.findUnique({ where: { upcoming_match_id: matchIdInt }});
   if (!match) throw new Error(`Match with ID ${matchIdInt} not found.`);
   
@@ -190,9 +191,9 @@ export async function balanceByRating(
   const actualSizeB = sizes?.b || match.actual_size_b || match.team_size;
   const totalPlayers = actualSizeA + actualSizeB;
 
-  const confirmedPlayerPool = tenantPrisma
-    ? await tenantPrisma.upcoming_match_players.findMany({ 
-        where: { upcoming_match_id: matchIdInt },
+  const confirmedPlayerPool = tenantId
+    ? await prisma.upcoming_match_players.findMany({ 
+        where: { upcoming_match_id: matchIdInt, tenant_id: tenantId },
         select: { player_id: true }
       })
     : await prisma.upcoming_match_players.findMany({ 
@@ -201,17 +202,17 @@ export async function balanceByRating(
       });
   const playerIds = confirmedPlayerPool.map(p => p.player_id);
 
-  const players = tenantPrisma
-    ? await tenantPrisma.players.findMany({ where: { player_id: { in: playerIds } } })
+  const players = tenantId
+    ? await prisma.players.findMany({ where: { player_id: { in: playerIds }, tenant_id: tenantId } })
     : await prisma.players.findMany({ where: { player_id: { in: playerIds } } });
-  const balanceWeights = tenantPrisma
-    ? await tenantPrisma.team_balance_weights.findMany()
+  const balanceWeights = tenantId
+    ? await prisma.team_balance_weights.findMany({ where: { tenant_id: tenantId } })
     : await prisma.team_balance_weights.findMany();
   
   // For uneven teams, we need to use the larger team size for template
   const templateSize = Math.max(actualSizeA, actualSizeB);
-  const template = tenantPrisma
-    ? await tenantPrisma.team_size_templates.findFirst({ where: { team_size: templateSize } })
+  const template = tenantId
+    ? await prisma.team_size_templates.findFirst({ where: { team_size: templateSize, tenant_id: tenantId } })
     : await prisma.team_size_templates.findFirst({ where: { team_size: templateSize } });
   
   if (!template) throw new Error(`No team size template found for team size: ${templateSize}`);

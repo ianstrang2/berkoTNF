@@ -42,9 +42,9 @@ BEGIN
     RAISE NOTICE 'update_aggregated_hall_of_fame completed. Inserted % rows.', inserted_count;
 
     -- Update Cache Metadata
-    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type)
-    VALUES ('hall_of_fame', NOW(), 'match_result') -- Assuming depends on all_time_stats which depends on match results
-    ON CONFLICT (cache_key) DO UPDATE SET last_invalidated = NOW();
+    INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
+    VALUES ('hall_of_fame', NOW(), 'match_result', target_tenant_id) -- Assuming depends on all_time_stats which depends on match results
+    ON CONFLICT (cache_key, tenant_id) DO UPDATE SET last_invalidated = NOW();
 
 EXCEPTION
     WHEN OTHERS THEN

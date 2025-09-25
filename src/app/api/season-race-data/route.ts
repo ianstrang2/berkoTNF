@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring season race data is tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export async function GET(request: Request) {
@@ -20,7 +19,7 @@ export async function GET(request: Request) {
     
     // Multi-tenant: Get tenant context for scoped queries
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Get current season to find the correct season_year
     const currentSeason = await prisma.$queryRaw`
@@ -41,8 +40,9 @@ export async function GET(request: Request) {
 
     seasonYear = currentSeason[0].start_date.getFullYear();
     
-    const raceData = await tenantPrisma.aggregated_season_race_data.findFirst({
+    const raceData = await prisma.aggregated_season_race_data.findFirst({
       where: { 
+        tenant_id: tenantId,
         season_year: seasonYear,
         period_type: period 
       },

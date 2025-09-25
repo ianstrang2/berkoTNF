@@ -4,7 +4,6 @@ import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring all-time stats are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // Define a function to fetch and cache the data
@@ -14,9 +13,10 @@ const getAllTimeStats = unstable_cache(
     
     // Multi-tenant: Use tenant-scoped query for all-time stats
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
-    const preAggregatedData = await tenantPrisma.aggregated_all_time_stats.findMany({
+    const preAggregatedData = await prisma.aggregated_all_time_stats.findMany({
+      where: { tenant_id: tenantId },
       include: {
         players: {
           select: {

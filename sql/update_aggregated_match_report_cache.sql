@@ -627,7 +627,7 @@ BEGIN
     DELETE FROM aggregated_match_report WHERE TRUE; -- Keep WHERE TRUE fix
 
     INSERT INTO aggregated_match_report (
-        match_id, match_date, team_a_score, team_b_score,
+        match_id, tenant_id, match_date, team_a_score, team_b_score,
         team_a_players, team_b_players, team_a_scorers, team_b_scorers,
         config_values, game_milestones, goal_milestones,
         half_season_goal_leaders, half_season_fantasy_leaders,
@@ -638,6 +638,7 @@ BEGIN
         last_updated
     )         VALUES (
             latest_match.match_id,
+            target_tenant_id,
             latest_match.match_date,
             latest_match.team_a_score,
             latest_match.team_b_score,

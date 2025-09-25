@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { splitSizesFromPool, getPoolValidation, MIN_PLAYERS, MAX_PLAYERS, MIN_TEAM } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring pool locking is tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 
@@ -14,13 +13,19 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const matchId = parseInt(params.id, 10);
+  console.log(`[LOCK_POOL] Starting lock pool operation for match ${matchId}`);
+  
   try {
     // Multi-tenant setup - ensure pool locking is tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    console.log(`[LOCK_POOL] Resolved tenant ID: ${tenantId}`);
     
-    const matchId = parseInt(params.id, 10);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    console.log(`[LOCK_POOL] Created tenant Prisma instance successfully`);
+    
     const { playerIds, state_version } = await request.json();
+    console.log(`[LOCK_POOL] Request data - playerIds: ${playerIds?.length}, state_version: ${state_version}`);
 
     if (isNaN(matchId)) {
       return NextResponse.json({ success: false, error: 'Invalid Match ID' }, { status: 400 });
@@ -35,12 +40,35 @@ export async function PATCH(
     }
 
     // Multi-tenant: Query scoped to current tenant only
-    const match = await tenantPrisma.upcoming_matches.findUnique({
+    console.log(`[LOCK_POOL] Looking for match ${matchId} in tenant ${tenantId}`);
+    const match = await prisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: matchId },
     });
 
     if (!match) {
-      return NextResponse.json({ success: false, error: 'Match not found' }, { status: 404 });
+      console.error(`[LOCK_POOL] Match ${matchId} not found in tenant ${tenantId}`);
+      
+      // Debug: Try to find the match across all tenants
+      const debugMatch = await prisma.upcoming_matches.findUnique({
+        where: { upcoming_match_id: matchId }
+      });
+      
+      if (debugMatch) {
+        console.error(`[LOCK_POOL] DEBUG: Match ${matchId} exists in tenant ${debugMatch.tenant_id}, but we're looking in ${tenantId}`);
+      } else {
+        console.error(`[LOCK_POOL] DEBUG: Match ${matchId} does not exist at all`);
+      }
+      
+      return NextResponse.json({ 
+        success: false, 
+        error: `Match not found in tenant ${tenantId}. This might be a tenant context issue.` 
+      }, { status: 404 });
+    }
+
+    console.log(`[LOCK_POOL] Found match ${matchId} in state ${match.state} (tenant: ${(match as any).tenant_id})`);
+
+    if ((match as any).tenant_id !== tenantId) {
+      console.error(`[LOCK_POOL] Tenant mismatch: match belongs to ${(match as any).tenant_id}, but we're in ${tenantId}`);
     }
 
     if (match.state !== 'Draft') {
@@ -88,15 +116,19 @@ export async function PATCH(
     }
 
     // Multi-tenant: Use tenant-aware transaction with advisory locking
+    console.log(`[LOCK_POOL] Starting transaction with tenant lock for match ${matchId}`);
     const updatedMatch = await withTenantMatchLock(tenantId, matchId, async (tx) => {
+      console.log(`[LOCK_POOL] Inside transaction, clearing existing player pool`);
+      
       // 1. Clear any existing player pool for this match (tenant-scoped)
       await tx.upcoming_match_players.deleteMany({
         where: { 
-          upcoming_match_id: matchId,
-          tenant_id: tenantId
+          upcoming_match_id: matchId
         },
       });
 
+      console.log(`[LOCK_POOL] Creating new player pool with ${playerIds.length} players`);
+      
       // 2. Create the new player pool (tenant-scoped)
       await tx.upcoming_match_players.createMany({
         data: playerIds.map((playerId: number) => ({
@@ -107,11 +139,12 @@ export async function PATCH(
         })),
       });
 
+      console.log(`[LOCK_POOL] Updating match state to PoolLocked (${sizeA}v${sizeB})`);
+      
       // 3. Update the match state with actual team sizes (tenant-scoped)
       const newMatchState = await tx.upcoming_matches.update({
         where: { 
           upcoming_match_id: matchId,
-          tenant_id: tenantId,
           state_version: state_version // Concurrency check
         } as any,
         data: {
@@ -124,6 +157,7 @@ export async function PATCH(
         } as any,
       });
 
+      console.log(`[LOCK_POOL] Match state updated successfully to ${newMatchState.state}`);
       return newMatchState;
     });
 
@@ -131,10 +165,19 @@ export async function PATCH(
     const isSimplified = poolSize === 8; // Exactly 4v4
     const isUneven = sizeA !== sizeB; // Any uneven split
 
+    console.log(`[LOCK_POOL] Lock pool completed successfully for match ${matchId}`);
+    console.log(`[LOCK_POOL] Final match state: ${updatedMatch.state}, version: ${updatedMatch.state_version}`);
+
     return NextResponse.json({ 
       success: true, 
       data: updatedMatch,
-      splitInfo: { sizeA, sizeB, isUneven, isSimplified }
+      splitInfo: { sizeA, sizeB, isUneven, isSimplified },
+      debug: {
+        tenantId,
+        matchId,
+        playersLocked: playerIds.length,
+        operation: 'lock-pool'
+      }
     });
   } catch (error: any) {
      if (error.code === 'P2025' || error.code === 'P2034') { // Prisma transaction errors for concurrency

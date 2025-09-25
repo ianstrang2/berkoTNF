@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match completion is tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 
@@ -17,7 +16,7 @@ export async function POST(
   try {
     // Multi-tenant setup - ensure match completion is tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const matchId = parseInt(params.id, 10);
     const { state_version, score, own_goals, player_stats } = await request.json();
@@ -44,7 +43,7 @@ export async function POST(
     // Validate score integrity: team_score should equal player_goals + own_goals
     // First, get team assignments from database to properly validate
     // Multi-tenant: Query scoped to current tenant only
-    const upcomingMatchForValidation = await tenantPrisma.upcoming_matches.findUnique({
+    const upcomingMatchForValidation = await prisma.upcoming_matches.findUnique({
       where: { upcoming_match_id: matchId },
       include: { upcoming_match_players: true },
     });

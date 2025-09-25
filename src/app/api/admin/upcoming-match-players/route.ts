@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match player operations are tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET: Fetch players for an upcoming match
@@ -9,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure match player operations are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
@@ -27,7 +26,7 @@ export async function GET(request: NextRequest) {
     } else if (activeOnly) {
       // Get players for the active match
       // Multi-tenant: Query scoped to current tenant only
-      const activeMatch = await tenantPrisma.upcoming_matches.findFirst({
+      const activeMatch = await prisma.upcoming_matches.findFirst({
         where: { is_active: true },
         select: { upcoming_match_id: true }
       });
@@ -50,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     // Get players with their details
     // Multi-tenant: Query scoped to current tenant only
-    const players = await tenantPrisma.upcoming_match_players.findMany({
+    const players = await prisma.upcoming_match_players.findMany({
       where: whereClause,
       include: {
         players: {
@@ -111,7 +110,7 @@ export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure player assignment is tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
     // Accept either match_id or upcoming_match_id for backward compatibility
@@ -142,7 +141,7 @@ export async function POST(request: NextRequest) {
     
     if (!targetMatchId) {
       // Find the active match
-      const activeMatch = await tenantPrisma.upcoming_matches.findFirst({
+      const activeMatch = await prisma.upcoming_matches.findFirst({
         where: { is_active: true },
         select: { 
           upcoming_match_id: true,
@@ -172,7 +171,7 @@ export async function POST(request: NextRequest) {
     }
 
     // First, check if any player is already assigned to this slot
-    const existingPlayerInSlot = await tenantPrisma.upcoming_match_players.findFirst({
+    const existingPlayerInSlot = await prisma.upcoming_match_players.findFirst({
       where: {
         upcoming_match_id: targetMatchId,
         slot_number: slot_number
@@ -181,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     // If there's a player in this slot, remove them first
     if (existingPlayerInSlot) {
-      await tenantPrisma.upcoming_match_players.delete({
+      await prisma.upcoming_match_players.delete({
         where: {
           upcoming_player_id: existingPlayerInSlot.upcoming_player_id
         }
@@ -189,7 +188,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Then check if this player is already in another slot for this match
-    const existingPlayerAssignment = await tenantPrisma.upcoming_match_players.findFirst({
+    const existingPlayerAssignment = await prisma.upcoming_match_players.findFirst({
       where: {
         upcoming_match_id: targetMatchId,
         player_id: player_id
@@ -198,7 +197,7 @@ export async function POST(request: NextRequest) {
 
     // If the player is already in another slot, remove that assignment
     if (existingPlayerAssignment) {
-      await tenantPrisma.upcoming_match_players.delete({
+      await prisma.upcoming_match_players.delete({
         where: {
           upcoming_player_id: existingPlayerAssignment.upcoming_player_id
         }
@@ -206,7 +205,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Now add player to match in the specified slot
-    const newAssignment = await tenantPrisma.upcoming_match_players.create({
+    const newAssignment = await prisma.upcoming_match_players.create({
       data: {
         team: team || 'A',
         slot_number: slot_number,
@@ -236,7 +235,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Mark match as unbalanced when adding players
-    await tenantPrisma.upcoming_matches.update({
+    await prisma.upcoming_matches.update({
       where: { upcoming_match_id: targetMatchId },
       data: { is_balanced: false }
     });
@@ -290,10 +289,10 @@ export async function PUT(request: NextRequest) {
 
     // Multi-tenant setup - ensure player assignment updates are tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Find the specific upcoming_match_player record
-    const assignment = await tenantPrisma.upcoming_match_players.findFirst({
+    const assignment = await prisma.upcoming_match_players.findFirst({
       where: {
         upcoming_match_id: upcoming_match_id,
         player_id: player_id,
@@ -308,7 +307,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the record
-    const updatedAssignment = await tenantPrisma.upcoming_match_players.update({
+    const updatedAssignment = await prisma.upcoming_match_players.update({
       where: {
         upcoming_player_id: assignment.upcoming_player_id,
       },
@@ -319,7 +318,7 @@ export async function PUT(request: NextRequest) {
     });
 
     // Mark match as unbalanced
-    await tenantPrisma.upcoming_matches.update({
+    await prisma.upcoming_matches.update({
       where: { upcoming_match_id: upcoming_match_id },
       data: { is_balanced: false }
     });
@@ -344,7 +343,7 @@ export async function DELETE(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure player removal is tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     const searchParams = request.nextUrl.searchParams;
     const playerId = searchParams.get('player_id');
     const matchId = searchParams.get('matchId');
@@ -379,7 +378,7 @@ export async function DELETE(request: NextRequest) {
     if (!targetMatchId && active) {
       // Try to find the active match
       // Multi-tenant: Query scoped to current tenant only
-      const activeMatch = await tenantPrisma.upcoming_matches.findFirst({
+      const activeMatch = await prisma.upcoming_matches.findFirst({
         where: { is_active: true },
         select: { upcoming_match_id: true }
       });
@@ -413,7 +412,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Find the assignment to get its ID
-    const existingAssignment = await tenantPrisma.upcoming_match_players.findFirst({
+    const existingAssignment = await prisma.upcoming_match_players.findFirst({
       where: whereClause,
       select: {
         upcoming_player_id: true  // Make sure to select the primary key
@@ -428,14 +427,14 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Delete the player assignment using the primary key
-    await tenantPrisma.upcoming_match_players.delete({
+    await prisma.upcoming_match_players.delete({
       where: {
         upcoming_player_id: existingAssignment.upcoming_player_id
       }
     });
     
     // Mark match as unbalanced when removing players
-    await tenantPrisma.upcoming_matches.update({
+    await prisma.upcoming_matches.update({
       where: { upcoming_match_id: targetMatchId },
       data: { is_balanced: false }
     });
@@ -457,7 +456,7 @@ export async function DELETE(request: NextRequest) {
 async function handleDeleteWithBody(body: any) {
   // Multi-tenant setup - ensure deletion is tenant-scoped
   const tenantId = getCurrentTenantId();
-  const tenantPrisma = await createTenantPrisma(tenantId);
+  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
   let { player_id, match_id, upcoming_match_id } = body;
   
   // Convert numeric parameters to integers
@@ -470,7 +469,7 @@ async function handleDeleteWithBody(body: any) {
   
   if (!targetMatchId) {
     // Try to find the active match
-    const activeMatch = await tenantPrisma.upcoming_matches.findFirst({
+    const activeMatch = await prisma.upcoming_matches.findFirst({
       where: { is_active: true },
       select: { upcoming_match_id: true }
     });
@@ -488,14 +487,14 @@ async function handleDeleteWithBody(body: any) {
   // If no player_id is specified, delete all players from the match
   if (!player_id) {
     // Delete all players from this match
-    await tenantPrisma.upcoming_match_players.deleteMany({
+    await prisma.upcoming_match_players.deleteMany({
       where: { 
         upcoming_match_id: targetMatchId
       }
     });
     
     // Mark match as unbalanced
-    await tenantPrisma.upcoming_matches.update({
+    await prisma.upcoming_matches.update({
       where: { upcoming_match_id: targetMatchId },
       data: { is_balanced: false }
     });
@@ -507,7 +506,7 @@ async function handleDeleteWithBody(body: any) {
   }
   
   // Otherwise, delete just this player
-  const existingAssignment = await tenantPrisma.upcoming_match_players.findFirst({
+  const existingAssignment = await prisma.upcoming_match_players.findFirst({
     where: {
       upcoming_match_id: targetMatchId,
       player_id: player_id
@@ -523,14 +522,14 @@ async function handleDeleteWithBody(body: any) {
   }
   
   // Delete the player assignment
-  await tenantPrisma.upcoming_match_players.delete({
+  await prisma.upcoming_match_players.delete({
     where: {
       upcoming_player_id: existingAssignment.upcoming_player_id
     }
   });
   
   // Mark match as unbalanced when removing players
-  await tenantPrisma.upcoming_matches.update({
+  await prisma.upcoming_matches.update({
     where: { upcoming_match_id: targetMatchId },
     data: { is_balanced: false }
   });

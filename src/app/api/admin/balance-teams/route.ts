@@ -4,14 +4,13 @@ import { balanceByRating } from './balanceByRating';
 import { balanceByPerformance } from './balanceByPerformance';
 import { splitSizesFromPool } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring team balancing is tenant-scoped
-import { createTenantPrisma } from '@/lib/tenantPrisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export async function POST(request: Request) {
   try {
     // Multi-tenant setup - ensure team balancing is tenant-scoped
     const tenantId = getCurrentTenantId();
-    const tenantPrisma = await createTenantPrisma(tenantId);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
     const { matchId, playerIds, method, state_version } = body;
@@ -22,8 +21,8 @@ export async function POST(request: Request) {
 
     // Get match info including actual team sizes
     // Multi-tenant: Query scoped to current tenant only
-    const match = await tenantPrisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: parseInt(matchId) },
+    const match = await prisma.upcoming_matches.findUnique({
+      where: { upcoming_match_id: parseInt(matchId), tenant_id: tenantId },
       select: { 
         actual_size_a: true, 
         actual_size_b: true, 
