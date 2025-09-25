@@ -75,13 +75,13 @@ const getFullSeasonStats = unstable_cache(
       totalGoals: player.goals,
       minutesPerGoal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
       lastFiveGames: recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games 
-        ? (recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as RecentGame[])
+        ? (recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as unknown as RecentGame[])
             .map(g => g.goals)
             .reverse()
             .join(',') 
         : '0,0,0,0,0',
       maxGoalsInGame: recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games 
-        ? Math.max(...(recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as RecentGame[] || [])
+        ? Math.max(...(recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as unknown as RecentGame[] || [])
             .map(g => g.goals)) 
         : 0
     })).filter(player => player.totalGoals > 0)
@@ -89,7 +89,7 @@ const getFullSeasonStats = unstable_cache(
 
     const formData = recentPerformance.map(perf => ({
       name: (perf as any).players?.name || '',
-      last_5_games: perf.last_5_games ? (perf.last_5_games as RecentGame[]).map(g => {
+      last_5_games: perf.last_5_games ? (perf.last_5_games as unknown as RecentGame[]).map(g => {
         if (g.heavy_win) return 'HW';
         if (g.heavy_loss) return 'HL';
         return g.result.toUpperCase().charAt(0);
