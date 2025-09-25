@@ -9,6 +9,7 @@ export interface StatsUpdateJobPayload {
   requestId: string; // For tracking and correlation
   userId?: string; // For admin-triggered jobs (audit trail)
   retryOf?: string; // If this is a retry of another job
+  tenantId: string; // Multi-tenant context
 }
 
 export interface StatsFunction {

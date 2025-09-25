@@ -1,75 +1,76 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*', // TODO: Restrict in production
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 const FUNCTION_NAME = 'call-update-personal-bests';
-const TARGET_RPC = 'update_aggregated_personal_bests';
+const TARGET_RPC = 'update_aggregated_personal_bests'; // Matches the SQL function
 
 console.log(`Initializing Supabase Edge Function: ${FUNCTION_NAME}`);
 
-async function callDatabaseRpc(client: SupabaseClient) {
+async function callDatabaseFunction(supabase: SupabaseClient, requestBody?: any): Promise<{ success: boolean; message: string; error?: string }> {
   console.log(`[${FUNCTION_NAME}] Calling RPC: ${TARGET_RPC}...`);
+  
+  // Extract tenant ID from request body or use default
+  const tenantId = requestBody?.tenantId || '00000000-0000-0000-0000-000000000001';
+  console.log(`[${FUNCTION_NAME}] Using tenant ID: ${tenantId}`);
+  
   const startTime = Date.now();
-  const { error } = await client.rpc(TARGET_RPC);
-  const duration = Date.now() - startTime;
+  try {
+    // Call RPC with tenant ID
+    const { error } = await supabase.rpc(TARGET_RPC, {
+      target_tenant_id: tenantId
+    });
 
-  if (error) {
-    console.error(`[${FUNCTION_NAME}] Error calling RPC ${TARGET_RPC}:`, error);
-    throw new Error(`Database function error: ${error.message}`);
+    if (error) {
+      console.error(`[${FUNCTION_NAME}] Error calling RPC ${TARGET_RPC}:`, error);
+      throw new Error(`Database function error: ${error.message}`);
+    }
+    const endTime = Date.now();
+    const message = `${TARGET_RPC} executed successfully in ${endTime - startTime}ms.`;
+    console.log(`[${FUNCTION_NAME}] ${message}`);
+    return { success: true, message };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[${FUNCTION_NAME}] CRITICAL ERROR calling ${TARGET_RPC}:`, error);
+    return { success: false, message: `Failed to execute ${TARGET_RPC}: ${errorMessage}`, error: errorMessage };
   }
-
-  console.log(`[${FUNCTION_NAME}] RPC ${TARGET_RPC} executed successfully in ${duration}ms.`);
-  return { success: true, message: `${TARGET_RPC} executed successfully in ${duration}ms.` };
 }
 
+// Standard Handler Boilerplate
 serve(async (req: Request) => {
   console.log(`[${FUNCTION_NAME}] Request received: ${req.method} ${req.url}`);
+  if (req.method === 'OPTIONS') { return new Response('ok', { headers: {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'} }); }
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS });
+  let supabase: SupabaseClient | null = null;
+  let requestBody: any = {};
+  
+  // Parse request body if present
+  try {
+    if (req.method === 'POST') {
+      requestBody = await req.json();
+    }
+  } catch (e) {
+    console.log(`[${FUNCTION_NAME}] No JSON body or failed to parse, using defaults`);
   }
-
+  
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      console.error(`[${FUNCTION_NAME}] Missing Supabase environment variables (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY).`);
-      return new Response(JSON.stringify({ success: false, error: 'Server configuration error.' }), {
-        status: 500,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Initialize Supabase client with service role key
-    const serviceRoleClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-    });
-    console.log(`[${FUNCTION_NAME}] Service role client initialized.`);
-
-    // With --no-verify-jwt, we proceed directly to calling the RPC
-    // Authorization is handled by the calling service (e.g., Next.js API route using service key)
-    // and by the fact that the function URL should not be publicly exposed if sensitive.
-    console.log(`[${FUNCTION_NAME}] Proceeding to call RPC (assuming --no-verify-jwt is used).`);
-    
-    const result = await callDatabaseRpc(serviceRoleClient);
-    return new Response(JSON.stringify(result), {
-      status: result.success ? 200 : 500,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-    });
-
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : 'Unknown server error';
-    console.error(`[${FUNCTION_NAME}] CRITICAL ERROR:`, e);
-    return new Response(JSON.stringify({ success: false, error: `Critical error: ${errorMessage}` }), {
-      status: 500,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-    });
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceKey) throw new Error('Missing Supabase env vars.');
+    supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  } catch (initError) {
+    console.error(`[${FUNCTION_NAME}] Client init error:`, initError);
+    return new Response(JSON.stringify({ success: false, error: `Client init error: ${initError.message}` }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
   }
+
+  let result: { success: boolean; message: string; error?: string };
+  try {
+    result = await callDatabaseFunction(supabase, requestBody);
+  } catch (handlerError) {
+    console.error(`[${FUNCTION_NAME}] Unhandled execution error:`, handlerError);
+    result = { success: false, message: `Unexpected handler error: ${handlerError.message}`, error: handlerError.message };
+  }
+
+  return new Response( JSON.stringify(result), { status: result.success ? 200 : 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
 });
 
-console.log(`Edge Function ${FUNCTION_NAME} listener started.`); 
+console.log(`Edge Function ${FUNCTION_NAME} listener started.`);

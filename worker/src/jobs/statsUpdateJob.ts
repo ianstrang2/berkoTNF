@@ -20,7 +20,8 @@ export async function processStatsUpdateJob(
     requestId: payload.requestId,
     userId: payload.userId || 'system',
     timestamp: payload.timestamp,
-    retryOf: payload.retryOf || 'N/A'
+    retryOf: payload.retryOf || 'N/A',
+    tenantId: payload.tenantId
   });
 
   const startTime = Date.now();
@@ -36,7 +37,7 @@ export async function processStatsUpdateJob(
 
     // Process all stats functions in parallel
     console.log(`[${new Date().toISOString()}] ⚡ Starting parallel processing of all stats functions...`);
-    const { results, allCacheTags, summary } = await processAllStatsFunctions(supabase);
+    const { results, allCacheTags, summary } = await processAllStatsFunctions(supabase, payload.tenantId);
     console.log(`[${new Date().toISOString()}] 📊 Stats processing completed:`, {
       totalFunctions: summary.total,
       successful: summary.successful,

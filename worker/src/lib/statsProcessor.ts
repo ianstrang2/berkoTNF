@@ -66,7 +66,8 @@ export const STATS_FUNCTIONS: StatsFunction[] = [
 
 export async function processStatsFunction(
   supabase: SupabaseClient,
-  statsFunction: StatsFunction
+  statsFunction: StatsFunction,
+  tenantId: string
 ): Promise<ProcessingResult> {
   const startTimestamp = new Date().toISOString();
   console.log(`[${startTimestamp}] [${statsFunction.name}] 🚀 AUDIT: Starting RPC call`);
@@ -90,7 +91,9 @@ export async function processStatsFunction(
     console.log(`[${new Date().toISOString()}] [${statsFunction.name}] ⏱️  ${timeoutInfo}`);
     
     const rpcStartTime = Date.now();
-    const { error } = await supabase.rpc(statsFunction.rpcName, {});
+    const { error } = await supabase.rpc(statsFunction.rpcName, {
+      target_tenant_id: tenantId
+    });
     const rpcEndTime = Date.now();
     const rpcDuration = rpcEndTime - rpcStartTime;
 
@@ -145,7 +148,10 @@ export async function processStatsFunction(
   }
 }
 
-export async function processAllStatsFunctions(supabase: SupabaseClient): Promise<{
+export async function processAllStatsFunctions(
+  supabase: SupabaseClient,
+  tenantId: string
+): Promise<{
   results: ProcessingResult[];
   allCacheTags: string[];
   summary: {
@@ -173,7 +179,7 @@ export async function processAllStatsFunctions(supabase: SupabaseClient): Promis
   const results = await Promise.all(
     STATS_FUNCTIONS.map((func, index) => {
       console.log(`[${new Date().toISOString()}] 📤 Starting function ${index + 1}/${STATS_FUNCTIONS.length}: ${func.name}`);
-      return processStatsFunction(supabase, func);
+      return processStatsFunction(supabase, func, tenantId);
     })
   );
   console.log(`[${new Date().toISOString()}] 🎯 All parallel function executions completed`);

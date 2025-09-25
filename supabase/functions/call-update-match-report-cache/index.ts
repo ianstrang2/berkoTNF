@@ -11,12 +11,19 @@ const TARGET_RPC = 'update_aggregated_match_report_cache'; // Specific RPC for t
 console.log(`Initializing Supabase Edge Function: ${FUNCTION_NAME}`);
 
 // Async function to call the specified database RPC
-async function callDatabaseFunction(supabase: SupabaseClient): Promise<{ success: boolean; message: string; error?: string }> {
+async function callDatabaseFunction(supabase: SupabaseClient, requestBody?: any): Promise<{ success: boolean; message: string; error?: string }> {
   console.log(`[${FUNCTION_NAME}] Calling RPC: ${TARGET_RPC}...`);
+  
+  // Extract tenant ID from request body or use default
+  const tenantId = requestBody?.tenantId || '00000000-0000-0000-0000-000000000001';
+  console.log(`[${FUNCTION_NAME}] Using tenant ID: ${tenantId}`);
+  
   const startTime = Date.now(); // Record start time for duration calculation
   try {
-    // Call the target RPC without parameters
-    const { error } = await supabase.rpc(TARGET_RPC);
+    // Call the target RPC with tenant ID
+    const { error } = await supabase.rpc(TARGET_RPC, {
+      target_tenant_id: tenantId
+    });
 
     // Check if the RPC call resulted in an error
     if (error) {
@@ -55,6 +62,17 @@ serve(async (req: Request) => {
   }
 
   let supabase: SupabaseClient | null = null;
+  let requestBody: any = {};
+  
+  // Parse request body if present
+  try {
+    if (req.method === 'POST') {
+      requestBody = await req.json();
+    }
+  } catch (e) {
+    console.log(`[${FUNCTION_NAME}] No JSON body or failed to parse, using defaults`);
+  }
+  
   try {
     // Retrieve Supabase URL and Service Role Key from environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -89,7 +107,7 @@ serve(async (req: Request) => {
   // Execute the main database function call logic
   let result: { success: boolean; message: string; error?: string };
   try {
-    result = await callDatabaseFunction(supabase);
+    result = await callDatabaseFunction(supabase, requestBody);
   } catch (handlerError) {
     // Handle any unhandled errors from the main logic
     const errorMessage = handlerError instanceof Error ? handlerError.message : 'Unknown handler error';

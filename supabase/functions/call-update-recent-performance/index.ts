@@ -1,18 +1,25 @@
-// supabase/functions/call-update-recent-performance/index.ts
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const FUNCTION_NAME = 'call-update-recent-performance';
-const TARGET_RPC = 'update_aggregated_recent_performance';
+const TARGET_RPC = 'update_aggregated_recent_performance'; // Matches the SQL function
 
 console.log(`Initializing Supabase Edge Function: ${FUNCTION_NAME}`);
 
-async function callDatabaseFunction(supabase: SupabaseClient): Promise<{ success: boolean; message: string; error?: string }> {
+async function callDatabaseFunction(supabase: SupabaseClient, requestBody?: any): Promise<{ success: boolean; message: string; error?: string }> {
   console.log(`[${FUNCTION_NAME}] Calling RPC: ${TARGET_RPC}...`);
+  
+  // Extract tenant ID from request body or use default
+  const tenantId = requestBody?.tenantId || '00000000-0000-0000-0000-000000000001';
+  console.log(`[${FUNCTION_NAME}] Using tenant ID: ${tenantId}`);
+  
   const startTime = Date.now();
   try {
-    // This specific SQL function doesn't take parameters
-    const { error } = await supabase.rpc(TARGET_RPC);
+    // Call RPC with tenant ID
+    const { error } = await supabase.rpc(TARGET_RPC, {
+      target_tenant_id: tenantId
+    });
+
     if (error) {
       console.error(`[${FUNCTION_NAME}] Error calling RPC ${TARGET_RPC}:`, error);
       throw new Error(`Database function error: ${error.message}`);
@@ -34,6 +41,17 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') { return new Response('ok', { headers: {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'} }); }
 
   let supabase: SupabaseClient | null = null;
+  let requestBody: any = {};
+  
+  // Parse request body if present
+  try {
+    if (req.method === 'POST') {
+      requestBody = await req.json();
+    }
+  } catch (e) {
+    console.log(`[${FUNCTION_NAME}] No JSON body or failed to parse, using defaults`);
+  }
+  
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -46,7 +64,7 @@ serve(async (req: Request) => {
 
   let result: { success: boolean; message: string; error?: string };
   try {
-    result = await callDatabaseFunction(supabase);
+    result = await callDatabaseFunction(supabase, requestBody);
   } catch (handlerError) {
     console.error(`[${FUNCTION_NAME}] Unhandled execution error:`, handlerError);
     result = { success: false, message: `Unexpected handler error: ${handlerError.message}`, error: handlerError.message };
@@ -55,4 +73,4 @@ serve(async (req: Request) => {
   return new Response( JSON.stringify(result), { status: result.success ? 200 : 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
 });
 
-console.log(`Edge Function ${FUNCTION_NAME} listener started.`); 
+console.log(`Edge Function ${FUNCTION_NAME} listener started.`);
