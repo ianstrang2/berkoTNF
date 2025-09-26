@@ -9,6 +9,7 @@ export async function POST(request: Request) {
     
     // Multi-tenant: Get tenant context for scoped operations
     const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
     // Get current slot assignments
     const slots = await prisma.team_slots.findMany({
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
         slot_number: 'asc'
       },
       include: {
-        players: true
+        player: true
       }
     });
 
@@ -36,13 +37,13 @@ export async function POST(request: Request) {
     const match = await prisma.$transaction(async (prisma) => {
       const newMatch = await prisma.matches.create({
         data: {
+          tenant_id: tenantId,
           match_date: new Date(match_date),
           team_a_score,
           team_b_score,
           season_id: null,
-          tenant_id: tenantId,
         },
-      });
+      } as any);
 
       // Create player_matches entries
       // Filter players to ensure player_id is not null for TypeScript

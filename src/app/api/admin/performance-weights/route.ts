@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring performance weights are tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET - Fetch current performance weights
 export async function GET() {
   try {
+    // Multi-tenant setup - ensure performance weights are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Fetch performance weights from app_config table
     const configs = await prisma.app_config.findMany({
       where: {
+        tenant_id: tenantId,
         config_key: {
           in: ['performance_power_weight', 'performance_goal_weight']
         }
@@ -49,6 +56,10 @@ export async function GET() {
 // PUT - Update performance weights
 export async function PUT(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure performance weights updates are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const body = await request.json();
     const { power_weight, goal_weight } = body;
 
@@ -84,6 +95,7 @@ export async function PUT(request: NextRequest) {
         updated_at: new Date()
       },
       create: {
+        tenant_id: tenantId,
         config_key: 'performance_power_weight',
         config_value: power_weight.toString(),
         config_description: 'Weight for power rating in performance balancing algorithm',
@@ -91,7 +103,7 @@ export async function PUT(request: NextRequest) {
         display_name: 'Performance Power Weight',
         display_group: 'Balance Algorithm'
       }
-    });
+    } as any);
 
     // Update or create goal_weight config
     await prisma.app_config.upsert({
@@ -103,6 +115,7 @@ export async function PUT(request: NextRequest) {
         updated_at: new Date()
       },
       create: {
+        tenant_id: tenantId,
         config_key: 'performance_goal_weight',
         config_value: goal_weight.toString(),
         config_description: 'Weight for goal threat in performance balancing algorithm',
@@ -110,7 +123,7 @@ export async function PUT(request: NextRequest) {
         display_name: 'Performance Goal Weight',
         display_group: 'Balance Algorithm'
       }
-    });
+    } as any);
 
     return NextResponse.json({
       success: true,
@@ -129,9 +142,14 @@ export async function PUT(request: NextRequest) {
 // DELETE - Reset to defaults
 export async function DELETE() {
   try {
+    // Multi-tenant setup - ensure reset is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Delete custom configs to fall back to defaults (0.5 each)
     await prisma.app_config.deleteMany({
       where: {
+        tenant_id: tenantId,
         config_key: {
           in: ['performance_power_weight', 'performance_goal_weight']
         }

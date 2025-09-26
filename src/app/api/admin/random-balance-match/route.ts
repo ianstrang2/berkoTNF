@@ -31,6 +31,8 @@ export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure random balancing is tenant-scoped
     const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Get matchId from URL query parameters
     const url = new URL(request.url);
     const matchId = url.searchParams.get('matchId');
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
     
     // Get match details including actual team sizes
     const match = await prisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: matchIdInt },
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId },
       select: {
         upcoming_match_id: true,
         team_size: true,
@@ -73,13 +75,14 @@ export async function POST(request: NextRequest) {
     const playersInPool = await prisma.upcoming_match_players.findMany({
       where: {
         upcoming_match_id: matchIdInt,
+        tenant_id: tenantId,
       },
       include: {
-        player: true
+        players: true
       },
     });
 
-    const players = playersInPool.map(p => p.player).filter(p => p !== null) as players[];
+    const players = playersInPool.map(p => p.players).filter(p => p !== null) as players[];
 
     // Use actual sizes as source of truth if available, otherwise calculate
     let sizeA, sizeB;
@@ -121,7 +124,7 @@ export async function POST(request: NextRequest) {
     
     // Delete existing slot assignments for this match
     await prisma.upcoming_match_players.deleteMany({
-      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId }
+      where: { upcoming_match_id: matchIdInt }
     });
     
     // Create new slot assignments - both teams use 1-N slot numbering
@@ -150,15 +153,15 @@ export async function POST(request: NextRequest) {
     
     // Mark match as balanced
     await prisma.upcoming_matches.update({
-      where: { upcoming_match_id: matchIdInt },
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId },
       data: { is_balanced: true }
     });
     
     // Get the complete data with player details for response
     const updatedAssignments = await prisma.upcoming_match_players.findMany({
-      where: { upcoming_match_id: matchIdInt },
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId },
       include: {
-        player: {
+        players: {
           select: {
             name: true,
             goalscoring: true,
@@ -178,13 +181,13 @@ export async function POST(request: NextRequest) {
       slot_number: assignment.slot_number,
       player_id: assignment.player_id.toString(),
       team: assignment.team,
-      name: assignment.player.name,
-      goalscoring: assignment.player.goalscoring,
-      defending: assignment.player.defender,
-      stamina_pace: assignment.player.stamina_pace,
-      control: assignment.player.control,
-      teamwork: assignment.player.teamwork,
-      resilience: assignment.player.resilience
+      name: assignment.players.name,
+      goalscoring: assignment.players.goalscoring,
+      defending: assignment.players.defender,
+      stamina_pace: assignment.players.stamina_pace,
+      control: assignment.players.control,
+      teamwork: assignment.players.teamwork,
+      resilience: assignment.players.resilience
     }));
     
     return NextResponse.json({

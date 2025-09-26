@@ -44,7 +44,7 @@ export async function POST(
     // First, get team assignments from database to properly validate
     // Multi-tenant: Query scoped to current tenant only
     const upcomingMatchForValidation = await prisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: matchId },
+      where: { upcoming_match_id: matchId, tenant_id: tenantId },
       include: { upcoming_match_players: true },
     });
     

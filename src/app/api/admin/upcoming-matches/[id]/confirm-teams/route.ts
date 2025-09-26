@@ -29,7 +29,7 @@ export async function PATCH(
 
     // Multi-tenant: Query scoped to current tenant only
     const match = await prisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: matchId },
+      where: { upcoming_match_id: matchId, tenant_id: tenantId },
     });
 
     if (!match) {
@@ -49,6 +49,7 @@ export async function PATCH(
     const teamPlayers = await prisma.upcoming_match_players.findMany({
       where: { 
         upcoming_match_id: matchId,
+        tenant_id: tenantId,
         team: { in: ['A', 'B'] }
       }
     });
@@ -101,6 +102,7 @@ export async function PATCH(
     const updatedMatch = await prisma.upcoming_matches.update({
       where: { 
           upcoming_match_id: matchId,
+          tenant_id: tenantId,
           state_version: state_version
       },
       data: {

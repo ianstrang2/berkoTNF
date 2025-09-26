@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       // Get player pool for the active match
       // Multi-tenant: Query scoped to current tenant only
       const activeMatch = await prisma.upcoming_matches.findFirst({
-        where: { is_active: true },
+        where: { is_active: true, tenant_id: tenantId },
         select: { upcoming_match_id: true }
       });
       
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Get player pool with player details
     // Multi-tenant: Query scoped to current tenant only
     const playerPool = await prisma.match_player_pool.findMany({
-      where: whereClause,
+      where: { ...whereClause, tenant_id: tenantId },
       include: {
         players: {
           select: {
@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
     // Multi-tenant: Create player assignment in the current tenant
     const newPlayer = await prisma.upcoming_match_players.create({
       data: {
+        tenant_id: tenantId,
         upcoming_match_id: parseInt(match_id),
         player_id: parseInt(player_id),
         team: 'Unassigned',

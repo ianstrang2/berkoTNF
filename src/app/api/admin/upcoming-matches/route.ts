@@ -39,9 +39,10 @@ export async function GET(request: NextRequest) {
       // Multi-tenant: Query scoped to current tenant only
       console.log('Fetching active match...');
       const activeMatch = await prisma.upcoming_matches.findFirst({
-        where: { is_active: true },
+        where: { is_active: true, tenant_id: tenantId },
         include: {
           upcoming_match_players: {
+            where: { tenant_id: tenantId },
             include: {
               players: true
             },
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
     // Multi-tenant: Only deactivate matches within the same tenant
     if (body.is_active === true) {
       await prisma.upcoming_matches.updateMany({
-        where: { is_active: true },
+        where: { is_active: true, tenant_id: tenantId },
         data: { is_active: false }
       });
     }
@@ -229,6 +230,7 @@ export async function POST(request: NextRequest) {
     // Multi-tenant: Create match in the current tenant
     const newMatch = await prisma.upcoming_matches.create({
       data: {
+        tenant_id: tenantId,
         match_date: new Date(match_date),
         team_size: team_size,
         is_balanced: false,
@@ -269,7 +271,7 @@ export async function PUT(request: NextRequest) {
     // Get current match to check current team size
     // Multi-tenant: Query scoped to current tenant only
     const currentMatch = await prisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: targetMatchId },
+      where: { upcoming_match_id: targetMatchId, tenant_id: tenantId },
       include: { 
         _count: { select: { upcoming_match_players: true } } 
       }
@@ -300,6 +302,7 @@ export async function PUT(request: NextRequest) {
     if (is_active === true && !currentMatch.is_active) {
       await prisma.upcoming_matches.updateMany({
         where: { 
+          tenant_id: tenantId,
           is_active: true,
           upcoming_match_id: { not: targetMatchId }
         },
@@ -310,7 +313,7 @@ export async function PUT(request: NextRequest) {
     // Update match with state_version increment
     // Multi-tenant: Update within the current tenant only
     const updatedMatch = await prisma.upcoming_matches.update({
-      where: { upcoming_match_id: targetMatchId },
+      where: { upcoming_match_id: targetMatchId, tenant_id: tenantId },
       data: {
         match_date: match_date ? new Date(match_date) : undefined,
         team_size: team_size,
@@ -349,7 +352,7 @@ export async function DELETE(request: NextRequest) {
     // Get the match to check its state
     // Multi-tenant: Query scoped to current tenant only
     const upcomingMatch = await prisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: upcomingMatchId }
+      where: { upcoming_match_id: upcomingMatchId, tenant_id: tenantId }
     });
 
     if (!upcomingMatch) {

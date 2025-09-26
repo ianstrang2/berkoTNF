@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure balance by past performance is tenant-scoped
     const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     // Use SUPABASE_SERVICE_ROLE_KEY consistent with personal-bests/route.ts
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const match = await prisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: matchIdInt },
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId },
       select: { team_size: true },
     });
 
@@ -106,15 +108,15 @@ export async function POST(request: NextRequest) {
 
     // Mark match as balanced
     await prisma.upcoming_matches.update({
-      where: { upcoming_match_id: matchIdInt },
+      where: { upcoming_match_id: matchIdInt, tenant_id: tenantId },
       data: { is_balanced: true },
     });
     
     // Fetch full slot details for the response
     const updatedAssignments = await prisma.upcoming_match_players.findMany({
-        where: { upcoming_match_id: matchIdInt },
+        where: { upcoming_match_id: matchIdInt, tenant_id: tenantId },
         include: {
-            player: {
+            players: {
                 select: {
                     name: true,
                     // Include other relevant player fields if needed in response
@@ -128,7 +130,7 @@ export async function POST(request: NextRequest) {
         slot_number: assignment.slot_number,
         player_id: assignment.player_id.toString(),
         team: assignment.team,
-        name: assignment.player.name,
+        name: assignment.players.name,
         // Add other player details if needed
     }));
 

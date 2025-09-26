@@ -42,7 +42,7 @@ export async function PATCH(
     // Multi-tenant: Query scoped to current tenant only
     console.log(`[LOCK_POOL] Looking for match ${matchId} in tenant ${tenantId}`);
     const match = await prisma.upcoming_matches.findUnique({
-      where: { upcoming_match_id: matchId },
+      where: { upcoming_match_id: matchId, tenant_id: tenantId },
     });
 
     if (!match) {
@@ -50,7 +50,7 @@ export async function PATCH(
       
       // Debug: Try to find the match across all tenants
       const debugMatch = await prisma.upcoming_matches.findUnique({
-        where: { upcoming_match_id: matchId }
+        where: { upcoming_match_id: matchId, tenant_id: tenantId }
       });
       
       if (debugMatch) {
@@ -145,6 +145,7 @@ export async function PATCH(
       const newMatchState = await tx.upcoming_matches.update({
         where: { 
           upcoming_match_id: matchId,
+          tenant_id: tenantId,
           state_version: state_version // Concurrency check
         } as any,
         data: {

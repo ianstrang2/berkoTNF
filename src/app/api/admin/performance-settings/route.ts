@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring performance settings are tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET - Fetch current performance algorithm settings
 export async function GET() {
   try {
+    // Multi-tenant setup - ensure performance settings are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const configs = await prisma.app_config.findMany({
       where: {
+        tenant_id: tenantId,
         config_key: {
           in: ['performance_half_life_days', 'performance_qualification_threshold']
         }
@@ -48,6 +55,10 @@ export async function GET() {
 // PUT - Update performance algorithm settings
 export async function PUT(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure performance settings updates are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const body = await request.json();
     const { half_life_days, qualification_threshold } = body;
 
@@ -83,6 +94,7 @@ export async function PUT(request: NextRequest) {
         updated_at: new Date()
       },
       create: {
+        tenant_id: tenantId,
         config_key: 'performance_half_life_days',
         config_value: half_life_days.toString(),
         config_description: 'EWMA half-life in days (365=1yr, 730=2yr, 1095=3yr)',
@@ -90,7 +102,7 @@ export async function PUT(request: NextRequest) {
         display_name: 'Performance Half-Life Days',
         display_group: 'Performance'
       }
-    });
+    } as any);
 
     // Update or create qualification_threshold config
     await prisma.app_config.upsert({
@@ -102,6 +114,7 @@ export async function PUT(request: NextRequest) {
         updated_at: new Date()
       },
       create: {
+        tenant_id: tenantId,
         config_key: 'performance_qualification_threshold',
         config_value: qualification_threshold.toString(),
         config_description: 'Minimum weighted games for percentile display',
@@ -109,7 +122,7 @@ export async function PUT(request: NextRequest) {
         display_name: 'Performance Qualification Threshold',
         display_group: 'Performance'
       }
-    });
+    } as any);
 
     return NextResponse.json({
       success: true,
@@ -128,9 +141,14 @@ export async function PUT(request: NextRequest) {
 // DELETE - Reset to defaults
 export async function DELETE() {
   try {
+    // Multi-tenant setup - ensure reset is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Delete custom configs to fall back to defaults
     await prisma.app_config.deleteMany({
       where: {
+        tenant_id: tenantId,
         config_key: {
           in: ['performance_half_life_days', 'performance_qualification_threshold']
         }

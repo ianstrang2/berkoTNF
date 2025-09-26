@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring player swaps are tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // POST: Swap two players atomically in a single transaction
 export async function POST(request: NextRequest) {
   try {
+    // Multi-tenant setup - ensure player swaps are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const body = await request.json();
     const { upcoming_match_id, playerA, playerB, state_version } = body;
 
@@ -54,6 +60,7 @@ export async function POST(request: NextRequest) {
         FROM upcoming_match_players
         WHERE upcoming_match_id = ${upcoming_match_id}
           AND player_id IN (${playerA.player_id}, ${playerB.player_id})
+          AND tenant_id = ${tenantId}::uuid
         FOR UPDATE
       `;
 
@@ -69,12 +76,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Perform the atomic swap
-      // With DEFERRABLE constraint, we can create temporary conflicts
+      // Since constraint is not deferrable, temporarily move one player to avoid conflicts
       await tx.upcoming_match_players.update({
         where: { upcoming_player_id: playerARecord.upcoming_player_id },
         data: {
-          team: playerA.team,
-          slot_number: playerA.team === 'Unassigned' ? null : playerA.slot_number,
+          team: 'Unassigned',
+          slot_number: null,
         },
       });
 
@@ -86,9 +93,17 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      await tx.upcoming_match_players.update({
+        where: { upcoming_player_id: playerARecord.upcoming_player_id },
+        data: {
+          team: playerA.team,
+          slot_number: playerA.team === 'Unassigned' ? null : playerA.slot_number,
+        },
+      });
+
       // Mark match as unbalanced
       await tx.upcoming_matches.update({
-        where: { upcoming_match_id: upcoming_match_id },
+        where: { upcoming_match_id: upcoming_match_id, tenant_id: tenantId },
         data: { is_balanced: false }
       });
 
@@ -97,6 +112,7 @@ export async function POST(request: NextRequest) {
         const updateResult = await tx.upcoming_matches.updateMany({
           where: { 
             upcoming_match_id: upcoming_match_id,
+            tenant_id: tenantId,
             state_version: state_version
           },
           data: { state_version: { increment: 1 } }

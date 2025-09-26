@@ -178,6 +178,8 @@ model aggregated_personal_bests {
   tenant_id       String   @db.Uuid
   tenants         tenants  @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_aggregated_personal_bests_tenant")
   matches         matches  @relation(fields: [match_id], references: [match_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match")
+
+  @@unique([match_id, tenant_id], map: "aggregated_personal_bests_match_tenant_unique")
 }
 
 model aggregated_player_power_ratings {
@@ -366,11 +368,13 @@ model background_job_status {
 }
 
 model cache_metadata {
-  cache_key        String   @id @db.VarChar(100)
+  cache_key        String   @db.VarChar(100)
   last_invalidated DateTime @default(now()) @db.Timestamptz(6)
   dependency_type  String   @db.VarChar(50)
   tenant_id        String   @db.Uuid
   tenants          tenants  @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cache_metadata_tenant")
+
+  @@id([cache_key, tenant_id])
 }
 
 model debug_logs {

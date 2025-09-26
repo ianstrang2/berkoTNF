@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring team template operations are tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET: Fetch team size templates
 export async function GET(request: Request) {
   try {
+    // Multi-tenant setup - ensure template operations are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const templateId = searchParams.get('templateId');
@@ -15,7 +21,8 @@ export async function GET(request: Request) {
       // Get specific template
       const template = await prisma.team_size_templates.findUnique({
         where: { 
-          template_id: parseInt(templateId) 
+          template_id: parseInt(templateId),
+          tenant_id: tenantId
         }
       });
 
@@ -31,7 +38,8 @@ export async function GET(request: Request) {
       // Get templates for specific team size
       templates = await prisma.team_size_templates.findMany({
         where: { 
-          team_size: parseInt(teamSize) 
+          team_size: parseInt(teamSize),
+          tenant_id: tenantId
         },
         orderBy: { 
           created_at: 'asc' 
@@ -60,6 +68,7 @@ export async function GET(request: Request) {
     } else {
       // Get all templates
       templates = await prisma.team_size_templates.findMany({
+        where: { tenant_id: tenantId },
         orderBy: [
           { team_size: 'asc' },
           { name: 'asc' }
@@ -98,6 +107,10 @@ export async function GET(request: Request) {
 // POST: Create a new team template
 export async function POST(request: Request) {
   try {
+    // Multi-tenant setup - ensure template creation is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const body = await request.json();
     
     // Validate required fields
@@ -117,6 +130,7 @@ export async function POST(request: Request) {
     // Create new template
     const newTemplate = await prisma.team_size_templates.create({
       data: {
+        tenant_id: tenantId,
         team_size: body.team_size,
         name: body.name,
         defenders: body.defenders,
@@ -138,6 +152,10 @@ export async function POST(request: Request) {
 // PUT: Update an existing team template
 export async function PUT(request: Request) {
   try {
+    // Multi-tenant setup - ensure template updates are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const body = await request.json();
     
     // Validate required fields
@@ -151,7 +169,7 @@ export async function PUT(request: Request) {
         body.attackers !== undefined) {
       
       const template = await prisma.team_size_templates.findUnique({
-        where: { template_id: body.template_id }
+        where: { template_id: body.template_id, tenant_id: tenantId }
       });
 
       if (!template) {
@@ -178,7 +196,7 @@ export async function PUT(request: Request) {
 
     // Update template
     const updatedTemplate = await prisma.team_size_templates.update({
-      where: { template_id: body.template_id },
+      where: { template_id: body.template_id, tenant_id: tenantId },
       data: updateData
     });
 
@@ -195,6 +213,10 @@ export async function PUT(request: Request) {
 // DELETE: Delete a team template
 export async function DELETE(request: Request) {
   try {
+    // Multi-tenant setup - ensure template deletion is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const { searchParams } = new URL(request.url);
     const templateId = searchParams.get('templateId');
     
@@ -204,7 +226,7 @@ export async function DELETE(request: Request) {
 
     // Check if template exists
     const template = await prisma.team_size_templates.findUnique({
-      where: { template_id: parseInt(templateId) }
+      where: { template_id: parseInt(templateId), tenant_id: tenantId }
     });
 
     if (!template) {
@@ -213,7 +235,7 @@ export async function DELETE(request: Request) {
 
     // Delete template
     await prisma.team_size_templates.delete({
-      where: { template_id: parseInt(templateId) }
+      where: { template_id: parseInt(templateId), tenant_id: tenantId }
     });
 
     return NextResponse.json({
