@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring team template reset is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export async function POST(request: Request) {
   try {
+    // Multi-tenant setup - ensure team template reset is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Get templateId from the query parameters
     const { searchParams } = new URL(request.url);
     const templateId = searchParams.get('templateId');
@@ -14,7 +20,8 @@ export async function POST(request: Request) {
     // Find the template to get its team_size
     const template = await prisma.team_size_templates.findUnique({
       where: { 
-        template_id: parseInt(templateId) 
+        template_id: parseInt(templateId),
+        tenant_id: tenantId
       }
     });
     
@@ -38,8 +45,9 @@ export async function POST(request: Request) {
     
     // Update the template with the default values
     const updatedTemplate = await prisma.team_size_templates.update({
-      where: { 
-        template_id: parseInt(templateId) 
+      where: {
+        template_id: parseInt(templateId),
+        tenant_id: tenantId
       },
       data: {
         defenders: defaultTemplate.defenders_per_team,

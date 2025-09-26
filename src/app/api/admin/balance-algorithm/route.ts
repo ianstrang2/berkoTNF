@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring balance algorithm is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 // GET handler - retrieve balance algorithm weights
 export async function GET() {
   try {
+    // Multi-tenant setup - ensure balance algorithm is tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Fetch balance weights from database
     const weights = await prisma.team_balance_weights.findMany({
+      where: { tenant_id: tenantId },
       orderBy: {
         position_group: 'asc'
       }
@@ -32,6 +39,10 @@ export async function GET() {
 // PUT handler - update balance algorithm weights
 export async function PUT(request: Request) {
   try {
+    // Multi-tenant setup - ensure balance algorithm updates are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const body = await request.json();
     const { weights } = body;
     
@@ -45,7 +56,7 @@ export async function PUT(request: Request) {
     // For each weight, update in database
     for (const weight of weights) {
       await prisma.team_balance_weights.update({
-        where: { weight_id: weight.attribute_id },
+        where: { weight_id: weight.attribute_id, tenant_id: tenantId },
         data: { weight: weight.weight }
       });
     }

@@ -371,6 +371,10 @@ const getMatchReportData = unstable_cache(
     // All of the original GET logic will be moved here
     console.log('------ START: Match Report API (cached) ------');
     
+    // Multi-tenant setup - ensure match reports are tenant-scoped
+    const tenantId = getCurrentTenantId();
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Emergency fallback data
     const emergencyResponse = {
         matchInfo: {

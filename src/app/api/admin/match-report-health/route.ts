@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// Multi-tenant imports - ensuring match report health is tenant-scoped
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export async function GET(request: NextRequest) {
   // Simple auth check for admin access
@@ -9,6 +11,10 @@ export async function GET(request: NextRequest) {
   if (!isAdminRequest) {
     return NextResponse.json({ error: 'Admin access only' }, { status: 401 });
   }
+
+  // Multi-tenant setup - ensure match report health is tenant-scoped
+  const tenantId = getCurrentTenantId();
+  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
   try {
     const healthData: any = {
@@ -97,7 +103,12 @@ export async function GET(request: NextRequest) {
     // Check cache metadata
     try {
       const cacheMetadata = await prisma.cache_metadata.findUnique({
-        where: { cache_key: 'match_report' }
+        where: { 
+          cache_key_tenant_id: {
+            cache_key: 'match_report',
+            tenant_id: tenantId
+          }
+        }
       });
 
       if (cacheMetadata) {

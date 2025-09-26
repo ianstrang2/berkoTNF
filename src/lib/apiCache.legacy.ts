@@ -57,7 +57,7 @@ class ApiCache {
       // Check database for last invalidation timestamp
       const metadata = await prisma.cache_metadata.findUnique({
         where: { cache_key: cacheKey }
-      });
+      } as any);
       
       if (!metadata) return false;
       
@@ -142,7 +142,7 @@ class ApiCache {
       await prisma.cache_metadata.update({
         where: { cache_key: cacheKey },
         data: { last_invalidated: new Date() }
-      });
+      } as any);
       
       // Also clear from in-memory cache
       this.clear(cacheKey);
