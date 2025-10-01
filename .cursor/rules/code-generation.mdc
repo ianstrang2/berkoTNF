@@ -126,11 +126,33 @@ To ensure consistency and type safety, all player-related data across the applic
 ---
 # General Code Generation Rules
 
-## SQL Query Handling
-- **NEVER** create standalone .sql files in the project.
-- **NEVER** use tools to execute exploratory SQL queries.
-- **ALWAYS** provide SQL code in markdown blocks for manual user execution.
-- Only use database tools for essential, pre-approved operations like migrations.
+## SQL File Handling
+
+### Schema Migrations
+- **NEVER** create migration .sql files
+- **ALWAYS** provide migration SQL in markdown blocks for manual execution in Supabase SQL editor
+- **NEVER** use tools to execute exploratory SQL queries
+
+### Business Logic SQL Functions
+- **DO** create SQL function files in `/sql/` when implementing features that require complex database logic
+- Use service prefix naming: `rsvp_*.sql`, `stats_*.sql`, etc.
+- These are deployed via `deploy_all.ps1` script
+- Examples: aggregation functions, state machines, complex filtering
+
+### When to Use SQL Functions vs Application Code
+
+**Use SQL functions in `/sql/` for:**
+- Multi-table aggregations
+- Performance-critical bulk operations  
+- Complex business logic better expressed in SQL
+- Logic that matches existing patterns (see `/sql/update_aggregated_*.sql`)
+
+**Use application code for:**
+- Simple CRUD operations
+- Token generation/validation
+- Rate limiting
+- Session management
+- API orchestration
 
 ## File Creation
 - Only create new files when explicitly requested by the user.
@@ -141,7 +163,7 @@ To ensure consistency and type safety, all player-related data across the applic
 - Provide all SQL queries as copyable code blocks.
 - The user will execute the query and provide the results.
 - Use the provided results for subsequent analysis and recommendations.
-- **DO NOT** attempt to run database migrations (e.g., `prisma migrate`). The user will handle this. # BerkoTNF Project Rules
+- **DO NOT** attempt to run database migrations (e.g., `prisma migrate`). The user will handle this.
 
 ## File Organization
 - Organize code by feature, not by type

@@ -1,87 +1,111 @@
-# BerkoTNF Authentication & Authorization Implementation Specification
+# BerkoTNF Authentication Implementation Specification
 
-Version 1.0.0 • Implementation-Ready Design Document
+Version 4.0.0 • Unified Supabase Auth
 
-**SUPABASE AUTH INTEGRATION FOR MULTI-TENANT CAPO PLATFORM**
+**SUPABASE AUTH FOR ALL USERS (ADMINS + PLAYERS)**
 
-This specification provides a comprehensive, execution-ready plan for implementing robust authentication and authorization across the entire BerkoTNF application, integrating cleanly with the existing RSVP and multi-tenancy architecture.
-
----
-
-## A. Executive Summary
+## Executive Summary
 
 ### Why Authentication Now
 
-The BerkoTNF platform requires a complete authentication overhaul to support:
-
-- **Multi-Tenant Architecture**: Secure tenant isolation with role-based access
-- **RSVP System Integration**: Player authentication for seamless booking flows  
-- **Superadmin Platform Management**: Cross-tenant administration capabilities
-- **Public/Marketing Site**: SEO-friendly public content with private app areas
-- **Mobile App Support**: JWT-based authentication for native mobile experience
-
-### Current Authentication State
-
-**Existing System Analysis**:
-- **Basic Admin Toggle**: Simple password (`'poo'`) stored in localStorage
-- **No Real Authentication**: Admin routes unprotected, client-side only
-- **Single Tenant**: No organizational boundaries or user management
-- **No Player Authentication**: Players cannot access personalized content
+The BerkoTNF platform requires authentication to support:
+- **Multi-Tenant Architecture**: Secure tenant isolation with role-based access control
+- **Admin Management**: Club administrators manage matches, players, and settings
+- **Mobile App Access**: Players and admins access features through native Capacitor app
+- **App-Only Architecture**: Moving from public web pages to authenticated app experience
 
 ### Target Architecture
 
-**Four-Tier Access Model**:
-1. **Public/Anonymous**: Marketing pages, SEO-friendly stats, **full RSVP functionality with tokens**
-2. **Players (Authenticated)**: Enhanced personal profiles, RSVP with history, cross-match analytics (magic link auth)
-3. **Admins**: Full club management within tenant scope (email + password + optional 2FA)
-4. **Superadmin**: Platform-level tenant management (email + password + mandatory 2FA)
+**Single Authentication System**: Supabase Auth for all users
 
-**Critical RSVP Access Policy**:
-- **Token-based RSVP remains completely public** - no authentication required
-- **Enhanced experience for authenticated players** - auto-populated data, history tracking
-- **Profile claiming** - link existing anonymous RSVP history to new accounts
-- **Zero disruption** - current RSVP users unaffected by authentication system
+**Three Authentication Flows**:
+1. **Admin Web Signup**: Email + password for web dashboard access
+2. **Player Mobile Signup**: Phone + SMS OTP for app access
+3. **Admin Mobile Access**: Email + password (same credentials as web) with optional role switching
+
+**Access Levels**:
+- **Players**: View stats, RSVP to matches, track performance (mobile app only)
+- **Admins**: Full club management (web dashboard + mobile app with role switching)
+- **Superadmin**: Platform-level tenant management (multi-tenant oversight)
+
+### Key Design Principles
+
+1. **One Auth System**: All users authenticate via Supabase Auth (no custom auth logic)
+2. **Multiple Providers**: Email provider (admins) + Phone provider (players)
+3. **Unified Sessions**: Same JWT token works across web and mobile
+4. **Simple Role Switching**: Admins with linked player profiles can switch between views
+5. **Platform-Native**: Leverage Supabase's built-in session management, token refresh, and security
 
 ### Implementation Phases
 
-**Phase 1**: Superadmin + Admin authentication, tenant-scoped admin routes
-**Phase 2**: Player authentication with RSVP integration  
-**Phase 3**: Public SEO pages and marketing site integration
-**Phase 4**: Mobile app JWT tokens and deep-link authentication
+**Phase 1**: Core authentication flows (admin web, player mobile) ✅ **CURRENT SCOPE**
+**Phase 2**: Role switching and profile linking 🔄 **NEXT**
+**Phase 3**: Advanced security (2FA, enhanced audit logging) 📋 **FUTURE**
 
 ---
 
 ## B. Authentication Technology Stack
 
-### Supabase Auth Integration
+### Supabase Auth Integration (Unified System)
 
-**Why Supabase Auth**:
+**Why Supabase Auth for Everyone**:
+- **Multi-provider support**: Email (admins) + Phone/SMS (players) in one system
 - **Multi-tenant ready**: Row Level Security (RLS) with tenant isolation
-- **Multiple auth methods**: Email, phone, magic links, social providers
-- **JWT tokens**: Automatic token refresh and session management
-- **2FA support**: Built-in TOTP and SMS-based two-factor authentication
+- **JWT tokens**: Standard OAuth2 flows with automatic refresh
+- **Built-in security**: Password hashing, token management, session handling
+- **Mobile SDK support**: Native Capacitor integration for mobile app
 - **Existing infrastructure**: Already using Supabase for database
 
-**Auth Methods by Role**:
-- **Players**: Magic link (email) + optional phone verification
-- **Admins**: Email + password + optional TOTP 2FA
-- **Superadmin**: Email + password + mandatory TOTP 2FA
+### Authentication Providers
 
-### JWT Token Structure
+**Email Provider** (Admin web signup):
+```typescript
+// Admin accepts invitation and creates account
+const { data, error } = await supabase.auth.signUp({
+  email: 'admin@club.com',
+  password: 'secure_password',
+  options: {
+    data: {
+      display_name: 'John Smith'
+    }
+  }
+});
 
-**Token Payload Design**:
+// Creates record in auth.users with email
+// Admin profile created explicitly in API route after invitation validation
+```
+
+**Phone Provider** (Player mobile signup):
+```typescript
+// Player downloads app, signs up with phone
+const { data, error } = await supabase.auth.signInWithOtp({
+  phone: '+447123456789',
+  options: {
+    channel: 'sms'
+  }
+});
+
+// Sends SMS with 6-digit code
+// On verification, creates record in auth.users with phone
+// Player links to existing profile via /api/auth/player/claim-profile
+```
+
+### JWT Token Structure (Simplified)
+
+**Standard Supabase Token Payload**:
 ```typescript
 interface AuthToken {
   // Supabase standard fields
-  sub: string;           // user_id (UUID)
-  email: string;
+  sub: string;           // user_id (UUID from auth.users.id)
+  email?: string;        // Present for email-based signup
+  phone?: string;        // Present for phone-based signup
   role: string;          // 'authenticated'
   
-  // Custom claims (via Supabase Edge Function)
+  // Custom app_metadata (set via API routes during signup)
   app_metadata: {
-    tenant_id?: string;  // Null for superadmin
-    user_role: 'player' | 'admin' | 'superadmin';
-    player_id?: number;  // For players only
+    tenant_id?: string;         // Admin's tenant (null for superadmin)
+    user_role?: 'admin' | 'superadmin';  // Only set if admin_profile exists
+    player_id?: number;         // If linked to a player record
   };
   
   // Standard JWT fields
@@ -92,71 +116,212 @@ interface AuthToken {
 }
 ```
 
-**Token Validation**:
-- **Server-side**: Supabase JWT validation middleware for authenticated routes
-- **RLS Integration**: Automatic `auth.uid()` and custom claims in policies for authenticated users
-- **RSVP Token Access**: Separate token validation for public RSVP routes (not JWT-based)
-- **Refresh Strategy**: Automatic refresh via Supabase client libraries
-- **Dual System**: JWT for authenticated users, RSVP tokens for public access
+**Token Management**:
+- **Validation**: Supabase handles JWT validation automatically
+- **Refresh**: Automatic token refresh via Supabase client (no custom logic needed)
+- **RLS Integration**: `auth.uid()` available in all database policies
+- **Session Sync**: Supabase handles multi-tab/multi-device session synchronization
+
+### Authentication Flows by User Type
+
+#### 1. Admin (Web Dashboard)
+**Platform**: Web browser (desktop/tablet)  
+**Method**: Email + password  
+**Flow**: Standard Supabase email signup → admin_profiles record created → redirect to /admin
+
+#### 2. Player (Mobile App)
+**Platform**: iOS/Android via Capacitor  
+**Method**: Phone + SMS OTP  
+**Flow**: Supabase phone signup → verify OTP → link or create player record → redirect to /dashboard
+
+#### 3. Admin-Player (Mobile App with Role Switching)
+**Platform**: iOS/Android via Capacitor  
+**Method**: Email + password (same credentials as web)  
+**Flow**: Supabase email login → detect admin_profile → check for linked player_id → show role switcher if linked
+
+**Example: Admin opens mobile app**
+```typescript
+// Admin enters email/password on mobile (same as web)
+const { data: session } = await supabase.auth.signInWithPassword({
+  email: 'admin@club.com',
+  password: 'same_password_as_web'
+});
+
+// Backend checks: is this user an admin with a linked player profile?
+const adminProfile = await prisma.admin_profiles.findUnique({
+  where: { user_id: session.user.id },
+  include: { player: true }
+});
+
+// Response includes role-switching capability
+{
+  "isAdmin": true,
+  "hasPlayerProfile": adminProfile.player_id !== null,
+  "canSwitchRoles": adminProfile.player_id !== null,
+  "defaultRole": "admin" // Can switch to "player" view
+}
+```
+
+### Session Management
+
+**Unified Sessions Across Platforms**:
+- Same JWT token works on web and mobile
+- Supabase client handles automatic refresh (no custom logic)
+- Sessions persist across app restarts
+- No custom BroadcastChannel needed (Supabase syncs sessions automatically)
+
+**Session Duration**:
+- Access token: 1 hour (auto-refreshed)
+- Refresh token: 30 days
+- Mobile app: Biometric re-authentication for sensitive operations (future)
+
+### Provider Configuration
+
+**Supabase Auth Settings Required**:
+```typescript
+// In Supabase Dashboard → Authentication → Providers
+
+// Email Provider
+{
+  enabled: true,
+  confirmEmail: true,  // Require email verification for admins
+  securePasswordChange: true
+}
+
+// Phone Provider  
+{
+  enabled: true,
+  provider: 'twilio',  // Or messagebird
+  smsOtpLength: 6,
+  smsOtpExpiry: 300    // 5 minutes
+}
+```
+
+### Multi-Platform Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Supabase Auth                          │
+│  ┌────────────────┐              ┌────────────────┐         │
+│  │ Email Provider │              │ Phone Provider │         │
+│  │ (Admins)       │              │ (Players)      │         │
+│  └────────────────┘              └────────────────┘         │
+│           │                               │                 │
+│           └───────────┬───────────────────┘                 │
+│                       │                                     │
+│                 ┌─────▼──────┐                             │
+│                 │ auth.users │                             │
+│                 │  (Unified) │                             │
+│                 └─────┬──────┘                             │
+└───────────────────────┼─────────────────────────────────────┘
+                        │
+         ┌──────────────┴──────────────┐
+         │                             │
+   ┌─────▼──────┐              ┌──────▼──────┐
+   │   admin_   │              │   players   │
+   │  profiles  │──────────────│             │
+   │            │  player_id   │ auth_user_id│
+   └────────────┘   (FK)       └─────────────┘
+   
+Admin Web:     Email/password → admin_profiles created
+Player Mobile: Phone/OTP → players.auth_user_id linked
+Admin Mobile:  Email/password → role switcher if player_id linked
+```
+
+### No Over-Engineering
+
+**What We're NOT Building**:
+- ❌ Custom SMS verification system (use Supabase phone provider)
+- ❌ Custom JWT refresh logic (Supabase handles this)
+- ❌ BroadcastChannel for session sync (Supabase does this natively)
+- ❌ Claims versioning system (unnecessary for MVP)
+- ❌ Edge Functions for token management (Supabase built-in is sufficient)
+
+**What We ARE Building**:
+- ✅ API routes for secure profile creation and linking (server-side validation)
+- ✅ Middleware for route protection (admin vs player routes)
+- ✅ Role switching UI for admin-players
+- ✅ Invitation system for new admins
+- ✅ Profile claiming for existing players
 
 ---
 
 ## C. Database Schema Changes
 
-### Supabase Auth Integration
+### ✅ Multi-Tenancy Foundation Already Complete
 
-**Existing Supabase Tables**:
-- `auth.users`: Managed by Supabase Auth
-- `auth.sessions`: Managed by Supabase Auth
-- `auth.refresh_tokens`: Managed by Supabase Auth
+**Existing Multi-Tenant Infrastructure**:
+- ✅ `tenants` table with UUID primary keys and metadata
+- ✅ All 33+ tables have `tenant_id` fields with proper foreign key constraints
+- ✅ Tenant-scoped unique constraints (e.g., `unique_player_name_per_tenant`)
+- ✅ RLS policies active on all tables for database-level security
+- ✅ Optimized indexes with `tenant_id` leading for performance
 
-### Custom User Management Tables
+### Supabase Auth Integration (Unified for All Users)
 
-#### User Profiles Table
+**Existing Supabase Tables** (Managed by Supabase):
+- `auth.users`: All authenticated users (admins via email, players via phone)
+- `auth.sessions`: Active sessions for all users
+- `auth.refresh_tokens`: JWT token management
+
+### Schema Changes Required
+
+#### 1. Admin Profiles Table (Simplified)
 ```sql
--- Extends Supabase auth.users with app-specific data
-CREATE TABLE user_profiles (
+-- Extends Supabase auth.users with admin-specific data
+CREATE TABLE admin_profiles (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     tenant_id UUID REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-    user_role TEXT NOT NULL CHECK (user_role IN ('player', 'admin', 'superadmin')),
-    player_id INT REFERENCES players(player_id) ON DELETE SET NULL,
+    user_role TEXT NOT NULL CHECK (user_role IN ('admin', 'superadmin')),
     
     -- Profile information
-    display_name TEXT,
-    phone TEXT, -- E.164 format for RSVP integration
+    display_name TEXT NOT NULL,
     
-    -- Preferences
-    email_notifications BOOLEAN DEFAULT true,
-    push_notifications BOOLEAN DEFAULT true,
+    -- Optional link to player profile (enables role switching on mobile)
+    player_id INT REFERENCES players(player_id) ON DELETE SET NULL,
     
     -- Metadata
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
     last_login_at TIMESTAMPTZ,
     
-    -- Constraints
-    UNIQUE(tenant_id, phone) WHERE phone IS NOT NULL,
-    
     -- Role-specific constraints
     CONSTRAINT superadmin_no_tenant CHECK (
         (user_role = 'superadmin' AND tenant_id IS NULL) OR 
-        (user_role != 'superadmin' AND tenant_id IS NOT NULL)
+        (user_role = 'admin' AND tenant_id IS NOT NULL)
     ),
-    CONSTRAINT player_has_player_id CHECK (
-        (user_role = 'player' AND player_id IS NOT NULL) OR 
-        (user_role != 'player')
+    
+    -- Ensure player belongs to same tenant (if linked)
+    CONSTRAINT admin_player_same_tenant CHECK (
+        player_id IS NULL OR 
+        (SELECT tenant_id FROM players WHERE player_id = admin_profiles.player_id) = admin_profiles.tenant_id
     )
 );
 
 -- Indexes
-CREATE INDEX idx_user_profiles_tenant_role ON user_profiles(tenant_id, user_role);
-CREATE INDEX idx_user_profiles_player ON user_profiles(player_id) WHERE player_id IS NOT NULL;
-CREATE INDEX idx_user_profiles_phone ON user_profiles(tenant_id, phone) WHERE phone IS NOT NULL;
+CREATE INDEX idx_admin_profiles_tenant_role ON admin_profiles(tenant_id, user_role);
+CREATE INDEX idx_admin_profiles_player_id ON admin_profiles(player_id) WHERE player_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_admin_profiles_unique_player ON admin_profiles(tenant_id, player_id) WHERE player_id IS NOT NULL;
 ```
 
-#### Admin Invitations Table
+#### 2. Players Table Update (Link to Supabase Auth)
 ```sql
--- Manage admin user invitations
+-- Add auth user link to existing players table
+ALTER TABLE players
+  ADD COLUMN auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- Index for quick lookup when player logs in
+CREATE UNIQUE INDEX idx_players_auth_user ON players(auth_user_id) WHERE auth_user_id IS NOT NULL;
+
+-- Index for phone-based lookup during profile claiming
+CREATE INDEX idx_players_phone ON players(tenant_id, phone) WHERE phone IS NOT NULL;
+```
+
+**Migration Note**: Existing players without `auth_user_id` can claim their profile by verifying their phone number in the mobile app.
+
+#### 3. Admin Invitations Table (Unchanged - Already Secure)
+```sql
+-- Manage admin user invitations with bcrypt hashed tokens
 CREATE TABLE admin_invitations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
@@ -164,8 +329,11 @@ CREATE TABLE admin_invitations (
     invited_by UUID NOT NULL REFERENCES auth.users(id),
     invited_role TEXT NOT NULL CHECK (invited_role IN ('admin', 'superadmin')),
     
-    -- Invitation token
-    invitation_token TEXT NOT NULL UNIQUE,
+    -- Optional: link invitation to existing player
+    player_id INT REFERENCES players(player_id) ON DELETE SET NULL,
+    
+    -- Hashed invitation token (NEVER store raw tokens)
+    invitation_token_hash TEXT NOT NULL UNIQUE, -- bcrypt hash of actual token
     expires_at TIMESTAMPTZ NOT NULL,
     
     -- Status tracking
@@ -180,13 +348,13 @@ CREATE TABLE admin_invitations (
 );
 
 -- Indexes
-CREATE INDEX idx_admin_invitations_token ON admin_invitations(invitation_token);
+CREATE INDEX idx_admin_invitations_token_hash ON admin_invitations(invitation_token_hash);
 CREATE INDEX idx_admin_invitations_tenant_status ON admin_invitations(tenant_id, status);
 ```
 
-#### Session Activity Log
+#### 4. Session Activity Log (Simplified)
 ```sql
--- Track authentication events for security auditing
+-- Track authentication events for essential security monitoring
 CREATE TABLE auth_activity_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -195,45 +363,33 @@ CREATE TABLE auth_activity_log (
     -- Activity details
     activity_type TEXT NOT NULL CHECK (activity_type IN (
         'login', 'logout', 'password_reset', 'email_change', 
-        '2fa_enabled', '2fa_disabled', 'role_changed', 'invitation_sent'
+        'phone_verification', 'profile_claimed', 'role_switched',
+        '2fa_enabled', '2fa_disabled', 'invitation_sent', 'tenant_switched'
     )),
     
-    -- Context
-    ip_address INET,
-    user_agent TEXT,
+    -- Context (anonymized for privacy)
+    ip_address_hash TEXT, -- SHA256 hash of IP for privacy
+    user_agent_hash TEXT, -- SHA256 hash of user agent
     success BOOLEAN NOT NULL,
     failure_reason TEXT,
     
-    -- Metadata (no PII)
+    -- Simplified metadata (no PII)
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Indexes
+-- Indexes for essential observability
 CREATE INDEX idx_auth_activity_user ON auth_activity_log(user_id, created_at DESC);
 CREATE INDEX idx_auth_activity_tenant ON auth_activity_log(tenant_id, created_at DESC);
-CREATE INDEX idx_auth_activity_type ON auth_activity_log(activity_type, created_at DESC);
+CREATE INDEX idx_auth_activity_type_success ON auth_activity_log(activity_type, success, created_at DESC);
 ```
 
-### Players Table Integration
+### Database Triggers
 
-**Add Authentication Fields**:
-```sql
--- Link players to auth system
-ALTER TABLE players 
-  ADD COLUMN user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  ADD COLUMN auth_method TEXT CHECK (auth_method IN ('email', 'phone', 'admin_created')),
-  ADD COLUMN verified_at TIMESTAMPTZ,
-  ADD COLUMN last_rsvp_at TIMESTAMPTZ;
+**Note**: Admin profiles and player linking are handled explicitly in API routes, not via database triggers. This prevents authorization bypass via manipulated client metadata.
 
--- Unique constraint: one auth user per player per tenant
-CREATE UNIQUE INDEX idx_players_user_tenant 
-  ON players(tenant_id, user_id) 
-  WHERE user_id IS NOT NULL;
-
--- Index for auth lookups
-CREATE INDEX idx_players_user_id ON players(user_id) WHERE user_id IS NOT NULL;
-```
+- Admin profiles created in `/api/auth/admin/accept-invitation` after invitation validation
+- Player auth linking handled in `/api/auth/player/claim-profile` with server-side tenant validation
 
 ---
 
@@ -241,132 +397,41 @@ CREATE INDEX idx_players_user_id ON players(user_id) WHERE user_id IS NOT NULL;
 
 ### Role Definitions
 
-#### 1. Public/Anonymous
+#### 1. Admins
 **Access**:
-- Marketing pages (`/marketing/*`)
-- Limited public stats pages (no PII)
-- **RSVP pages with valid token** (full booking functionality)
-- Public API endpoints (rate-limited)
-
-**RSVP Token Access**:
-- Complete RSVP functionality without Supabase Auth
-- Token-based identity for booking responses
-- Phone-based player identification and linking
-- Match details, capacity status, waitlist access
-
-**Restrictions**:
-- No personalized dashboard or match history
-- No admin functionality  
-- No cross-match data or player profiles
-- Cannot link multiple matches without authentication
-
-#### 2. Players (Authenticated)
-**Enhanced Access**:
-- Personal dashboard and profile
-- Match history and statistics across all matches
-- **Enhanced RSVP experience** (auto-populated phone, match history context)
-- Upcoming matches and fixtures with personal status
-- League tables and general stats with personal highlighting
-- **Profile claiming** (link existing RSVP history to account)
-
-**RSVP Integration**:
-- Seamless RSVP without re-entering phone number
-- Match history visible in RSVP interface
-- Notification preferences and push notifications
-- Cross-match analytics and personal trends
-
-**Restrictions**:
-- Cannot access other players' private data
-- Cannot access admin functions
-- Cannot modify match data or team assignments
-- Tenant-scoped access only
-
-**Authentication**: Magic link (email) + optional phone verification
-
-#### 3. Admins  
-**Access**:
-- All player functionality within their tenant
-- Match management (create, edit, balance teams)
-- Player management (add, edit, assign tiers)
-- RSVP system configuration
+- All admin functionality within their tenant
+- Match management, player management, RSVP configuration
 - Club settings and configuration
 - Activity monitoring and logs
 
-**Special Capability**:
-- **Role switching**: Admin can view their own player profile
-- **Tenant-scoped**: Full admin rights within assigned tenant only
-
 **Restrictions**:
 - Cannot access other tenants' data
-- Cannot manage tenant settings or billing
+- Cannot manage tenant settings
 - Cannot create or delete tenants
 - Cannot promote/demote other admins
 
 **Authentication**: Email + password + optional TOTP 2FA
 
-#### 4. Superadmin
+#### 2. Superadmin
 **Access**:
 - All admin functionality across all tenants
 - Tenant management (create, edit, disable)
 - Cross-tenant analytics and reporting
 - Platform-wide configuration
 - Admin user management
-- Billing and subscription management (future)
 
 **Special Capabilities**:
 - **Tenant switching**: Dropdown to switch between clubs
 - **Admin impersonation**: Can act as admin for any tenant
-- **Platform oversight**: Access to system logs and metrics
+- **Platform oversight**: System logs and metrics
 
 **Restrictions**:
-- Cannot access individual player accounts
-- Cannot modify historical match data
+- Cannot directly access individual player accounts (separate auth flow)
 - Audit trail for all superadmin actions
 
-**Authentication**: Email + password + mandatory TOTP 2FA
+**Authentication**: Email + password + mandatory TOTP 2FA (Phase 3)
 
 ### Navigation Mapping
-
-#### Public Navigation
-```typescript
-// No Supabase Auth required - token-based access
-const PUBLIC_ROUTES = [
-  '/marketing',           // Marketing site
-  '/marketing/pricing',   // Pricing page
-  '/marketing/features',  // Features page
-  '/public/stats',        // Public league tables (no PII)
-  '/public/fixtures',     // Public fixtures (basic info only)
-  '/rsvp/match/[id]',     // RSVP with valid token (full functionality)
-  '/upcoming/match/[id]'  // Alternative RSVP URL with token
-];
-
-// Token-based RSVP access (no Supabase Auth required)
-const RSVP_PUBLIC_ROUTES = [
-  '/rsvp/match/[id]?token=...',      // Full RSVP functionality
-  '/api/booking/respond',            // RSVP submission
-  '/api/booking/waitlist/claim',     // Waitlist claiming
-  '/api/booking/match/[id]/live',    // Live match status
-  '/api/calendar/match/[id].ics'     // Calendar integration
-];
-```
-
-#### Player Navigation (Authenticated)
-```typescript
-// Requires Supabase Auth - enhanced experience
-const AUTHENTICATED_PLAYER_ROUTES = [
-  '/',                    // Personal dashboard with cross-match analytics
-  '/upcoming',            // Upcoming matches with enhanced RSVP
-  '/profile',             // Personal profile and stats
-  '/history',             // Match history across all matches
-  '/table',               // League tables with personal highlighting
-  '/records',             // All-time records with personal achievements
-  '/seasons',             // Season overview with personal performance
-  '/settings'             // Account and notification settings
-];
-
-// Note: Authenticated players can also access all RSVP_PUBLIC_ROUTES
-// with enhanced experience (auto-populated data, history context)
-```
 
 #### Admin Navigation
 ```typescript
@@ -377,9 +442,6 @@ const ADMIN_ROUTES = [
   '/admin/seasons',       // Season management
   '/admin/setup'          // Club configuration
 ];
-
-// Admin can also access all player routes as their player profile
-const ADMIN_PLAYER_SWITCH = '/admin/switch-to-player';
 ```
 
 #### Superadmin Navigation
@@ -392,201 +454,652 @@ const SUPERADMIN_ROUTES = [
   '/superadmin/system'       // System configuration
 ];
 
-// Current /admin/info becomes superadmin-only
+// Tenant selector for superadmin
 const SUPERADMIN_TENANT_SELECTOR = '/superadmin/select-tenant';
+```
+
+#### Player Navigation (Mobile App)
+```typescript
+// Requires player authentication (phone/OTP via Supabase)
+const PLAYER_ROUTES = [
+  '/dashboard',    // Personal stats and upcoming matches
+  '/upcoming',     // RSVP to matches
+  '/table',        // League standings
+  '/records',      // All-time records
+  '/stats'         // Detailed player statistics
+];
 ```
 
 ---
 
 ## E. Authentication Flows
 
-### 1. Player Authentication Flow
+**All authentication flows use Supabase Auth** - admins via email provider, players via phone provider, unified JWT tokens.
 
-#### Magic Link Registration/Login (Optional Enhancement)
+### 1. Admin Web Signup Flow
+
+#### Email + Password Registration (Via Invitation Only)
 ```typescript
-// 1. Player enters email on RSVP page or dashboard
-POST /api/auth/player/magic-link
-{
-  "email": "player@example.com",
-  "phone"?: "+447123456789",  // Optional: link existing RSVP history
-  "matchId"?: 123,           // Optional: for RSVP context
-  "redirectTo"?: "/upcoming/match/123"
-}
+// Admins can only sign up via invitation (not open registration)
+// See "Admin Invitation Flow" below for the complete process
 
-// 2. Supabase sends magic link email
-// 3. Player clicks link → Supabase auth → JWT token
-// 4. App receives authenticated session
-
-// 5. Link player profile and existing RSVP history
-POST /api/auth/player/link-profile
-{
-  "phone"?: "+447123456789",     // Links existing RSVP history
-  "displayName"?: "John Smith",
-  "claimExistingRSVPs": true     // Claim previous token-based RSVPs
-}
-
-// 6. Create user_profile record with player_id lookup
-// 7. Link historical RSVP data from phone number
+// After receiving invitation email, admin:
+// 1. Clicks invitation link
+// 2. Verifies invitation token
+// 3. Creates Supabase account
+// 4. Admin profile explicitly created in API route (not via trigger)
+// 5. Redirected to /admin dashboard
 ```
 
-#### Profile Claiming Flow
+#### Admin Login (Returning User)
 ```typescript
-// Player can claim existing RSVP history when creating account
-POST /api/auth/player/claim-profile
-{
-  "email": "player@example.com",
-  "phone": "+447123456789",      // Phone used in previous RSVPs
-  "verificationCode": "123456"   // SMS verification for security
-}
+// Admin uses Supabase standard login
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: 'admin@club.com',
+  password: 'secure_password'
+});
 
-// Links all previous RSVP responses to new authenticated account
-// Preserves match history and statistics
+// Supabase handles:
+// - Password verification
+// - JWT token generation
+// - Session creation
+// - Automatic token refresh
 ```
 
-### Profile Claiming System
-
-#### Overview
-The profile claiming system allows players who have been using RSVP functionality anonymously (via phone number) to create an authenticated account and link their existing match history.
-
-#### Key Principles
-- **No Data Loss**: All historical RSVP responses are preserved
-- **Phone-Based Linking**: Phone number serves as the bridge between anonymous and authenticated identity
-- **Voluntary Enhancement**: Players can continue using RSVP without authentication indefinitely
-- **Security**: SMS verification required to claim existing profile data
-
-#### Implementation Flow
-```typescript
-// 1. Player discovers they can claim existing data
-GET /api/player/can-claim?phone=+447123456789
-{
-  "canClaim": true,
-  "matchCount": 15,
-  "lastRSVP": "2024-01-15T10:30:00Z"
-}
-
-// 2. Player initiates claiming process
-POST /api/auth/player/claim-profile
-{
-  "email": "player@example.com",
-  "phone": "+447123456789"
-}
-// → Sends SMS verification code
-
-// 3. Player completes verification
-POST /api/auth/player/verify-claim
-{
-  "phone": "+447123456789", 
-  "verificationCode": "123456",
-  "email": "player@example.com"
-}
-// → Creates Supabase auth user
-// → Links user_id to existing player record
-// → Preserves all historical data
-
-// 4. Enhanced experience immediately available
-```
-
-#### UI Integration Points
-- **RSVP Pages**: Subtle "Create account to track your history" prompts
-- **Post-RSVP**: "Link this response to your profile" suggestions
-- **Dashboard**: One-time claiming flow for new authenticated users
-- **No Pressure**: Always optional, never blocks core functionality
-
-#### Phone Verification (Optional)
-```typescript
-// For enhanced RSVP experience
-POST /api/auth/player/verify-phone
-{
-  "phone": "+447123456789"
-}
-
-// Supabase sends SMS verification code
-POST /api/auth/player/confirm-phone
-{
-  "phone": "+447123456789",
-  "token": "123456"
-}
-```
-
-### 2. Admin Authentication Flow
-
-#### Email + Password Login
-```typescript
-// 1. Admin enters credentials
-POST /api/auth/admin/login
-{
-  "email": "admin@club.com",
-  "password": "secure_password",
-  "tenantSlug": "berko-tnf"     // From subdomain or form
-}
-
-// 2. Supabase validates credentials
-// 3. Custom claims added via Edge Function
-// 4. JWT token with tenant_id and admin role
-```
-
-#### Admin Invitation Flow
+#### Admin Invitation Flow (Simplified)
 ```typescript
 // 1. Existing admin invites new admin
 POST /api/admin/users/invite
 {
   "email": "newadmin@club.com",
+  "player_id": 123,  // Optional: link to existing player for role switching
   "role": "admin"
 }
 
-// 2. System sends invitation email with secure token
-// 3. New admin clicks invitation link
-GET /api/auth/admin/accept-invitation?token=secure_token
-
-// 4. New admin sets password and completes profile
-POST /api/auth/admin/complete-invitation
-{
-  "token": "secure_token",
-  "password": "new_password",
-  "displayName": "Admin Name"
+// 2. Validate player_id belongs to tenant (if provided)
+if (player_id) {
+  const player = await prisma.players.findUnique({
+    where: { player_id: player_id }
+  });
+  
+  if (!player || player.tenant_id !== tenantId) {
+    throw new Error('Invalid player_id for this tenant');
+  }
+  
+  // Check if player already linked to an admin
+  const existingAdmin = await prisma.admin_profiles.findFirst({
+    where: { player_id: player_id }
+  });
+  
+  if (existingAdmin) {
+    throw new Error('This player is already linked to an admin account');
+  }
 }
+
+// 3. Generate secure token, store bcrypt hash (NEVER store raw)
+const invitationToken = crypto.randomUUID();
+const hashedToken = await bcrypt.hash(invitationToken, 12);
+
+// 4. Store invitation with optional player link
+await prisma.admin_invitations.create({
+  data: {
+    tenant_id: tenantId,
+    email: email,
+    invited_by: currentUser.id,
+    invited_role: role,
+    player_id: player_id || null,
+    invitation_token_hash: hashedToken,
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  }
+});
+
+// 5. Send invitation email
+await sendInvitationEmail(email, invitationToken, {
+  role,
+  tenantId,
+  linkedPlayerId: player_id,
+  linkedPlayerName: player?.name
+});
+
+// 6. New admin accepts invitation
+// - Clicks link in email → /auth/accept-invitation?token=xxx
+// - Token verified with bcrypt.compare
+// - Admin creates Supabase account (signUp with email/password)
+// - API route explicitly creates admin_profiles record (see Section H)
 ```
 
-### 3. Superadmin Authentication Flow
+### 2. Player Mobile Signup Flow
 
-#### Enhanced Security Login
+#### Phone + SMS OTP Registration
 ```typescript
-// 1. Superadmin enters credentials
-POST /api/auth/superadmin/login
-{
-  "email": "superadmin@capo.com",
-  "password": "very_secure_password"
-}
+// 1. Player opens mobile app, selects club (tenant)
+// 2. Player enters phone number and requests OTP
+const { data, error } = await supabase.auth.signInWithOtp({
+  phone: '+447123456789',
+  options: {
+    channel: 'sms'
+  }
+});
 
-// 2. If 2FA not set up, require setup
-// 3. If 2FA enabled, require TOTP code
-POST /api/auth/superadmin/verify-2fa
-{
-  "code": "123456"
-}
+// 3. Supabase sends SMS with 6-digit code
+// 4. Player enters verification code
+const { data: session, error: verifyError } = await supabase.auth.verifyOtp({
+  phone: '+447123456789',
+  token: '123456',
+  type: 'sms'
+});
 
-// 4. JWT token with superadmin role (no tenant_id)
+// 5. Supabase creates auth.users record with phone
+// 6. App calls profile claiming endpoint with server-side validation
+const claimResponse = await fetch('/api/auth/player/claim-profile', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    phone: '+447123456789',
+    tenant_id: selectedTenantId,
+    verification_code: '123456'
+  })
+});
+
+// 7. API route links or creates player record (server-side only)
+// 8. Player redirected to /dashboard
 ```
 
-#### Tenant Switching
+#### Profile Claiming for Existing Players
 ```typescript
-// Superadmin can switch context to any tenant
+// Scenario: Player exists in database but hasn't signed up yet
+// (e.g., admin created player record manually)
+
+// Flow is identical to new player signup above
+// The /api/auth/player/claim-profile endpoint:
+// - Checks if player record exists with this phone + tenant_id
+// - If yes: links players.auth_user_id to auth.users.id
+// - If no: creates new player record
+// - Server-side validation ensures tenant_id cannot be spoofed
+```
+
+### 3. Admin Mobile Login Flow (Role Switching Enabled)
+
+#### Email + Password on Mobile
+```typescript
+// Admin opens mobile app (same credentials as web)
+const { data: session, error } = await supabase.auth.signInWithPassword({
+  email: 'admin@club.com',
+  password: 'same_password_as_web'
+});
+
+// Backend API checks if user is admin with linked player
+GET /api/auth/session
+Response:
+{
+  "user": {
+    "id": "auth-user-uuid",
+    "email": "admin@club.com"
+  },
+  "profile": {
+    "isAdmin": true,
+    "adminRole": "admin",
+    "tenantId": "tenant-uuid",
+    "linkedPlayerId": 123,  // null if no player link
+    "canSwitchRoles": true  // true if linkedPlayerId exists
+  }
+}
+
+// If canSwitchRoles = true, app shows role switcher UI
+// See Section E2 for role switching implementation
+```
+
+### 4. Superadmin Tenant Switching (Simplified)
+
+#### Switch Active Tenant Context
+```typescript
+// Superadmin selects different tenant from dropdown
 POST /api/auth/superadmin/switch-tenant
 {
-  "tenantId": "tenant-uuid-here"
+  "tenantId": "new-tenant-uuid"
 }
 
-// Returns new JWT token with tenant context
-// All subsequent API calls scoped to that tenant
+// Backend updates session metadata
+await prisma.admin_profiles.update({
+  where: { user_id: user.id },
+  data: { 
+    updated_at: new Date()
+  }
+});
+
+// Update app_metadata in Supabase (for RLS policies)
+await supabase.auth.admin.updateUserById(user.id, {
+  app_metadata: {
+    ...user.app_metadata,
+    tenant_id: tenantId
+  }
+});
+
+// Client refreshes session to get updated JWT
+await supabase.auth.refreshSession();
+
+// Response
+{
+  "success": true,
+  "tenantId": "new-tenant-uuid",
+  "requiresRefresh": true // Client should reload to apply new context
+}
+
+// Note: Supabase handles session sync across tabs automatically
+// No BroadcastChannel or custom logic needed
 ```
+
+---
+
+## E2. Role Switching for Admin-Players
+
+### Overview
+
+Admins who are also players can access both admin functionality and their own player profile. This is enabled by linking `admin_profiles.player_id` to `players.player_id`.
+
+**Key Points**:
+- Admins authenticate with email/password (same on web and mobile)
+- Players authenticate with phone/SMS OTP (mobile only)
+- If an admin has `player_id` set, they can switch to "Player View" on mobile
+- No separate login required - just a UI role switch
+
+### Database Linking (Already in Section C)
+
+**Admin-to-Player Link**:
+```sql
+-- admin_profiles.player_id → players.player_id (nullable FK)
+-- Set during admin invitation or via admin settings
+```
+
+**Player-to-Auth Link**:
+```sql
+-- players.auth_user_id → auth.users.id (nullable FK)  
+-- Set when player verifies phone via Supabase OTP
+```
+
+### Session Structure
+
+**After Login** (Supabase session + app-specific metadata):
+```typescript
+interface AppSession {
+  // Standard Supabase session
+  user: {
+    id: string;              // auth.users.id (UUID)
+    email?: string;          // If email-based auth
+    phone?: string;          // If phone-based auth
+    app_metadata: {
+      tenant_id?: string;
+      user_role?: 'admin' | 'superadmin';
+      player_id?: number;
+    }
+  };
+  
+  // App-specific context (from API call)
+  profile: {
+    isAdmin: boolean;        // true if admin_profiles record exists
+    linkedPlayerId?: number; // admin_profiles.player_id (if set)
+    canSwitchRoles: boolean; // true if linkedPlayerId exists
+  };
+  
+  // Current UI state (stored in local storage)
+  currentRole: 'player' | 'admin';  // Defaults based on platform
+}
+```
+
+### Role Switching Flow
+
+#### Detecting Role-Switching Capability
+```typescript
+// On app launch, check user's profile
+GET /api/auth/profile
+
+// Backend implementation
+export async function GET(request: NextRequest) {
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  
+  // Check if user has admin profile
+  const adminProfile = await prisma.admin_profiles.findUnique({
+    where: { user_id: session.user.id },
+    select: { 
+      user_role: true, 
+      tenant_id: true, 
+      player_id: true 
+    }
+  });
+  
+  // Check if user has player profile (via auth_user_id)
+  const playerProfile = await prisma.players.findUnique({
+    where: { auth_user_id: session.user.id },
+    select: { 
+      player_id: true, 
+      name: true 
+    }
+  });
+  
+  return NextResponse.json({
+    user: {
+      id: session.user.id,
+      email: session.user.email,
+      phone: session.user.phone
+    },
+    profile: {
+      isAdmin: !!adminProfile,
+      adminRole: adminProfile?.user_role,
+      tenantId: adminProfile?.tenant_id,
+      linkedPlayerId: adminProfile?.player_id || playerProfile?.player_id,
+      canSwitchRoles: !!(adminProfile?.player_id) // Only if admin explicitly linked
+    }
+  });
+}
+```
+
+#### Switching Roles
+```typescript
+// POST /api/auth/switch-role
+// Requires: Active Supabase session
+{
+  "role": "admin" | "player"
+}
+
+// Backend validation
+export async function POST(request: NextRequest) {
+  const { role } = await request.json();
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  
+  // Verify user can access requested role
+  if (role === 'admin') {
+    const adminProfile = await prisma.admin_profiles.findUnique({
+      where: { user_id: session.user.id }
+    });
+    
+    if (!adminProfile) {
+      return NextResponse.json({ 
+        error: 'User does not have admin access' 
+      }, { status: 403 });
+    }
+  }
+  
+  if (role === 'player') {
+    const adminProfile = await prisma.admin_profiles.findUnique({
+      where: { user_id: session.user.id },
+      select: { player_id: true }
+    });
+    
+    if (!adminProfile?.player_id) {
+      return NextResponse.json({ 
+        error: 'Admin account not linked to player profile' 
+      }, { status: 403 });
+    }
+  }
+  
+  // Log role switch
+  await logAuthActivity({
+    user_id: session.user.id,
+    tenant_id: session.user.app_metadata?.tenant_id,
+    activity_type: 'role_switched',
+    success: true,
+    metadata: { new_role: role }
+  });
+  
+  // Return success - client updates localStorage
+  return NextResponse.json({
+    success: true,
+    currentRole: role,
+    navigation: role === 'player' ? PLAYER_NAV : ADMIN_NAV
+  });
+}
+```
+
+### Mobile App UI
+
+**Profile Menu** (accessed via top-right user button):
+```typescript
+'use client';
+import { useState, useEffect } from 'react';
+import { useSupabase } from '@/hooks/useSupabase';
+
+export default function ProfileMenu() {
+  const { session, profile } = useSupabase();
+  const [currentRole, setCurrentRole] = useState<'player' | 'admin'>(
+    // Default based on platform
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/admin') 
+      ? 'admin' 
+      : 'player'
+  );
+  
+  const switchRole = async (newRole: 'player' | 'admin') => {
+    const response = await fetch('/api/auth/switch-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: newRole })
+    });
+    
+    if (response.ok) {
+      setCurrentRole(newRole);
+      localStorage.setItem('preferredRole', newRole);
+      
+      // Navigate to appropriate home
+      window.location.href = newRole === 'player' ? '/dashboard' : '/admin/matches';
+    }
+  };
+  
+  return (
+    <div className="profile-menu">
+      <div className="profile-header">
+        <Avatar src={session.user.user_metadata?.avatar_url} />
+        <Name>{profile.displayName}</Name>
+        {session.user.email && <Email>{session.user.email}</Email>}
+        {session.user.phone && <Phone>{formatPhone(session.user.phone)}</Phone>}
+      </div>
+      
+      {/* Role switcher - only if admin has linked player profile */}
+      {profile.canSwitchRoles && (
+        <div className="role-switcher">
+          <button 
+            className={currentRole === 'player' ? 'active' : ''}
+            onClick={() => switchRole('player')}
+          >
+            Player View
+          </button>
+          <button 
+            className={currentRole === 'admin' ? 'active' : ''}
+            onClick={() => switchRole('admin')}
+          >
+            Admin View
+          </button>
+        </div>
+      )}
+      
+      {/* Role-specific menu items */}
+      {currentRole === 'player' ? (
+        <>
+          <MenuItem href="/stats">My Stats</MenuItem>
+          <MenuItem href="/settings">Settings</MenuItem>
+        </>
+      ) : (
+        <>
+          <MenuItem href="/admin/reports">Reports</MenuItem>
+          <MenuItem href="/admin/settings">Club Settings</MenuItem>
+        </>
+      )}
+      
+      <MenuItem onClick={() => supabase.auth.signOut()}>Log Out</MenuItem>
+    </div>
+  );
+}
+```
+
+**Bottom Navigation Changes:**
+```typescript
+// Player View Navigation (default for phone auth users)
+const PLAYER_NAV = [
+  { label: 'Dashboard', path: '/dashboard', icon: 'home' },
+  { label: 'Upcoming', path: '/upcoming', icon: 'calendar' },
+  { label: 'Table', path: '/table', icon: 'bar-chart' },
+  { label: 'Records', path: '/records', icon: 'target' }
+];
+
+// Admin View Navigation (default for email auth users)
+const ADMIN_NAV = [
+  { label: 'Matches', path: '/admin/matches', icon: 'calendar' },
+  { label: 'Players', path: '/admin/players', icon: 'users' },
+  { label: 'Seasons', path: '/admin/seasons', icon: 'trophy' },
+  { label: 'Setup', path: '/admin/setup', icon: 'settings' }
+];
+
+// Navigation switches based on currentRole (from localStorage)
+const currentRole = localStorage.getItem('preferredRole') || 
+  (session.user.email ? 'admin' : 'player');
+
+<BottomNav items={currentRole === 'player' ? PLAYER_NAV : ADMIN_NAV} />
+```
+
+### Linking Admin to Player Profile
+
+**Option 1: During Admin Invitation**
+```typescript
+// Existing admin invites new admin and links to player
+POST /api/admin/users/invite
+{
+  "email": "newadmin@club.com",
+  "player_id": 123,  // Link to existing player
+  "role": "admin"
+}
+
+// When invitation is accepted:
+// 1. Supabase creates auth.users with email
+// 2. admin_profiles created with player_id = 123
+// 3. Admin can now switch to player view on mobile
+```
+
+**Option 2: Via Admin Settings**
+```typescript
+// Admin links their account to existing player after signup
+POST /api/admin/profile/link-player
+{
+  "player_id": 123
+}
+
+// Backend validation
+const player = await prisma.players.findUnique({
+  where: { player_id: player_id }
+});
+
+if (!player || player.tenant_id !== admin.tenant_id) {
+  throw new Error('Invalid player_id');
+}
+
+// Check not already linked
+const existingLink = await prisma.admin_profiles.findFirst({
+  where: { player_id: player_id }
+});
+
+if (existingLink) {
+  throw new Error('Player already linked to another admin');
+}
+
+// Update admin profile
+await prisma.admin_profiles.update({
+  where: { user_id: admin.user_id },
+  data: { player_id: player_id }
+});
+```
+
+### Route Protection Based on Role
+
+```typescript
+// Middleware checks Supabase session and current role preference
+export async function middleware(req: NextRequest) {
+  const supabase = createMiddlewareClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+  const { pathname } = req.nextUrl;
+  
+  // Admin routes require admin_profile
+  if (pathname.startsWith('/admin/')) {
+    if (!session) {
+      return redirectToLogin(req);
+    }
+    
+    // Check if user has admin_profile
+    const adminProfile = await prisma.admin_profiles.findUnique({
+      where: { user_id: session.user.id }
+    });
+    
+    if (!adminProfile) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+  }
+  
+  // Player routes require auth (either player via phone OR admin with linked player)
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/stats')) {
+    if (!session) {
+      return redirectToLogin(req);
+    }
+    
+    // Verify user has player access
+    const hasPlayerAccess = await checkPlayerAccess(session.user.id);
+    
+    if (!hasPlayerAccess) {
+      return NextResponse.json(
+        { error: 'Player profile required' },
+        { status: 403 }
+      );
+    }
+  }
+  
+  return NextResponse.next();
+}
+```
+
+### Testing Requirements
+
+**Role Switching:**
+- [ ] Admin with linked player can switch to player view
+- [ ] Player view shows correct player data (admin's own stats)
+- [ ] Admin can switch back to admin view
+- [ ] Non-admin users don't see role switcher
+- [ ] Admin without linked player cannot access player view
+- [ ] Role preference persists across app restarts (localStorage)
+
+**Profile Linking:**
+- [ ] Admin invitation can include player_id for linking
+- [ ] Admin can link to player via settings after signup
+- [ ] One player can only link to one admin per tenant
+- [ ] Cannot link to player from different tenant
+- [ ] Unlinking player removes role-switching capability
+
+**Navigation:**
+- [ ] Bottom nav updates when role switches
+- [ ] Deep links respect current role context
+- [ ] Back/forward navigation works correctly
+- [ ] Role preference syncs between web and mobile (via Supabase session)
+
+**Security:**
+- [ ] Admin routes blocked when in player view (UI-level, not auth-level)
+- [ ] Player data access validated against session.user.id
+- [ ] Role switches logged to auth_activity_log
+- [ ] Supabase session sync works across devices
 
 ---
 
 ## F. Middleware & Route Protection
 
-### Authentication Middleware
+### Authentication Middleware (Unified for All Routes)
 
-**File**: `src/middleware/auth.ts`
+**File**: `src/middleware.ts`
 ```typescript
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
@@ -594,125 +1107,63 @@ import type { NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
-  
-  const { data: { session } } = await supabase.auth.getSession();
   const { pathname } = req.nextUrl;
   
-  // Public routes - no auth required (includes RSVP with tokens)
-  if (isPublicRoute(pathname)) {
-    return res;
-  }
+  const supabase = createMiddlewareClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
   
-  // RSVP routes with tokens - validate token but don't require Supabase auth
-  if (isRSVPRoute(pathname)) {
-    return validateRSVPToken(req, res);
-  }
-  
-  // Supabase authentication required beyond this point
-  if (!session) {
-    return redirectToLogin(req, pathname);
-  }
-  
-  // Role-based route protection
-  const userRole = session.user.app_metadata?.user_role;
-  const tenantId = session.user.app_metadata?.tenant_id;
-  
-  // Admin routes
+  // Admin routes - require admin_profile
   if (pathname.startsWith('/admin/')) {
+    if (!session) {
+      return redirectToLogin(req, pathname);
+    }
+    
+    // Check for admin_profile (requires database query in API route)
+    // Middleware just checks session exists; role validation in API routes
+    const userRole = session.user.app_metadata?.user_role;
     if (userRole !== 'admin' && userRole !== 'superadmin') {
       return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
-    
-    // Tenant validation for admin routes
-    if (userRole === 'admin' && !tenantId) {
-      return NextResponse.redirect(new URL('/admin/select-tenant', req.url));
-    }
   }
   
-  // Superadmin routes
+  // Superadmin routes - require superadmin role
   if (pathname.startsWith('/superadmin/')) {
-    if (userRole !== 'superadmin') {
+    if (!session || session.user.app_metadata?.user_role !== 'superadmin') {
       return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
   }
   
-  // Player routes - require player or admin role
-  if (isPlayerRoute(pathname)) {
-    if (!['player', 'admin', 'superadmin'].includes(userRole)) {
-      return NextResponse.redirect(new URL('/unauthorized', req.url));
+  // Player routes - require player profile (phone auth OR admin with linked player)
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/stats')) {
+    if (!session) {
+      return redirectToLogin(req, pathname, 'player');
     }
+    
+    // Player access validated in API routes (check auth_user_id or admin.player_id)
   }
   
   return res;
 }
 
-function isPublicRoute(pathname: string): boolean {
-  const publicPaths = [
-    '/marketing',
-    '/public',
-    '/auth',
-    '/_next',
-    '/favicon.ico'
-  ];
-  
-  return publicPaths.some(path => pathname.startsWith(path));
-}
-
-function isRSVPRoute(pathname: string): boolean {
-  const rsvpPaths = [
-    '/rsvp/match/',
-    '/upcoming/match/'  // Alternative RSVP URL
-  ];
-  
-  return rsvpPaths.some(path => pathname.startsWith(path));
-}
-
-function isPlayerRoute(pathname: string): boolean {
-  const playerPaths = ['/', '/upcoming', '/profile', '/history', '/table', '/records'];
-  return playerPaths.includes(pathname) || pathname.startsWith('/seasons');
-}
-
-async function validateRSVPToken(req: NextRequest, res: NextResponse): Promise<NextResponse> {
-  const token = req.nextUrl.searchParams.get('token');
-  
-  if (!token) {
-    return NextResponse.redirect(new URL('/auth/login?error=missing_token', req.url));
-  }
-  
-  // Validate RSVP token without requiring Supabase auth
-  try {
-    const isValidToken = await verifyRSVPToken(token);
-    if (!isValidToken) {
-      return NextResponse.redirect(new URL('/auth/login?error=invalid_token', req.url));
-    }
-    
-    return res; // Allow access with valid token
-  } catch (error) {
-    return NextResponse.redirect(new URL('/auth/login?error=token_validation_failed', req.url));
-  }
-}
-
-function redirectToLogin(req: NextRequest, returnUrl: string) {
-  const loginUrl = new URL('/auth/login', req.url);
+function redirectToLogin(req: NextRequest, returnUrl: string, type: 'admin' | 'player' = 'admin') {
+  const loginUrl = new URL(type === 'admin' ? '/auth/login' : '/auth/player-login', req.url);
   loginUrl.searchParams.set('returnUrl', returnUrl);
   return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/admin/:path*', '/superadmin/:path*', '/dashboard/:path*', '/stats/:path*'],
 };
 ```
 
-### API Route Protection
+### API Route Protection Helpers
 
 **File**: `src/lib/auth/apiAuth.ts`
 ```typescript
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function requireAuth(request: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies });
@@ -729,22 +1180,68 @@ export async function requireAuth(request: NextRequest) {
   };
 }
 
-export async function requireRole(
+export async function requireAdminRole(
   request: NextRequest, 
-  allowedRoles: string[]
+  allowedRoles: ('admin' | 'superadmin')[] = ['admin', 'superadmin']
 ) {
-  const { user } = await requireAuth(request);
-  const userRole = user.app_metadata?.user_role;
+  const { user, supabase } = await requireAuth(request);
   
-  if (!allowedRoles.includes(userRole)) {
+  // Query admin_profiles to verify role
+  const adminProfile = await prisma.admin_profiles.findUnique({
+    where: { user_id: user.id },
+    select: { 
+      user_role: true, 
+      tenant_id: true,
+      player_id: true
+    }
+  });
+  
+  if (!adminProfile) {
+    throw new Error('Admin access required');
+  }
+  
+  if (!allowedRoles.includes(adminProfile.user_role)) {
     throw new Error(`Access denied. Required roles: ${allowedRoles.join(', ')}`);
   }
   
   return {
     user,
-    userRole,
-    tenantId: user.app_metadata?.tenant_id,
-    playerId: user.app_metadata?.player_id
+    userRole: adminProfile.user_role,
+    tenantId: adminProfile.tenant_id,
+    linkedPlayerId: adminProfile.player_id,
+    supabase
+  };
+}
+
+export async function requirePlayerAccess(request: NextRequest) {
+  const { user, supabase } = await requireAuth(request);
+  
+  // Check if user has player profile (either direct or via admin link)
+  const player = await prisma.players.findFirst({
+    where: {
+      OR: [
+        { auth_user_id: user.id }, // Direct player account
+        { 
+          player_id: {
+            in: (await prisma.admin_profiles.findMany({
+              where: { user_id: user.id },
+              select: { player_id: true }
+            })).map(ap => ap.player_id).filter(Boolean)
+          }
+        } // Admin with linked player
+      ]
+    }
+  });
+  
+  if (!player) {
+    throw new Error('Player profile required');
+  }
+  
+  return {
+    user,
+    player,
+    tenantId: player.tenant_id,
+    supabase
   };
 }
 
@@ -752,10 +1249,10 @@ export async function requireTenantAccess(
   request: NextRequest,
   requiredTenantId?: string
 ) {
-  const { user, tenantId } = await requireRole(request, ['admin', 'superadmin']);
+  const { user, userRole, tenantId } = await requireAdminRole(request);
   
   // Superadmin can access any tenant
-  if (user.app_metadata?.user_role === 'superadmin') {
+  if (userRole === 'superadmin') {
     return { user, tenantId: requiredTenantId || tenantId };
   }
   
@@ -770,69 +1267,52 @@ export async function requireTenantAccess(
 
 ### RLS Policies Integration
 
-**Enhanced RLS with Auth Integration**:
+**✅ RLS Infrastructure Already Complete** - All tables have comprehensive tenant isolation policies.
+
+**Unified RLS Policies** (Admin + Player Access):
 ```sql
--- Players table policies
-CREATE POLICY players_own_profile ON players
+-- Players table: admins can manage, players can view own profile
+CREATE POLICY players_admin_access ON players
   FOR ALL TO authenticated
   USING (
-    tenant_id = current_setting('app.tenant_id')::uuid AND (
-      -- Player can access their own profile
-      user_id = auth.uid() OR
-      -- Admins can access all players in their tenant
-      EXISTS (
-        SELECT 1 FROM user_profiles up 
-        WHERE up.user_id = auth.uid() 
-        AND up.tenant_id = players.tenant_id 
-        AND up.user_role IN ('admin', 'superadmin')
-      )
-    )
-  );
-
--- Match player pool policies  
-CREATE POLICY match_pool_rsvp_access ON match_player_pool
-  FOR ALL TO authenticated
-  USING (
-    tenant_id = current_setting('app.tenant_id')::uuid AND (
-      -- Player can modify their own RSVP
-      EXISTS (
-        SELECT 1 FROM players p 
-        WHERE p.player_id = match_player_pool.player_id 
-        AND p.user_id = auth.uid()
-      ) OR
-      -- Admins can modify any RSVP in their tenant
-      EXISTS (
-        SELECT 1 FROM user_profiles up 
-        WHERE up.user_id = auth.uid() 
-        AND up.tenant_id = match_player_pool.tenant_id 
-        AND up.user_role IN ('admin', 'superadmin')
-      )
-    )
-  );
-
--- Public RSVP access (token-based, no Supabase auth required)
-CREATE POLICY match_pool_public_rsvp ON match_player_pool
-  FOR ALL TO anon
-  USING (
-    tenant_id = current_setting('app.tenant_id')::uuid AND
-    -- Allow access when valid RSVP token is provided
-    current_setting('app.rsvp_token_valid', true)::boolean = true
-  );
-
--- Enable policy for anonymous users (RSVP token access)
-ALTER TABLE match_player_pool ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT, UPDATE ON match_player_pool TO anon;
-
--- Admin-only tables
-CREATE POLICY admin_only_access ON upcoming_matches
-  FOR ALL TO authenticated
-  USING (
-    tenant_id = current_setting('app.tenant_id')::uuid AND
+    -- Admin access: can view/edit all players in their tenant
     EXISTS (
-      SELECT 1 FROM user_profiles up 
-      WHERE up.user_id = auth.uid() 
-      AND up.tenant_id = upcoming_matches.tenant_id 
-      AND up.user_role IN ('admin', 'superadmin')
+      SELECT 1 FROM admin_profiles ap 
+      WHERE ap.user_id = auth.uid() 
+      AND (ap.tenant_id = players.tenant_id OR ap.user_role = 'superadmin')
+    )
+    OR
+    -- Player access: can view own profile only
+    auth_user_id = auth.uid()
+  );
+
+-- Matches table: admins can manage, players can view
+CREATE POLICY matches_access ON upcoming_matches
+  FOR SELECT TO authenticated
+  USING (
+    -- Admin can view all matches in tenant
+    EXISTS (
+      SELECT 1 FROM admin_profiles ap 
+      WHERE ap.user_id = auth.uid() 
+      AND (ap.tenant_id = upcoming_matches.tenant_id OR ap.user_role = 'superadmin')
+    )
+    OR
+    -- Player can view matches in their tenant
+    EXISTS (
+      SELECT 1 FROM players p
+      WHERE p.auth_user_id = auth.uid()
+      AND p.tenant_id = upcoming_matches.tenant_id
+    )
+  );
+
+-- Admin-only modification policy for matches
+CREATE POLICY matches_admin_modify ON upcoming_matches
+  FOR INSERT, UPDATE, DELETE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admin_profiles ap 
+      WHERE ap.user_id = auth.uid() 
+      AND (ap.tenant_id = upcoming_matches.tenant_id OR ap.user_role = 'superadmin')
     )
   );
 ```
@@ -843,7 +1323,7 @@ CREATE POLICY admin_only_access ON upcoming_matches
 
 ### Authentication Pages
 
-#### Login Page
+#### Login Page (Admin-Only)
 **File**: `src/app/auth/login/page.tsx`
 ```typescript
 'use client';
@@ -854,30 +1334,12 @@ import { useRouter } from 'next/navigation';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isPlayer, setIsPlayer] = useState(true);
   const [loading, setLoading] = useState(false);
   
   const supabase = createClientComponentClient();
   const router = useRouter();
   
-  const handlePlayerMagicLink = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${location.origin}/auth/callback`
-      }
-    });
-    
-    if (error) {
-      alert(error.message);
-    } else {
-      alert('Check your email for the magic link!');
-    }
-    setLoading(false);
-  };
-  
-  const handleAdminLogin = async () => {
+  const handleLogin = async () => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -897,31 +1359,11 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to Capo
+            Admin Sign In
           </h2>
         </div>
         
-        {/* Role Toggle */}
-        <div className="flex bg-gray-100 p-1 rounded-lg">
-          <button
-            onClick={() => setIsPlayer(true)}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium ${
-              isPlayer ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-            }`}
-          >
-            Player
-          </button>
-          <button
-            onClick={() => setIsPlayer(false)}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium ${
-              !isPlayer ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-            }`}
-          >
-            Admin
-          </button>
-        </div>
-        
-        <form className="mt-8 space-y-6">
+        <form className="mt-8 space-y-6" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
           <div>
             <input
               type="email"
@@ -933,26 +1375,23 @@ export default function LoginPage() {
             />
           </div>
           
-          {!isPlayer && (
-            <div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="Password"
-              />
-            </div>
-          )}
+          <div>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="Password"
+            />
+          </div>
           
           <button
-            type="button"
-            onClick={isPlayer ? handlePlayerMagicLink : handleAdminLogin}
+            type="submit"
             disabled={loading}
             className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Loading...' : (isPlayer ? 'Send Magic Link' : 'Sign In')}
+            {loading ? 'Loading...' : 'Sign In'}
           </button>
         </form>
       </div>
@@ -961,144 +1400,17 @@ export default function LoginPage() {
 }
 ```
 
-#### Role Switching Component
-**File**: `src/components/auth/RoleSwitcher.component.tsx`
-```typescript
-'use client';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-
-interface RoleSwitcherProps {
-  currentRole: string;
-  isAdmin: boolean;
-  playerId?: number;
-}
-
-export default function RoleSwitcher({ currentRole, isAdmin, playerId }: RoleSwitcherProps) {
-  const [switching, setSwitching] = useState(false);
-  const router = useRouter();
-  
-  const switchToPlayerView = async () => {
-    if (!isAdmin || !playerId) return;
-    
-    setSwitching(true);
-    // Store admin context in session storage
-    sessionStorage.setItem('adminContext', 'true');
-    router.push('/profile');
-    setSwitching(false);
-  };
-  
-  const switchToAdminView = async () => {
-    setSwitching(true);
-    sessionStorage.removeItem('adminContext');
-    router.push('/admin');
-    setSwitching(false);
-  };
-  
-  if (!isAdmin) return null;
-  
-  return (
-    <div className="flex items-center space-x-2">
-      {currentRole === 'admin-view' ? (
-        <button
-          onClick={switchToPlayerView}
-          disabled={switching || !playerId}
-          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50"
-        >
-          {switching ? 'Switching...' : 'View as Player'}
-        </button>
-      ) : (
-        <button
-          onClick={switchToAdminView}
-          disabled={switching}
-          className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 disabled:opacity-50"
-        >
-          {switching ? 'Switching...' : 'Back to Admin'}
-        </button>
-      )}
-    </div>
-  );
-}
-```
-
-### Navigation Updates
-
-#### Updated Admin Mode Toggle
-**File**: `src/components/navigation/AdminModeToggle.component.tsx`
-```typescript
-'use client';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
-
-export default function AdminModeToggle() {
-  const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState(null);
-  const supabase = createClientComponentClient();
-  const router = useRouter();
-  
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setUserRole(user?.app_metadata?.user_role);
-    };
-    
-    getUser();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null);
-      setUserRole(session?.user?.app_metadata?.user_role || null);
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [supabase]);
-  
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/auth/login');
-  };
-  
-  if (!user) {
-    return (
-      <button
-        onClick={() => router.push('/auth/login')}
-        className="px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-gray-50"
-      >
-        Sign In
-      </button>
-    );
-  }
-  
-  return (
-    <div className="flex items-center space-x-4">
-      <span className="text-white text-sm">
-        {user.email} ({userRole})
-      </span>
-      
-      <button
-        onClick={handleSignOut}
-        className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30"
-      >
-        Sign Out
-      </button>
-    </div>
-  );
-}
-```
-
-#### Superadmin Tenant Selector
+#### Superadmin Tenant Selector (Simplified)
 **File**: `src/components/superadmin/TenantSelector.component.tsx`
 ```typescript
 'use client';
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation';
 
 interface Tenant {
   tenant_id: string;
   name: string;
-  slug: string;
   is_active: boolean;
 }
 
@@ -1106,12 +1418,22 @@ export default function TenantSelector() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
   
   const supabase = createClientComponentClient();
+  const router = useRouter();
   
   useEffect(() => {
     fetchTenants();
+    getCurrentTenant();
   }, []);
+  
+  const getCurrentTenant = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user.app_metadata?.tenant_id) {
+      setSelectedTenant(session.user.app_metadata.tenant_id);
+    }
+  };
   
   const fetchTenants = async () => {
     try {
@@ -1129,6 +1451,8 @@ export default function TenantSelector() {
   };
   
   const switchTenant = async (tenantId: string) => {
+    setSwitching(true);
+    
     try {
       const response = await fetch('/api/auth/superadmin/switch-tenant', {
         method: 'POST',
@@ -1136,12 +1460,19 @@ export default function TenantSelector() {
         body: JSON.stringify({ tenantId })
       });
       
-      if (response.ok) {
-        setSelectedTenant(tenantId);
-        window.location.reload(); // Refresh to apply new tenant context
+      const result = await response.json();
+      
+      if (result.success) {
+        // Refresh session to get updated app_metadata
+        await supabase.auth.refreshSession();
+        
+        // Reload to apply new tenant context
+        window.location.reload();
       }
     } catch (error) {
       console.error('Error switching tenant:', error);
+    } finally {
+      setSwitching(false);
     }
   };
   
@@ -1156,14 +1487,14 @@ export default function TenantSelector() {
           <button
             key={tenant.tenant_id}
             onClick={() => switchTenant(tenant.tenant_id)}
+            disabled={switching}
             className={`w-full text-left p-3 rounded-md border ${
               selectedTenant === tenant.tenant_id
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300'
-            }`}
+            } ${switching ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <div className="font-medium">{tenant.name}</div>
-            <div className="text-sm text-gray-500">@{tenant.slug}</div>
             {!tenant.is_active && (
               <span className="inline-block mt-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded">
                 Inactive
@@ -1177,396 +1508,488 @@ export default function TenantSelector() {
 }
 ```
 
+**Note**: Supabase handles session synchronization across tabs automatically. When app_metadata is updated and refreshSession() is called, all tabs receive the updated session via Supabase's built-in sync mechanism.
+
 ---
 
 ## H. API Endpoints
 
 ### Authentication API Routes
 
-#### Player Magic Link
-```typescript
-// POST /api/auth/player/magic-link
-export async function POST(request: NextRequest) {
-  const { email, matchId, redirectTo } = await request.json();
-  
-  const supabase = createRouteHandlerClient({ cookies });
-  
-  // Send magic link
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback${
-        redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''
-      }`
-    }
-  });
-  
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
-  }
-  
-  return NextResponse.json({ 
-    success: true, 
-    message: 'Magic link sent to your email' 
-  });
-}
-```
+**All routes use standard Supabase Auth** - no custom token management or Edge Functions needed.
 
 #### Admin Login
 ```typescript
 // POST /api/auth/admin/login
+// Note: Can also use Supabase client directly (supabase.auth.signInWithPassword)
 export async function POST(request: NextRequest) {
-  const { email, password, tenantSlug } = await request.json();
+  const { email, password } = await request.json();
   
   const supabase = createRouteHandlerClient({ cookies });
   
-  // Authenticate with Supabase
+  // Supabase handles password verification and session creation
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password
   });
   
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 401 });
   }
   
-  // Verify admin role and tenant access
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('user_role, tenant_id, tenants(slug)')
-    .eq('user_id', data.user.id)
-    .single();
+  // Verify user has admin_profile
+  const adminProfile = await prisma.admin_profiles.findUnique({
+    where: { user_id: data.user.id }
+  });
   
-  if (!profile || !['admin', 'superadmin'].includes(profile.user_role)) {
+  if (!adminProfile) {
     await supabase.auth.signOut();
     return NextResponse.json({ 
       success: false, 
-      error: 'Admin access required' 
+      error: 'Not an admin account' 
     }, { status: 403 });
   }
   
-  // Validate tenant access for admins
-  if (profile.user_role === 'admin') {
-    if (!profile.tenants || profile.tenants.slug !== tenantSlug) {
-      await supabase.auth.signOut();
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Invalid tenant access' 
-      }, { status: 403 });
+  // Update last login timestamp
+  await prisma.admin_profiles.update({
+    where: { user_id: data.user.id },
+    data: { last_login_at: new Date() }
+  });
+  
+  // Log login activity
+  await logAuthActivity({
+    user_id: data.user.id,
+    tenant_id: adminProfile.tenant_id,
+    activity_type: 'login',
+    success: true
+  });
+  
+  return NextResponse.json({ 
+    success: true,
+    user: {
+      id: data.user.id,
+      email: data.user.email,
+      role: adminProfile.user_role,
+      tenantId: adminProfile.tenant_id
     }
-  }
-  
-  return NextResponse.json({ 
-    success: true, 
-    user: data.user,
-    profile 
   });
 }
 ```
 
-#### Superadmin Tenant Switch
+#### Player Phone Verification (Handled by Supabase)
 ```typescript
-// POST /api/auth/superadmin/switch-tenant
-export async function POST(request: NextRequest) {
-  const { tenantId } = await request.json();
-  
-  const { user } = await requireRole(request, ['superadmin']);
-  
-  // Update custom claims via Supabase Edge Function
-  const response = await fetch(`${process.env.SUPABASE_URL}/functions/v1/update-user-claims`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      userId: user.id,
-      claims: {
-        tenant_id: tenantId,
-        user_role: 'superadmin'
-      }
-    })
-  });
-  
-  if (!response.ok) {
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to update tenant context' 
-    }, { status: 500 });
+// Players use Supabase auth.signInWithOtp directly from mobile app
+// No custom API route needed - Supabase handles SMS sending and verification
+
+// Example client-side code (mobile app):
+const { data, error } = await supabase.auth.signInWithOtp({
+  phone: '+447123456789',
+  options: {
+    channel: 'sms',
+    data: { tenant_id: selectedTenantId }
   }
-  
-  return NextResponse.json({ 
-    success: true, 
-    message: 'Tenant context updated' 
-  });
-}
+});
+
+// Then verify:
+const { data: session } = await supabase.auth.verifyOtp({
+  phone: '+447123456789',
+  token: userEnteredCode,
+  type: 'sms'
+});
+
+// Then call claim-profile endpoint to link (see Player Profile Claiming below)
 ```
 
-### User Management API Routes
-
-#### Admin Invitation
+#### Admin Invitation (Simplified)
 ```typescript
 // POST /api/admin/users/invite
 export async function POST(request: NextRequest) {
-  const { email, role } = await request.json();
+  const { email, player_id, role } = await request.json();
   
-  const { user, tenantId } = await requireRole(request, ['admin', 'superadmin']);
+  const { user, tenantId } = await requireAdminRole(request, ['admin', 'superadmin']);
   
-  // Generate secure invitation token
+  // Validate player_id belongs to tenant (if provided)
+  if (player_id) {
+    const player = await prisma.players.findUnique({
+      where: { player_id: player_id }
+    });
+    
+    if (!player || player.tenant_id !== tenantId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid player_id for this tenant' 
+      }, { status: 400 });
+    }
+    
+    // Check if player already linked to an admin
+    const existingAdmin = await prisma.admin_profiles.findFirst({
+      where: { player_id: player_id }
+    });
+    
+    if (existingAdmin) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'This player is already linked to an admin account' 
+      }, { status: 409 });
+    }
+  }
+  
+  // Generate secure invitation token (NEVER store raw)
   const invitationToken = crypto.randomUUID();
+  const hashedToken = await bcrypt.hash(invitationToken, 12);
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
   
-  // Create invitation record
-  const supabase = createRouteHandlerClient({ cookies });
-  const { error } = await supabase
-    .from('admin_invitations')
-    .insert({
+  // Store invitation with optional player link
+  await prisma.admin_invitations.create({
+    data: {
       tenant_id: tenantId,
       email,
       invited_by: user.id,
       invited_role: role,
-      invitation_token: invitationToken,
-      expires_at: expiresAt.toISOString()
-    });
+      player_id: player_id || null,
+      invitation_token_hash: hashedToken,
+      expires_at: expiresAt
+    }
+  });
   
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
-  }
+  // Send invitation email
+  await sendInvitationEmail(email, invitationToken, {
+    role,
+    tenantId,
+    linkedPlayerId: player_id
+  });
   
-  // Send invitation email (via Supabase Edge Function or email service)
-  await sendInvitationEmail(email, invitationToken, role, tenantId);
+  // Log invitation activity
+  await logAuthActivity({
+    user_id: user.id,
+    tenant_id: tenantId,
+    activity_type: 'invitation_sent',
+    success: true, 
+    metadata: { invited_email: email, invited_role: role }
+  });
   
-  return NextResponse.json({ 
+  return NextResponse.json({
     success: true, 
     message: 'Invitation sent successfully' 
   });
 }
 ```
 
-### RSVP Integration API Routes
-
-#### Enhanced RSVP with Optional Authentication
+#### Accept Admin Invitation
 ```typescript
-// POST /api/booking/respond
+// POST /api/auth/admin/accept-invitation
 export async function POST(request: NextRequest) {
-  const { matchId, token, phone, action, source } = await request.json();
+  const { token, email, password, displayName } = await request.json();
   
-  // Derive tenant from token (existing logic - no auth required)
-  const tenantId = await getTenantFromToken(token);
-  if (!tenantId) {
-    return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
-  }
-  
-  // Set tenant context for RLS (token-based access)
-  await setTenantContext(tenantId);
-  await setRSVPTokenValid(true); // Enable public RLS policy
-  
-  // Optional: enhance experience if user is authenticated
-  const supabase = createRouteHandlerClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  let playerId: number;
-  let enhancedExperience = false;
-  
-  if (session?.user) {
-    // Authenticated user - get player ID from profile
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('player_id, phone')
-      .eq('user_id', session.user.id)
-      .single();
-    
-    if (profile?.player_id) {
-      playerId = profile.player_id;
-      enhancedExperience = true;
-      
-      // Auto-populate phone if not provided
-      if (!phone && profile.phone) {
-        phone = profile.phone;
-      }
-    } else {
-      // Link phone to authenticated user if not already linked
-      playerId = await linkPlayerToUser(session.user.id, phone, tenantId);
-      enhancedExperience = true;
+  // Verify invitation token
+  const invitation = await prisma.admin_invitations.findFirst({
+    where: { 
+      email: email,
+      status: 'pending',
+      expires_at: { gt: new Date() }
     }
-  } else {
-    // Anonymous user - lookup by phone (existing logic)
-    playerId = await getPlayerByPhone(phone, tenantId);
+  });
+  
+  if (!invitation) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Invalid or expired invitation' 
+    }, { status: 400 });
   }
   
-  // Continue with existing RSVP logic...
-  const result = await processRSVP(tenantId, matchId, playerId, action, source);
+  // Verify token hash
+  const isValid = await bcrypt.compare(token, invitation.invitation_token_hash);
+  if (!isValid) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Invalid invitation token' 
+    }, { status: 401 });
+  }
   
-  // Add enhancement flags to response
-  return NextResponse.json({
-    ...result,
-    enhancedExperience,
-    canClaimProfile: !enhancedExperience && !!playerId
+  // Create Supabase auth user
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: authData, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        display_name: displayName
+      }
+    }
+  });
+  
+  if (signUpError || !authData.user) {
+    return NextResponse.json({ 
+      success: false, 
+      error: signUpError?.message || 'Failed to create account' 
+    }, { status: 500 });
+  }
+  
+  // Explicitly create admin profile (server-side only - prevents bypass)
+  await prisma.admin_profiles.create({
+    data: {
+      user_id: authData.user.id,
+      tenant_id: invitation.tenant_id,
+      user_role: invitation.invited_role,
+      display_name: displayName,
+      player_id: invitation.player_id // Null if not linked to player
+    }
+  });
+  
+  // Mark invitation as accepted
+  await prisma.admin_invitations.update({
+    where: { id: invitation.id },
+    data: {
+      status: 'accepted',
+      accepted_by: authData.user.id,
+      accepted_at: new Date()
+    }
+  });
+  
+  return NextResponse.json({ 
+    success: true,
+    message: 'Admin account created successfully'
   });
 }
 ```
 
----
-
-## I. Public vs Private Pages
-
-### Public Marketing Site
-
-#### Route Structure
+#### Player Profile Claiming
 ```typescript
-// Public routes (no authentication)
-const PUBLIC_MARKETING_ROUTES = {
-  '/marketing': 'Marketing homepage',
-  '/marketing/features': 'Feature overview',
-  '/marketing/pricing': 'Pricing plans',
-  '/marketing/about': 'About Capo platform',
-  '/marketing/contact': 'Contact information',
-  '/marketing/blog': 'Blog posts',
-  '/marketing/legal/privacy': 'Privacy policy',
-  '/marketing/legal/terms': 'Terms of service'
-};
-
-// Public stats (SEO-friendly, no PII)
-const PUBLIC_STATS_ROUTES = {
-  '/public/[slug]/fixtures': 'Upcoming fixtures list',
-  '/public/[slug]/results': 'Recent results',
-  '/public/[slug]/table': 'League table (names only)',
-  '/public/[slug]/stats': 'General statistics'
-};
-```
-
-#### Public Data Policy
-**What's Public**:
-- Match fixtures (date, time, venue)
-- Match results (scores, no individual stats)
-- League tables (player names, wins/losses/draws)
-- General club information
-
-**What's Private**:
-- Phone numbers or contact details
-- Detailed player statistics
-- Personal performance data
-- RSVP status or attendance
-- Admin functionality
-- Internal club communications
-
-### Private App Routes
-
-#### Player Dashboard (Authenticated)
-```typescript
-// Authenticated player routes (enhanced experience)
-const AUTHENTICATED_PLAYER_ROUTES = {
-  '/': 'Personal dashboard with cross-match analytics',
-  '/profile': 'Player profile and comprehensive stats',
-  '/upcoming': 'Upcoming matches with enhanced RSVP',
-  '/history': 'Personal match history across all matches',
-  '/achievements': 'Personal achievements and milestones',
-  '/settings': 'Account and notification settings'
-};
-
-// Note: RSVP functionality remains public via token access
-// Authenticated players get enhanced experience on same routes
-```
-
-#### Admin Interface
-```typescript
-// Admin-only routes (tenant-scoped)
-const PRIVATE_ADMIN_ROUTES = {
-  '/admin/dashboard': 'Admin overview',
-  '/admin/matches': 'Match management',
-  '/admin/players': 'Player management',
-  '/admin/seasons': 'Season management',
-  '/admin/settings': 'Club settings',
-  '/admin/users': 'Admin user management'
-};
-```
-
-#### Superadmin Platform
-```typescript
-// Superadmin-only routes (cross-tenant)
-const SUPERADMIN_ROUTES = {
-  '/superadmin/dashboard': 'Platform overview',
-  '/superadmin/tenants': 'Tenant management',
-  '/superadmin/analytics': 'Cross-tenant analytics',
-  '/superadmin/users': 'Platform user management',
-  '/superadmin/system': 'System configuration'
-};
-```
-
-### SEO Implementation
-
-#### Public Pages SEO
-```typescript
-// Generate metadata for public pages
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const tenant = await getTenantBySlug(params.slug);
+// POST /api/auth/player/claim-profile
+// Player verifies phone and links to existing player record
+export async function POST(request: NextRequest) {
+  const { phone, tenant_id, verification_code } = await request.json();
   
-  if (!tenant) {
-    return { title: 'Club Not Found' };
+  // Server-side validation: verify tenant_id is valid
+  const tenant = await prisma.tenants.findUnique({
+    where: { tenant_id: tenant_id }
+  });
+  
+  if (!tenant || !tenant.is_active) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Invalid or inactive tenant' 
+    }, { status: 400 });
   }
   
-  return {
-    title: `${tenant.name} - Football Club Stats`,
-    description: `View fixtures, results, and league tables for ${tenant.name}`,
-    openGraph: {
-      title: `${tenant.name} Football Club`,
-      description: `Latest fixtures, results and league standings`,
-      url: `https://capo.app/public/${params.slug}`,
-      siteName: 'Capo',
-      images: [
-        {
-          url: `https://capo.app/api/og/club/${params.slug}`,
-          width: 1200,
-          height: 630,
-        }
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: `${tenant.name} Football Club`,
-      description: `Latest fixtures, results and league standings`,
-      images: [`https://capo.app/api/og/club/${params.slug}`],
+  // Verify OTP with Supabase (already called by client, but verify session)
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError || !session || session.user.phone !== phone) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Phone verification required' 
+    }, { status: 401 });
+  }
+  
+  // Find existing player or create new one
+  let player = await prisma.players.findFirst({
+    where: { phone, tenant_id }
+  });
+  
+  if (player) {
+    // Link existing player to auth user
+    if (player.auth_user_id && player.auth_user_id !== session.user.id) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Phone number already claimed by another account' 
+      }, { status: 409 });
     }
-  };
+    
+    await prisma.players.update({
+      where: { player_id: player.player_id },
+      data: { 
+        auth_user_id: session.user.id,
+        updated_at: new Date()
+      }
+    });
+  } else {
+    // Create new player
+    player = await prisma.players.create({
+      data: {
+        tenant_id,
+        phone,
+        auth_user_id: session.user.id,
+        name: 'New Player' // User can update later in app
+      }
+    });
+  }
+  
+  // Log profile claiming
+  await logAuthActivity({
+    user_id: session.user.id,
+    tenant_id: tenant_id,
+    activity_type: 'profile_claimed',
+    success: true,
+    metadata: { player_id: player.player_id }
+  });
+  
+  return NextResponse.json({ 
+    success: true,
+    player: {
+      id: player.player_id,
+      name: player.name,
+      tenantId: player.tenant_id
+    }
+  });
 }
 ```
 
-#### Sitemap Generation
+#### Superadmin Tenant Switch (Simplified)
 ```typescript
-// Generate sitemap for public pages
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const tenants = await getAllActiveTenants();
+// POST /api/auth/superadmin/switch-tenant
+export async function POST(request: NextRequest) {
+  const { tenantId } = await request.json();
   
-  const publicRoutes = tenants.flatMap(tenant => [
-    {
-      url: `https://capo.app/public/${tenant.slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'daily' as const,
-      priority: 0.8,
-    },
-    {
-      url: `https://capo.app/public/${tenant.slug}/fixtures`,
-      lastModified: new Date(),
-      changeFrequency: 'daily' as const,
-      priority: 0.7,
-    },
-    {
-      url: `https://capo.app/public/${tenant.slug}/table`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
+  const { user, userRole } = await requireAdminRole(request, ['superadmin']);
+  
+  if (userRole !== 'superadmin') {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Superadmin access required' 
+    }, { status: 403 });
+  }
+  
+  // Update app_metadata in Supabase (for RLS and JWT claims)
+  const supabase = createRouteHandlerClient({ cookies });
+  const { error } = await supabase.auth.admin.updateUserById(user.id, {
+    app_metadata: {
+      ...user.app_metadata,
+      tenant_id: tenantId
     }
-  ]);
+  });
   
-  return [
-    {
-      url: 'https://capo.app/marketing',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 1,
+  if (error) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to update tenant context' 
+    }, { status: 500 });
+  }
+  
+  // Update admin_profiles metadata
+  await prisma.admin_profiles.update({
+    where: { user_id: user.id },
+    data: { updated_at: new Date() }
+  });
+  
+  // Log tenant switch
+  await logAuthActivity({
+    user_id: user.id,
+    tenant_id: tenantId,
+    activity_type: 'tenant_switched',
+    success: true,
+    metadata: { previous_tenant: user.app_metadata?.tenant_id }
+  });
+  
+  return NextResponse.json({ 
+    success: true, 
+    message: 'Tenant context updated',
+    requiresRefresh: true // Client should call refreshSession()
+  });
+}
+```
+
+#### Role Switching API
+```typescript
+// POST /api/auth/switch-role
+export async function POST(request: NextRequest) {
+  const { role } = await request.json();
+  const { user, supabase } = await requireAuth(request);
+  
+  // Validate requested role
+  if (role === 'admin') {
+    const adminProfile = await prisma.admin_profiles.findUnique({
+      where: { user_id: user.id }
+    });
+    
+    if (!adminProfile) {
+      return NextResponse.json({ 
+        error: 'Admin access required' 
+      }, { status: 403 });
+    }
+  }
+  
+  if (role === 'player') {
+    const adminProfile = await prisma.admin_profiles.findUnique({
+      where: { user_id: user.id },
+      select: { player_id: true }
+    });
+    
+    if (!adminProfile?.player_id) {
+      return NextResponse.json({ 
+        error: 'No linked player profile' 
+      }, { status: 403 });
+    }
+  }
+  
+  // Log role switch
+  await logAuthActivity({
+    user_id: user.id,
+    tenant_id: user.app_metadata?.tenant_id,
+    activity_type: 'role_switched',
+    success: true,
+    metadata: { new_role: role }
+  });
+  
+  // Return success - client updates localStorage for UI preference
+  return NextResponse.json({
+    success: true,
+    currentRole: role
+  });
+}
+```
+
+#### Get User Profile/Session
+```typescript
+// GET /api/auth/profile
+export async function GET(request: NextRequest) {
+  const { user, supabase } = await requireAuth(request);
+  
+  // Check if user has admin profile
+  const adminProfile = await prisma.admin_profiles.findUnique({
+    where: { user_id: user.id },
+    select: { 
+      user_role: true, 
+      tenant_id: true, 
+      player_id: true,
+      display_name: true
+    }
+  });
+  
+  // Check if user has player profile
+  const playerProfile = await prisma.players.findFirst({
+    where: {
+      OR: [
+        { auth_user_id: user.id },
+        { player_id: adminProfile?.player_id }
+      ]
     },
-    ...publicRoutes
-  ];
+    select: { 
+      player_id: true, 
+      name: true,
+      tenant_id: true
+    }
+  });
+  
+  return NextResponse.json({
+    user: {
+      id: user.id,
+      email: user.email,
+      phone: user.phone
+    },
+    profile: {
+      isAdmin: !!adminProfile,
+      adminRole: adminProfile?.user_role,
+      displayName: adminProfile?.display_name || playerProfile?.name,
+      tenantId: adminProfile?.tenant_id || playerProfile?.tenant_id,
+      linkedPlayerId: adminProfile?.player_id || playerProfile?.player_id,
+      canSwitchRoles: !!(adminProfile?.player_id)
+    }
+  });
 }
 ```
 
@@ -1574,115 +1997,60 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 ## J. Implementation Phases
 
-### Phase 1: Superadmin + Admin Authentication (Week 1-2)
+### Phase 1: Core Authentication ✅ **CURRENT SCOPE**
 
 **Deliverables**:
-- [ ] Supabase Auth configuration and setup
-- [ ] Database schema migration (user_profiles, admin_invitations, auth_activity_log)
-- [ ] Authentication middleware implementation
-- [ ] Admin login/logout functionality
-- [ ] Superadmin tenant switching
-- [ ] Move `/admin/info` to superadmin-only access
-- [ ] Role-based navigation updates
+- [ ] Supabase Auth provider configuration (email + phone)
+- [ ] Database schema migration (admin_profiles, players.auth_user_id, admin_invitations, auth_activity_log)
+- [ ] Authentication middleware (admin and player routes)
+- [ ] Admin web signup/login (email + password via invitation)
+- [ ] Player mobile signup (phone + SMS OTP)
+- [ ] Profile claiming for existing players (server-side validation)
+- [ ] Admin invitation system (with bcrypt hashed tokens)
 
 **API Endpoints**:
-- [ ] `POST /api/auth/admin/login`
-- [ ] `POST /api/auth/admin/logout`
-- [ ] `POST /api/auth/superadmin/switch-tenant`
-- [ ] `POST /api/admin/users/invite`
-- [ ] `GET /api/superadmin/tenants`
+- [ ] `POST /api/auth/admin/login` (or use Supabase client directly)
+- [ ] `POST /api/auth/admin/logout` (Supabase signOut)
+- [ ] `POST /api/admin/users/invite` (with player_id linking)
+- [ ] `POST /api/auth/admin/accept-invitation` (explicit admin_profile creation)
+- [ ] `POST /api/auth/player/claim-profile` (link auth.users to players)
+- [ ] `GET /api/auth/profile` (user session + role info)
 
 **Testing**:
-- [ ] Admin authentication flow
+- [ ] Admin email/password authentication
+- [ ] Player phone/OTP authentication
+- [ ] Profile claiming for existing players
 - [ ] Tenant isolation for admin routes
-- [ ] Superadmin cross-tenant access
-- [ ] Role-based navigation rendering
+- [ ] RLS policies for admin and player access
 
-### Phase 2: Player Authentication + RSVP Enhancement (Week 3-4)
+### Phase 2: Role Switching 🔄 **NEXT**
 
 **Deliverables**:
-- [ ] Player magic link authentication (optional enhancement)
-- [ ] Profile claiming flow for existing RSVP users
-- [ ] Enhanced RSVP experience for authenticated players
-- [ ] Player dashboard with personalized content
-- [ ] Session management and token refresh
-- [ ] **RSVP remains fully functional without authentication**
+- [ ] Admin-to-player profile linking (`admin_profiles.player_id`)
+- [ ] Role switching UI (mobile app)
+- [ ] Role switching API endpoint
+- [ ] Navigation updates based on current role
+- [ ] Admin mobile login with role detection
 
 **API Endpoints**:
-- [ ] `POST /api/auth/player/magic-link`
-- [ ] `POST /api/auth/player/claim-profile`
-- [ ] `POST /api/auth/player/link-profile`
-- [ ] Enhanced `/api/booking/respond` with optional auth context
-- [ ] `GET /api/player/can-claim` (check if phone has RSVP history)
-
-**UI Components**:
-- [ ] Optional player registration/login prompts in RSVP flow
-- [ ] Profile claiming interface ("Link your match history")
-- [ ] Enhanced RSVP interface for authenticated users
-- [ ] Personal dashboard components
-- [ ] **No changes to core RSVP functionality**
+- [ ] `POST /api/auth/switch-role`
+- [ ] `POST /api/admin/profile/link-player`
+- [ ] `GET /api/superadmin/tenants` (tenant selector)
+- [ ] `POST /api/auth/superadmin/switch-tenant`
 
 **Testing**:
-- [ ] RSVP works identically with and without authentication
-- [ ] Profile claiming links historical RSVP data correctly
-- [ ] Enhanced experience provides additional value
-- [ ] Anonymous users maintain full RSVP functionality
+- [ ] Admin with linked player can switch roles
+- [ ] Navigation updates correctly
+- [ ] Role preference persists (localStorage)
+- [ ] Admin without player link cannot access player view
 
-### Phase 3: Public SEO Pages + Marketing Site (Week 5-6)
+### Phase 3: Advanced Security 📋 **FUTURE**
 
 **Deliverables**:
-- [ ] Public marketing site pages
-- [ ] SEO-friendly club stat pages
-- [ ] Sitemap and metadata generation
-- [ ] Open Graph and Twitter card integration
-- [ ] Public API endpoints (rate-limited)
-- [ ] Marketing site navigation
-
-**Public Pages**:
-- [ ] `/marketing/*` - Marketing site
-- [ ] `/public/[slug]/fixtures` - Public fixtures
-- [ ] `/public/[slug]/table` - Public league table
-- [ ] `/public/[slug]/results` - Public results
-
-**SEO Features**:
-- [ ] Dynamic metadata generation
-- [ ] Structured data markup
-- [ ] Sitemap generation
-- [ ] Robot.txt configuration
-
-**Testing**:
-- [ ] SEO metadata validation
-- [ ] Public data access (no PII exposure)
-- [ ] Marketing site functionality
-- [ ] Search engine indexing
-
-### Phase 4: Mobile App + Advanced Features (Week 7-8)
-
-**Deliverables**:
-- [ ] JWT token management for mobile
-- [ ] Deep-link authentication
-- [ ] Push notification integration with auth
-- [ ] 2FA setup for admins and superadmin
-- [ ] Admin role switching (admin ↔ player view)
-- [ ] Session activity logging and security
-
-**Mobile Features**:
-- [ ] JWT token refresh handling
-- [ ] Deep-link authentication flows
-- [ ] Biometric authentication (optional)
-- [ ] Offline session management
-
-**Advanced Security**:
-- [ ] TOTP 2FA implementation
-- [ ] Session activity monitoring
-- [ ] Suspicious activity detection
-- [ ] Security audit logging
-
-**Testing**:
-- [ ] Mobile authentication flows
-- [ ] Deep-link handling
-- [ ] 2FA setup and verification
-- [ ] Security audit trail
+- [ ] TOTP 2FA for admins
+- [ ] Mandatory 2FA for superadmin
+- [ ] Enhanced audit logging
+- [ ] Biometric authentication (mobile app)
 
 ---
 
@@ -1690,593 +2058,131 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 ### Authentication Security
 
-#### Password Requirements
+#### Password Requirements (Configured in Supabase)
 ```typescript
+// Supabase Dashboard → Authentication → Password Settings
 const PASSWORD_REQUIREMENTS = {
   minLength: 12,
   requireUppercase: true,
   requireLowercase: true,
   requireNumbers: true,
-  requireSpecialChars: true,
-  preventCommonPasswords: true,
-  preventEmailInPassword: true
+  requireSpecialChars: true
 };
+
+// Additional validation in client
+function validatePassword(password: string, email: string): boolean {
+  if (password.toLowerCase().includes(email.split('@')[0].toLowerCase())) {
+    throw new Error('Password cannot contain your email');
+  }
+  // Check against common password list (zxcvbn library recommended)
+  return true;
+}
 ```
 
-#### Session Management
-- **JWT Expiry**: 1 hour for access tokens, 7 days for refresh tokens
-- **Automatic Refresh**: Supabase handles token refresh automatically
-- **Session Invalidation**: Immediate logout on role changes or security events
-- **Concurrent Sessions**: Allow multiple sessions but track for security monitoring
+#### Session Management (Native Supabase)
+- **JWT Expiry**: 1 hour for access tokens, 30 days for refresh tokens (Supabase default)
+- **Automatic Refresh**: Supabase client handles token refresh automatically
+- **Session Sync**: Supabase syncs sessions across tabs/devices natively
+- **Secure Storage**: Tokens stored in httpOnly cookies (web) or secure storage (mobile)
 
 #### Rate Limiting
 ```typescript
 const AUTH_RATE_LIMITS = {
-  login: '5 attempts per 15 minutes per IP',
-  magicLink: '3 requests per hour per email',
+  // Supabase built-in rate limits (configure in dashboard)
+  emailSignup: '4 requests per hour per IP',
+  emailLogin: '30 requests per hour per IP',
+  phoneOtp: '5 requests per hour per phone',
   passwordReset: '3 requests per hour per email',
-  phoneVerification: '5 attempts per hour per phone',
-  adminInvitation: '10 invitations per day per admin'
+  
+  // Custom API rate limits (implement with Vercel Edge Config or Redis)
+  adminInvitation: '10 invitations per day per admin',
+  roleSwitching: '20 switches per hour per user'
 };
 ```
 
 ### Data Protection
 
+#### Token Security
+- **Invitation Tokens**: bcrypt hashed storage (NEVER store raw tokens, use bcrypt.compare for validation)
+- **JWT Tokens**: Managed by Supabase (signed with project JWT secret)
+- **Phone Verification**: Supabase OTP system with configurable expiry (default 5 minutes)
+- **Session Tokens**: httpOnly cookies prevent XSS attacks
+
 #### PII Handling
-- **Phone Number Masking**: Always display as `+44******789` in UI
+- **Phone Number Masking**: Display as `+44 7*** ***789` in UI (except user's own)
 - **Email Masking**: Display as `j***@example.com` in logs
-- **IP Address Logging**: Hash IP addresses for activity logs
-- **Audit Trail**: Log all authentication events without exposing sensitive data
+- **IP Address Logging**: SHA256 hash in `auth_activity_log` for privacy
+- **Audit Trail**: All auth events logged without exposing sensitive data
 
 #### Tenant Isolation
-- **RLS Enforcement**: All database queries automatically scoped by tenant
-- **JWT Claims**: Tenant ID embedded in JWT for server-side validation
-- **API Route Protection**: Middleware validates tenant access on every request
-- **Cross-Tenant Prevention**: Explicit checks prevent accidental data leakage
+- **RLS Enforcement**: All database queries scoped by tenant via RLS policies
+- **JWT Claims**: `tenant_id` in app_metadata for server-side validation
+- **API Route Protection**: Middleware validates tenant access via `admin_profiles.tenant_id`
+- **Cross-Tenant Prevention**: Explicit tenant checks in all API routes
+- **Player Data Access**: Players can only access own data (auth_user_id = auth.uid())
 
-### Compliance & Auditing
+---
 
-#### GDPR Compliance
-- **Data Minimization**: Only collect necessary authentication data
-- **Right to Deletion**: User can delete account and all associated data
-- **Data Export**: Users can export their authentication and profile data
-- **Consent Management**: Clear consent for data processing and communications
+## L. Monitoring & Observability (Essential Metrics Only)
 
-#### Security Auditing
+### Simplified Metrics Collection
+
+#### Essential Performance Indicators
+```typescript
+const ESSENTIAL_AUTH_METRICS = {
+  // Success rates (actionable)
+  'auth.success': 'Successful authentication events per hour',
+  'auth.failure': 'Failed authentication attempts per hour',
+  'auth.response_time_ms': 'Authentication response time in milliseconds',
+  
+  // Security events (critical alerts only)
+  'security.events': 'Security-relevant events requiring attention'
+};
+```
+
+#### Practical Dashboard Queries
 ```sql
--- Security event monitoring
+-- Essential authentication metrics (actionable alerts)
 SELECT 
+  DATE_TRUNC('hour', created_at) as hour,
   activity_type,
-  COUNT(*) as event_count,
-  COUNT(DISTINCT user_id) as unique_users
+  COUNT(*) FILTER (WHERE success = true) as successful,
+  COUNT(*) FILTER (WHERE success = false) as failed,
+  ROUND(AVG(response_time_ms), 2) as avg_response_ms
 FROM auth_activity_log 
 WHERE created_at > NOW() - INTERVAL '24 hours'
-  AND success = false
-GROUP BY activity_type
-ORDER BY event_count DESC;
+  AND activity_type IN ('login', 'rsvp_submission', 'tenant_switched')
+GROUP BY DATE_TRUNC('hour', created_at), activity_type
+ORDER BY hour DESC;
 
--- Suspicious activity detection
+-- High-priority security alerts only
 SELECT 
-  user_id,
-  ip_address,
+  ip_address_hash,
   COUNT(*) as failed_attempts,
-  array_agg(DISTINCT activity_type) as attempted_actions
+  array_agg(DISTINCT activity_type) as attempted_actions,
+  MAX(created_at) as last_attempt
 FROM auth_activity_log
 WHERE created_at > NOW() - INTERVAL '1 hour'
   AND success = false
-GROUP BY user_id, ip_address
-HAVING COUNT(*) > 10;
-```
+  AND activity_type IN ('login', 'tenant_switched')
+GROUP BY ip_address_hash
+HAVING COUNT(*) > 10; -- Alert threshold
 
----
-
-## L. Migration from Current System
-
-### Current State Analysis
-
-**Existing Authentication**:
-```typescript
-// Current simple system in NavigationContext
-const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(
-  () => localStorage.getItem('adminAuth') === 'true'
-);
-
-// Simple password check
-if (password === 'poo') {
-  setIsAdminAuthenticated(true);
-  localStorage.setItem('adminAuth', 'true');
-}
-```
-
-### Migration Strategy
-
-#### Step 1: Parallel Authentication (Week 1)
-- Deploy new Supabase Auth alongside existing system
-- Add feature flag to switch between systems
-- Create migration script for existing admin users
-- No user-facing changes during this phase
-
-#### Step 2: Admin Migration (Week 2)
-- Create admin accounts in Supabase for existing admins
-- Send invitation emails to set up proper passwords
-- Gradually migrate admin routes to use new authentication
-- Keep fallback to old system during transition
-
-#### Step 3: Player Onboarding (Week 3-4)
-- Link existing players to authentication system via phone/email
-- Send onboarding emails to players for account setup
-- Integrate RSVP system with authenticated players
-- Maintain anonymous RSVP for non-authenticated users
-
-#### Step 4: Full Cutover (Week 5)
-- Remove old authentication system
-- All routes protected by new authentication
-- Complete feature flag removal
-- Monitor for any issues and provide user support
-
-### Data Migration Scripts
-
-#### Create Default Superadmin
-```sql
--- Create superadmin user in Supabase Auth
-INSERT INTO auth.users (
-  id,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  created_at,
-  updated_at,
-  raw_app_meta_data,
-  raw_user_meta_data
-) VALUES (
-  gen_random_uuid(),
-  'admin@capo.app',
-  crypt('temporary_password', gen_salt('bf')),
-  NOW(),
-  NOW(),
-  NOW(),
-  '{"user_role": "superadmin"}',
-  '{"display_name": "Platform Admin"}'
-);
-
--- Create corresponding user_profile
-INSERT INTO user_profiles (
-  user_id,
-  tenant_id,
-  user_role,
-  display_name,
-  created_at
-) SELECT 
-  id,
-  NULL, -- Superadmin has no tenant
-  'superadmin',
-  'Platform Admin',
-  NOW()
-FROM auth.users WHERE email = 'admin@capo.app';
-```
-
-#### Link Existing Players
-```sql
--- Create placeholder auth users for existing players with phones
-INSERT INTO user_profiles (
-  user_id,
-  tenant_id,
-  user_role,
-  player_id,
-  phone,
-  display_name
-)
+-- Performance monitoring (RSVP endpoint health)
 SELECT 
-  gen_random_uuid(), -- Temporary user_id, will be updated when they authenticate
-  p.tenant_id,
-  'player',
-  p.player_id,
-  p.phone,
-  p.name
-FROM players p 
-WHERE p.phone IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM user_profiles up WHERE up.player_id = p.player_id
-  );
-```
-
----
-
-## M. Testing Strategy
-
-### Unit Tests
-
-#### Authentication Flow Tests
-```typescript
-// src/lib/auth/__tests__/auth.test.ts
-describe('Authentication Flows', () => {
-  describe('Player Magic Link', () => {
-    it('should send magic link for valid email', async () => {
-      const result = await sendPlayerMagicLink('player@test.com');
-      expect(result.success).toBe(true);
-    });
-    
-    it('should rate limit magic link requests', async () => {
-      // Send 4 requests (should succeed)
-      for (let i = 0; i < 4; i++) {
-        await sendPlayerMagicLink('player@test.com');
-      }
-      
-      // 5th request should be rate limited
-      const result = await sendPlayerMagicLink('player@test.com');
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('rate limit');
-    });
-  });
-  
-  describe('Admin Authentication', () => {
-    it('should authenticate valid admin credentials', async () => {
-      const result = await authenticateAdmin('admin@test.com', 'password123', 'test-tenant');
-      expect(result.success).toBe(true);
-      expect(result.user.app_metadata.user_role).toBe('admin');
-    });
-    
-    it('should reject admin login for wrong tenant', async () => {
-      const result = await authenticateAdmin('admin@test.com', 'password123', 'wrong-tenant');
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('tenant access');
-    });
-  });
-  
-  describe('Role Switching', () => {
-    it('should allow admin to switch to player view', async () => {
-      const adminUser = await createTestAdminUser();
-      const result = await switchToPlayerView(adminUser.id);
-      expect(result.success).toBe(true);
-    });
-    
-    it('should prevent player from accessing admin routes', async () => {
-      const playerUser = await createTestPlayerUser();
-      const result = await accessAdminRoute(playerUser.id);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Access denied');
-    });
-  });
-});
-```
-
-#### RLS Policy Tests
-```sql
--- Test tenant isolation
-BEGIN;
-  -- Set tenant context for tenant A
-  SELECT set_config('app.tenant_id', 'tenant-a-uuid', true);
-  
-  -- Should only see tenant A players
-  SELECT COUNT(*) FROM players; -- Should return only tenant A count
-  
-  -- Switch to tenant B
-  SELECT set_config('app.tenant_id', 'tenant-b-uuid', true);
-  
-  -- Should only see tenant B players
-  SELECT COUNT(*) FROM players; -- Should return only tenant B count
-ROLLBACK;
-
--- Test role-based access
-BEGIN;
-  -- Set up test user with player role
-  INSERT INTO user_profiles (user_id, tenant_id, user_role, player_id) 
-  VALUES ('test-user-uuid', 'tenant-a-uuid', 'player', 123);
-  
-  -- Set auth context
-  SELECT set_config('request.jwt.claims', 
-    '{"sub": "test-user-uuid", "role": "authenticated"}', true);
-  
-  -- Player should only access their own data
-  SELECT * FROM match_player_pool WHERE player_id = 123; -- Should succeed
-  SELECT * FROM match_player_pool WHERE player_id = 456; -- Should fail
-ROLLBACK;
-```
-
-### Integration Tests
-
-#### End-to-End Authentication Flows
-```typescript
-// tests/e2e/auth.spec.ts
-import { test, expect } from '@playwright/test';
-
-test.describe('Authentication Flows', () => {
-  test('Player magic link login', async ({ page }) => {
-    // Go to login page
-    await page.goto('/auth/login');
-    
-    // Select player mode
-    await page.click('[data-testid="player-mode"]');
-    
-    // Enter email
-    await page.fill('[data-testid="email-input"]', 'test@example.com');
-    
-    // Click send magic link
-    await page.click('[data-testid="send-magic-link"]');
-    
-    // Should see success message
-    await expect(page.locator('[data-testid="success-message"]')).toBeVisible();
-    await expect(page.locator('[data-testid="success-message"]')).toContainText('Check your email');
-  });
-  
-  test('Admin login and role switching', async ({ page }) => {
-    // Login as admin
-    await page.goto('/auth/login');
-    await page.click('[data-testid="admin-mode"]');
-    await page.fill('[data-testid="email-input"]', 'admin@test.com');
-    await page.fill('[data-testid="password-input"]', 'password123');
-    await page.click('[data-testid="admin-login"]');
-    
-    // Should redirect to admin dashboard
-    await expect(page).toHaveURL('/admin');
-    
-    // Switch to player view
-    await page.click('[data-testid="switch-to-player"]');
-    
-    // Should redirect to player dashboard
-    await expect(page).toHaveURL('/profile');
-    
-    // Should show player interface
-    await expect(page.locator('[data-testid="player-stats"]')).toBeVisible();
-  });
-  
-  test('Superadmin tenant switching', async ({ page }) => {
-    // Login as superadmin
-    await page.goto('/auth/login');
-    await page.click('[data-testid="admin-mode"]');
-    await page.fill('[data-testid="email-input"]', 'superadmin@capo.app');
-    await page.fill('[data-testid="password-input"]', 'superpassword123');
-    await page.click('[data-testid="admin-login"]');
-    
-    // Should see tenant selector
-    await expect(page.locator('[data-testid="tenant-selector"]')).toBeVisible();
-    
-    // Select a tenant
-    await page.click('[data-testid="tenant-berko-tnf"]');
-    
-    // Should see admin interface for that tenant
-    await expect(page.locator('[data-testid="admin-dashboard"]')).toBeVisible();
-    await expect(page.locator('[data-testid="current-tenant"]')).toContainText('Berko TNF');
-  });
-});
-```
-
-### Security Tests
-
-#### Penetration Testing Scenarios
-```typescript
-// tests/security/auth.security.test.ts
-describe('Security Tests', () => {
-  test('Should prevent SQL injection in tenant resolution', async () => {
-    const maliciousToken = "'; DROP TABLE tenants; --";
-    const result = await getTenantFromToken(maliciousToken);
-    expect(result).toBeNull(); // Should safely return null, not crash
-  });
-  
-  test('Should prevent cross-tenant data access', async () => {
-    const tenantAUser = await createTestUser('tenant-a');
-    const tenantBData = await fetchPlayersAsUser(tenantAUser, 'tenant-b');
-    expect(tenantBData).toHaveLength(0); // Should return no data
-  });
-  
-  test('Should rate limit authentication attempts', async () => {
-    const email = 'test@example.com';
-    
-    // Make 5 failed login attempts
-    for (let i = 0; i < 5; i++) {
-      await attemptLogin(email, 'wrongpassword');
-    }
-    
-    // 6th attempt should be rate limited
-    const result = await attemptLogin(email, 'wrongpassword');
-    expect(result.error).toContain('rate limit');
-  });
-  
-  test('Should invalidate sessions on role change', async () => {
-    const user = await createTestUser();
-    const initialSession = await getSession(user.id);
-    
-    // Change user role
-    await changeUserRole(user.id, 'admin');
-    
-    // Previous session should be invalid
-    const sessionValid = await validateSession(initialSession.token);
-    expect(sessionValid).toBe(false);
-  });
-});
-```
-
----
-
-## N. Monitoring & Observability
-
-### Authentication Metrics
-
-#### Key Performance Indicators
-```typescript
-const AUTH_METRICS = {
-  // Success rates
-  'auth.login.success_rate': 'Percentage of successful logins',
-  'auth.magic_link.delivery_rate': 'Magic link email delivery success',
-  'auth.phone.verification_rate': 'Phone verification success rate',
-  
-  // Security metrics
-  'auth.failed_attempts.count': 'Failed authentication attempts',
-  'auth.rate_limit.hits': 'Rate limit violations',
-  'auth.suspicious_activity.count': 'Detected suspicious activities',
-  
-  // User engagement
-  'auth.daily_active_users': 'Daily active authenticated users',
-  'auth.session_duration.avg': 'Average session duration',
-  'auth.role_switches.count': 'Admin-to-player role switches',
-  
-  // System health
-  'auth.token_refresh.success_rate': 'JWT token refresh success',
-  'auth.database_connections.count': 'Auth-related DB connections',
-  'auth.response_time.p95': '95th percentile auth response time'
-};
-```
-
-#### Dashboard Queries
-```sql
--- Daily authentication summary
-SELECT 
-  DATE(created_at) as date,
-  activity_type,
-  COUNT(*) as total_attempts,
-  COUNT(*) FILTER (WHERE success = true) as successful,
-  COUNT(*) FILTER (WHERE success = false) as failed,
-  ROUND(
-    COUNT(*) FILTER (WHERE success = true) * 100.0 / COUNT(*), 2
-  ) as success_rate_percent
-FROM auth_activity_log 
-WHERE created_at > NOW() - INTERVAL '30 days'
-GROUP BY DATE(created_at), activity_type
-ORDER BY date DESC, activity_type;
-
--- User role distribution
-SELECT 
-  up.user_role,
-  COUNT(*) as user_count,
-  COUNT(*) FILTER (WHERE up.last_login_at > NOW() - INTERVAL '7 days') as active_last_7d,
-  COUNT(*) FILTER (WHERE up.last_login_at > NOW() - INTERVAL '30 days') as active_last_30d
-FROM user_profiles up
-WHERE up.created_at > NOW() - INTERVAL '90 days'
-GROUP BY up.user_role;
-
--- Tenant-specific authentication stats
-SELECT 
-  t.name as tenant_name,
-  COUNT(up.user_id) as total_users,
-  COUNT(*) FILTER (WHERE up.user_role = 'player') as players,
-  COUNT(*) FILTER (WHERE up.user_role = 'admin') as admins,
-  COUNT(*) FILTER (WHERE up.last_login_at > NOW() - INTERVAL '7 days') as active_users
-FROM tenants t
-LEFT JOIN user_profiles up ON up.tenant_id = t.tenant_id
-GROUP BY t.tenant_id, t.name
-ORDER BY total_users DESC;
-```
-
-### Security Monitoring
-
-#### Alert Conditions
-```typescript
-const SECURITY_ALERTS = {
-  // High-priority alerts
-  'multiple_failed_logins': {
-    condition: 'More than 10 failed logins from same IP in 5 minutes',
-    action: 'Temporarily block IP and notify security team'
-  },
-  
-  'cross_tenant_access_attempt': {
-    condition: 'User attempts to access data from different tenant',
-    action: 'Log security incident and review user permissions'
-  },
-  
-  'privilege_escalation': {
-    condition: 'Player role attempts to access admin endpoints',
-    action: 'Block request and flag account for review'
-  },
-  
-  // Medium-priority alerts
-  'unusual_login_pattern': {
-    condition: 'Login from new location or device for admin users',
-    action: 'Send notification to admin user and log event'
-  },
-  
-  'high_rate_limit_hits': {
-    condition: 'More than 100 rate limit violations in 1 hour',
-    action: 'Review API usage patterns and adjust limits if needed'
-  }
-};
-```
-
-#### Security Audit Reports
-```sql
--- Weekly security audit report
-WITH security_events AS (
-  SELECT 
-    activity_type,
-    success,
-    ip_address,
-    created_at,
-    user_id,
-    failure_reason
+  DATE_TRUNC('minute', created_at) as minute,
+  COUNT(*) as rsvp_requests,
+  AVG(response_time_ms) as avg_response_time,
+  MAX(response_time_ms) as max_response_time
   FROM auth_activity_log 
-  WHERE created_at > NOW() - INTERVAL '7 days'
-),
-failed_logins AS (
-  SELECT 
-    ip_address,
-    COUNT(*) as failed_count,
-    array_agg(DISTINCT user_id) as affected_users
-  FROM security_events 
-  WHERE success = false AND activity_type = 'login'
-  GROUP BY ip_address
-  HAVING COUNT(*) > 5
-),
-suspicious_activity AS (
-  SELECT 
-    user_id,
-    COUNT(DISTINCT ip_address) as unique_ips,
-    COUNT(*) as total_events
-  FROM security_events
-  WHERE success = true
-  GROUP BY user_id
-  HAVING COUNT(DISTINCT ip_address) > 3
-)
-SELECT 
-  'Failed Login Attempts' as alert_type,
-  failed_count as event_count,
-  ip_address as source,
-  affected_users as details
-FROM failed_logins
-UNION ALL
-SELECT 
-  'Multiple IP Access' as alert_type,
-  total_events as event_count,
-  user_id::text as source,
-  ARRAY[unique_ips::text] as details
-FROM suspicious_activity
-ORDER BY event_count DESC;
+WHERE activity_type = 'rsvp_submission'
+  AND created_at > NOW() - INTERVAL '1 hour'
+GROUP BY DATE_TRUNC('minute', created_at)
+HAVING AVG(response_time_ms) > 1000 -- Performance alert threshold
+ORDER BY minute DESC;
 ```
 
-### Performance Monitoring
-
-#### Response Time Tracking
-```typescript
-// Middleware for tracking auth performance
-export async function authPerformanceMiddleware(req: NextRequest) {
-  const startTime = Date.now();
-  
-  try {
-    const result = await processAuthentication(req);
-    
-    // Log successful auth timing
-    const duration = Date.now() - startTime;
-    await logMetric('auth.response_time', duration, {
-      endpoint: req.nextUrl.pathname,
-      method: req.method,
-      success: true
-    });
-    
-    return result;
-  } catch (error) {
-    // Log failed auth timing
-    const duration = Date.now() - startTime;
-    await logMetric('auth.response_time', duration, {
-      endpoint: req.nextUrl.pathname,
-      method: req.method,
-      success: false,
-      error: error.message
-    });
-    
-    throw error;
-  }
-}
-```
-
-#### Health Check Endpoints
+### Health Check Endpoints (Essential Only)
 ```typescript
 // GET /api/health/auth
 export async function GET() {
@@ -2284,18 +2190,12 @@ export async function GET() {
     // Check Supabase Auth connectivity
     checkSupabaseAuth(),
     
-    // Check database connectivity for user profiles
-    checkUserProfilesTable(),
-    
-    // Check JWT token validation
-    checkJWTValidation(),
-    
-    // Check rate limiting service
-    checkRateLimiting()
+    // Check database connectivity
+    checkDatabaseHealth()
   ]);
   
   const results = healthChecks.map((check, index) => ({
-    service: ['supabase_auth', 'user_profiles', 'jwt_validation', 'rate_limiting'][index],
+    service: ['supabase_auth', 'database'][index],
     status: check.status === 'fulfilled' ? 'healthy' : 'unhealthy',
     error: check.status === 'rejected' ? check.reason.message : null
   }));
@@ -2308,250 +2208,184 @@ export async function GET() {
     checks: results
   });
 }
+
+async function checkSupabaseAuth(): Promise<boolean> {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data } = await supabase.auth.getSession();
+    return true; // Auth service is responding
+  } catch {
+    return false;
+  }
+}
+
+async function checkDatabaseHealth(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  }
+}
 ```
 
 ---
 
-## O. Success Criteria & Acceptance Tests
+## M. Success Criteria & Acceptance Tests
 
 ### Functional Requirements
 
 #### Authentication Flows
-- [ ] **Player Magic Link**: Email sent within 30 seconds, login completes in <5 seconds
-- [ ] **Admin Login**: Password authentication completes in <3 seconds
-- [ ] **Superadmin 2FA**: TOTP verification works with Google Authenticator/Authy
-- [ ] **Role Switching**: Admin can switch to player view and back seamlessly
-- [ ] **Tenant Switching**: Superadmin can switch between tenants with context preservation
+- [ ] **Admin Web Login**: Email/password authentication completes in <3 seconds
+- [ ] **Player Mobile Signup**: Phone/SMS OTP verification works reliably
+- [ ] **Profile Claiming**: Existing players can claim profiles via phone verification
+- [ ] **Admin Mobile Login**: Admin can login with same email/password on mobile
+- [ ] **Tenant Switching**: Superadmin can switch between tenants with session refresh
 
 #### Authorization Controls
-- [ ] **Route Protection**: Unauthorized users redirected to appropriate login page (except RSVP)
+- [ ] **Route Protection**: Unauthorized users redirected to appropriate login
 - [ ] **Tenant Isolation**: Users cannot access data from other tenants
 - [ ] **Role Enforcement**: Each role can only access designated functionality
 - [ ] **RLS Validation**: Database policies prevent cross-tenant data leakage
-- [ ] **API Security**: All admin endpoints require proper authentication
-- [ ] **RSVP Token Access**: Public RSVP routes work without Supabase authentication
+- [ ] **Player Data Access**: Players can only view their own profile
 
-#### RSVP Integration (Critical)
-- [ ] **Token-Based Access**: RSVP functionality works completely without authentication
-- [ ] **Enhanced Experience**: Authenticated players get improved RSVP interface
-- [ ] **Profile Claiming**: Users can link existing RSVP history to new accounts
-- [ ] **Seamless Transition**: No disruption to current RSVP user experience
-- [ ] **Phone Linking**: Phone numbers correctly bridge anonymous and authenticated use
-
-#### General Integration Points
-- [ ] **Session Management**: JWT tokens refresh automatically without user intervention
-- [ ] **Navigation Updates**: UI shows appropriate options based on user role
-- [ ] **Mobile Compatibility**: Authentication works in mobile app context
-- [ ] **Backward Compatibility**: All existing functionality preserved
+#### Role Switching (Phase 2)
+- [ ] **Admin-Player Link**: Admin invitation can include player_id for linking
+- [ ] **Role Switcher UI**: Shows only for admins with linked player_id
+- [ ] **Navigation Updates**: Bottom nav changes based on current role
+- [ ] **Preference Persistence**: Role choice saved in localStorage
 
 ### Performance Requirements
 
 #### Response Times
-- [ ] **Authentication**: <3 seconds for login, <1 second for session validation
-- [ ] **Authorization**: <100ms for role/tenant checks
-- [ ] **Token Refresh**: <2 seconds for automatic token renewal
-- [ ] **Database Queries**: <500ms for auth-related database operations
-- [ ] **Magic Links**: Email delivery within 30 seconds
+- [ ] **Admin Login**: <2 seconds for email/password authentication
+- [ ] **Player OTP Send**: <3 seconds for SMS delivery
+- [ ] **Player OTP Verify**: <2 seconds for verification
+- [ ] **Role Switch**: <500ms for UI role change
+- [ ] **Token Refresh**: Automatic (handled by Supabase client)
 
-#### Scalability
-- [ ] **Concurrent Users**: Support 1000+ concurrent authenticated users
-- [ ] **Rate Limiting**: Handle rate limit violations gracefully
-- [ ] **Session Storage**: Efficient session management with minimal memory usage
-- [ ] **Database Connections**: Optimal connection pooling for auth operations
+#### Security Requirements
+- [ ] **Invitation Security**: bcrypt hashed invitation tokens (NEVER store raw)
+- [ ] **Session Management**: Supabase native session handling (automatic sync)
+- [ ] **Password Strength**: Minimum 12 characters with complexity requirements
+- [ ] **Audit Trail**: All auth events logged with hashed PII for privacy
+- [ ] **Phone Privacy**: Phone numbers masked in UI (except user's own)
 
-### Security Requirements
-
-#### Data Protection
-- [ ] **PII Masking**: Phone numbers and emails masked in all logs and UI
-- [ ] **Password Security**: Minimum 12 characters with complexity requirements
-- [ ] **Session Security**: JWT tokens expire appropriately and refresh securely
-- [ ] **Audit Trail**: All authentication events logged with sufficient detail
-- [ ] **Rate Limiting**: Brute force attacks prevented by rate limiting
-
-#### Compliance
-- [ ] **GDPR Compliance**: User data deletion and export capabilities
-- [ ] **Security Auditing**: Comprehensive logging of security-relevant events
-- [ ] **Access Controls**: Proper separation of duties between roles
-- [ ] **Data Encryption**: Sensitive data encrypted in transit and at rest
-
-### User Experience Requirements
-
-#### Ease of Use
-- [ ] **Intuitive Login**: Clear distinction between player and admin login flows
-- [ ] **Error Handling**: Helpful error messages without exposing security details
-- [ ] **Mobile Experience**: Touch-friendly authentication on mobile devices
-- [ ] **Accessibility**: Login forms meet WCAG 2.1 AA standards
-- [ ] **Progressive Enhancement**: Works with JavaScript disabled for basic flows
-
-#### Administrative Efficiency
-- [ ] **Admin Onboarding**: New admins can be invited and onboarded in <5 minutes
-- [ ] **Role Management**: User roles can be changed without system downtime
-- [ ] **Tenant Management**: Superadmin can efficiently manage multiple tenants
-- [ ] **Monitoring**: Clear visibility into authentication health and usage
+#### Scalability Requirements
+- [ ] **Database Performance**: Auth queries complete in <100ms with proper indexes
+- [ ] **Concurrent Logins**: Handle 100+ simultaneous logins (Supabase managed)
+- [ ] **SMS Delivery**: Reliable OTP delivery via Twilio/Messagebird
 
 ---
 
-## P. Appendix
+## M2. Additional Notes
 
-### Supabase Edge Functions
+### Background Job Tenant Context
 
-#### Update User Claims Function
+**Mandatory Tenant Payload**:
+All background jobs must explicitly include `tenant_id`:
 ```typescript
-// supabase/functions/update-user-claims/index.ts
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Job enqueue pattern
+const jobPayload = {
+  tenant_id: tenantId,        // REQUIRED for all jobs
+  job_type: 'stats_update',
+  triggered_by: source,
+  request_id: crypto.randomUUID()
+};
 
-serve(async (req) => {
-  try {
-    const { userId, claims } = await req.json();
-    
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-    
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      app_metadata: claims
-    });
-    
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+await prisma.background_job_status.create({
+  data: {
+    tenant_id: tenantId,      // REQUIRED in job record
+    job_payload: jobPayload,
+    status: 'queued'
   }
 });
 ```
 
-#### Authentication Webhook
+**Worker Tenant Context Setting**:
+Workers must set tenant context before any database operations:
 ```typescript
-// supabase/functions/auth-webhook/index.ts
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-serve(async (req) => {
-  const { event, session, user } = await req.json();
+// In worker processing
+async function processJob(job: JobData) {
+  const { tenant_id } = job.payload;
   
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-  
-  // Handle different auth events
-  switch (event) {
-    case 'user.created':
-      await handleUserCreated(supabase, user);
-      break;
-    case 'user.signin':
-      await handleUserSignIn(supabase, user, session);
-      break;
-    case 'user.signout':
-      await handleUserSignOut(supabase, user);
-      break;
+  if (!tenant_id) {
+    throw new Error('Job missing required tenant_id in payload');
   }
   
-  return new Response(JSON.stringify({ success: true }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
-});
-
-async function handleUserCreated(supabase: any, user: any) {
-  // Create user profile if it doesn't exist
-  const { error } = await supabase
-    .from('user_profiles')
-    .upsert({
-      user_id: user.id,
-      display_name: user.user_metadata?.display_name || user.email,
-      created_at: new Date().toISOString()
-    });
+  // Set RLS context for all subsequent queries
+  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenant_id}, false)`;
   
-  if (error) {
-    console.error('Error creating user profile:', error);
-  }
-}
-
-async function handleUserSignIn(supabase: any, user: any, session: any) {
-  // Update last login time
-  await supabase
-    .from('user_profiles')
-    .update({ last_login_at: new Date().toISOString() })
-    .eq('user_id', user.id);
-  
-  // Log authentication event
-  await supabase
-    .from('auth_activity_log')
-    .insert({
-      user_id: user.id,
-      activity_type: 'login',
-      success: true,
-      ip_address: session?.ip_address,
-      user_agent: session?.user_agent
-    });
+  // OR pass tenant_id to SQL functions
+  await supabase.rpc('update_stats_function', { target_tenant_id: tenant_id });
 }
 ```
+
+**Multi-Tenancy Isolation Guarantee**:
+This pattern ensures background jobs cannot accidentally process data across tenant boundaries, maintaining strict isolation even in async operations.
+
+### Migration Recovery Strategy
+
+**Transactional Migration Pattern**:
+```sql
+-- All migrations wrapped in transactions where possible
+BEGIN;
+  -- Migration steps
+  ALTER TABLE players ADD COLUMN tenant_id UUID;
+  UPDATE players SET tenant_id = '00000000-0000-0000-0000-000000000001';
+  ALTER TABLE players ALTER COLUMN tenant_id SET NOT NULL;
+  
+  -- Validation check before commit
+  SELECT COUNT(*) FROM players WHERE tenant_id IS NULL;
+  -- If count > 0, ROLLBACK; else COMMIT;
+COMMIT;
+```
+
+**Schema Snapshot Recovery**:
+```bash
+# Manual recovery script location
+/db/rollback/restore_pre_multitenancy_schema.sql
+
+# Contents: Complete schema restoration + data re-seeding
+# Usage: psql -d database_name -f /db/rollback/restore_pre_multitenancy_schema.sql
+```
+
+**Recovery Script Template**:
+```sql
+-- /db/rollback/restore_pre_multitenancy_schema.sql
+BEGIN;
+  -- Drop all tenant-related constraints and columns
+  ALTER TABLE players DROP CONSTRAINT IF EXISTS fk_players_tenant;
+  ALTER TABLE players DROP COLUMN IF EXISTS tenant_id;
+  
+  -- Restore original unique constraints
+  ALTER TABLE players ADD CONSTRAINT unique_player_name UNIQUE(name);
+  
+  -- Drop tenants table and related structures
+  DROP TABLE IF EXISTS tenants CASCADE;
+  
+  -- Re-seed any global configuration
+  INSERT INTO app_config (config_key, config_value) VALUES 
+    ('system_mode', 'single_tenant');
+COMMIT;
+```
+
+
+## N. Appendix
 
 ### Configuration Templates
 
-#### Supabase Auth Configuration
-```typescript
-// lib/supabase.ts
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-
-export const supabaseClient = createClientComponentClient();
-
-export const supabaseServer = () => createServerComponentClient({ cookies });
-
-// Auth configuration
-export const authConfig = {
-  // JWT settings
-  jwt: {
-    expiryMargin: 60, // Refresh 60 seconds before expiry
-    storage: 'localStorage', // Use localStorage for web
-  },
-  
-  // Auth flow settings
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    
-    // Redirect URLs
-    redirectTo: {
-      login: '/auth/callback',
-      logout: '/auth/login',
-      signup: '/auth/callback'
-    }
-  },
-  
-  // Rate limiting
-  rateLimits: {
-    login: { requests: 5, window: 900 }, // 5 per 15 minutes
-    signup: { requests: 3, window: 3600 }, // 3 per hour
-    reset: { requests: 3, window: 3600 } // 3 per hour
-  }
-};
-```
-
-#### Environment Variables Template
+#### Environment Variables
 ```bash
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# JWT Configuration
+# JWT Configuration (from Supabase dashboard)
 SUPABASE_JWT_SECRET=your-jwt-secret
 
 # Auth Configuration
@@ -2560,26 +2394,214 @@ AUTH_REDIRECT_URL=https://your-domain.com/auth/callback
 
 # Security Settings
 PASSWORD_MIN_LENGTH=12
-SESSION_TIMEOUT_HOURS=24
+
+# SMS Configuration (Twilio for Supabase phone provider)
+TWILIO_ACCOUNT_SID=your-twilio-sid
+TWILIO_AUTH_TOKEN=your-twilio-token
+TWILIO_PHONE_NUMBER=+1234567890
+
+# Rate Limiting (optional - Vercel Edge Config or Redis)
 RATE_LIMIT_REDIS_URL=redis://localhost:6379
+AUTH_RATE_LIMIT_PER_15MIN=5
+ADMIN_INVITE_LIMIT_PER_DAY=10
+```
 
-# Email Configuration (for magic links)
-SMTP_HOST=smtp.resend.com
-SMTP_PORT=587
-SMTP_USER=your-smtp-user
-SMTP_PASS=your-smtp-password
-FROM_EMAIL=noreply@your-domain.com
+#### Supabase Dashboard Configuration
 
-# Feature Flags
-ENABLE_PHONE_VERIFICATION=true
-ENABLE_2FA=true
-ENABLE_SOCIAL_LOGIN=false
+**Authentication → Providers**:
+```yaml
+Email:
+  enabled: true
+  confirm_email: true  # Require email verification
+  secure_password_change: true
+  minimum_password_length: 12
+
+Phone:
+  enabled: true
+  provider: twilio  # Or messagebird
+  phone_otp_length: 6
+  phone_otp_expiry: 300  # 5 minutes
+```
+
+**Authentication → Email Templates**:
+- Customize admin invitation email
+- Customize password reset email
+- Add branding and support links
+
+**Authentication → URL Configuration**:
+```
+Site URL: https://your-domain.com
+Redirect URLs: 
+  - https://your-domain.com/auth/callback
+  - capacitor://localhost (for mobile app)
+```
+
+### Database Migration Checklist
+
+**Pre-Migration**:
+- [ ] Backup production database
+- [ ] Test migration on staging environment
+- [ ] Enable Supabase Auth providers (email + phone)
+- [ ] Configure Twilio for SMS delivery
+
+**Migration Steps**:
+1. Run schema migrations (admin_profiles, players.auth_user_id, admin_invitations, auth_activity_log)
+2. Create initial superadmin account (see below)
+3. Test admin signup/login flow
+4. Test player phone verification flow
+5. Verify RLS policies are working
+
+### Creating First Superadmin
+
+After running schema migrations, create the initial superadmin manually:
+
+**Step 1: Create auth.users record**
+```typescript
+// Via Supabase Dashboard → Authentication → Users → Add User
+// OR via API:
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // Use service role
+);
+
+const { data, error } = await supabase.auth.admin.createUser({
+  email: 'superadmin@capo.com',
+  password: 'very_secure_password',
+  email_confirm: true // Skip email verification
+});
+
+// Note the user_id from the response
+```
+
+**Step 2: Create admin_profiles record**
+```sql
+-- Run once in Supabase SQL Editor
+INSERT INTO admin_profiles (user_id, tenant_id, user_role, display_name)
+VALUES (
+  'your-auth-user-uuid-here',  -- From auth.users.id (step 1)
+  NULL,                         -- NULL = superadmin (cross-tenant)
+  'superadmin',
+  'Your Name'
+);
+```
+
+**Verification**:
+```sql
+-- Verify superadmin was created correctly
+SELECT 
+  au.email,
+  ap.user_role,
+  ap.tenant_id,
+  ap.display_name
+FROM auth.users au
+JOIN admin_profiles ap ON ap.user_id = au.id
+WHERE ap.user_role = 'superadmin';
+```
+
+**Note**: Automated superadmin creation via marketing/onboarding pages will be added in future phase.
+
+**Post-Migration**:
+- [ ] Verify all existing players can claim profiles
+- [ ] Test admin invitation flow
+- [ ] Test role switching (if admin has player_id linked)
+- [ ] Monitor auth_activity_log for issues
+
+### Helper Functions
+
+#### Phone Number Utilities
+```typescript
+// src/utils/phone.util.ts
+
+/**
+ * Normalize UK phone numbers to E.164 format
+ * Supports: 07XXX XXXXXX → +447XXX XXXXXX
+ * Future: Expand for international with libphonenumber-js
+ */
+export function normalizeToE164(phone: string): string {
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  
+  if (cleaned.startsWith('+44')) {
+    return cleaned; // Already E.164
+  }
+  
+  if (cleaned.startsWith('07')) {
+    return '+44' + cleaned.substring(1);
+  }
+  
+  throw new Error('Invalid UK phone number format. Use 07XXX XXXXXX or +44 format');
+}
+
+/**
+ * Validate UK phone number format
+ */
+export function isValidUKPhone(phone: string): boolean {
+  const e164 = normalizeToE164(phone);
+  return /^\+44[1-9]\d{9}$/.test(e164);
+}
+
+/**
+ * Format phone number for display
+ */
+export function formatPhone(phone: string, mask: boolean = false): string {
+  // E.164 format: +447123456789
+  if (!phone) return '';
+  
+  if (mask) {
+    // Mask middle digits: +44 7*** ***789
+    const countryCode = phone.slice(0, 3);
+    const lastDigits = phone.slice(-3);
+    return `${countryCode} ${phone[3]}*** ***${lastDigits}`;
+  }
+  
+  // Format for display: +44 7123 456789
+  return phone.replace(/(\+\d{2})(\d{4})(\d+)/, '$1 $2 $3');
+}
+```
+
+#### Activity Logging Helper
+```typescript
+export async function logAuthActivity(params: {
+  user_id: string;
+  tenant_id?: string;
+  activity_type: string;
+  success: boolean;
+  failure_reason?: string;
+  metadata?: Record<string, any>;
+  request?: NextRequest;
+}) {
+  const ipHash = params.request 
+    ? crypto.createHash('sha256').update(params.request.ip || 'unknown').digest('hex')
+    : null;
+    
+  const userAgentHash = params.request?.headers.get('user-agent')
+    ? crypto.createHash('sha256').update(params.request.headers.get('user-agent')!).digest('hex')
+    : null;
+  
+  await prisma.auth_activity_log.create({
+    data: {
+      user_id: params.user_id,
+      tenant_id: params.tenant_id,
+      activity_type: params.activity_type,
+      success: params.success,
+      failure_reason: params.failure_reason,
+      ip_address_hash: ipHash,
+      user_agent_hash: userAgentHash,
+      metadata: params.metadata || {}
+    }
+  });
+}
 ```
 
 ---
 
-**Document Status**: Ready for Implementation  
-**Next Steps**: Begin Phase 1 - Superadmin + Admin Authentication  
-**Contact**: Development Team Lead for questions and implementation guidance
+**Document Status**: ✅ Ready for Implementation - Unified Supabase Auth Architecture  
+**Version**: 4.0.0 (Simplified single-auth-system design)  
+**Last Updated**: October 2025  
 
-This comprehensive authentication specification provides a complete roadmap for implementing secure, scalable authentication and authorization across the BerkoTNF platform, integrating seamlessly with the existing RSVP and multi-tenancy architecture while providing a foundation for future platform growth.
+**Next Steps**: 
+1. Configure Supabase Auth providers (email + phone)
+2. Run database migrations (Section C)
+3. Implement Phase 1 authentication flows
+4. Test admin and player signup/login
+
+This specification provides a complete, production-ready authentication system using industry-standard Supabase Auth for all users. Admins authenticate via email/password, players via phone/SMS OTP, unified under one auth system with proper multi-tenancy isolation.

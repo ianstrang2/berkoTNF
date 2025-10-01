@@ -2,19 +2,29 @@ BerkoTNF RSVP & Player Invitation System — Simplified Implementation Specifica
 
 Version 4.1.0 • Streamlined Production-Ready Implementation
 
-**SIMPLIFIED FOR WHATSAPP-SIMPLE WORKFLOW**
+**BUILDING ON COMPLETE MULTI-TENANCY FOUNDATION**
 
-This specification has been streamlined based on real-world usage patterns:
-- Existing BerkoTNF codebase architecture and patterns
+This specification builds on the **fully implemented multi-tenancy infrastructure** and has been streamlined based on real-world usage patterns:
+- ✅ **Multi-tenancy COMPLETE**: All 33+ tables tenant-scoped, RLS policies active
+- ✅ **Established API patterns**: 70+ routes use standardized tenant filtering
+- ✅ **Production-ready infrastructure**: Tenant-aware locks, background jobs, SQL functions
 - Current match lifecycle system (Draft → PoolLocked → TeamsBalanced → Completed)
 - Established UI patterns and soft-UI styling
-- Background worker infrastructure and API patterns using Prisma
-- Component architecture and file organization
 - **SIMPLIFIED**: Admin-only ringer management (no self-booking approval flows)
 - **ENHANCED**: Auto-balance with optional auto-lock for hands-off management
 - **STREAMLINED**: Single unified RSVP flow for all users
 - **FOCUSED**: Core RSVP functionality without complex onboarding
 - **SECURE**: Token hashing and production reliability built-in
+
+---
+
+**Dependencies:** This specification builds on `SPEC_auth.md` for:
+- Player authentication (Supabase phone provider)
+- Admin authentication (Supabase email provider)  
+- Role switching for admin-players
+- Session management and JWT tokens
+
+All authentication logic is defined in the Auth Specification. This spec focuses on RSVP booking logic only.
 
 ---
 
@@ -55,11 +65,11 @@ This specification has been streamlined based on real-world usage patterns:
 
 ### **2) What regular players see / do**
 
-**Tap the shared link:**
-- Opens unified RSVP page: berkotnf.com/upcoming/match/[id]?token=...
-- **Same interface for everyone** - app users, web users, logged-in users
-- **App users:** Deep-linked, no phone entry needed (best experience)
-- **Web users:** Same page, phone entry required for identity
+**Tap the shared deep link:**
+- Opens in native Capacitor app: `capo://match/123`
+- **App-only** - native mobile experience only
+- **Authenticated users:** Immediately see RSVP interface
+- **New users:** SMS verification flow, then RSVP
 - Shows match details, current booking status, and simple RSVP buttons
 
 **Three simple actions:**
@@ -308,35 +318,39 @@ Optional tier open times (A→B→C). Admin can still add players manually at an
 
 3) Database Schema Changes
 
-**EXISTING SCHEMA ANALYSIS:**
-- `players` table: ✅ Already exists with all required fields
-- `upcoming_matches` table: ✅ Already exists with match lifecycle states
-- `match_player_pool` table: ✅ Already exists with basic RSVP functionality
-- `background_job_status` table: ✅ Already exists for job processing
+**✅ MULTI-TENANCY FOUNDATION COMPLETE:**
+- ✅ `players` table: Already exists with tenant_id, unique constraints, RLS policies
+- ✅ `upcoming_matches` table: Already exists with tenant_id, match lifecycle states  
+- ✅ `match_player_pool` table: Already exists with tenant_id, basic RSVP functionality
+- ✅ `background_job_status` table: Already exists with tenant_id for job processing
+- ✅ `tenants` table: Complete with UUID keys, metadata, settings
+- ✅ All 33+ tables have tenant_id fields with proper foreign key constraints
 
-**REQUIRED ADDITIONS:**
+**RSVP-SPECIFIC ADDITIONS NEEDED:**
 
-3.1 Players (Add Phone, Tier & Multi-Tenant Support)
+3.1 Players Table (Add RSVP Fields Only)
 ```sql
--- Add phone field, tier system, and multi-tenant support
-ALTER TABLE players
-  ADD COLUMN tenant_id UUID NOT NULL,                     -- Multi-tenant isolation
-  ADD COLUMN phone TEXT,                                  -- E.164 format
-  ADD COLUMN tier TEXT NOT NULL DEFAULT 'C' CHECK (tier IN ('A','B','C'));
+-- ✅ Multi-tenancy already complete: tenant_id, constraints, indexes, RLS policies
+-- Current: players(player_id, tenant_id, name, is_ringer, ...) ✅ ALREADY EXISTS
 
--- Multi-tenant phone uniqueness (one phone per player per tenant)
+-- ADD: RSVP-specific fields only
+ALTER TABLE players
+  ADD COLUMN phone TEXT,                                  -- E.164 format, UK-only initially
+  ADD COLUMN tier TEXT NOT NULL DEFAULT 'C' CHECK (tier IN ('A','B','C')),
+  ADD COLUMN last_verified_at TIMESTAMPTZ;               -- SMS verification timestamp
+
+-- UK-specific phone validation (initially)
+ALTER TABLE players
+  ADD CONSTRAINT valid_uk_phone 
+  CHECK (phone IS NULL OR phone ~ '^\+44[1-9]\d{9}$');
+
+-- ✅ Multi-tenant phone uniqueness (builds on existing tenant infrastructure)
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_players_tenant_phone 
   ON players (tenant_id, phone) WHERE phone IS NOT NULL;
 
--- Multi-tenant optimized indexes (tenant_id first for query performance)
+-- ✅ Performance indexes (tenant_id already leads in existing indexes)
 CREATE INDEX IF NOT EXISTS idx_players_tenant_phone ON players(tenant_id, phone);
 CREATE INDEX IF NOT EXISTS idx_players_tenant_tier ON players(tenant_id, tier);
-CREATE INDEX IF NOT EXISTS idx_players_tenant_ringer ON players(tenant_id, is_ringer);
-
--- Phone validation constraint (E.164 international format)
-ALTER TABLE players
-  ADD CONSTRAINT valid_e164_phone 
-  CHECK (phone IS NULL OR phone ~ '^\+[1-9]\d{7,14}$');
 ```
 
 **Phone Normalization:** All phone input must be normalized to E.164 format before storage to prevent duplicates
@@ -344,66 +358,90 @@ ALTER TABLE players
 **Normalization Examples:**
 - `07123456789` → `+447123456789` (UK mobile)
 - `+44 7123 456789` → `+447123456789` (remove spaces)
-- `+1 555 123 4567` → `+15551234567` (US number)
 
-**Implementation:**
+**Phone Normalization:** All phone inputs use E.164 normalization utilities defined in Auth Specification.
+
 ```typescript
-// src/utils/phone.util.ts
-export function normalizeToE164(phone: string, defaultCountry: string = 'GB'): string {
-  // Remove all non-digit characters except +
-  const cleaned = phone.replace(/[^\d+]/g, '');
-  
-  // If starts with +, validate E.164 format
-  if (cleaned.startsWith('+')) {
-    return cleaned;
-  }
-  
-  // Country-specific normalization (per-tenant configurable)
-  if (defaultCountry === 'GB' && cleaned.startsWith('07')) {
-    return '+44' + cleaned.substring(1);
-  }
-  
-  // For non-GB tenants, if number lacks '+', hard-reject unless default country configured
-  if (defaultCountry !== 'GB' && !cleaned.startsWith('+')) {
-    throw new Error('Invalid phone format - international number required');
-  }
-  
-  // Add other country logic as needed for SaaS expansion
-  // defaultCountry comes from per-tenant app_config: default_phone_country
-  
-  return cleaned;
-}
+// Use auth spec utility (don't duplicate)
+import { normalizeToE164, isValidUKPhone } from '@/utils/phone.util';
+
+const normalizedPhone = normalizeToE164(userInput); // Handles UK formats
 ```
+
+**See:** Auth Specification Appendix for `phone.util.ts` implementation.
 
 **Note:** `is_ringer` field already exists - will be used for guest/one-off players
 
-3.2 Upcoming Matches (Add RSVP Features & Multi-Tenant Support)
+### 3.5 Player Authentication (See Auth Spec)
+
+Player authentication is handled by Supabase phone provider as defined in `SPEC_auth.md`.
+
+**Authentication Flow:**
+1. Player opens deep link `capo://match/123`
+2. If not authenticated, redirected to Supabase phone verification
+3. Enters phone number → receives SMS code → verifies
+4. Supabase creates `auth.users` record and session
+5. App calls `/api/auth/player/claim-profile` to link auth.users to players table
+6. Returns to RSVP interface with valid session
+
+**RSVP API Integration:**
+All RSVP endpoints verify authentication via Supabase session:
+```typescript
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return unauthorized();
+
+// Session includes player phone and tenant context
+const playerPhone = session.user.phone;
+const tenantId = session.user.app_metadata?.tenant_id;
+```
+
+**See:** Auth Specification Section E (Authentication Flows) for complete implementation.
+
+### 3.6 Role Switching for Admin-Players (See Auth Spec)
+
+Admin-player role switching is fully defined in `SPEC_auth.md` Section E2.
+
+**Integration with RSVP:**
+- RSVP interface detects admin sessions automatically
+- Admins with linked player profiles see role switcher
+- Current role determines navigation (player view vs admin view)
+- RSVP operations respect current role context
+
+**Database Schema:**
+Role switching uses `admin_profiles.player_id → players.player_id` linking (defined in auth spec).
+
+**See:** Auth Specification Section E2 (Role Switching) for complete implementation.
+
+3.2 Upcoming Matches (Add RSVP Features Only)
 ```sql
+-- ✅ Multi-tenancy already complete: tenant_id, constraints, indexes, RLS policies
+-- Current: upcoming_matches(upcoming_match_id, tenant_id, match_date, team_size, state, ...) ✅ ALREADY EXISTS
+
+-- ADD: RSVP-specific fields only
 ALTER TABLE upcoming_matches
-  ADD COLUMN tenant_id UUID NOT NULL,                     -- Multi-tenant isolation
   ADD COLUMN booking_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN invite_token_hash TEXT,                      -- hashed token for security
   ADD COLUMN invite_token_created_at TIMESTAMPTZ NULL,    -- token creation time
-  ADD COLUMN a_open_at TIMESTAMPTZ NULL,
-  ADD COLUMN b_open_at TIMESTAMPTZ NULL,
-  ADD COLUMN c_open_at TIMESTAMPTZ NULL,
+  ADD COLUMN a_open_at TIMESTAMPTZ NULL,                  -- Tier A open time
+  ADD COLUMN b_open_at TIMESTAMPTZ NULL,                  -- Tier B open time
+  ADD COLUMN c_open_at TIMESTAMPTZ NULL,                  -- Tier C open time
   ADD COLUMN match_timezone TEXT NOT NULL DEFAULT 'Europe/London',  -- for display only
-  ADD COLUMN capacity INT NULL,                           -- explicit capacity (if NULL, fallback to team_size*2 for backward compatibility)
-  -- NEW: Auto-balance and auto-lock system
+  ADD COLUMN capacity INT NULL,                           -- explicit capacity (if NULL, fallback to team_size*2)
+  -- Auto-balance and auto-lock system
   ADD COLUMN auto_balance_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   ADD COLUMN auto_balance_method TEXT NOT NULL DEFAULT 'performance'
     CHECK (auto_balance_method IN ('ability','performance','random')),
   ADD COLUMN auto_lock_when_full BOOLEAN NOT NULL DEFAULT FALSE,
-  -- NEW: Fixed last-call tracking (simplifies idempotency)
+  -- Fixed last-call tracking (simplifies idempotency)
   ADD COLUMN last_call_12_sent_at TIMESTAMPTZ NULL,       -- T-12h last-call timestamp
   ADD COLUMN last_call_3_sent_at TIMESTAMPTZ NULL;        -- T-3h last-call timestamp
 
--- Multi-tenant token uniqueness (per tenant, partial index to avoid NULL collisions)
+-- ✅ Multi-tenant token uniqueness (builds on existing tenant infrastructure)
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_upcoming_matches_tenant_token_hash
   ON upcoming_matches(tenant_id, invite_token_hash)
   WHERE invite_token_hash IS NOT NULL;
 
--- Multi-tenant optimized indexes (tenant_id first)
+-- ✅ Performance indexes (tenant_id already leads in existing indexes)
 CREATE INDEX IF NOT EXISTS idx_upcoming_matches_tenant_tier_opens
   ON upcoming_matches(tenant_id, a_open_at, b_open_at, c_open_at);
 ```
@@ -421,9 +459,11 @@ CREATE INDEX IF NOT EXISTS idx_upcoming_matches_tenant_tier_opens
 **CAPACITY CALCULATION:** Capacity counts IN only. MAYBE, PENDING, and WAITLIST are excluded.
 
 ```sql
--- Extend existing match_player_pool table with multi-tenant support
+-- ✅ Multi-tenancy already complete: tenant_id, constraints, indexes, RLS policies
+-- Current: match_player_pool(id, tenant_id, upcoming_match_id, player_id, response_status, ...) ✅ ALREADY EXISTS
+
+-- ADD: RSVP-specific fields only
 ALTER TABLE match_player_pool
-  ADD COLUMN tenant_id UUID NOT NULL,                     -- Multi-tenant isolation
   ADD COLUMN invited_at TIMESTAMPTZ NULL,
   ADD COLUMN invite_stage TEXT NULL,                       -- 'A','B','C'
   ADD COLUMN reminder_count INTEGER NOT NULL DEFAULT 0,    -- used for caps
@@ -440,13 +480,10 @@ ALTER TABLE match_player_pool
   ADD CONSTRAINT match_player_pool_response_status_check 
   CHECK (response_status IN ('PENDING','IN','OUT','MAYBE','WAITLIST'));
 
--- Multi-tenant unique constraints
-ALTER TABLE match_player_pool
-  ADD CONSTRAINT uniq_mpp_tenant_player_match UNIQUE (tenant_id, upcoming_match_id, player_id);
+-- ✅ Multi-tenant unique constraints already exist (unique_match_player_per_tenant)
+-- ✅ Performance indexes already exist with tenant_id leading
 
--- Multi-tenant performance indexes (tenant_id first for hot paths)
-CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_status
-  ON match_player_pool(tenant_id, upcoming_match_id, response_status);
+-- ADD: RSVP-specific indexes only
 CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_waitpos
   ON match_player_pool(tenant_id, upcoming_match_id, waitlist_position);
 CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_offer_exp
@@ -638,9 +675,12 @@ export async function getNumberFlag(key: string, envKey?: string): Promise<numbe
 
 4) Implementation Patterns (Match Existing Codebase)
 
-4.1 API Response Format (Consistent with Existing)
+4.1 API Response Format (Use Existing Patterns)
 ```typescript
-// src/lib/api.ts
+// ✅ Existing API patterns already established across 70+ routes
+// All RSVP endpoints will follow the same established patterns:
+
+// Standard response format (already used throughout codebase)
 export type ApiOk<T> = { success: true; data: T };
 export type ApiErr = { success: false; error: string; code?: string };
 export const ok = <T>(data: T): ApiOk<T> => ({ success: true, data });
@@ -680,29 +720,25 @@ export async function revalidateRsvp(tenantId: string, matchId: number) {
 }
 ```
 
-4.4 Transaction Patterns (Multi-Tenant Advisory Locks)
+4.4 Transaction Patterns (Use Existing Multi-Tenant Advisory Locks)
 ```typescript
-// src/lib/rsvp-lock.ts
-import { prisma } from '@/lib/prisma';
+// ✅ Multi-tenant advisory locks already implemented in src/lib/tenantLocks.ts
+import { withTenantMatchLock } from '@/lib/tenantLocks';
 
-export async function withTenantMatchLock<T>(tenantId: string, matchId: number, fn: (tx: typeof prisma) => Promise<T>) {
-  // Hash tenantId (UUID) into a 32-bit int; keep matchId as the second key
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(
-      `SELECT pg_advisory_xact_lock(hashtextextended($1, 0)::int, $2::int)`,
-      tenantId, matchId
-    );
-    return fn(tx);
-  });
+// Use existing tenant-aware locks for all RSVP operations
+export async function processRSVPResponse<T>(
+  tenantId: string, 
+  matchId: number, 
+  operation: (tx: typeof prisma) => Promise<T>
+) {
+  return withTenantMatchLock(tenantId, matchId, operation);
 }
 
-// Legacy single-tenant lock (deprecated - use withTenantMatchLock)
-export async function withMatchLock<T>(matchId: number, fn: (tx: typeof prisma) => Promise<T>) {
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock($1)', matchId);
-    return fn(tx);
-  });
-}
+// ✅ Current implementation already handles:
+// - Tenant-scoped advisory locks
+// - Hash-based lock keys for tenant isolation
+// - Automatic transaction management
+// - Proper lock cleanup
 ```
 
 4.5 Notification Interface (Stub for Push)
@@ -744,9 +780,9 @@ export function phoneRateLimit(tenantId: string, matchId: number, phone: string,
 }
 ```
 
-4.7 One Smart Link & Security
+4.7 Deep Link & Security
 
-**Unified URL:** https://berkotnf.com/upcoming/match/[id]?token=...
+**Native Deep Link:** `capo://match/123`
 
 **Invite Token Security:** `invite_token` is a 32+ byte URL-safe random value in URL; store `invite_token_hash` server-side; compare hash on request. Rotate on demand; auto-expire after match date.
 
@@ -779,7 +815,88 @@ CREATE POLICY tenant_isolation_players ON players
 **Access Control:**
 - **Admins:** Full CRUD on RSVP for matches within their tenant
 - **Players:** SELECT limited match info; SELECT/UPDATE only their own match_player_pool row within tenant
-- **Public booking:** Derive `tenantId` by loading `(upcoming_match_id, invite_token_hash) → tenant_id`, then run writes in that tenant context. Don't trust client-supplied `tenantId`.
+- **App booking:** Session provides phone and tenantId context, all writes tenant-scoped
+
+4.8 SQL Deployment Convention
+
+**All complex RSVP business logic must live in version-controlled SQL files.**
+
+### What Belongs in `/sql/`
+
+**Complex SQL functions with business logic:**
+- Multi-table aggregations and joins
+- State machine transitions with side effects
+- Performance-critical bulk operations
+- Complex eligibility/filtering logic
+
+**File naming:** Use `rsvp_` prefix for all RSVP service functions
+- Example: `rsvp_process_waitlist_cascade.sql`
+- Example: `rsvp_calculate_notification_targets.sql`
+
+**Deployment:** Via `deploy_all.ps1` PowerShell script which handles:
+- SQL function deployment in dependency order
+- Edge Function deployment via Supabase CLI
+- Both local and production environments
+
+### RSVP SQL Functions Required
+
+Create these functions in `/sql/` (deployed via script):
+
+1. **`rsvp_process_waitlist_cascade.sql`**
+   - Expire unclaimed offers based on dynamic TTL
+   - Auto-cascade to next 3 waitlist players
+   - Complex eligibility rules (muted, caps, cooldowns)
+   - Called by background worker every 5 minutes
+
+2. **`rsvp_calculate_notification_targets.sql`**
+   - Filter eligible players for notifications
+   - Respect muted flags, per-player caps, cooldowns
+   - Tier-based targeting logic
+   - Returns player IDs for notification batching
+
+3. **`rsvp_adjust_match_capacity.sql`**
+   - LIFO demotion when capacity decreases
+   - Atomic multi-row updates
+   - Notification triggers for demoted players
+
+### What Lives in Application Code
+
+**Simple operations that don't need SQL functions:**
+- Token generation/validation (bcrypt hashing)
+- Rate limiting (in-memory or Redis)
+- Simple CRUD (create invitation, update status)
+- Phone normalization
+- Session management
+
+### Integration with Background Jobs
+
+Background jobs call these SQL functions:
+```typescript
+// worker/src/jobs/waitlist-processor.ts
+await prisma.$executeRaw`SELECT rsvp_process_waitlist_cascade(${tenantId}, ${matchId})`;
+```
+
+### Why This Pattern
+
+**Benefits:**
+- Cursor can maintain SQL logic alongside application code
+- Version control tracks all business logic changes
+- No hidden SQL functions in database
+- Performance-critical operations stay in database layer
+- Consistent with existing stats aggregation pattern
+
+**Deployment Script Integration:**
+```powershell
+$sqlDeploymentOrder = @(
+    "helpers.sql",
+    # ... existing stats functions ...
+    
+    # RSVP service functions
+    "rsvp_process_waitlist_cascade.sql",
+    "rsvp_calculate_notification_targets.sql",
+    "rsvp_adjust_match_capacity.sql"
+)
+```
 
 5) API Surface (Following BerkoTNF Patterns)
 
@@ -872,57 +989,82 @@ CREATE POLICY tenant_isolation_players ON players
 // If admin wants someone to self-serve later, they toggle is_ringer=false
 ```
 
-5.2 Public Booking Interface (Simplified)
+5.2 App-Only Booking Interface
 
-**Core public endpoints for RSVP:**
+**Core RSVP endpoints (app-authenticated via Supabase):**
 
 ```typescript
-// GET /api/booking/match/[id]?token={token}
-// Public match details for RSVP (no auth required)
-// Uses raw token in URL, hashed comparison server-side
-
 // POST /api/booking/respond
-// Enhanced player RSVP response with full tenant scoping and security
-{ 
-  "matchId": 123, 
-  "token": "secure_token", 
-  "phone": "+447...", 
-  "action": "IN" | "OUT" | "WAITLIST",  // REMOVED: "PENDING"
-  "source": "app" | "web",
-  "outFlexible": true // optional, for "Might be available later"
+// Uses Supabase session from auth spec
+export async function POST(request: NextRequest) {
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session }, error } = await supabase.auth.getSession();
+  
+  if (error || !session) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  
+  // Session includes phone from Supabase phone provider
+  const playerPhone = session.user.phone;
+  const tenantId = session.user.app_metadata?.tenant_id;
+  
+  if (!playerPhone || !tenantId) {
+    return NextResponse.json({ error: 'Invalid session' }, { status: 400 });
+  }
+  
+  const { matchId, action, outFlexible } = await request.json();
+  
+  // Process RSVP with authenticated player context
+  await processRSVP(tenantId, matchId, playerPhone, action, outFlexible);
+  
+  // Response includes:
+  // - Updated match status
+  // - Player's current RSVP status
+  // - Waitlist position (if applicable)
 }
-// Enhanced Implementation: 
-// - Derive tenantId from (upcoming_match_id, invite_token_hash) - don't trust client
-// - Set app.tenant_id before any writes for RLS compliance
-// - Phone normalization to E.164 (normalizeToE164), reject invalid formats
-// - Ringer access control: block if is_ringer=true and enable_ringer_self_book=false
-//   → Return: "Please ask the organiser to add you for this match."
-// - Unknown player handling: if block_unknown_players=true → "This number isn't registered with this club. Please ask the organiser to add you."
-// - Token TTL: Reject if current_time > kickoff_at + 24h → "This link has expired. Ask the organiser for a new one."
-// - Rate limiting: tenant:{tenantId}:match:{matchId}:phone:{E164} (10/min)
-// - Burst protection: tenant:{tenantId}:match:{matchId} (50 writes/10s)
-// - Use withTenantMatchLock(tenantId, matchId) for race safety
-// - Atomic waitlist position assignment: ORDER BY waitlist_position ASC (pure FIFO queue)
-// - Activity logging: All responses logged to notification_ledger
-// - Never log full phone numbers or raw tokens
 
 // POST /api/booking/waitlist/claim
-// Claim waitlist offer (with re-validation and full tenant security)
-{ "matchId": 123, "token": "abc", "phone": "+447..." }
-// Enhanced Implementation:
-// - Derive tenantId from (matchId, token hash) - don't trust client
-// - Set app.tenant_id before any writes for RLS compliance
-// - Phone normalization to E.164 with validation
-// - Token TTL: Reject if current_time > kickoff_at + 24h
-// - Use withTenantMatchLock(tenantId, matchId) for race safety
-// - SELECT ... FOR UPDATE on waitlist rows to prevent double-claims
-// - Emit: notification_ledger(kind='waitlist_offer_claimed', batch_key=original_offer_batch_key)
+// Uses requirePlayerAccess helper from auth spec
+export async function POST(request: NextRequest) {
+  const { user, player, tenantId } = await requirePlayerAccess(request);
+  const { matchId } = await request.json();
+  
+  // Use withTenantMatchLock for race safety
+  await withTenantMatchLock(tenantId, matchId, async (tx) => {
+    // SELECT ... FOR UPDATE to prevent double-claims
+    const offer = await tx.match_player_pool.findFirst({
+      where: { 
+        tenant_id: tenantId,
+        upcoming_match_id: matchId,
+        phone: player.phone,
+        response_status: 'WAITLIST',
+        offer_expires_at: { gt: new Date() }
+      },
+      lock: 'UPDATE'
+    });
+    
+    if (!offer) {
+      throw new Error('No valid offer found');
+    }
+    
+    // Claim the spot
+    await claimWaitlistSpot(tx, tenantId, matchId, player.phone);
+  });
+}
 
-// GET /api/booking/match/[id]/live  
-// Live match status updates (15s polling for non-push users)
-// Returns: capacity, user status, active offer (with expiresAt), spots remaining
-// Headers: Cache-Control: no-store
+// GET /api/booking/match/[id]/status
+// Returns current match status for authenticated player
+export async function GET(request: NextRequest) {
+  const { user, player, tenantId } = await requirePlayerAccess(request);
+  
+  // Returns:
+  // - Match capacity and current count
+  // - Player's RSVP status
+  // - Waitlist position and offer status
+}
 ```
+
+**Note:** All API routes use Supabase session helpers from auth spec (`requirePlayerAccess`, `requireAuth`).
 
 5.3 Background Job Integration (Simplified)
 
@@ -1121,21 +1263,22 @@ Others get "spot filled"; remain on waitlist.
 **Minimal Web Interface:**
 
 ```typescript
-// REMOVED: Separate booking pages
-// All users now use unified experience: /upcoming/match/[id]?token=...
-// - App users: Deep-linked, no phone entry
-// - Web users: Same page, phone entry required
-// - Ringer users: Blocked with friendly message
+// App-only RSVP interface
+// All users use native Capacitor app: capo://match/123
+// - Authenticated users: Immediate RSVP access
+// - New users: SMS verification flow first
+// - Ringer users: Admin adds them manually (no self-booking)
 ```
 
 9) Background Jobs (Enhanced Render Worker Integration)
 
-**EXTEND EXISTING BACKGROUND JOB SYSTEM:**
-- Use existing `background_job_status` table
-- Integrate with current Render worker infrastructure  
-- Follow established job patterns and error handling
-- Add new job types to existing worker
-- **NEW**: Production reliability with concurrency protection and idempotency
+**✅ EXTEND EXISTING MULTI-TENANT BACKGROUND JOB SYSTEM:**
+- ✅ Use existing `background_job_status` table (already has tenant_id)
+- ✅ Integrate with current Render worker infrastructure (already tenant-aware)
+- ✅ Follow established job patterns and error handling (already tenant-scoped)
+- ✅ All 11 existing SQL functions already accept target_tenant_id parameters
+- Add new RSVP job types to existing worker
+- **NEW**: RSVP-specific reliability with concurrency protection and idempotency
 
 **Simplified Job Types:**
 
@@ -1154,6 +1297,41 @@ export const RSVP_JOB_TYPES = {
 // REMOVED: 
 // - PENDING_HOLD_PROCESSOR (no pending holds)
 // - JOIN_REQUEST_NOTIFIER (no approval flows)
+```
+
+**Tenant Context Pattern (Critical for All Jobs):**
+
+```typescript
+// All job processors MUST set tenant context before any database operations
+async function processJob(job: JobData) {
+  const { tenant_id } = job.payload;
+  
+  if (!tenant_id) {
+    throw new Error('Job missing required tenant_id in payload');
+  }
+  
+  // Set RLS context for all subsequent queries
+  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenant_id}, false)`;
+  
+  // Now process job with tenant-scoped queries
+  await processAutoBalance(job.matchId);
+}
+
+// Example: Enqueueing a job with tenant context
+const jobPayload = {
+  tenant_id: tenantId,        // REQUIRED for all jobs
+  job_type: 'auto_balance',
+  match_id: matchId,
+  triggered_by: 'capacity_reached'
+};
+
+await prisma.background_job_status.create({
+  data: {
+    tenant_id: tenantId,      // REQUIRED in job record
+    job_payload: jobPayload,
+    status: 'queued'
+  }
+});
 ```
 
 **Job Implementations:**
@@ -1257,9 +1435,9 @@ Players can SELECT limited fields for matches they’re invited to or have a val
 
 12) Transactions & Concurrency (Multi-Tenant & Race-Safe)
 
-**All booking/claim operations** run within `withTenantMatchLock(tenantId, matchId)` transaction.
+**✅ All booking/claim operations** use existing `withTenantMatchLock(tenantId, matchId)` pattern.
 
-**Tenant scoping:** Every Prisma query touching RSVP data must include `tenant_id` in WHERE clauses. Public routes derive `tenantId` from `(upcoming_match_id, invite_token_hash)` and set `app.tenant_id` before writes.
+**✅ Tenant scoping:** Follow established pattern - every RSVP query includes `tenant_id` in WHERE clauses and sets RLS context. Public routes derive `tenantId` from `(upcoming_match_id, invite_token_hash)` and use existing `prisma.$executeRaw\`SELECT set_config('app.tenant_id', ${tenantId}, false)\`` pattern.
 
 **Phone normalization:** Server-side E.164 normalization runs on all public booking endpoints; reject invalid; never log full numbers (mask as +447******789).
 
@@ -1269,11 +1447,11 @@ Players can SELECT limited fields for matches they’re invited to or have a val
 
 **Drop-out grace period** (5m/2m/1m) cancels if player returns to IN during grace.
 
-**Auto-balance triggers** when IN count first reaches capacity (not on every IN/OUT toggle) or via admin manual trigger. Uses tenant-aware advisory locks.
+**Auto-balance triggers** when IN count first reaches capacity (not on every IN/OUT toggle) or via admin manual trigger. Uses existing tenant-aware advisory locks.
 
 **Ringer blocking:** Public booking respects `enable_ringer_self_book=false`; ringers can't IN/WAITLIST, show friendly block message.
 
-**Background jobs** are idempotent and keyed via batch_key with tenant scoping.
+**✅ Background jobs** use existing tenant-scoped infrastructure and are idempotent with batch_key scoping.
 
 13) Analytics & Observability
 
@@ -1722,9 +1900,9 @@ if (maxAllowedTTL < 15) {
 - **6h last-call cooldown:** Exclude players with last-call in notification_ledger within past 6h
 
 ### 22.3 Implementation Approach ✅ **CONFIRMED**
-**DECISION:** Web-first with Capacitor later
-**RATIONALE:** Build on existing berkotnf.com/upcoming infrastructure, add push notifications in Phase 2
-**BENEFIT:** Faster development, leverages existing trusted domain, progressive enhancement
+**DECISION:** Native Capacitor app only (no web RSVP)
+**RATIONALE:** Mobile-first experience with SMS authentication, push notifications built-in
+**BENEFIT:** Better UX, simplified architecture, no public route complexity
 
 ### 22.4 Player Tier Management ✅ **CONFIRMED**
 **IMPLEMENTATION:** Add tier dropdown to existing admin player management interface
