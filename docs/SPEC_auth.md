@@ -440,7 +440,7 @@ const ADMIN_ROUTES = [
   '/admin/matches',       // Match management
   '/admin/players',       // Player management  
   '/admin/seasons',       // Season management
-  '/admin/setup'          // Club configuration
+  '/admin/settings'       // Club settings
 ];
 ```
 
@@ -450,13 +450,26 @@ const ADMIN_ROUTES = [
 const SUPERADMIN_ROUTES = [
   '/superadmin/tenants',     // Tenant management
   '/superadmin/analytics',   // Cross-tenant analytics
-  '/superadmin/users',       // Admin user management
-  '/superadmin/system'       // System configuration
+  '/superadmin/system',      // System configuration  
+  '/superadmin/info'         // Multi-tenant diagnostics (moved from /admin/info)
 ];
 
-// Tenant selector for superadmin
+// Tenant selector for switching between clubs
 const SUPERADMIN_TENANT_SELECTOR = '/superadmin/select-tenant';
 ```
+
+**Context-Aware Navigation:**
+Superadmin operates in two distinct contexts:
+
+1. **Platform Context** (default):
+   - Navigation: Tenants, Analytics, System, Info
+   - No tenant selected
+   - Manages platform-level concerns
+
+2. **Tenant Context** (after selecting a club):
+   - Navigation: Matches, Players, Seasons, Settings (same as regular admin)
+   - Tenant-scoped operations
+   - "Back to Platform" button visible in header
 
 #### Player Navigation (Mobile App)
 ```typescript
@@ -469,6 +482,12 @@ const PLAYER_ROUTES = [
   '/stats'         // Detailed player statistics
 ];
 ```
+
+**Superadmin Context Switching:**
+- Superadmin default view shows platform navigation (Tenants, Analytics, System, Info)
+- When switching to a specific tenant via dropdown, superadmin sees regular admin navigation
+- "Back to Platform" button returns to superadmin context
+- Info page (`/superadmin/info`) remains accessible only in platform context
 
 ---
 
@@ -954,7 +973,7 @@ const ADMIN_NAV = [
   { label: 'Matches', path: '/admin/matches', icon: 'calendar' },
   { label: 'Players', path: '/admin/players', icon: 'users' },
   { label: 'Seasons', path: '/admin/seasons', icon: 'trophy' },
-  { label: 'Setup', path: '/admin/setup', icon: 'settings' }
+  { label: 'Settings', path: '/admin/settings', icon: 'settings' }
 ];
 
 // Navigation switches based on currentRole (from localStorage)
