@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import AdminLayout from '@/components/layout/AdminLayout.layout';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import Button from '@/components/ui-kit/Button.component';
@@ -795,9 +793,8 @@ const AdminInfoPage = () => {
   ];
 
   return (
-    <MainLayout>
-      <AdminLayout>
-        <div className="w-full px-4">
+    <AdminLayout>
+      <div className="w-full px-4">
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg shadow-soft-sm">
               <div className="flex items-start">
@@ -1176,7 +1173,6 @@ const AdminInfoPage = () => {
           </ErrorBoundary>
         </div>
       </AdminLayout>
-    </MainLayout>
   );
 }
 

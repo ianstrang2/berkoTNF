@@ -17,10 +17,11 @@ const DashboardComponent = dynamic(() => import('@/components/dashboard/Dashboar
 
 export default function HomePage() {
   return (
+    // Keep MainLayout here for root page since it's not in a layout group
     <MainLayout>
       <Head>
-        <title>Dashboard - BerkoTNF</title>
-        <meta name="description" content="Overview of your BerkoTNF stats and upcoming matches." />
+        <title>Dashboard - Capo</title>
+        <meta name="description" content="Overview of your Capo stats and upcoming matches." />
       </Head>
       <DashboardComponent />
     </MainLayout>

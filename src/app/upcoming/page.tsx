@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import UpcomingMatchCard from '@/components/upcoming/UpcomingMatchCard.component';
 
 interface UpcomingMatch {
@@ -80,7 +79,7 @@ export default function UpcomingPage() {
   };
 
   return (
-    <MainLayout>
+    <>
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-slate-800">
           Upcoming Matches
@@ -88,6 +87,6 @@ export default function UpcomingPage() {
       </div>
       
       {renderContent()}
-    </MainLayout>
+    </>
   );
 } 

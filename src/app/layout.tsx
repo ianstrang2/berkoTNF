@@ -3,6 +3,8 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import { Inter } from 'next/font/google';
 import { ReactNode } from 'react';
 import { NavigationProvider } from '@/contexts/NavigationContext';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { StatusBarConfig } from '@/components/native/StatusBarConfig.component';
 import Script from 'next/script';
 // Note: we'll use style tags for CSS in public directory
 
@@ -36,9 +38,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* Font Awesome is already imported at the top of the file */}
       </head>
       <body className="h-full bg-gray-50">
-        <NavigationProvider>
-          {children}
-        </NavigationProvider>
+        <StatusBarConfig />
+        <AuthProvider>
+          <NavigationProvider>
+            {children}
+          </NavigationProvider>
+        </AuthProvider>
 
         {/* This script helps avoid hydration errors by making client rendering match server exactly */}
         <Script

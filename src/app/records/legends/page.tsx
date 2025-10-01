@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import LegendsComponent from '@/components/records/Legends.component';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
@@ -54,10 +53,8 @@ function LegendsContent() {
 
 export default function RecordsLegendsPage() {
   return (
-    <MainLayout>
-      <Suspense fallback={<LoadingIndicator />}>
-        <LegendsContent />
-      </Suspense>
-    </MainLayout>
+    <Suspense fallback={<LoadingIndicator />}>
+      <LegendsContent />
+    </Suspense>
   );
 } 

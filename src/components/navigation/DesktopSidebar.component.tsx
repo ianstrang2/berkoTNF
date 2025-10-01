@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { NAVIGATION_CONFIG } from '@/contexts/NavigationContext';
 import { useClubConfig } from '@/hooks/useClubConfig.hook';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 interface DesktopSidebarProps {
   className?: string;
@@ -15,13 +16,17 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
     secondarySection,
     sidebarCollapsed, 
     setSidebarCollapsed, 
-    isAdminMode, 
-    isAdminAuthenticated 
+    isAdminMode
   } = useNavigation();
   
+  const { profile } = useAuthContext();
   const { clubName } = useClubConfig();
+  
+  // Determine current context from primarySection (set by URL in NavigationContext)
+  const isInSuperadminContext = primarySection === 'superadmin';
+  const isInAdminContext = primarySection === 'admin';
 
-  // Admin navigation icons
+  // Admin and superadmin navigation icons
   const getAdminIcon = (section: string) => {
     switch (section) {
       case 'matches':
@@ -55,15 +60,32 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         );
+      case 'tenants':
+        return (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        );
       default:
         return null;
     }
   };
 
-  // Get navigation items based on admin mode
+  // Get navigation items based on CURRENT CONTEXT (URL), not just role
   const getNavigationItems = () => {
-    if (isAdminMode && isAdminAuthenticated) {
-      // Admin mode: show admin sections as primary navigation
+    // Superadmin context (on /superadmin/* pages)
+    if (isInSuperadminContext && profile.isSuperadmin) {
+      const superadminConfig = NAVIGATION_CONFIG.superadmin.secondary;
+      return Object.entries(superadminConfig).map(([key, config]) => ({
+        key,
+        label: config.label,
+        href: `/superadmin/${key}`,
+        icon: getAdminIcon(key)
+      }));
+    }
+    
+    // Admin context (on /admin/* pages)
+    if (isInAdminContext && profile.isAdmin) {
       const adminConfig = NAVIGATION_CONFIG.admin.secondary;
       return Object.entries(adminConfig).map(([key, config]) => ({
         key,

@@ -3,7 +3,6 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import CurrentHalfSeason from '@/components/tables/CurrentHalfSeason.component';
 import SeasonRaceGraph from '@/components/tables/SeasonRaceGraph.component';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 // Loading component
@@ -64,10 +63,8 @@ function TableHalfContent() {
 
 export default function TableHalfPage() {
   return (
-    <MainLayout>
-      <Suspense fallback={<LoadingIndicator />}>
-        <TableHalfContent />
-      </Suspense>
-    </MainLayout>
+    <Suspense fallback={<LoadingIndicator />}>
+      <TableHalfContent />
+    </Suspense>
   );
 } 

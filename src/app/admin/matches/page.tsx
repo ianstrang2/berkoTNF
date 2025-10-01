@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { format, nextThursday } from 'date-fns';
 import { Trash2 } from 'lucide-react';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import MatchModal from '@/components/team/modals/MatchModal.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import Button from '@/components/ui-kit/Button.component';
@@ -368,11 +367,9 @@ const MatchListPageContent = () => {
 };
 
 const MatchListPage = () => (
-  <MainLayout>
-    <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
-      <MatchListPageContent />
-    </Suspense>
-  </MainLayout>
+  <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+    <MatchListPageContent />
+  </Suspense>
 );
 
 export default MatchListPage; 

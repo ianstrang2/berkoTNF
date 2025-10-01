@@ -5,6 +5,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safe area insets for native apps (Capacitor) */
+/* This prevents content from overlapping the system status bar on mobile */
+@supports (padding-top: env(safe-area-inset-top)) {
+  /* Apply safe area padding only in Capacitor native environment */
+  /* Capacitor adds the 'capacitor' class to <html> element */
+  html.capacitor body {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+}
+
 /* Additional styles for Soft UI */
 body {
   background-color: #fafafa; /* Tailwind's neutral-50 */

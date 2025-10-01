@@ -26,7 +26,7 @@ This document outlines the comprehensive implementation plan for adding AI-gener
 
 ### 🔧 Configuration Status - FULLY IMPLEMENTED
 - ✅ **OpenRouter API Key**: Configured in Supabase secrets  
-- ✅ **Domain Configuration**: `https://BerkoTNF.com` 
+- ✅ **Domain Configuration**: `https://caposport.com` 
 - ✅ **Model Selected**: `google/gemini-2.5-flash-lite`
 - ✅ **Version Control**: All configuration in editable code files (`vercel.json`, `.env.local`, `/api` routes)
 - ✅ **Consistency**: Follows existing `trigger-stats-update` pattern exactly
@@ -403,7 +403,7 @@ async function callOpenRouterBulk(prompt: string) {
         headers: {
           Authorization: `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://BerkoTNF.com',
+          'HTTP-Referer': 'https://caposport.com',
         },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',
@@ -758,13 +758,13 @@ With complete league context, the LLM can generate insights like:
 1. Create `src/app/api/admin/trigger-player-profiles/route.ts` following your existing `trigger-stats-update` pattern
 2. Create `supabase/functions/generate-player-profiles/index.ts` (simplified Edge Function)
 3. ✅ **COMPLETED**: `OPENROUTER_API_KEY` already configured in Supabase secrets
-4. ✅ **COMPLETED**: HTTP-Referer updated to `https://BerkoTNF.com`
+4. ✅ **COMPLETED**: HTTP-Referer updated to `https://caposport.com`
 5. Deploy using your existing `deploy_all.ps1` script
 6. Test with small player batch (2-3 players first) to validate prompt quality
 
 **Configuration Status:**
 - **OpenRouter API Key**: ✅ Configured in Supabase secrets as `OPENROUTER_API_KEY`
-- **Domain/Referer**: ✅ Set to `https://BerkoTNF.com`
+- **Domain/Referer**: ✅ Set to `https://caposport.com`
 - **Model Access**: `google/gemini-2.5-flash-lite` (verify access in OpenRouter dashboard)
 - **Environment Variable**: `PROFILE_RECENT_DAYS_THRESHOLD` (7 for weekly, 30 for monthly)
 - **Deployment**: ✅ Uses existing `deploy_all.ps1` workflow

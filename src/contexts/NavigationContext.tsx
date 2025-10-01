@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 interface NavigationState {
   // Navigation state
-  primarySection: 'dashboard' | 'upcoming' | 'table' | 'records' | 'admin';
+  primarySection: 'dashboard' | 'upcoming' | 'table' | 'records' | 'admin' | 'superadmin';
   secondarySection?: string;
   
   // UI state  
@@ -14,8 +14,10 @@ interface NavigationState {
   // Admin state
   isAdminMode: boolean;
   isAdminAuthenticated: boolean;
+  isSuperadmin: boolean;
   lastVisitedAdminSection?: string;
   lastVisitedUserSection?: string;
+  lastVisitedSuperadminSection?: string;
 }
 
 interface NavigationContextType extends NavigationState {
@@ -26,12 +28,14 @@ interface NavigationContextType extends NavigationState {
   setNavigationFromUrl: (pathname: string) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setIsAdminAuthenticated: (authenticated: boolean) => void;
+  setIsSuperadmin: (isSuperadmin: boolean) => void;
   
   // Computed values
   availableSecondaryOptions: string[];
   
   // Utilities
   isAdminUrl: (pathname: string) => boolean;
+  isSuperadminUrl: (pathname: string) => boolean;
   requiresAuthentication: (pathname: string) => boolean;
 }
 
@@ -71,8 +75,15 @@ const NAVIGATION_CONFIG = {
       matches: { label: 'Matches', tertiary: ['next', 'results'] },
       players: { label: 'Players', tertiary: ['add-edit'] },
       seasons: { label: 'Seasons' },
-      info: { label: 'Info' },
       setup: { label: 'Setup', hasSections: true }
+    }
+  },
+  superadmin: {
+    label: 'Superadmin',
+    icon: 'shield',
+    secondary: {
+      tenants: { label: 'Tenants' },
+      info: { label: 'System Info' }
     }
   }
 };
@@ -86,8 +97,10 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+  const [isSuperadmin, setIsSuperadmin] = useState<boolean>(false);
   const [lastVisitedAdminSection, setLastVisitedAdminSection] = useState<string | undefined>(undefined);
   const [lastVisitedUserSection, setLastVisitedUserSection] = useState<string | undefined>(undefined);
+  const [lastVisitedSuperadminSection, setLastVisitedSuperadminSection] = useState<string | undefined>(undefined);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
   
   const pathname = usePathname();
@@ -133,9 +146,24 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
   
   // URL parsing and navigation sync
   const setNavigationFromUrl = (pathname: string) => {
-    if (pathname.startsWith('/admin/')) {
+    if (pathname.startsWith('/superadmin')) {
+      setPrimarySection('superadmin');
+      setIsAdminMode(true);
+      setIsSuperadmin(true);
+      
+      // Parse superadmin secondary section
+      const pathParts = pathname.split('/');
+      if (pathParts.length >= 3 && pathParts[2]) {
+        const superadminSection = pathParts[2];
+        setSecondarySection(superadminSection);
+        setLastVisitedSuperadminSection(superadminSection);
+      } else {
+        setSecondarySection(undefined);
+      }
+    } else if (pathname.startsWith('/admin/')) {
       setPrimarySection('admin');
       setIsAdminMode(true);
+      setIsSuperadmin(false);
       
       // Parse admin secondary section
       const pathParts = pathname.split('/');
@@ -219,8 +247,12 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
     return pathname.startsWith('/admin/');
   };
   
+  const isSuperadminUrl = (pathname: string): boolean => {
+    return pathname.startsWith('/superadmin/');
+  };
+  
   const requiresAuthentication = (pathname: string): boolean => {
-    return isAdminUrl(pathname);
+    return isAdminUrl(pathname) || isSuperadminUrl(pathname);
   };
   
   // Computed values
@@ -241,8 +273,10 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       sidebarCollapsed,
       isAdminMode,
       isAdminAuthenticated,
+      isSuperadmin,
       lastVisitedAdminSection,
       lastVisitedUserSection,
+      lastVisitedSuperadminSection,
       
       // Actions
       setPrimarySection,
@@ -251,12 +285,14 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       setNavigationFromUrl,
       setSidebarCollapsed,
       setIsAdminAuthenticated: setAdminAuthenticated,
+      setIsSuperadmin,
       
       // Computed values
       availableSecondaryOptions,
       
       // Utilities
       isAdminUrl,
+      isSuperadminUrl,
       requiresAuthentication
     }}>
       {children}

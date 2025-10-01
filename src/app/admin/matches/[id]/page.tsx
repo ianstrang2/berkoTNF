@@ -16,7 +16,6 @@ import MatchModal from '@/components/team/modals/MatchModal.component';
 import MatchCompletedModal from '@/components/team/modals/MatchCompletedModal.component';
 import SingleBlockedModal from '@/components/admin/matches/SingleBlockedModal.component';
 import { MoreVertical, Lock, Unlock, RotateCcw, Edit } from 'lucide-react';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import { format } from 'date-fns';
 
 interface MatchControlCentrePageProps {
@@ -347,9 +346,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
 };
 
 const MatchControlCentrePage = ({ params }: MatchControlCentrePageProps) => (
-  <MainLayout>
-    <MatchControlCentrePageContent params={params} />
-  </MainLayout>
+  <MatchControlCentrePageContent params={params} />
 );
 
 export default MatchControlCentrePage;

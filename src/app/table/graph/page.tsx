@@ -1,7 +1,6 @@
 'use client';
 import React, { Suspense } from 'react';
 import SeasonRaceGraph from '@/components/tables/SeasonRaceGraph.component';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 // Loading component
@@ -26,10 +25,8 @@ function TableGraphContent() {
 
 export default function TableGraphPage() {
   return (
-    <MainLayout>
-      <Suspense fallback={<LoadingIndicator />}>
-        <TableGraphContent />
-      </Suspense>
-    </MainLayout>
+    <Suspense fallback={<LoadingIndicator />}>
+      <TableGraphContent />
+    </Suspense>
   );
 } 

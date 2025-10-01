@@ -489,6 +489,14 @@ const PLAYER_ROUTES = [
 - "Back to Platform" button returns to superadmin context
 - Info page (`/superadmin/info`) remains accessible only in platform context
 
+**Implementation Enhancement:**
+- Superadmin has 3-way view selector in header dropdown:
+  - **Platform View**: Manage tenants, system settings (`/superadmin/*`)
+  - **Admin View (Tenant X)**: Manage club as admin (`/admin/*` with tenant context)
+  - **Player View (Tenant X)**: View club as player (`/`, `/upcoming`, `/table`, `/records` with tenant context)
+- Allows testing all three user perspectives without separate accounts
+- View selection persists in session (tenant_id in app_metadata)
+
 ---
 
 ## E. Authentication Flows
@@ -2613,9 +2621,10 @@ export async function logAuthActivity(params: {
 
 ---
 
-**Document Status**: ✅ Ready for Implementation - Unified Supabase Auth Architecture  
-**Version**: 4.0.0 (Simplified single-auth-system design)  
-**Last Updated**: October 2025  
+**Document Status**: ✅ Implementation Complete - Phase 1  
+**Version**: 4.1.0 (Implemented with enhancements)  
+**Last Updated**: October 1, 2025  
+**Implementation Notes**: See `docs/AUTH_IMPLEMENTATION_PROGRESS.md` for detailed progress  
 
 **Next Steps**: 
 1. Configure Supabase Auth providers (email + phone)

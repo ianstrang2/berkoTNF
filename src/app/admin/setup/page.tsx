@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import dynamic from 'next/dynamic';
 
@@ -51,10 +50,8 @@ function SetupContent() {
 
 export default function AdminSetupPage() {
   return (
-    <MainLayout>
-      <Suspense fallback={<LoadingIndicator />}>
-        <SetupContent />
-      </Suspense>
-    </MainLayout>
+    <Suspense fallback={<LoadingIndicator />}>
+      <SetupContent />
+    </Suspense>
   );
 } 

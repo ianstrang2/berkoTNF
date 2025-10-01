@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import OverallSeasonPerformance from '@/components/tables/OverallSeasonPerformance.component';
 import SeasonRaceGraph from '@/components/tables/SeasonRaceGraph.component';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
@@ -64,10 +63,8 @@ function TableWholeContent() {
 
 export default function TableWholePage() {
   return (
-    <MainLayout>
-      <Suspense fallback={<LoadingIndicator />}>
-        <TableWholeContent />
-      </Suspense>
-    </MainLayout>
+    <Suspense fallback={<LoadingIndicator />}>
+      <TableWholeContent />
+    </Suspense>
   );
 } 
