@@ -18,6 +18,16 @@ export const MobileHeader: React.FC = () => {
   const isInAdminView = pathname.startsWith('/admin');
   const isInPlayerView = !isInAdminView && !pathname.startsWith('/superadmin');
 
+  // Debug: Log profile to see what's loaded
+  React.useEffect(() => {
+    console.log('[MobileHeader] Profile:', {
+      isAdmin: profile.isAdmin,
+      linkedPlayerId: profile.linkedPlayerId,
+      isSuperadmin: profile.isSuperadmin,
+      isAuthenticated: profile.isAuthenticated
+    });
+  }, [profile]);
+
   return (
     <header className="sticky top-0 z-40 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
       <div className="flex items-center justify-center px-4 py-3 min-h-[56px]">
@@ -27,7 +37,7 @@ export const MobileHeader: React.FC = () => {
             <p>Superadmin features are web-only</p>
             <p className="text-xs opacity-80">Please use desktop browser</p>
           </div>
-        ) : profile.isAdmin && profile.linkedPlayerId ? (
+        ) : profile.isAuthenticated && (profile.isAdmin || profile.linkedPlayerId) ? (
           // Admin with linked player - show role switcher (centered)
           isInAdminView ? (
             <a
@@ -48,7 +58,8 @@ export const MobileHeader: React.FC = () => {
           )
         ) : (
           // Regular player or admin without player link - show logo centered
-          <div className="flex items-center">
+          // Make logo tappable to access login/admin (for testing)
+          <a href="/auth/login" className="flex items-center">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
               <img 
                 src="/img/logo.png" 
@@ -57,7 +68,7 @@ export const MobileHeader: React.FC = () => {
               />
             </div>
             <span className="text-white font-semibold text-lg ml-3">Capo</span>
-          </div>
+          </a>
         )}
       </div>
     </header>
