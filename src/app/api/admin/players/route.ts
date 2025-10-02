@@ -105,6 +105,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       name,
+      phone,
       is_ringer,
       is_retired,
       goalscoring,
@@ -122,6 +123,7 @@ export async function POST(request: Request) {
 
     const createData: any = {
       name,
+      phone: phone || null,
       is_ringer: is_ringer !== undefined ? is_ringer : false, // Default for new player
       is_retired: is_retired !== undefined ? is_retired : false, // Default for new player
       goalscoring: goalscoring || 3,
@@ -175,7 +177,8 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { 
       player_id, 
-      name, 
+      name,
+      phone,
       is_ringer, 
       is_retired,
       goalscoring,
@@ -195,6 +198,7 @@ export async function PUT(request: Request) {
     // We explicitly list fields to ensure type safety and to avoid passing undefined values for fields not being updated (though our client sends all)
     const updateData: {
       name?: string;
+      phone?: string | null;
       is_ringer?: boolean;
       is_retired?: boolean;
       goalscoring?: number;
@@ -207,6 +211,7 @@ export async function PUT(request: Request) {
     } = {};
 
     if (name !== undefined) updateData.name = name;
+    if (phone !== undefined) updateData.phone = phone || null;
     if (is_ringer !== undefined) updateData.is_ringer = is_ringer;
     if (is_retired !== undefined) updateData.is_retired = is_retired;
     if (goalscoring !== undefined) updateData.goalscoring = goalscoring;

@@ -376,13 +376,18 @@ const normalizedPhone = normalizeToE164(userInput); // Handles UK formats
 
 Player authentication is handled by Supabase phone provider as defined in `SPEC_auth.md`.
 
-**Authentication Flow:**
-1. Player opens deep link `capo://match/123`
-2. If not authenticated, redirected to Supabase phone verification
-3. Enters phone number → receives SMS code → verifies
+**Authentication Flow (Club Invite Link - Implemented ✅):**
+1. Admin shares club invite link in WhatsApp: `https://capo.app/join/berkotnf/abc123`
+2. Player taps link → Opens app or browser
+3. Player enters phone number → receives SMS code → verifies
 4. Supabase creates `auth.users` record and session
-5. App calls `/api/auth/player/claim-profile` to link auth.users to players table
-6. Returns to RSVP interface with valid session
+5. **Auto-linking** via phone number match:
+   - System normalizes phone numbers (both incoming and database)
+   - Finds matching player by phone in `players.phone` field
+   - If match: Auto-links `players.auth_user_id` to session.user.id
+   - If no match: Creates `player_join_requests` entry for admin approval
+6. Player redirected to dashboard (auto-linked) or pending approval page
+7. For RSVP deep links: `capo://match/123` - authenticated players proceed directly to RSVP
 
 **RSVP API Integration:**
 All RSVP endpoints verify authentication via Supabase session:

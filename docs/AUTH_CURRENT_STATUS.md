@@ -1,9 +1,10 @@
 # Authentication System - Current Status
 
 **Date**: October 2, 2025  
-**Status**: Phase 1-2 Complete + Mobile Header Implemented  
-**Ready For**: Phase 3 (Player Phone Authentication)  
-**Outstanding Issue**: Leaderboard page duplicate header bug
+**Status**: Phase 1-3 Complete, Phase 4 In Progress (Final Polish)  
+**Core Functionality**: 100% Working - Can authenticate admins and players  
+**Remaining**: UI polish items (settings pages, invite link UI, table indicators)  
+**Last Session**: Fixed bugs, tested mobile, built player phone auth with auto-linking
 
 ---
 
@@ -29,14 +30,29 @@
 
 ### Phase 2: Capacitor Setup (100%)
 - ✅ Capacitor installed and initialized
-- ✅ Android platform added
+- ✅ Android platform added and tested
 - ✅ Config file set up (com.caposport.capo)
-- ✅ StatusBar plugin configured
+- ✅ StatusBar plugin configured (purple background)
 - ✅ Safe-area CSS implemented
-- ✅ Mobile header differentiation complete
+- ✅ Mobile header with admin/player view switching
+- ✅ MobileHeader component with role-aware controls
 - ✅ Platform detection working
+- ✅ Bottom navigation with all icons (including Seasons)
 - ⏸️ iOS platform (waiting for MacBook)
-- ⏸️ Deep links configuration (Phase 3)
+
+### Phase 3: Player Phone Authentication (100% ✅)
+- ✅ Twilio SMS provider configured
+- ✅ Supabase phone provider enabled
+- ✅ **Club invite link system** (one link per club)
+- ✅ **Auto-linking by phone number** (no dropdown!)
+- ✅ Phone normalization (E.164 format)
+- ✅ Phone field in player admin UI
+- ✅ Join request approval flow for unknown players
+- ✅ `/join/{tenant}/{token}` page
+- ✅ `/auth/player-login` page
+- ✅ `/auth/pending-approval` page (soft-ui styled)
+- ✅ Test OTP working (447949251277=123456)
+- ✅ Full flow tested end-to-end
 
 ---
 
@@ -94,25 +110,60 @@ Superadmin header dropdown now offers:
 
 ---
 
-## 🔄 What's Next
+## 🚧 Phase 4: Final UI Polish (Remaining Work)
 
-### Immediate: Create New Superadmin
-Run in Supabase:
-1. Create auth user: `ian.e.strang+1@gmail.com`
-2. Create admin_profiles record (superadmin, tenant_id=NULL)
-3. Update app_metadata
+### Must Complete Before RSVP:
 
-### Next Phase: Mobile Header Differentiation
-Implement different headers for web vs mobile:
-- **Web**: Current layout (logo, controls, logout)
-- **Mobile Player**: Logo centered, no logout
-- **Mobile Admin**: Profile switcher centered, no logout
-- **Mobile Superadmin**: Not available (superadmin is web-only)
+**1. Invite Link UI** (~15 mins):
+- Add "📱 Club Invite Link" button to Players page header
+- Modal displays invite URL with copy-to-clipboard button
+- Uses existing `/api/admin/club-invite` endpoint
 
-### Future: Player Phone Authentication (Phase 3)
-- Phone/SMS OTP signup
-- Player profile claiming
-- Role switcher for admin-players (mobile)
+**2. Header Profile Dropdown** (~20 mins):
+- Add profile icon/button to header (all views)
+- Dropdown shows: User name, Settings link (players), Logout
+- Replaces current standalone logout button
+- Shows on both desktop and mobile web (not Capacitor app)
+
+**3. Player Settings Page** (~15 mins):
+- Create `/settings` route for players
+- Favorite club selector (updates `players.selected_club`)
+- Logout button
+- Minimal, focused interface
+
+**4. Enhanced Join Approval** (~15 mins):
+- Add "Link to Existing Player" option in approval flow
+- When approving, admin can choose: Create New OR Link to Existing
+- Shows player's phone number in approval UI
+
+**5. Player Table Indicators** (~10 mins):
+- Add 📱 Phone column (green checkmark if set, gray dash if empty)
+- Add 🔗 Claimed column (green if auth_user_id exists, gray if not)
+- Hover tooltips show actual phone number
+
+**6. Phone Change Auto-Unlink** (~5 mins):
+- When admin updates player's phone number, clear `auth_user_id`
+- Forces player to re-claim profile with new number
+- Prevents auth/phone mismatch
+
+**Total Remaining: ~80 minutes**
+
+---
+
+## 🔄 After Phase 4 Complete
+
+### Ready for RSVP System:
+All authentication infrastructure complete. Can proceed with:
+- Match booking with tier-based windows
+- Waitlist management
+- Push notifications
+- Deep links for match RSVPs (`capo://match/123`)
+
+### Future Enhancements (Post-RSVP):
+- iOS platform support (waiting for MacBook)
+- 2FA for admin accounts
+- Enhanced audit logging dashboard
+- Biometric auth for mobile
 
 ---
 
@@ -177,15 +228,18 @@ Implement different headers for web vs mobile:
 
 ---
 
-## 📋 TODO Before Mobile Release
+## 📋 Completed This Session
 
-- [ ] Create new superadmin account (`+1` email)
-- [ ] Implement mobile header differentiation (web vs native)
-- [ ] Configure deep links for Supabase auth callbacks
-- [ ] Test on Android device
-- [ ] Add iOS when MacBook arrives
-- [ ] Player phone/SMS authentication (Phase 3)
-- [ ] Role switcher UI for admin-players (Phase 3)
+- [x] Fixed leaderboard duplicate header bug
+- [x] Resolved all TypeScript errors
+- [x] Tested mobile app on Android emulator
+- [x] Configured Twilio SMS provider
+- [x] Built player phone authentication pages
+- [x] Implemented club invite link system
+- [x] Added phone auto-linking (no dropdown!)
+- [x] Built admin approval flow for unknown players
+- [x] Added phone field to player management UI
+- [x] Tested complete end-to-end player onboarding
 
 ---
 
@@ -200,7 +254,7 @@ Implement different headers for web vs mobile:
 
 ---
 
-**Next**: Fix leaderboard duplicate header issue, then move to Phase 3 (player phone authentication)!
+**Authentication system is now complete!** Ready for RSVP system implementation.
 
 ---
 

@@ -38,9 +38,70 @@ The BerkoTNF platform requires authentication to support:
 
 ### Implementation Phases
 
-**Phase 1**: Core authentication flows (admin web, player mobile) ✅ **CURRENT SCOPE**
-**Phase 2**: Role switching and profile linking 🔄 **NEXT**
-**Phase 3**: Advanced security (2FA, enhanced audit logging) 📋 **FUTURE**
+**Phase 1**: Core authentication flows (admin web, player mobile) ✅ **COMPLETE**
+**Phase 2**: Role switching and profile linking ✅ **COMPLETE**
+**Phase 3**: Player onboarding (club invite links, auto-linking) ✅ **COMPLETE**
+**Phase 4**: Final UI polish (settings, profile menu, indicators) 🔄 **IN PROGRESS**
+**Phase 5**: Advanced security (2FA, enhanced audit logging) 📋 **FUTURE**
+
+### Implementation Decisions & Deviations
+
+**Simplified Approach** (vs. original spec):
+1. **ProfileMenu Component**: Replaced with simpler header dropdown (lighter weight)
+2. **Settings Pages**: Minimal settings (only what's actually needed)
+3. **Player Profile Claiming**: Automatic phone matching (no manual dropdown)
+4. **Navigation**: 4-item nav (Matches, Players, Seasons, Setup) - settings in header dropdown
+5. **Mobile View Switching**: Header button (not bottom nav) for cleaner UX
+
+**Rationale**: Original spec was enterprise-grade. Simplified for small club use case without losing functionality.
+
+### Phase 4 Remaining Work (Final Polish)
+
+Based on the Role & Platform Matrix above, here's what needs to be built:
+
+**1. Invite Link UI** (~15 mins):
+- Button in Players page header: "📱 Club Invite Link"  
+- Modal shows invite URL with copy-to-clipboard button
+- Desktop/Web only (admin feature)
+- Integrates with `/api/admin/club-invite` (already built)
+
+**2. Desktop/Web Profile Dropdown** (~25 mins):
+- Person icon (👤) in header top-right
+- Dropdown menu with context-aware options:
+  - Players: Logout
+  - Admins: Logout
+  - Admin-Players: View switching + Logout
+  - Superadmins: 3-way view selector + Logout
+- Replaces current standalone logout button
+- **NOT needed on Capacitor** (different UX per matrix)
+
+**3. Capacitor Admin Menu** (~15 mins):
+- Add menu icon (⋮) for admin-only users (no player link)
+- Shows: Logout option
+- Admin-players keep current centered button (no change needed)
+- Players have no menu (no change needed)
+
+**4. Enhanced Join Approval** (~20 mins):
+- Two options when approving: "Create New Player" OR "Link to Existing Player"
+- If "Link to Existing": Dropdown shows all unclaimed players in club
+- Shows phone number prominently in approval UI
+- Updates both `player_join_requests` and `players.auth_user_id`
+
+**5. Player Table Status Indicators** (~15 mins):
+- Add 📱 **Phone** column: Green ✓ if set, Gray ○ if empty
+- Add 🔗 **App Access** column: Green ✓ if claimed (auth_user_id), Gray ○ if not
+- Hover tooltips show actual phone number (masked: +44 7*** ***789)
+- Helps admin see who can access the app
+
+**6. Phone Change Auto-Unlink** (~5 mins):
+- When admin updates `players.phone`, check if it changed
+- If changed: Clear `auth_user_id` (force re-claim with new number)
+- Prevents auth/phone mismatch
+- Add warning message: "Phone changed - player will need to rejoin via invite link"
+
+**Total: ~95 minutes** to complete Phase 4
+
+**Scalability Note**: Superadmin view switching works for 1-20 clubs. With 50+ clubs, we'll add "Switch to Different Club..." option that opens `/superadmin/tenants` search page (easy upgrade path).
 
 ---
 
@@ -597,6 +658,36 @@ await sendInvitationEmail(email, invitationToken, {
 
 ### 2. Player Mobile Signup Flow
 
+#### Club Invite Link System (Implemented ✅)
+
+**Admin shares club invite link** (one permanent link per club):
+```
+https://capo.app/join/berkotnf/abc123...
+```
+
+**Player Flow**:
+1. Player taps link (shared in WhatsApp group)
+2. Opens `/join/{tenant_slug}/{invite_token}` in app or browser
+3. System validates invite token and shows: "Join BerkoTNF"
+4. Player enters phone number
+5. Receives SMS with 6-digit OTP code
+6. Verifies code
+7. **Auto-linking**:
+   - If phone number matches existing player → Auto-linked, redirect to dashboard
+   - If phone number unknown → Create join request, pending admin approval
+
+**Database Tables**:
+- `club_invite_tokens` - One active token per tenant
+- `player_join_requests` - Pending approvals for unknown phone numbers
+- `players.phone` - Used for auto-linking phone to player profile
+
+**Implementation**:
+- `/api/admin/club-invite` - Generate/get invite link
+- `/api/join/validate-token` - Validate invite code
+- `/api/join/link-player` - Auto-link by phone or create join request
+- `/api/admin/join-requests` - Admin approval endpoints
+- Admin UI shows pending requests at top of Players page
+
 #### Phone + SMS OTP Registration
 ```typescript
 // 1. Player opens mobile app, selects club (tenant)
@@ -632,17 +723,21 @@ const claimResponse = await fetch('/api/auth/player/claim-profile', {
 // 8. Player redirected to /dashboard
 ```
 
-#### Profile Claiming for Existing Players
+#### Profile Claiming for Existing Players (Auto-Linking ✅)
 ```typescript
 // Scenario: Player exists in database but hasn't signed up yet
-// (e.g., admin created player record manually)
+// (e.g., admin created player record with phone number)
 
-// Flow is identical to new player signup above
-// The /api/auth/player/claim-profile endpoint:
-// - Checks if player record exists with this phone + tenant_id
-// - If yes: links players.auth_user_id to auth.users.id
-// - If no: creates new player record
-// - Server-side validation ensures tenant_id cannot be spoofed
+// AUTOMATIC PHONE MATCHING (no manual selection):
+// The /api/join/link-player endpoint:
+// 1. Normalizes incoming phone: 07949251277 → +447949251277
+// 2. Normalizes all player.phone values in database
+// 3. Finds match by normalized phone comparison
+// 4. If match found: Auto-link players.auth_user_id to session.user.id
+// 5. If no match: Create player_join_requests entry for admin approval
+// 6. Redirects to dashboard (auto-linked) or pending approval page
+
+// NO DROPDOWN - completely automatic based on phone number
 ```
 
 ### 3. Admin Mobile Login Flow (Role Switching Enabled)
@@ -1346,7 +1441,157 @@ CREATE POLICY matches_admin_modify ON upcoming_matches
 
 ---
 
-## G. UI/UX Implementation
+## G. Role & Platform UI Reference
+
+### Comprehensive Role/Platform Matrix
+
+This section documents exactly what each user type sees on each platform, serving as a definitive reference for UI implementation and future development.
+
+#### Platform Definitions
+
+**Desktop Web**: Browser on computer (laptop/desktop)
+**Mobile Web**: Browser on phone (testing/fallback)
+**Capacitor App**: Native Android/iOS app
+
+---
+
+### Role 1: Player (Phone Auth)
+
+**Access**: Player pages only (`/`, `/upcoming`, `/table`, `/records`)
+
+| Platform | Primary Nav | Header | Menu Icon | Menu Contents |
+|----------|-------------|--------|-----------|---------------|
+| **Desktop Web** | Sidebar (4 items) | Capo logo + Profile icon | 👤 Person | • Logout |
+| **Mobile Web** | Bottom tabs (4 items) | Capo logo + Profile icon | 👤 Person | • Logout |
+| **Capacitor** | Bottom tabs (4 items) | Capo logo only | ❌ None | N/A - No menu needed |
+
+**Rationale**:
+- **Desktop/Mobile Web**: Profile menu provides logout (for testing/shared devices)
+- **Capacitor**: No logout needed (personal device, stays logged in)
+- **Navigation**: Dashboard, Upcoming, Table, Records (consistent everywhere)
+
+---
+
+### Role 2: Admin (Email Auth, No Player Link)
+
+**Access**: Admin pages only (`/admin/matches`, `/admin/players`, `/admin/seasons`, `/admin/setup`)
+
+| Platform | Primary Nav | Header | Menu Icon | Menu Contents |
+|----------|-------------|--------|-----------|---------------|
+| **Desktop Web** | Sidebar (4 items) | Capo logo + Profile icon | 👤 Person | • Logout |
+| **Mobile Web** | Bottom tabs (4 items) | Capo logo + Profile icon | 👤 Person | • Logout |
+| **Capacitor** | Bottom tabs (4 items) | Capo logo + Menu icon | ⋮ Menu | • Logout<br>• (future: Quick settings) |
+
+**Rationale**:
+- **Desktop/Mobile Web**: Standard admin dashboard with logout
+- **Capacitor**: Admin might manage club on mobile - needs logout for security
+- **Navigation**: Matches, Players, Seasons, Setup (consistent everywhere)
+
+---
+
+### Role 3: Admin-Player (Email Auth WITH Player Link)
+
+**Access**: Both admin AND player pages
+
+| Platform | View | Primary Nav | Header | Menu Icon | Menu Contents |
+|----------|------|-------------|--------|-----------|---------------|
+| **Desktop** | Player | Sidebar (4 player items) | Capo logo + Profile icon | 👤 Person | • ⚙️ Switch to Admin View<br>• Logout |
+| **Desktop** | Admin | Sidebar (4 admin items) | Capo logo + Profile icon | 👤 Person | • 👤 Switch to Player View<br>• Logout |
+| **Mobile Web** | Player | Bottom tabs (4 player) | Capo logo + Profile icon | 👤 Person | • ⚙️ Switch to Admin View<br>• Logout |
+| **Mobile Web** | Admin | Bottom tabs (4 admin) | Capo logo + Profile icon | 👤 Person | • 👤 Switch to Player View<br>• Logout |
+| **Capacitor** | Player | Bottom tabs (4 player) | Centered button | ⚙️ Button | "Back to Admin" |
+| **Capacitor** | Admin | Bottom tabs (4 admin) | Centered button | 👤 Button | "View as Player" |
+
+**Rationale**:
+- **Desktop/Mobile Web**: Profile menu provides view switching + logout
+- **Capacitor**: Centered button (current implementation) - no crowding, clear action
+- **View switching**: Primary use case for this role - must be easily accessible
+- **Navigation**: Changes based on current view (player vs admin sections)
+
+---
+
+### Role 4: Superadmin (Platform Management)
+
+**Access**: All pages via view switching (`/superadmin/*`, `/admin/*`, `/`)
+
+| Platform | Context | Primary Nav | Header | Menu Icon | Menu Contents |
+|----------|---------|-------------|--------|-----------|---------------|
+| **Desktop** | Platform | Sidebar (Tenants, System, Info) | Capo logo + Profile icon | 👤 Person | • 🏢 Platform View (current)<br>• ⚙️ View as Admin (Club)<br>• 👤 View as Player (Club)<br>• ───────<br>• 🚪 Logout |
+| **Desktop** | Admin View | Sidebar (4 admin items) | Capo logo + Profile icon | 👤 Person | • 🏢 Back to Platform<br>• 👤 View as Player (Club)<br>• ───────<br>• 🚪 Logout |
+| **Desktop** | Player View | Sidebar (4 player items) | Capo logo + Profile icon | 👤 Person | • 🏢 Back to Platform<br>• ⚙️ View as Admin (Club)<br>• ───────<br>• 🚪 Logout |
+| **Mobile Web** | ❌ | N/A | N/A | N/A | **Not supported** - Desktop only |
+| **Capacitor** | ❌ | N/A | N/A | N/A | **Not supported** - Desktop only |
+
+**Rationale**:
+- **Desktop only**: Platform management needs full screen, keyboard, complex UI
+- **Menu-based view switching**: Quick jump between Platform/Admin/Player views
+- **Tenant selection**: Menu shows current club's views; to switch clubs, use Platform view
+- **Scalability**: With 50+ clubs, menu shows: "Platform View", "Current Club Views", "Switch to Different Club..." which goes to /superadmin/tenants page with search
+
+**Superadmin Scalability Path**:
+- **1-5 clubs**: All clubs in dropdown menu (current implementation)
+- **6-20 clubs**: Recent/favorite clubs in menu + "All Clubs..." option
+- **20+ clubs**: Menu shows only: "Platform", "Current Club", "Switch Club..." → goes to tenant search page
+
+---
+
+### Header Profile Icon Behavior Summary
+
+**Desktop/Mobile Web**:
+- **Icon**: Person icon (👤) in top-right
+- **Click**: Opens dropdown menu
+- **Menu content**: Role-specific actions (view switching, logout)
+- **Visual state**: Highlight if menu open
+
+**Capacitor App**:
+- **Players**: No menu icon (nothing needed)
+- **Admins (no player link)**: Menu icon (⋮) - for logout only
+- **Admin-Players**: Centered button showing current action ("Back to Admin" / "View as Player")
+- **Superadmins**: Not supported (desktop only)
+
+**Why Different**:
+- **Desktop**: Plenty of space, users expect top-right menus
+- **Mobile Web**: Same expectations as desktop
+- **Capacitor**: Limited header space, centered actions are clearer on touch screens
+
+---
+
+### Navigation Persistence Rules
+
+**Bottom Nav / Sidebar** (Primary navigation):
+- **Always shows 4 items** (never changes count)
+- **Items change based on view**:
+  - Player view: Dashboard, Upcoming, Table, Records
+  - Admin view: Matches, Players, Seasons, Setup
+  - Superadmin Platform: Tenants, System, Info, (4th TBD)
+- **Active state**: Based on current URL
+- **Persists across sessions**: User returns to same view
+
+**Header Menu** (Secondary actions):
+- **Context-aware**: Different options based on role + location
+- **Non-intrusive**: Only one icon, menu on demand
+- **Scalable**: Can add items without crowding
+- **Platform-specific**: Desktop vs Capacitor differences
+
+---
+
+### Implementation Guidelines
+
+**When adding new features, ask**:
+1. Is this a primary destination (add to nav) or action (add to menu)?
+2. Does it apply to all roles or specific ones?
+3. Is it used often (prominent) or rarely (hide in menu)?
+4. Does it work on all platforms or platform-specific?
+
+**Examples**:
+- **Invite Link**: Admin only, rare use → Menu item or Players page button
+- **RSVP**: Player primary feature → Could be nav item OR part of Upcoming
+- **Settings**: Rarely used → Menu item, not nav
+- **Logout**: Security feature → Menu item, not prominent
+
+---
+
+## H. UI/UX Implementation
 
 ### Authentication Pages
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import PlayerFormModal from './PlayerFormModal.component';
+import { PendingJoinRequests } from './PendingJoinRequests.component';
 
 import { Club, PlayerProfile } from '@/types/player.types';
 
@@ -216,6 +217,9 @@ const PlayerManager: React.FC = () => {
           Add Player
         </button>
       </div>
+
+      {/* Pending Join Requests */}
+      <PendingJoinRequests />
       
       {error && (
         <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md shadow-soft-sm">
@@ -420,6 +424,7 @@ const PlayerManager: React.FC = () => {
         isProcessing={isSubmitting}
         initialData={selectedPlayer ? {
           name: selectedPlayer.name,
+          phone: selectedPlayer.phone,
           isRinger: selectedPlayer.isRinger,
           isRetired: selectedPlayer.isRetired,
           goalscoring: selectedPlayer.goalscoring,

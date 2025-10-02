@@ -497,6 +497,7 @@ model players {
   team_slots                                                                                        team_slots[]
   upcoming_match_players                                                                            upcoming_match_players[]
   admin_profiles                                                                                    admin_profiles[]
+  player_join_requests                                                                              player_join_requests[]
 
   @@unique([tenant_id, name], map: "unique_player_name_per_tenant")
   @@index([auth_user_id], map: "idx_players_auth_user")
@@ -624,6 +625,8 @@ model tenants {
   admin_profiles                   admin_profiles[]
   admin_invitations                admin_invitations[]
   auth_activity_log                auth_activity_log[]
+  club_invite_tokens               club_invite_tokens[]
+  player_join_requests             player_join_requests[]
 
   @@index([slug], map: "idx_tenants_slug")
 }
@@ -742,4 +745,34 @@ model auth_activity_log {
   @@index([tenant_id, created_at(sort: Desc)], map: "idx_auth_activity_tenant")
   @@index([activity_type, success, created_at(sort: Desc)], map: "idx_auth_activity_type_success")
   @@index([created_at(sort: Desc)], map: "idx_auth_activity_created")
+}
+
+model club_invite_tokens {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  invite_code String    @unique
+  created_by  String    @db.Uuid
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at  DateTime? @db.Timestamptz(6)
+  tenants     tenants   @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+
+  @@unique([tenant_id, is_active], map: "unique_active_invite_per_tenant")
+}
+
+model player_join_requests {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id        String    @db.Uuid
+  phone_number     String
+  display_name     String?
+  status           String    @default("pending")
+  auth_user_id     String?   @db.Uuid
+  approved_by      String?   @db.Uuid
+  linked_player_id Int?
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  processed_at     DateTime? @db.Timestamptz(6)
+  tenants          tenants   @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  players          players?  @relation(fields: [linked_player_id], references: [player_id], onDelete: SetNull)
+
+  @@unique([tenant_id, phone_number, status])
 }

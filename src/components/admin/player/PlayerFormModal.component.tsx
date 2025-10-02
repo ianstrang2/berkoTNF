@@ -59,9 +59,11 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
 }) => {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<PlayerFormData>({
     name: initialData?.name || '',
+    phone: initialData?.phone || '',
     isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : true,
     isRetired: initialData?.isRetired || false,
     goalscoring: initialData?.goalscoring || 3,
@@ -78,6 +80,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     if (initialData) {
       setFormData({
         name: initialData?.name || '',
+        phone: initialData?.phone || '',
         isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : true,
         isRetired: initialData?.isRetired || false,
         goalscoring: initialData?.goalscoring || 3,
@@ -105,15 +108,43 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
 
   if (!isOpen) return null;
 
+  const validatePhone = (phone: string): boolean => {
+    if (!phone) return true; // Optional field
+    
+    // Remove spaces and check format
+    const cleaned = phone.replace(/\s+/g, '');
+    
+    // UK number patterns: 07XXX XXXXXX or +447XXX XXXXXX or 447XXX XXXXXX
+    const ukPatterns = [
+      /^07\d{9}$/,           // 07123456789
+      /^\+447\d{9}$/,        // +447123456789
+      /^447\d{9}$/,          // 447123456789
+    ];
+    
+    if (ukPatterns.some(pattern => pattern.test(cleaned))) {
+      return true;
+    }
+    
+    setPhoneError('Invalid UK phone number. Use format: 07XXX XXXXXX');
+    return false;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNameError(null); // Clear previous errors
+    setPhoneError(null);
+    
+    // Validate phone if provided
+    if (formData.phone && !validatePhone(formData.phone)) {
+      return;
+    }
     
     try {
       await onSubmit(formData);
       // Reset form after submission only on success
       setFormData({
         name: '',
+        phone: '',
         isRinger: true,
         isRetired: false,
         goalscoring: 3,
@@ -154,7 +185,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
         <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true"></div>
         
         {/* Modal panel */}
-        <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6">
+        <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6" onClick={(e) => e.stopPropagation()}>
           {/* Header with close button */}
           <div className="flex justify-between items-center mb-5">
             <h3 className="text-lg font-semibold text-slate-700" id="modal-title">
@@ -186,6 +217,33 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               <div className="text-xs text-slate-500 mt-1 flex justify-between">
                 <span>{nameError && <span className="text-red-500">{nameError}</span>}</span>
                 <span>{formData.name.length} / 14</span>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-slate-700 text-sm font-medium mb-2">
+                Phone Number <span className="text-slate-400 font-normal">(Recommended)</span>
+              </label>
+              <input
+                type="tel"
+                value={formData.phone || ''}
+                onChange={(e) => {
+                  setFormData({ ...formData, phone: e.target.value });
+                  setPhoneError(null);
+                }}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none text-sm ${
+                  phoneError 
+                    ? 'border-red-300 focus:border-red-500' 
+                    : 'border-gray-300 focus:border-fuchsia-300'
+                }`}
+                placeholder="07XXX XXXXXX or +447XXX XXXXXX"
+              />
+              <div className="text-xs mt-1">
+                {phoneError ? (
+                  <span className="text-red-500">{phoneError}</span>
+                ) : (
+                  <span className="text-slate-500">Needed for the player to access the app</span>
+                )}
               </div>
             </div>
             
@@ -252,6 +310,17 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 </div>
               </div>
             </div>
+
+            <div className="mb-4">
+              <label className="block text-slate-700 text-sm font-medium mb-2">Club (Optional)</label>
+              <ClubSelector 
+                value={formData.club as Club | null}
+                onChange={(club) => setFormData({ ...formData, club: club })}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="my-6 border-t border-gray-200"></div>
             
             <div className="mb-4">
               <h4 className="text-sm font-medium text-slate-700 mb-3">Player Ratings</h4>
@@ -307,14 +376,6 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                   </div>
                 ))}
               </div>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-slate-700 text-sm font-medium mb-2">Club (Optional)</label>
-              <ClubSelector 
-                value={formData.club as Club | null}
-                onChange={(club) => setFormData({ ...formData, club: club })}
-              />
             </div>
             
             <div className="flex justify-end pt-2 border-t border-slate-200 mt-4">

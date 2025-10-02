@@ -35,6 +35,7 @@ const transformBasePlayerFromDb = (dbPlayer: any): Omit<PlayerProfile, 'id' | 'n
     return {
         id: String(rawId),
         name: dbPlayer.name,
+        phone: dbPlayer.phone ?? null,
         isRinger: dbPlayer.is_ringer ?? false,
         isRetired: dbPlayer.is_retired ?? false,
         club: transformClubFromDb(dbPlayer.selected_club),

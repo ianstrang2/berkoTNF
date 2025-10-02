@@ -16,6 +16,7 @@ export interface Club {
 export interface PlayerProfile {
   id: string;
   name: string;
+  phone?: string | null;
   isRinger: boolean;
   isRetired: boolean;
   club?: Club | null;
