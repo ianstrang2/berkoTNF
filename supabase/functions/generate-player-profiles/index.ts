@@ -15,7 +15,7 @@ async function callOpenRouterBulk(prompt: string) {
         headers: {
           Authorization: `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://BerkoTNF.com',
+          'HTTP-Referer': 'https://caposport.com',
         },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',

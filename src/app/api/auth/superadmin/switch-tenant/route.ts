@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const { tenantId } = await request.json();
 
     // tenantId can be null (return to platform) or a valid UUID (switch to tenant)
-    let tenant = null;
+    let tenant: { tenant_id: string; name: string; is_active: boolean | null } | null = null;
     
     if (tenantId !== null) {
       // Verify tenant exists and is active

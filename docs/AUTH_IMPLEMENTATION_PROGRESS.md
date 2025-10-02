@@ -1,9 +1,9 @@
 # Auth Implementation Progress
 
-**Last Updated**: October 1, 2025  
-**Current Phase**: Phase 1 Complete + Layout Optimization Complete  
+**Last Updated**: October 2, 2025  
+**Current Phase**: Phase 1-2 Complete + Mobile Header Implemented  
 **Implementation Start**: October 1, 2025  
-**Status**: Ready for mobile header implementation
+**Status**: Web & mobile authentication fully working. Minor UI bug on leaderboard page.
 
 ---
 
@@ -119,6 +119,24 @@
 ## Phase 2: Capacitor Setup ✓ COMPLETE
 
 **Capacitor initialized and Android added**
+- [x] Installed Capacitor packages ✓
+- [x] Initialized Capacitor (com.caposport.capo) ✓
+- [x] Added Android platform ✓
+- [x] Configured capacitor.config.ts for live reload ✓
+- [x] Installed StatusBar plugin ✓
+- [x] Configured StatusBar (purple background, light icons) ✓
+- [x] Added safe-area CSS for native apps ✓
+- [x] Implemented platform detection (Capacitor.isNativePlatform()) ✓
+- [x] Created MobileHeader component (different from web) ✓
+- [x] Updated MainLayout to use MobileHeader on Capacitor ✓
+- ⏸️ iOS platform (waiting for MacBook) 
+- ⏸️ Deep links configuration (Phase 3)
+
+**Notes**:
+- Android emulator configured (10.0.2.2:3000)
+- Live reload working
+- Status bar matches app theme
+- Mobile header shows context-appropriate controls
 
 ### Prerequisites:
 - **For iOS**: macOS with Xcode installed, CocoaPods (`sudo gem install cocoapods`)
@@ -166,7 +184,7 @@
 
 ---
 
-## Phase 3: Player Auth + Mobile UI 📋 BLOCKED (needs Phase 2)
+## Phase 3: Player Auth + Mobile UI 📋 READY TO START
 - [ ] Player claim profile API (`/api/auth/player/claim-profile`) ✅ (already built)
 - [ ] Role switcher component (`src/components/auth/RoleSwitcher.tsx`)
 - [ ] Update mobile navigation based on role
@@ -175,7 +193,13 @@
 - [ ] Hide header logout on mobile (move to settings page)
 - [ ] Mobile-specific UI adjustments
 
-**Blocked By**: Capacitor must be set up (Phase 2)
+**Ready**: Capacitor set up, mobile header implemented, backend APIs ready
+
+**Next Steps**:
+1. Configure Supabase phone provider (Twilio/MessageBird)
+2. Test phone/SMS authentication
+3. Build player signup flow
+4. Implement deep links for auth callbacks
 
 ---
 

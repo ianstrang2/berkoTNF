@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import MainLayout from '@/components/layout/MainLayout.layout';
 import Leaderboard from '@/components/records/LeaderboardStats.component';
 
 export default function LeaderboardPage() {
@@ -24,9 +23,5 @@ export default function LeaderboardPage() {
     );
   }
 
-  return (
-    <MainLayout>
-      <Leaderboard />
-    </MainLayout>
-  );
-} 
+  return <Leaderboard />;
+}

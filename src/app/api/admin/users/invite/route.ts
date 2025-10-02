@@ -40,8 +40,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine target tenant (use inviter's tenant for admin invites, null for superadmin)
-    const targetTenantId = role === 'superadmin' ? null : tenantId;
+    // Determine target tenant
+    // Note: Even superadmin invitations need a tenant_id (schema constraint)
+    // Superadmins can switch tenants after accepting the invitation
+    if (!tenantId) {
+      return NextResponse.json(
+        { success: false, error: 'Must be in a tenant context to invite users' },
+        { status: 400 }
+      );
+    }
+    const targetTenantId = tenantId;
 
     // Validate player_id belongs to tenant (if provided)
     if (player_id) {

@@ -1,20 +1,58 @@
-import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-// Multi-tenant imports - ensuring player profiles are tenant-scoped
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { getCurrentTenantId } from '@/lib/tenantContext';
-
-const prisma = new PrismaClient();
 
 // Prevent static generation for this route
 export const dynamic = 'force-dynamic';
 
 // Fetch player profile by ID from the aggregated table AND power ratings
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     console.log("Fetching player profile from aggregated table...");
 
-    // Multi-tenant setup - ensure player profile is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    // Get tenant from authenticated user session or fall back to default
+    let tenantId = getCurrentTenantId(); // Default fallback
+    
+    try {
+      const supabase = createRouteHandlerClient({ cookies });
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        // Try to get tenant from user's session
+        const userTenantId = session.user.app_metadata?.tenant_id;
+        
+        if (userTenantId) {
+          tenantId = userTenantId;
+        } else {
+          // Check if user has admin profile
+          const adminProfile = await prisma.admin_profiles.findUnique({
+            where: { user_id: session.user.id },
+            select: { tenant_id: true }
+          });
+          
+          if (adminProfile?.tenant_id) {
+            tenantId = adminProfile.tenant_id;
+          } else {
+            // Check if user has player profile
+            const playerProfile = await prisma.players.findFirst({
+              where: { auth_user_id: session.user.id },
+              select: { tenant_id: true }
+            });
+            
+            if (playerProfile?.tenant_id) {
+              tenantId = playerProfile.tenant_id;
+            }
+          }
+        }
+      }
+    } catch (authError) {
+      // Auth check failed, use default tenant
+      console.log('Auth check failed, using default tenant:', authError);
+    }
+    
+    console.log('Using tenant ID:', tenantId);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
     const { searchParams } = new URL(request.url);
@@ -91,7 +129,7 @@ export async function GET(request: Request) {
         FROM aggregated_performance_ratings
         WHERE is_qualified = true 
         AND weighted_played >= 5  -- EWMA qualification threshold
-        AND tenant_id = ${tenantId}
+        AND tenant_id = ${tenantId}::uuid
         UNION ALL
         SELECT 
           -- Streak stats
@@ -102,7 +140,7 @@ export async function GET(request: Request) {
           MAX(undefeated_streak::numeric) as undefeated_streak_max,
           AVG(undefeated_streak::numeric) as undefeated_streak_avg
         FROM aggregated_player_profile_stats
-        WHERE tenant_id = ${tenantId}
+        WHERE tenant_id = ${tenantId}::uuid
         UNION ALL
         SELECT 
           -- More streak stats  
@@ -113,7 +151,7 @@ export async function GET(request: Request) {
           MAX(winless_streak::numeric) as winless_streak_max,
           AVG(winless_streak::numeric) as winless_streak_avg
         FROM aggregated_player_profile_stats
-        WHERE tenant_id = ${tenantId}
+        WHERE tenant_id = ${tenantId}::uuid
         UNION ALL
         SELECT 
           -- Additional streak stats
@@ -122,7 +160,7 @@ export async function GET(request: Request) {
           AVG(attendance_streak::numeric) as attendance_streak_avg,
           0 as placeholder1, 0 as placeholder2, 0 as placeholder3
         FROM aggregated_player_profile_stats
-        WHERE tenant_id = ${tenantId}
+        WHERE tenant_id = ${tenantId}::uuid
       `,
        
       // Current streaks from latest match report

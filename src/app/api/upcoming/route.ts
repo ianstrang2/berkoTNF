@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         },
         include: {
           _count: {
-            select: { players: true }
+            select: { upcoming_match_players: true }
           }
         }
       });

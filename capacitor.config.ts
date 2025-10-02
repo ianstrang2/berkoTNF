@@ -14,8 +14,7 @@ const config: CapacitorConfig = {
     // --- Production mode ---
     // Comment out the two lines above and use your deployed domain:
     // url: 'https://caposport.com'
-  },
-  androidScheme: 'https'
+  }
 };
 
 export default config;
