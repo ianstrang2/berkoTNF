@@ -119,17 +119,21 @@ Superadmin header dropdown now offers:
 - Modal displays invite URL with copy-to-clipboard button
 - Uses existing `/api/admin/club-invite` endpoint
 
-**2. Header Profile Dropdown** (~20 mins):
-- Add profile icon/button to header (all views)
-- Dropdown shows: User name, Settings link (players), Logout
+**2. Desktop/Web Profile Dropdown** (~25 mins):
+- Person icon (👤) in header top-right
+- Context-aware dropdown menu:
+  - Players: Logout
+  - Admins: Logout  
+  - Admin-Players: View switching + Logout
+  - Superadmins: 3-way view selector + Logout
 - Replaces current standalone logout button
-- Shows on both desktop and mobile web (not Capacitor app)
+- Desktop and Mobile Web only (NOT Capacitor)
 
-**3. Player Settings Page** (~15 mins):
-- Create `/settings` route for players
-- Favorite club selector (updates `players.selected_club`)
-- Logout button
-- Minimal, focused interface
+**3. Capacitor Admin Menu** (~15 mins):
+- Add menu icon (⋮) for admin-only users in Capacitor
+- Shows: Logout option
+- Admin-players: Keep current centered button (no change)
+- Players: No menu (no change)
 
 **4. Enhanced Join Approval** (~15 mins):
 - Add "Link to Existing Player" option in approval flow
@@ -146,7 +150,12 @@ Superadmin header dropdown now offers:
 - Forces player to re-claim profile with new number
 - Prevents auth/phone mismatch
 
-**Total Remaining: ~80 minutes**
+**Total Remaining: ~95 minutes**
+
+**Key Design Decision**: 
+- **Capacitor logout**: Only for admins (via menu icon). Players don't need it (personal device).
+- **Desktop/Web**: Profile dropdown for all roles (standard UX)
+- **Scalability**: Superadmin menu works for 1-20 clubs; 50+ clubs upgrade to search modal
 
 ---
 

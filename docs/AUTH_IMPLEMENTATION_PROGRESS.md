@@ -324,20 +324,21 @@ Before marking any phase complete, verify:
 
 ## Phase 4: Final UI Polish 🔄 IN PROGRESS
 
-**Remaining Work** (~80 minutes total):
+**Remaining Work** (~95 minutes total):
 
-- [ ] **Invite Link UI** - Button in Players header to get/copy club invite link
-- [ ] **Header Profile Dropdown** - User menu with Settings & Logout
-- [ ] **Player Settings Page** - `/settings` with club selector and logout
-- [ ] **Enhanced Join Approval** - "Link to Existing Player" option
-- [ ] **Player Table Indicators** - Phone/Claimed status columns  
-- [ ] **Phone Change Auto-Unlink** - Clear auth_user_id when phone updated
+- [ ] **Invite Link UI** - Button in Players header with copy function (Desktop/Web)
+- [ ] **Desktop/Web Profile Dropdown** - Context-aware menu: view switching, logout
+- [ ] **Capacitor Admin Menu** - Menu icon (⋮) for admins without player link - logout only
+- [ ] **Enhanced Join Approval** - "Link to Existing Player" option with dropdown
+- [ ] **Player Table Indicators** - Phone (📱) and App Access (🔗) status columns
+- [ ] **Phone Change Auto-Unlink** - Clear auth when phone updated, show warning
 
-**Implementation Decisions**:
-- **Settings access**: Header dropdown (not nav item) - keeps nav at 4 items
-- **Player settings content**: Minimal - just club and logout (no profile editing)
-- **ProfileMenu**: Simplified dropdown instead of full component
-- **Logout for players**: Hidden in Settings (not prominent - rarely needed)
+**Implementation Decisions** (see SPEC_auth.md Section G for full matrix):
+- **Navigation**: Keep 4-item nav (primary), use header menu for secondary actions
+- **Capacitor logout**: Only for admins (menu icon), not for players (not needed)
+- **Desktop/Web**: Profile dropdown with context-aware options per role
+- **Admin-Players on Capacitor**: Keep current centered button (already perfect!)
+- **Superadmin**: Desktop only, menu scales to 20 clubs, then upgrades to search modal
 
 **Next**: Build these 6 items, then auth is complete
 
