@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuth(request);
 
-    // Check if user has admin profile
-    const adminProfile = await prisma.admin_profiles.findUnique({
+    // Check for superadmin (email auth - platform level)
+    const superadminProfile = await prisma.admin_profiles.findUnique({
       where: { user_id: user.id },
       select: {
         user_role: true,
@@ -24,21 +24,58 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Check if user has player profile (direct or via admin link)
+    // If superadmin, return superadmin profile
+    if (superadminProfile && superadminProfile.user_role === 'superadmin') {
+      return NextResponse.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+        },
+        profile: {
+          isAdmin: true,
+          isSuperadmin: true,
+          adminRole: 'superadmin',
+          displayName: superadminProfile.display_name,
+          tenantId: superadminProfile.tenant_id, // Can be null (platform view)
+          linkedPlayerId: superadminProfile.player_id,
+          canSwitchRoles: false, // Superadmin uses 3-way view selector instead
+        },
+      });
+    }
+
+    // Check for player profile (phone auth - club level)
     const playerProfile = await prisma.players.findFirst({
-      where: {
-        OR: [
-          { auth_user_id: user.id },
-          { player_id: adminProfile?.player_id || -1 },
-        ],
-      },
+      where: { auth_user_id: user.id },
       select: {
         player_id: true,
         name: true,
         tenant_id: true,
+        is_admin: true,
       },
     });
 
+    if (!playerProfile) {
+      // Authenticated but no profile yet (shouldn't happen)
+      return NextResponse.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+        },
+        profile: {
+          isAuthenticated: true,
+          isAdmin: false,
+          isSuperadmin: false,
+          displayName: null,
+          tenantId: null,
+          linkedPlayerId: null,
+          canSwitchRoles: false,
+        },
+      });
+    }
+
+    // Return player profile (with optional admin privileges)
     return NextResponse.json({
       user: {
         id: user.id,
@@ -46,12 +83,14 @@ export async function GET(request: NextRequest) {
         phone: user.phone,
       },
       profile: {
-        isAdmin: !!adminProfile,
-        adminRole: adminProfile?.user_role || null,
-        displayName: adminProfile?.display_name || playerProfile?.name || null,
-        tenantId: adminProfile?.tenant_id || playerProfile?.tenant_id || null,
-        linkedPlayerId: adminProfile?.player_id || playerProfile?.player_id || null,
-        canSwitchRoles: !!(adminProfile?.player_id), // Only if admin explicitly linked
+        isAuthenticated: true,
+        isAdmin: playerProfile.is_admin || false,
+        isSuperadmin: false,
+        adminRole: playerProfile.is_admin ? 'admin' : null,
+        displayName: playerProfile.name,
+        tenantId: playerProfile.tenant_id,
+        linkedPlayerId: playerProfile.player_id,
+        canSwitchRoles: playerProfile.is_admin || false, // Admins can switch to player view
       },
     });
   } catch (error) {

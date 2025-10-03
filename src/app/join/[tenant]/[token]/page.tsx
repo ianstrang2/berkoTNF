@@ -169,7 +169,7 @@ function JoinForm() {
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Invalid Link</h1>
             <p className="text-gray-600 mb-6">{error}</p>
             <a
-              href="/auth/player-login"
+              href="/auth/login"
               className="inline-block py-3 px-6 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90"
             >
               Try Regular Login

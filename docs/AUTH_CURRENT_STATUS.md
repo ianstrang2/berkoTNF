@@ -1,10 +1,10 @@
 # Authentication System - Current Status
 
 **Date**: October 2, 2025  
-**Status**: Phase 1-3 Complete, Phase 4 In Progress (Final Polish)  
-**Core Functionality**: 100% Working - Can authenticate admins and players  
-**Remaining**: UI polish items (settings pages, invite link UI, table indicators)  
-**Last Session**: Fixed bugs, tested mobile, built player phone auth with auto-linking
+**Status**: Phase 1-4 Complete - MIGRATED TO PHONE-ONLY AUTH ✅  
+**Architecture**: Single authentication system (phone/SMS for all club users)  
+**Major Change**: Simplified from dual auth to phone-only + promotion model  
+**Last Session**: Migrated to phone-only auth, removed email auth complexity, added admin promotion
 
 ---
 

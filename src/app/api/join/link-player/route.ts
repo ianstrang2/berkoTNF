@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       const joinRequest = await prisma.player_join_requests.create({
         data: {
           tenant_id: tenantRecord.tenant_id,
-          phone_number: normalizedPhone,
+          phone_number: normalizedIncomingPhone,
           auth_user_id: session.user.id,
           status: 'pending',
         },

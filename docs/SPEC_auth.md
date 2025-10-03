@@ -1,8 +1,8 @@
 # BerkoTNF Authentication Implementation Specification
 
-Version 4.0.0 • Unified Supabase Auth
+Version 5.0.0 • Phone-Only Authentication (Simplified)
 
-**SUPABASE AUTH FOR ALL USERS (ADMINS + PLAYERS)**
+**PHONE/SMS AUTHENTICATION FOR ALL USERS**
 
 ## Executive Summary
 
@@ -14,46 +14,57 @@ The BerkoTNF platform requires authentication to support:
 - **Mobile App Access**: Players and admins access features through native Capacitor app
 - **App-Only Architecture**: Moving from public web pages to authenticated app experience
 
-### Target Architecture
+### Target Architecture (v5.0 - Simplified)
 
-**Single Authentication System**: Supabase Auth for all users
+**Single Authentication System**: Supabase Phone Provider for ALL users
 
-**Three Authentication Flows**:
-1. **Admin Web Signup**: Email + password for web dashboard access
-2. **Player Mobile Signup**: Phone + SMS OTP for app access
-3. **Admin Mobile Access**: Email + password (same credentials as web) with optional role switching
+**One Authentication Flow**:
+- **Everyone**: Phone + SMS OTP (players AND admins)
+- **Admin = Player with privileges**: Admins are flagged players (`players.is_admin = true`)
+- **Promotion-based**: Existing players promoted to admin (no separate invitation)
 
 **Access Levels**:
-- **Players**: View stats, RSVP to matches, track performance (mobile app only)
-- **Admins**: Full club management (web dashboard + mobile app with role switching)
-- **Superadmin**: Platform-level tenant management (multi-tenant oversight)
+- **Players**: View stats, RSVP to matches, track performance (mobile app + web)
+- **Admins**: Same as players PLUS club management capabilities (web dashboard + mobile app)
+- **Superadmin**: Platform-level tenant management (phone auth + superadmin flag)
+
+**Key Simplification**: Admin is a permission flag, not a separate account type
 
 ### Key Design Principles
 
-1. **One Auth System**: All users authenticate via Supabase Auth (no custom auth logic)
-2. **Multiple Providers**: Email provider (admins) + Phone provider (players)
-3. **Unified Sessions**: Same JWT token works across web and mobile
-4. **Simple Role Switching**: Admins with linked player profiles can switch between views
+1. **One Auth System**: All users authenticate via Supabase Phone Provider only
+2. **Admin = Privileged Player**: Admins are players with `is_admin` flag set
+3. **Unified Sessions**: Same JWT token works across web and mobile  
+4. **Promotion-Based**: Players promoted to admin (no separate invitation system)
 5. **Platform-Native**: Leverage Supabase's built-in session management, token refresh, and security
 
 ### Implementation Phases
 
-**Phase 1**: Core authentication flows (admin web, player mobile) ✅ **COMPLETE**
-**Phase 2**: Role switching and profile linking ✅ **COMPLETE**
-**Phase 3**: Player onboarding (club invite links, auto-linking) ✅ **COMPLETE**
-**Phase 4**: Final UI polish (settings, profile menu, indicators) 🔄 **IN PROGRESS**
-**Phase 5**: Advanced security (2FA, enhanced audit logging) 📋 **FUTURE**
+**Phase 1-3**: Dual auth system (email + phone) ✅ **COMPLETE** (October 1-2, 2025)
+**Phase 4**: Phone-only migration ✅ **COMPLETE** (October 2, 2025)
+- Simplified to single auth system
+- Added promotion workflow
+- Removed email auth complexity
+**Phase 5**: App-first onboarding 🔄 **CURRENT** (Required before RSVP launch)
+- Deep link configuration
+- App-first landing page
+- Pre-filled invite messages
+**Phase 6**: Advanced security (2FA, biometric, enhanced audit) 📋 **FUTURE**
 
-### Implementation Decisions & Deviations
+### Architectural Decision: Phone-Only (October 2, 2025)
 
-**Simplified Approach** (vs. original spec):
-1. **ProfileMenu Component**: Replaced with simpler header dropdown (lighter weight)
-2. **Settings Pages**: Minimal settings (only what's actually needed)
-3. **Player Profile Claiming**: Automatic phone matching (no manual dropdown)
-4. **Navigation**: 4-item nav (Matches, Players, Seasons, Setup) - settings in header dropdown
-5. **Mobile View Switching**: Header button (not bottom nav) for cleaner UX
+**Decision**: Migrate from dual auth (email + phone) to phone-only authentication.
 
-**Rationale**: Original spec was enterprise-grade. Simplified for small club use case without losing functionality.
+**Rationale**:
+1. **User reality**: 95% of admins also play → why separate them?
+2. **Simplicity**: One auth system vs two (easier to maintain)
+3. **Sports app pattern**: Matches Spond, TeamSnap, etc. (industry standard)
+4. **No linking complexity**: Admin is just a flag, not a separate account
+5. **Casual football**: Weekly kickabout, not enterprise club management
+
+**Trade-off accepted**: Desktop admins need phone for SMS on first login (then stays logged in for weeks).
+
+**See**: `docs/AUTH_PHONE_ONLY_MIGRATION_PLAN.md` for detailed migration steps.
 
 ### Phase 4 Remaining Work (Final Polish)
 
@@ -723,13 +734,11 @@ const claimResponse = await fetch('/api/auth/player/claim-profile', {
 // 8. Player redirected to /dashboard
 ```
 
-#### Profile Claiming for Existing Players (Auto-Linking ✅)
+#### Profile Linking (Auto-Linking Only)
 ```typescript
-// Scenario: Player exists in database but hasn't signed up yet
-// (e.g., admin created player record with phone number)
+// PHONE-ONLY MODEL (v5.0): Automatic phone matching - no manual selection
 
-// AUTOMATIC PHONE MATCHING (no manual selection):
-// The /api/join/link-player endpoint:
+// The /api/join/link-player endpoint handles all linking:
 // 1. Normalizes incoming phone: 07949251277 → +447949251277
 // 2. Normalizes all player.phone values in database
 // 3. Finds match by normalized phone comparison
@@ -737,7 +746,80 @@ const claimResponse = await fetch('/api/auth/player/claim-profile', {
 // 5. If no match: Create player_join_requests entry for admin approval
 // 6. Redirects to dashboard (auto-linked) or pending approval page
 
-// NO DROPDOWN - completely automatic based on phone number
+// PRIMARY FLOW: Club invite links (auto-linking)
+// FALLBACK: Direct login at /auth/login (for existing players only)
+// REMOVED: Manual "claim profile" dropdown (was a relic, served no purpose)
+
+// Admin promotion: Toggle players.is_admin flag (no separate auth needed)
+```
+
+#### App-First Onboarding (Critical for RSVP)
+
+**Why App-First Matters**:
+- RSVP push notifications ONLY work in Capacitor app (not web)
+- Match alerts, waitlist offers, last-calls require app installation
+- Players who use web-only miss all notifications (defeats RSVP purpose)
+
+**Invite Link Landing Page** (`/join/[tenant]/[token]`):
+
+**Mobile Browser Detection**:
+```
+┌─────────────────────────────────┐
+│  [Capo Logo]                    │
+│  Join BerkoTNF                  │
+│                                 │
+│  Get instant match alerts:       │
+│  ✓ Match invitations            │
+│  ✓ RSVP reminders               │
+│  ✓ Waitlist notifications       │
+│  ✓ Last-call alerts             │
+│                                 │
+│  [Download the Capo App]        │  ← Primary CTA (purple/pink gradient)
+│                                 │
+│  Continue on web →              │  ← Muted link
+│  (⚠️ No RSVP notifications)      │
+│                                 │
+│  Micro-copy: "Players who don't │
+│  install miss match invites"    │
+└─────────────────────────────────┘
+```
+
+**Desktop Browser**:
+```
+┌─────────────────────────────────┐
+│  [Capo Logo]                    │
+│  Join BerkoTNF                  │
+│                                 │
+│  Scan with your phone:          │
+│                                 │
+│  [QR Code]                      │
+│                                 │
+│  Or visit on your phone:        │
+│  capo.app/join/berkotnf/abc123  │
+└─────────────────────────────────┘
+```
+
+**Pre-filled WhatsApp Message** (Admin Invite Modal):
+```
+Join BerkoTNF on Capo ⚽
+
+All match invites and RSVPs happen in the Capo app.
+Download to get notifications and secure your spot:
+
+👉 https://capo.app/join/berkotnf/abc123
+```
+
+**Deep Link Configuration**:
+- Scheme: `capo://`
+- Universal link: `https://capo.app/join/*` → Opens app if installed
+- Fallback: Web page with download CTA
+- Platform: Android (iOS when MacBook available)
+
+**Implementation Files**:
+- `capacitor.config.ts` - Deep link scheme configuration
+- `AndroidManifest.xml` - Intent filters for deep links
+- `/join/[tenant]/[token]/page.tsx` - App-first landing with platform detection
+- `ClubInviteLinkButton.component.tsx` - Pre-filled message with copy button
 ```
 
 ### 3. Admin Mobile Login Flow (Role Switching Enabled)
@@ -1463,11 +1545,12 @@ This section documents exactly what each user type sees on each platform, servin
 |----------|-------------|--------|-----------|---------------|
 | **Desktop Web** | Sidebar (4 items) | Capo logo + Profile icon | 👤 Person | • Logout |
 | **Mobile Web** | Bottom tabs (4 items) | Capo logo + Profile icon | 👤 Person | • Logout |
-| **Capacitor** | Bottom tabs (4 items) | Capo logo only | ❌ None | N/A - No menu needed |
+| **Capacitor** | Bottom tabs (4 items) | Centered Menu button | 👤 Menu | • Logout |
 
 **Rationale**:
-- **Desktop/Mobile Web**: Profile menu provides logout (for testing/shared devices)
-- **Capacitor**: No logout needed (personal device, stays logged in)
+- **Desktop/Mobile Web**: Profile icon in top-right (standard UX)
+- **Capacitor**: Centered menu button (better for thumb reach)
+- **Logout everywhere**: Simple, consistent, useful for testing and edge cases
 - **Navigation**: Dashboard, Upcoming, Table, Records (consistent everywhere)
 
 ---
@@ -1480,11 +1563,12 @@ This section documents exactly what each user type sees on each platform, servin
 |----------|-------------|--------|-----------|---------------|
 | **Desktop Web** | Sidebar (4 items) | Capo logo + Profile icon | 👤 Person | • Logout |
 | **Mobile Web** | Bottom tabs (4 items) | Capo logo + Profile icon | 👤 Person | • Logout |
-| **Capacitor** | Bottom tabs (4 items) | Capo logo + Menu icon | ⋮ Menu | • Logout<br>• (future: Quick settings) |
+| **Capacitor** | Bottom tabs (4 items) | Centered Menu button | ⋮ Menu | • Logout |
 
 **Rationale**:
-- **Desktop/Mobile Web**: Standard admin dashboard with logout
-- **Capacitor**: Admin might manage club on mobile - needs logout for security
+- **Desktop/Mobile Web**: Profile icon in top-right
+- **Capacitor**: Centered menu (thumb-friendly)
+- **Logout everywhere**: Consistent, useful for testing
 - **Navigation**: Matches, Players, Seasons, Setup (consistent everywhere)
 
 ---
@@ -1499,13 +1583,15 @@ This section documents exactly what each user type sees on each platform, servin
 | **Desktop** | Admin | Sidebar (4 admin items) | Capo logo + Profile icon | 👤 Person | • 👤 Switch to Player View<br>• Logout |
 | **Mobile Web** | Player | Bottom tabs (4 player) | Capo logo + Profile icon | 👤 Person | • ⚙️ Switch to Admin View<br>• Logout |
 | **Mobile Web** | Admin | Bottom tabs (4 admin) | Capo logo + Profile icon | 👤 Person | • 👤 Switch to Player View<br>• Logout |
-| **Capacitor** | Player | Bottom tabs (4 player) | Centered button | ⚙️ Button | "Back to Admin" |
-| **Capacitor** | Admin | Bottom tabs (4 admin) | Centered button | 👤 Button | "View as Player" |
+| **Capacitor** | Player | Bottom tabs (4 player) | Centered Menu button | 👤 Menu | • ⚙️ Switch to Admin View<br>• 🚪 Logout |
+| **Capacitor** | Admin | Bottom tabs (4 admin) | Centered Menu button | ⋮ Menu | • 👤 Switch to Player View<br>• 🚪 Logout |
 
 **Rationale**:
-- **Desktop/Mobile Web**: Profile menu provides view switching + logout
-- **Capacitor**: Centered button (current implementation) - no crowding, clear action
-- **View switching**: Primary use case for this role - must be easily accessible
+- **Desktop/Mobile Web**: Profile icon in top-right
+- **Capacitor**: Centered menu (thumb-friendly on touch screens)
+- **Consistent pattern**: One icon, contextual menu across all platforms
+- **View switching**: Accessible via menu, doesn't crowd header
+- **Logout**: Available everywhere for testing and edge cases
 - **Navigation**: Changes based on current view (player vs admin sections)
 
 ---
@@ -1544,15 +1630,16 @@ This section documents exactly what each user type sees on each platform, servin
 - **Visual state**: Highlight if menu open
 
 **Capacitor App**:
-- **Players**: No menu icon (nothing needed)
-- **Admins (no player link)**: Menu icon (⋮) - for logout only
-- **Admin-Players**: Centered button showing current action ("Back to Admin" / "View as Player")
+- **All authenticated users**: Centered menu button (person icon for players, hamburger for admins)
+- **Menu contents**: Context-aware (view switching for admin-players, logout for everyone)
 - **Superadmins**: Not supported (desktop only)
 
 **Why Different**:
-- **Desktop**: Plenty of space, users expect top-right menus
-- **Mobile Web**: Same expectations as desktop
-- **Capacitor**: Limited header space, centered actions are clearer on touch screens
+- **Desktop**: Top-right (standard desktop UX, plenty of space)
+- **Mobile Web**: Top-right (same as desktop)
+- **Capacitor**: Centered (thumb-friendly on touch screens, single consistent location)
+
+**Logout Decision**: Available on all platforms for all roles. Useful for testing, edge cases, and security. Minimal UI cost.
 
 ---
 

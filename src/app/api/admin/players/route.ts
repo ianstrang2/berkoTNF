@@ -194,11 +194,18 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'player_id is required' }, { status: 400 });
     }
 
+    // Get current player data to check if phone is changing
+    const currentPlayer = await prisma.players.findUnique({
+      where: { player_id: Number(player_id) },
+      select: { phone: true, auth_user_id: true, name: true }
+    });
+
     // Construct data payload for Prisma update
     // We explicitly list fields to ensure type safety and to avoid passing undefined values for fields not being updated (though our client sends all)
     const updateData: {
       name?: string;
       phone?: string | null;
+      auth_user_id?: string | null;
       is_ringer?: boolean;
       is_retired?: boolean;
       goalscoring?: number;
@@ -211,7 +218,15 @@ export async function PUT(request: Request) {
     } = {};
 
     if (name !== undefined) updateData.name = name;
-    if (phone !== undefined) updateData.phone = phone || null;
+    if (phone !== undefined) {
+      updateData.phone = phone || null;
+      
+      // If phone number changed and player was linked, unlink auth
+      if (currentPlayer && phone !== currentPlayer.phone && currentPlayer.auth_user_id) {
+        updateData.auth_user_id = null;
+        console.log(`[PLAYERS] Phone changed for ${currentPlayer.name} - auth_user_id cleared. Player must re-claim with new number.`);
+      }
+    }
     if (is_ringer !== undefined) updateData.is_ringer = is_ringer;
     if (is_retired !== undefined) updateData.is_retired = is_retired;
     if (goalscoring !== undefined) updateData.goalscoring = goalscoring;

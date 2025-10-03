@@ -99,9 +99,9 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
 /**
  * Require user to have admin or superadmin role
  * 
- * Checks if user has an admin_profile record with the specified role
- * Throws AuthenticationError if not authenticated
- * Throws AuthorizationError if user is not an admin
+ * PHONE-ONLY MODEL (v5.0):
+ * - Club admins: players.is_admin = true (phone auth)
+ * - Superadmin: admin_profiles with user_role = 'superadmin' (email auth - platform level)
  * 
  * @param request - Next.js request object
  * @param allowedRoles - Array of allowed roles (defaults to both admin and superadmin)
@@ -123,8 +123,8 @@ export async function requireAdminRole(
 ): Promise<AdminAuthResult> {
   const { user, session, supabase } = await requireAuth(request);
   
-  // Query admin_profiles to verify role
-  const adminProfile = await prisma.admin_profiles.findUnique({
+  // Check for superadmin first (email auth, admin_profiles table)
+  const superadminProfile = await prisma.admin_profiles.findUnique({
     where: { user_id: user.id },
     select: {
       user_role: true,
@@ -133,24 +133,48 @@ export async function requireAdminRole(
     },
   });
   
-  if (!adminProfile) {
-    throw new AuthorizationError('Admin access required');
+  if (superadminProfile && superadminProfile.user_role === 'superadmin') {
+    if (!allowedRoles.includes('superadmin')) {
+      throw new AuthorizationError('Access denied');
+    }
+    
+    return {
+      user,
+      session,
+      supabase,
+      userRole: 'superadmin',
+      tenantId: superadminProfile.tenant_id,
+      linkedPlayerId: superadminProfile.player_id,
+    };
   }
   
-  if (!allowedRoles.includes(adminProfile.user_role as 'admin' | 'superadmin')) {
-    throw new AuthorizationError(
-      `Access denied. Required roles: ${allowedRoles.join(', ')}`
-    );
+  // Check for club admin (phone auth, players.is_admin = true)
+  if (allowedRoles.includes('admin')) {
+    const playerAdmin = await prisma.players.findFirst({
+      where: {
+        auth_user_id: user.id,
+        is_admin: true,
+      },
+      select: {
+        player_id: true,
+        name: true,
+        tenant_id: true,
+      },
+    });
+    
+    if (playerAdmin) {
+      return {
+        user,
+        session,
+        supabase,
+        userRole: 'admin',
+        tenantId: playerAdmin.tenant_id,
+        linkedPlayerId: playerAdmin.player_id,
+      };
+    }
   }
   
-  return {
-    user,
-    session,
-    supabase,
-    userRole: adminProfile.user_role as 'admin' | 'superadmin',
-    tenantId: adminProfile.tenant_id,
-    linkedPlayerId: adminProfile.player_id,
-  };
+  throw new AuthorizationError('Admin access required');
 }
 
 /**

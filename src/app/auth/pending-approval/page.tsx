@@ -42,7 +42,7 @@ export default function PendingApprovalPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/auth/player-login');
+    router.push('/auth/login');
   };
 
   return (

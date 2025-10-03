@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import PlayerFormModal from './PlayerFormModal.component';
 import { PendingJoinRequests } from './PendingJoinRequests.component';
+import { ClubInviteLinkButton } from './ClubInviteLinkButton.component';
 
 import { Club, PlayerProfile } from '@/types/player.types';
 
@@ -75,6 +76,36 @@ const PlayerManager: React.FC = () => {
   useEffect(() => {
     fetchPlayers();
   }, [fetchPlayers]); // Refetch when fetchPlayers changes
+
+  const handleToggleAdmin = async (playerId: string, makeAdmin: boolean) => {
+    if (!confirm(`Are you sure you want to ${makeAdmin ? 'promote this player to admin' : 'demote this admin to player'}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/players/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: playerId,
+          is_admin: makeAdmin,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update admin status');
+      }
+
+      // Refresh player list
+      fetchPlayers();
+      alert(data.message);
+    } catch (err: any) {
+      console.error('Error toggling admin:', err);
+      setError(err.message || 'Failed to update admin status');
+    }
+  };
 
   const handleSubmitPlayer = async (formData: any): Promise<void> => {
     setIsSubmitting(true);
@@ -210,12 +241,15 @@ const PlayerManager: React.FC = () => {
     <div className="bg-white rounded-2xl shadow-soft-xl p-6 lg:w-fit max-w-7xl">
       <div className="flex justify-between items-center mb-6">
         <h5 className="font-bold text-slate-700">Player Manager</h5>
-        <button 
-          onClick={() => setShowPlayerModal(true)}
-          className="inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
-        >
-          Add Player
-        </button>
+        <div className="flex gap-2">
+          <ClubInviteLinkButton />
+          <button 
+            onClick={() => setShowPlayerModal(true)}
+            className="inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
+          >
+            Add Player
+          </button>
+        </div>
       </div>
 
       {/* Pending Join Requests */}
@@ -283,6 +317,15 @@ const PlayerManager: React.FC = () => {
               <th onClick={() => handleSort('status')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Status {getSortIndicator('status')}
               </th>
+              <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Phone number set">
+                📱
+              </th>
+              <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="App access claimed">
+                🔗
+              </th>
+              <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Admin privileges">
+                Admin
+              </th>
               <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Ringer {getSortIndicator('ringer')}
               </th>
@@ -326,7 +369,7 @@ const PlayerManager: React.FC = () => {
               </tr>
             ) : filteredPlayers.length === 0 ? (
               <tr>
-                <td colSpan={12} className="p-2 text-center align-middle bg-transparent border-b">
+                <td colSpan={15} className="p-2 text-center align-middle bg-transparent border-b">
                   <div className="py-4 text-slate-500">No players found</div>
                 </td>
               </tr>
@@ -354,6 +397,30 @@ const PlayerManager: React.FC = () => {
                         <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRetired ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
                           {player.isRetired ? 'RETIRED' : 'ACTIVE'}
                         </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b" title={player.phone ? `Phone: ${player.phone}` : 'No phone number'}>
+                        <span className={`text-lg ${player.phone ? 'text-green-500' : 'text-gray-300'}`}>
+                          {player.phone ? '✓' : '○'}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b" title={player.authUserId ? 'Claimed - has app access' : 'Not claimed - cannot access app'}>
+                        <span className={`text-lg ${player.authUserId ? 'text-green-500' : 'text-gray-300'}`}>
+                          {player.authUserId ? '✓' : '○'}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center align-middle bg-transparent border-b">
+                        <button
+                          onClick={() => handleToggleAdmin(player.id, !(player.isAdmin || false))}
+                          disabled={!player.authUserId}
+                          className={`inline-flex px-3 py-1 text-xxs font-medium rounded-lg shadow-soft-xs transition-all ${
+                            player.isAdmin 
+                              ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:scale-105' 
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                          title={!player.authUserId ? 'Player must claim profile first' : player.isAdmin ? 'Click to demote' : 'Click to promote to admin'}
+                        >
+                          {player.isAdmin ? 'ADMIN' : 'PLAYER'}
+                        </button>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
                         <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRinger ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>

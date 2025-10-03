@@ -17,6 +17,8 @@ export interface PlayerProfile {
   id: string;
   name: string;
   phone?: string | null;
+  authUserId?: string | null;
+  isAdmin?: boolean;
   isRinger: boolean;
   isRetired: boolean;
   club?: Club | null;

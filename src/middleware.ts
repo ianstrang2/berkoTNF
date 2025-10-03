@@ -17,7 +17,7 @@ function redirectToLogin(
   returnUrl: string,
   type: 'admin' | 'player' = 'admin'
 ): NextResponse {
-  const loginUrl = new URL(type === 'admin' ? '/auth/login' : '/auth/player-login', req.url);
+  const loginUrl = new URL('/auth/login', req.url);
   loginUrl.searchParams.set('returnUrl', returnUrl);
   return NextResponse.redirect(loginUrl);
 }
@@ -47,27 +47,25 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
   
-  // Admin routes - require admin_profile or superadmin
+  // Admin routes - require session (role checked in API routes)
   if (pathname.startsWith('/admin/')) {
     if (!session) {
-      return redirectToLogin(req, pathname);
+      // Phone auth for all club-level users
+      return redirectToLogin(req, pathname, 'player');
     }
     
-    // Check app_metadata for user role (set during signup)
-    const userRole = session.user.app_metadata?.user_role;
-    
-    // Allow both admin and superadmin to access admin routes
-    if (userRole !== 'admin' && userRole !== 'superadmin') {
-      return redirectToUnauthorized(req);
-    }
+    // Role authorization happens in API routes (checks players.is_admin)
+    // Middleware just ensures they're authenticated
   }
   
-  // Superadmin routes - require superadmin role
+  // Superadmin routes - require superadmin (still email auth)
   if (pathname.startsWith('/superadmin/')) {
     if (!session) {
-      return redirectToLogin(req, pathname);
+      // Superadmin uses email auth
+      return redirectToLogin(req, pathname, 'admin');
     }
     
+    // Check for superadmin role in app_metadata
     const userRole = session.user.app_metadata?.user_role;
     
     if (userRole !== 'superadmin') {

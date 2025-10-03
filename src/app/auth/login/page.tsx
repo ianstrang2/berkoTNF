@@ -1,147 +1,235 @@
 /**
- * Admin Login Page
+ * Phone Authentication Page
  * 
  * /auth/login
- * Email + password authentication for admin users
+ * All users (players and admins) sign up/login using phone number and SMS OTP
  */
 
 'use client';
 
 import { useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
-function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+function PlayerLoginForm() {
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const returnUrl = searchParams?.get('returnUrl') || '/admin';
-  
   const supabase = createClientComponentClient();
-  
-  const handleLogin = async (e: React.FormEvent) => {
+
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-numeric characters
+    const numbers = value.replace(/\D/g, '');
+    
+    // If starts with 0, replace with 44
+    if (numbers.startsWith('0')) {
+      return '+44' + numbers.slice(1);
+    }
+    
+    // If starts with 44, add +
+    if (numbers.startsWith('44')) {
+      return '+' + numbers;
+    }
+    
+    // If just numbers, assume UK
+    if (numbers.length === 10) {
+      return '+44' + numbers;
+    }
+    
+    return value;
+  };
+
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
-      // Call our API endpoint which validates admin status
-      const response = await fetch('/api/auth/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const formattedPhone = formatPhoneNumber(phone);
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
       });
-      
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        setError(data.error || 'Login failed');
-        setLoading(false);
-        return;
-      }
-      
-      // Set admin authentication flag in localStorage
-      localStorage.setItem('adminAuth', 'true');
-      
-      // Redirect to appropriate dashboard based on role (superadmin → /superadmin, admin → /admin)
-      const redirectUrl = data.redirectUrl || returnUrl;
-      router.push(redirectUrl);
-      router.refresh();
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('An error occurred. Please try again.');
+
+      if (error) throw error;
+
+      setStep('otp');
+    } catch (error: any) {
+      console.error('Error sending OTP:', error);
+      setError(error.message || 'Failed to send verification code');
+    } finally {
       setLoading(false);
     }
   };
-  
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const formattedPhone = formatPhoneNumber(phone);
+      
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: formattedPhone,
+        token: otp,
+        type: 'sms',
+      });
+
+      if (error) throw error;
+
+      if (data.session) {
+        // Try to auto-link by phone number
+        const formattedPhone = formatPhoneNumber(phone);
+        
+        try {
+          const linkResponse = await fetch('/api/auth/link-by-phone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: formattedPhone }),
+          });
+          
+          const linkData = await linkResponse.json();
+          
+          if (linkData.success && linkData.player) {
+            // Linked! Clear cache and reload to refresh profile
+            localStorage.removeItem('userProfile');
+            
+            // Redirect based on role
+            if (linkData.player.is_admin) {
+              window.location.href = '/admin/matches'; // Full reload to refresh auth context
+            } else {
+              window.location.href = '/';
+            }
+          } else {
+            setError('No player profile found. Please use your club invite link to join.');
+            setStep('phone');
+          }
+        } catch (linkError) {
+          console.error('Link error:', linkError);
+          setError('Failed to link profile. Please use your club invite link.');
+          setStep('phone');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error verifying OTP:', error);
+      setError(error.message || 'Invalid verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Admin Sign In
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            BerkoTNF Admin Dashboard
+    <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mx-auto mb-4 p-3">
+            <img 
+              src="/img/logo.png" 
+              alt="Capo Logo" 
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Login</h1>
+          <p className="text-gray-600 mt-2">
+            {step === 'phone' 
+              ? 'Enter your mobile number to continue' 
+              : 'Enter the 6-digit code we sent you'}
           </p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
-                    {error}
-                  </h3>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                disabled={loading}
-              />
-            </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
           </div>
-          
-          <div>
+        )}
+
+        {step === 'phone' ? (
+          <form onSubmit={handleSendOTP}>
+            <div className="mb-6">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                Mobile Number
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="07XXX XXXXXX"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+                disabled={loading}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                We'll send you a verification code via SMS
+              </p>
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || !phone}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Sending...' : 'Send Verification Code'}
             </button>
-          </div>
-          
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              New admin? You need an invitation to create an account.
-            </p>
-          </div>
-        </form>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOTP}>
+            <div className="mb-6">
+              <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
+                Verification Code
+              </label>
+              <input
+                id="otp"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                placeholder="123456"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-2xl tracking-widest font-mono"
+                required
+                disabled={loading}
+                autoFocus
+              />
+              <p className="mt-2 text-xs text-gray-500 text-center">
+                Sent to {phone}
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || otp.length !== 6}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+            >
+              {loading ? 'Verifying...' : 'Verify Code'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStep('phone');
+                setOtp('');
+                setError('');
+              }}
+              className="w-full py-2 px-4 text-gray-600 font-medium text-sm hover:text-gray-900 transition-colors"
+            >
+              ← Change Phone Number
+            </button>
+          </form>
+        )}
+
       </div>
     </div>
   );
 }
 
-export default function LoginPage() {
+export default function PlayerLoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
@@ -153,7 +241,7 @@ export default function LoginPage() {
         </div>
       </div>
     }>
-      <LoginForm />
+      <PlayerLoginForm />
     </Suspense>
   );
 }
