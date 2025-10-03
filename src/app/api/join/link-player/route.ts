@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { tenant, token, phone } = await request.json();
+    const { tenant, token, phone, displayName } = await request.json();
 
     // Validate invite token
     const tenantRecord = await prisma.tenants.findUnique({
@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
         data: {
           tenant_id: tenantRecord.tenant_id,
           phone_number: normalizedIncomingPhone,
+          display_name: displayName || null,
           auth_user_id: session.user.id,
           status: 'pending',
         },

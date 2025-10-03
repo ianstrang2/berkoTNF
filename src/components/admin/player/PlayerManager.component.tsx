@@ -120,6 +120,7 @@ const PlayerManager: React.FC = () => {
       const apiFormData = {
         ...formData,
         player_id: isEditing ? selectedPlayer.id : undefined,
+        isAdmin: formData.isAdmin,
         is_ringer: formData.isRinger,
         is_retired: formData.isRetired,
         stamina_pace: formData.staminaPace,
@@ -238,22 +239,23 @@ const PlayerManager: React.FC = () => {
 
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft-xl p-6 lg:w-fit max-w-7xl">
-      <div className="flex justify-between items-center mb-6">
-        <h5 className="font-bold text-slate-700">Player Manager</h5>
-        <div className="flex gap-2">
-          <ClubInviteLinkButton />
-          <button 
-            onClick={() => setShowPlayerModal(true)}
-            className="inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
-          >
-            Add Player
-          </button>
-        </div>
-      </div>
-
-      {/* Pending Join Requests */}
+    <>
+      {/* Pending Join Requests - Separate card, appears first */}
       <PendingJoinRequests />
+      
+      <div className="bg-white rounded-2xl shadow-soft-xl p-6 lg:w-fit max-w-7xl">
+        <div className="flex justify-between items-center mb-6">
+          <h5 className="font-bold text-slate-700">Player Manager</h5>
+          <div className="flex gap-2">
+            <ClubInviteLinkButton />
+            <button 
+              onClick={() => setShowPlayerModal(true)}
+              className="inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"
+            >
+              Add Player
+            </button>
+          </div>
+        </div>
       
       {error && (
         <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md shadow-soft-sm">
@@ -323,9 +325,6 @@ const PlayerManager: React.FC = () => {
               <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="App access claimed">
                 🔗
               </th>
-              <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Admin privileges">
-                Admin
-              </th>
               <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Ringer {getSortIndicator('ringer')}
               </th>
@@ -369,7 +368,7 @@ const PlayerManager: React.FC = () => {
               </tr>
             ) : filteredPlayers.length === 0 ? (
               <tr>
-                <td colSpan={15} className="p-2 text-center align-middle bg-transparent border-b">
+                <td colSpan={14} className="p-2 text-center align-middle bg-transparent border-b">
                   <div className="py-4 text-slate-500">No players found</div>
                 </td>
               </tr>
@@ -407,20 +406,6 @@ const PlayerManager: React.FC = () => {
                         <span className={`text-lg ${player.authUserId ? 'text-green-500' : 'text-gray-300'}`}>
                           {player.authUserId ? '✓' : '○'}
                         </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <button
-                          onClick={() => handleToggleAdmin(player.id, !(player.isAdmin || false))}
-                          disabled={!player.authUserId}
-                          className={`inline-flex px-3 py-1 text-xxs font-medium rounded-lg shadow-soft-xs transition-all ${
-                            player.isAdmin 
-                              ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:scale-105' 
-                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                          } disabled:opacity-30 disabled:cursor-not-allowed`}
-                          title={!player.authUserId ? 'Player must claim profile first' : player.isAdmin ? 'Click to demote' : 'Click to promote to admin'}
-                        >
-                          {player.isAdmin ? 'ADMIN' : 'PLAYER'}
-                        </button>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b">
                         <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRinger ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
@@ -492,6 +477,8 @@ const PlayerManager: React.FC = () => {
         initialData={selectedPlayer ? {
           name: selectedPlayer.name,
           phone: selectedPlayer.phone,
+          isAdmin: selectedPlayer.isAdmin,
+          authUserId: selectedPlayer.authUserId,
           isRinger: selectedPlayer.isRinger,
           isRetired: selectedPlayer.isRetired,
           goalscoring: selectedPlayer.goalscoring,
@@ -501,11 +488,12 @@ const PlayerManager: React.FC = () => {
           teamwork: selectedPlayer.teamwork,
           resilience: selectedPlayer.resilience,
           club: selectedPlayer.club,
-        } : {isRinger: true, goalscoring: 3, defending: 3, staminaPace: 3, control: 3, teamwork: 3, resilience: 3, club: null}}
+        } : {isRinger: false, goalscoring: 3, defending: 3, staminaPace: 3, control: 3, teamwork: 3, resilience: 3, club: null}}
         title={selectedPlayer ? "Edit Player" : "Add New Player"}
         submitButtonText={selectedPlayer ? "Save Changes" : "Create Player"}
       />
-    </div>
+      </div>
+    </>
   );
 };
 

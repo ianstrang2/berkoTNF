@@ -39,6 +39,7 @@ export const PendingJoinRequests: React.FC = () => {
   }, []);
 
   const [approvingRequest, setApprovingRequest] = useState<string | null>(null);
+  const [rejectingRequest, setRejectingRequest] = useState<string | null>(null);
   const [unclaimedPlayers, setUnclaimedPlayers] = useState<any[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [selectedExistingPlayer, setSelectedExistingPlayer] = useState('');
@@ -108,20 +109,25 @@ export const PendingJoinRequests: React.FC = () => {
     }
   };
 
-  const handleReject = async (requestId: string) => {
-    if (!confirm('Are you sure you want to reject this join request?')) return;
+  const startRejection = (requestId: string) => {
+    setRejectingRequest(requestId);
+  };
 
-    setProcessing(requestId);
+  const handleReject = async () => {
+    if (!rejectingRequest) return;
+
+    setProcessing(rejectingRequest);
     
     try {
       const response = await fetch('/api/admin/join-requests/reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId }),
+        body: JSON.stringify({ requestId: rejectingRequest }),
       });
 
       if (response.ok) {
-        setRequests(prev => prev.filter(r => r.id !== requestId));
+        setRequests(prev => prev.filter(r => r.id !== rejectingRequest));
+        setRejectingRequest(null);
       } else {
         const error = await response.json();
         alert(`Error: ${error.error}`);
@@ -138,60 +144,88 @@ export const PendingJoinRequests: React.FC = () => {
   if (requests.length === 0) return null;
 
   return (
-    <div className="mb-6 bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6">
-      <div className="flex items-center mb-4">
-        <span className="text-2xl mr-2">📱</span>
-        <h3 className="text-lg font-bold text-gray-900">
-          Pending Join Requests ({requests.length})
-        </h3>
-      </div>
-
-      <p className="text-sm text-gray-600 mb-4">
-        These players have verified their phone number and are waiting to be added to the team.
-      </p>
-
-      <div className="space-y-3">
-        {requests.map((request) => (
-          <div key={request.id} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">{request.phone_number}</p>
-              <p className="text-xs text-gray-500">
-                Requested {new Date(request.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => startApproval(request.id, request.phone_number)}
-                disabled={processing === request.id}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50"
-              >
-                {processing === request.id ? '...' : '✓ Approve'}
-              </button>
-              <button
-                onClick={() => handleReject(request.id)}
-                disabled={processing === request.id}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50"
-              >
-                ✕ Reject
-              </button>
-            </div>
-          </div>
-        ))}
+    <div className="bg-white rounded-2xl shadow-soft-xl p-6 mb-6 lg:w-fit">
+      <h5 className="font-bold text-slate-700 mb-4">Pending Join Requests</h5>
+      
+      <div className="overflow-x-auto">
+        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+          <thead className="align-bottom">
+            <tr>
+              <th className="px-4 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Phone Number
+              </th>
+              <th className="px-4 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Requested
+              </th>
+              <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {requests.map((request) => (
+              <tr key={request.id}>
+                <td className="p-4 align-middle bg-transparent border-b">
+                  <h6 className="mb-0 leading-normal text-sm text-slate-600">{request.phone_number}</h6>
+                </td>
+                <td className="p-4 align-middle bg-transparent border-b">
+                  <span className="text-xs text-slate-500">
+                    {new Date(request.created_at).toLocaleDateString()}
+                  </span>
+                </td>
+                <td className="p-4 text-center align-middle bg-transparent border-b">
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => startApproval(request.id, request.phone_number)}
+                      disabled={processing === request.id}
+                      className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85 disabled:opacity-50"
+                    >
+                      {processing === request.id ? 'Processing...' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => startRejection(request.id)}
+                      disabled={processing === request.id}
+                      className="inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Approval Modal */}
       {approvingRequest && (
-        <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-slate-700 mb-4">Approve Join Request</h3>
+        <div className="fixed inset-0 z-[9999] overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen p-4">
+            {/* Background overlay */}
+            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => setApprovingRequest(null)}></div>
             
-            <p className="text-sm text-slate-600 mb-4">
-              Phone: <strong>{requests.find(r => r.id === approvingRequest)?.phone_number}</strong>
-            </p>
+            {/* Modal panel */}
+            <div className="relative bg-white rounded-2xl max-w-md w-full shadow-soft-xl p-6">
+              {/* Header */}
+              <h3 className="text-lg font-semibold text-slate-700 mb-4">Approve Join Request</h3>
+              
+              {/* Player Info */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg mb-4">
+                <div className="space-y-1 text-sm">
+                  {requests.find(r => r.id === approvingRequest)?.display_name && (
+                    <p className="text-slate-700">
+                      <strong>Name:</strong> {requests.find(r => r.id === approvingRequest)?.display_name}
+                    </p>
+                  )}
+                  <p className="text-slate-700">
+                    <strong>Phone:</strong> {requests.find(r => r.id === approvingRequest)?.phone_number}
+                  </p>
+                </div>
+              </div>
 
-            {/* Mode Selection */}
-            <div className="mb-4 flex gap-2">
-              <button
+              {/* Mode Selection */}
+              <div className="mb-4 flex gap-2">
+                <button
                 onClick={() => setApprovalMode('new')}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   approvalMode === 'new'
@@ -210,8 +244,8 @@ export const PendingJoinRequests: React.FC = () => {
                 }`}
               >
                 Link to Existing
-              </button>
-            </div>
+                </button>
+              </div>
 
             {approvalMode === 'new' ? (
               <div className="mb-4">
@@ -250,21 +284,87 @@ export const PendingJoinRequests: React.FC = () => {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-2">
+            {/* Action buttons */}
+            <div className="flex justify-end pt-2 border-t border-slate-200 mt-4">
               <button
                 onClick={() => setApprovingRequest(null)}
-                className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg text-sm transition-colors"
+                className="mr-3 inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+                disabled={processing === approvingRequest}
               >
                 Cancel
               </button>
               <button
                 onClick={handleApprove}
                 disabled={processing === approvingRequest}
-                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50"
+                className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-fuchsia-500 to-pink-400 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {processing === approvingRequest ? 'Processing...' : 'Confirm'}
               </button>
+            </div>
+          </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Confirmation Modal */}
+      {rejectingRequest && (
+        <div className="fixed inset-0 z-[9999] overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen p-4">
+            {/* Background overlay */}
+            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => setRejectingRequest(null)}></div>
+            
+            {/* Modal panel */}
+            <div className="relative bg-white rounded-2xl max-w-md w-full shadow-soft-xl p-6">
+              {/* Header with icon */}
+              <div className="mb-5">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="ml-3">
+                    <h4 className="text-lg font-medium text-slate-700">Reject Join Request?</h4>
+                  </div>
+                </div>
+
+                {/* Request Info */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="space-y-1 text-sm">
+                    {requests.find(r => r.id === rejectingRequest)?.display_name && (
+                      <p className="text-slate-700">
+                        <strong>Name:</strong> {requests.find(r => r.id === rejectingRequest)?.display_name}
+                      </p>
+                    )}
+                    <p className="text-slate-700">
+                      <strong>Phone:</strong> {requests.find(r => r.id === rejectingRequest)?.phone_number}
+                    </p>
+                    <p className="text-slate-500 text-xs mt-2">
+                      This player can request to join again later.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex justify-end pt-2 border-t border-slate-200 mt-4">
+                <button
+                  onClick={() => setRejectingRequest(null)}
+                  className="mr-3 inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+                  disabled={processing === rejectingRequest}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReject}
+                  disabled={processing === rejectingRequest}
+                  className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-fuchsia-500 to-pink-400 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processing === rejectingRequest ? 'Rejecting...' : 'Reject'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

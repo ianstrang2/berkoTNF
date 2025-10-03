@@ -5,6 +5,7 @@ import { Club } from '@/types/player.types';
 
 // Define attribute descriptions for tooltips
 const attributeDescriptions: Record<string, string> = {
+  isAdmin: 'Club admin with full management access. Player must have claimed profile (phone verified) first.',
   isRinger: 'Occasional players not shown in any stats',
   isRetired: 'Player who is no longer actively playing but whose historical data is preserved.',
   goalscoring: 'Ability to score goals and convert chances.',
@@ -60,11 +61,14 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [showRoleStatus, setShowRoleStatus] = useState(!!initialData); // Expanded if editing
+  const [showRatings, setShowRatings] = useState(!!initialData); // Expanded if editing
   
   const [formData, setFormData] = useState<PlayerFormData>({
     name: initialData?.name || '',
     phone: initialData?.phone || '',
-    isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : true,
+    isAdmin: initialData?.isAdmin || false,
+    isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : false,
     isRetired: initialData?.isRetired || false,
     goalscoring: initialData?.goalscoring || 3,
     defending: initialData?.defending || 3,
@@ -81,7 +85,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
       setFormData({
         name: initialData?.name || '',
         phone: initialData?.phone || '',
-        isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : true,
+        isAdmin: initialData?.isAdmin || false,
+        isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : false,
         isRetired: initialData?.isRetired || false,
         goalscoring: initialData?.goalscoring || 3,
         defending: initialData?.defending || 3,
@@ -145,7 +150,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
       setFormData({
         name: '',
         phone: '',
-        isRinger: true,
+        isAdmin: false,
+        isRinger: false,
         isRetired: false,
         goalscoring: 3,
         defending: 3,
@@ -246,11 +252,41 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 )}
               </div>
             </div>
-            
+
             <div className="mb-4">
-              <div className="flex items-center justify-between">
-                {/* Ringer Section */}
-                <div className="flex items-center">
+              <label className="block text-slate-700 text-sm font-medium mb-2">Club (Optional)</label>
+              <ClubSelector 
+                value={formData.club as Club | null}
+                onChange={(club) => setFormData({ ...formData, club: club })}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="my-6 border-t border-gray-200"></div>
+            
+            {/* Collapsible: Role & Status */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => setShowRoleStatus(!showRoleStatus)}
+                className="w-full flex items-center justify-between text-left mb-3 hover:bg-slate-50 p-2 rounded-lg transition-colors"
+              >
+                <h4 className="text-sm font-medium text-slate-700">Role & Status</h4>
+                <svg 
+                  className={`w-5 h-5 text-slate-400 transition-transform ${showRoleStatus ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showRoleStatus && (
+                <div className="space-y-3 pl-2">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Ringer Section */}
+                    <div className="flex items-center">
                   <label htmlFor="isRinger" className="text-slate-700 text-sm font-medium mr-2">Ringer</label>
                   <button
                     type="button"
@@ -273,6 +309,37 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                       <AttributeTooltip 
                         attribute="Ringer" 
                         description={attributeDescriptions.isRinger}
+                        onClose={() => setActiveTooltip(null)}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Admin Section */}
+                <div className="flex items-center">
+                  <label htmlFor="isAdmin" className="text-slate-700 text-sm font-medium mr-2">Admin</label>
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-slate-600 mr-3"
+                    onClick={() => toggleTooltip('isAdmin')}
+                  >
+                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={formData.isAdmin || false}
+                      onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked })}
+                      disabled={!(initialData?.authUserId || formData.authUserId)}
+                      className="mt-0.5 rounded-10 duration-250 ease-soft-in-out after:rounded-circle after:shadow-soft-2xl after:duration-250 checked:after:translate-x-5.3 h-5 relative float-left w-10 cursor-pointer appearance-none border border-solid border-gray-200 bg-slate-800/10 bg-none bg-contain bg-left bg-no-repeat align-top transition-all after:absolute after:top-px after:h-4 after:w-4 after:translate-x-px after:bg-white after:content-[''] checked:border-slate-800/95 checked:bg-slate-800/95 checked:bg-none checked:bg-right disabled:opacity-30 disabled:cursor-not-allowed"
+                      id="isAdmin"
+                    />
+                    {activeTooltip === 'isAdmin' && (
+                      <AttributeTooltip 
+                        attribute="Admin" 
+                        description={attributeDescriptions.isAdmin}
                         onClose={() => setActiveTooltip(null)}
                       />
                     )}
@@ -307,23 +374,31 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                       />
                     )}
                   </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
+            {/* Collapsible: Player Ratings */}
             <div className="mb-4">
-              <label className="block text-slate-700 text-sm font-medium mb-2">Club (Optional)</label>
-              <ClubSelector 
-                value={formData.club as Club | null}
-                onChange={(club) => setFormData({ ...formData, club: club })}
-              />
-            </div>
-
-            {/* Divider */}
-            <div className="my-6 border-t border-gray-200"></div>
-            
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-slate-700 mb-3">Player Ratings</h4>
+              <button
+                type="button"
+                onClick={() => setShowRatings(!showRatings)}
+                className="w-full flex items-center justify-between text-left mb-3 hover:bg-slate-50 p-2 rounded-lg transition-colors"
+              >
+                <h4 className="text-sm font-medium text-slate-700">Player Ratings</h4>
+                <svg 
+                  className={`w-5 h-5 text-slate-400 transition-transform ${showRatings ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showRatings && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {attributeFields.map(({ key, label }) => (
                   <div key={key} className="mb-2 relative">
@@ -375,7 +450,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
             
             <div className="flex justify-end pt-2 border-t border-slate-200 mt-4">

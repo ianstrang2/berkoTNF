@@ -18,7 +18,8 @@ function JoinForm() {
   
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp' | 'linking'>('phone');
+  const [displayName, setDisplayName] = useState('');
+  const [step, setStep] = useState<'phone' | 'otp' | 'name' | 'linking'>('phone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [clubName, setClubName] = useState('');
@@ -94,7 +95,6 @@ function JoinForm() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setStep('linking');
 
     try {
       const formattedPhone = formatPhoneNumber(phone);
@@ -112,7 +112,27 @@ function JoinForm() {
         throw new Error('No session created');
       }
 
-      // Now auto-link based on phone number
+      // OTP verified! Now ask for name before linking
+      setStep('name');
+    } catch (error: any) {
+      console.error('Error verifying OTP:', error);
+      setError(error.message || 'Verification failed');
+      setStep('otp');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setStep('linking');
+
+    try {
+      const formattedPhone = formatPhoneNumber(phone);
+
+      // Now auto-link with name provided
       const linkResponse = await fetch('/api/join/link-player', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,6 +140,7 @@ function JoinForm() {
           tenant,
           token,
           phone: formattedPhone,
+          displayName: displayName.trim() || null,
         }),
       });
 
@@ -137,9 +158,9 @@ function JoinForm() {
         throw new Error(linkData.error || 'Failed to link profile');
       }
     } catch (error: any) {
-      console.error('Error verifying OTP:', error);
-      setError(error.message || 'Verification failed');
-      setStep('otp'); // Go back to allow retry
+      console.error('Error linking:', error);
+      setError(error.message || 'Failed to link profile');
+      setStep('name');
     } finally {
       setLoading(false);
     }
@@ -197,6 +218,8 @@ function JoinForm() {
               ? 'Enter your mobile number to continue' 
               : step === 'otp'
               ? 'Enter the 6-digit code we sent you'
+              : step === 'name'
+              ? 'What\'s your name?'
               : 'Linking your profile...'}
           </p>
         </div>
@@ -281,6 +304,37 @@ function JoinForm() {
               className="w-full py-2 px-4 text-gray-600 font-medium text-sm hover:text-gray-900 transition-colors disabled:opacity-50"
             >
               ← Change Phone Number
+            </button>
+          </form>
+        ) : step === 'name' ? (
+          <form onSubmit={handleSubmitName}>
+            <div className="mb-6">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                Your Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="John Smith"
+                maxLength={14}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                disabled={loading}
+                autoFocus
+              />
+              <p className="mt-2 text-xs text-gray-500 flex justify-between">
+                <span>This helps the admin identify you when approving</span>
+                <span>{displayName.length} / 14</span>
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Continuing...' : 'Continue'}
             </button>
           </form>
         ) : (

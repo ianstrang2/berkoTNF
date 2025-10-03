@@ -75,9 +75,9 @@ Download to get notifications and secure your spot:
       <button
         onClick={fetchInviteLink}
         disabled={loading}
-        className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-green-600 to-green-400 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85 disabled:opacity-50"
+        className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 disabled:opacity-50"
       >
-        {loading ? 'Loading...' : '📱 Club Invite Link'}
+        {loading ? 'Loading...' : 'Club Invite Link'}
       </button>
 
       {showModal && (
