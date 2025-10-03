@@ -45,11 +45,13 @@ The BerkoTNF platform requires authentication to support:
 - Simplified to single auth system
 - Added promotion workflow
 - Removed email auth complexity
-**Phase 5**: App-first onboarding 🔄 **CURRENT** (Required before RSVP launch)
-- Deep link configuration
-- App-first landing page
-- Pre-filled invite messages
-**Phase 6**: Advanced security (2FA, biometric, enhanced audit) 📋 **FUTURE**
+**Phase 5**: App-first onboarding + Modal standardization ✅ **COMPLETE** (October 3, 2025)
+- Deep link configuration (capo:// scheme + universal links)
+- App-first landing page (mobile + desktop)
+- Pre-filled invite messages  
+- Modal UI standardization (gradient icons, consistent buttons)
+**Phase 6**: iOS platform ⏸️ **BLOCKED** (Waiting for MacBook hardware)
+**Phase 7**: Advanced security (2FA, biometric, enhanced audit) 📋 **FUTURE**
 
 ### Architectural Decision: Phone-Only (October 2, 2025)
 
@@ -66,53 +68,51 @@ The BerkoTNF platform requires authentication to support:
 
 **See**: `docs/AUTH_PHONE_ONLY_MIGRATION_PLAN.md` for detailed migration steps.
 
-### Phase 4 Remaining Work (Final Polish)
+### Phase 5 Completed Work (October 3, 2025)
 
-Based on the Role & Platform Matrix above, here's what needs to be built:
+**All Phase 5 features implemented and tested:**
 
-**1. Invite Link UI** (~15 mins):
-- Button in Players page header: "📱 Club Invite Link"  
-- Modal shows invite URL with copy-to-clipboard button
-- Desktop/Web only (admin feature)
-- Integrates with `/api/admin/club-invite` (already built)
+**1. Modal Standardization** ✅:
+- Standardized all 8 modals to consistent Soft-UI styling
+- Gradient icons: 48px (purple/pink for questions (?), red for warnings/deletes (!))
+- Button order: Action (left), Cancel/Close (right)
+- Button sizing: `px-4 py-2 font-medium` across all modals
+- Removed gray shading from info boxes
+- Files updated: SoftUIConfirmationModal, PendingJoinRequests, ClubInviteLink, PlayerForm, SeasonForm, SeasonDelete, globals.css
 
-**2. Desktop/Web Profile Dropdown** (~25 mins):
-- Person icon (👤) in header top-right
-- Dropdown menu with context-aware options:
-  - Players: Logout
-  - Admins: Logout
-  - Admin-Players: View switching + Logout
-  - Superadmins: 3-way view selector + Logout
-- Replaces current standalone logout button
-- **NOT needed on Capacitor** (different UX per matrix)
+**2. App-First Landing Page** ✅:
+- Platform detection (mobile vs desktop)
+- Mobile view: App download CTA with benefits list + web fallback warning
+- Desktop view: Scannable QR code (using qrcode.react library)
+- Updated copy emphasizing fantasy points, leaderboards, RSVP features
+- Deep link attempt with Play Store fallback
+- Auto-skip landing if already in Capacitor app
 
-**3. Capacitor Admin Menu** (~15 mins):
-- Add menu icon (⋮) for admin-only users (no player link)
-- Shows: Logout option
-- Admin-players keep current centered button (no change needed)
-- Players have no menu (no change needed)
+**3. Deep Link Configuration** ✅:
+- AndroidManifest.xml: Intent filters for `capo://` custom scheme
+- AndroidManifest.xml: Universal links for `https://capo.app/join`
+- DeepLinkHandler component for in-app navigation
+- Integrated into root layout
+- Supports both custom scheme and universal links
 
-**4. Enhanced Join Approval** (~20 mins):
-- Two options when approving: "Create New Player" OR "Link to Existing Player"
-- If "Link to Existing": Dropdown shows all unclaimed players in club
-- Shows phone number prominently in approval UI
-- Updates both `player_join_requests` and `players.auth_user_id`
+**Total Implementation Time**: ~2 hours (modal standardization took longer due to comprehensive audit)
 
-**5. Player Table Status Indicators** (~15 mins):
-- Add 📱 **Phone** column: Green ✓ if set, Gray ○ if empty
-- Add 🔗 **App Access** column: Green ✓ if claimed (auth_user_id), Gray ○ if not
-- Hover tooltips show actual phone number (masked: +44 7*** ***789)
-- Helps admin see who can access the app
+### What's NOT Implemented
 
-**6. Phone Change Auto-Unlink** (~5 mins):
-- When admin updates `players.phone`, check if it changed
-- If changed: Clear `auth_user_id` (force re-claim with new number)
-- Prevents auth/phone mismatch
-- Add warning message: "Phone changed - player will need to rejoin via invite link"
+**iOS Platform** ⏸️ **BLOCKED**:
+- iOS Capacitor platform setup
+- iOS deep link configuration (Info.plist)
+- iOS build and testing
+- App Store submission
+- **Blocker**: Requires MacBook hardware
 
-**Total: ~95 minutes** to complete Phase 4
+**Future Enhancements** (Post-RSVP):
+- 2FA for admin accounts
+- Biometric auth (fingerprint/Face ID)
+- Enhanced audit logging dashboard
+- Session analytics
 
-**Scalability Note**: Superadmin view switching works for 1-20 clubs. With 50+ clubs, we'll add "Switch to Different Club..." option that opens `/superadmin/tenants` search page (easy upgrade path).
+**Authentication system is production-ready for Android + Web!**
 
 ---
 
