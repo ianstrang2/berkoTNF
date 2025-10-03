@@ -10,6 +10,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { QRCodeSVG } from 'qrcode.react';
 
 function JoinForm() {
   const params = useParams();
@@ -19,14 +20,29 @@ function JoinForm() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp' | 'name' | 'linking'>('phone');
+  const [step, setStep] = useState<'landing' | 'phone' | 'otp' | 'name' | 'linking'>('landing');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [clubName, setClubName] = useState('');
   const [validatingToken, setValidatingToken] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   const tenant = params?.tenant as string;
   const token = params?.token as string;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const joinUrl = `${baseUrl}/join/${tenant}/${token}`;
+
+  // Detect mobile device and if already in Capacitor app
+  useEffect(() => {
+    const checkMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    setIsMobile(checkMobile);
+    
+    // If already in Capacitor app, skip landing and go straight to phone verification
+    const isCapacitor = document.documentElement.classList.contains('capacitor');
+    if (isCapacitor && !validatingToken && clubName) {
+      setStep('phone');
+    }
+  }, [validatingToken, clubName]);
 
   // Validate invite token on mount
   useEffect(() => {
@@ -214,7 +230,9 @@ function JoinForm() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Join {clubName}</h1>
           <p className="text-gray-600 mt-2">
-            {step === 'phone' 
+            {step === 'landing'
+              ? isMobile ? 'Get in the game!' : 'Scan to install the app'
+              : step === 'phone' 
               ? 'Enter your mobile number to continue' 
               : step === 'otp'
               ? 'Enter the 6-digit code we sent you'
@@ -230,7 +248,88 @@ function JoinForm() {
           </div>
         )}
 
-        {step === 'phone' ? (
+        {step === 'landing' ? (
+          // App-first landing screen
+          isMobile ? (
+            // Mobile: Show app download CTA
+            <div className="space-y-6">
+              <div className="border border-slate-200 rounded-xl p-6">
+                <h3 className="font-semibold text-slate-700 mb-4 text-sm">Instant access to:</h3>
+                <div className="space-y-2 text-sm text-slate-700">
+                  <div className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>Priority match notifications</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>Easily RSVP to matches</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>Your profile and fantasy points</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>Leaderboards and match reports</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  // Try deep link first
+                  window.location.href = `capo://join/${tenant}/${token}`;
+                  // Fallback to Play Store after short delay
+                  setTimeout(() => {
+                    window.location.href = 'https://play.google.com/store/apps/details?id=com.caposport.capo';
+                  }, 1500);
+                }}
+                className="w-full py-3 px-6 bg-gradient-to-tl from-purple-700 to-pink-500 text-white font-medium rounded-lg hover:scale-102 active:opacity-85 transition-all shadow-soft-md text-sm uppercase"
+              >
+                Download the Capo App
+              </button>
+
+              <button
+                onClick={() => setStep('phone')}
+                className="w-full text-center text-sm text-slate-600 hover:text-slate-900 transition-colors py-2"
+              >
+                Continue on web →
+              </button>
+
+              <div className="border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-800 text-center">
+                  <strong>Web-only users:</strong> Players who do not install the app may not receive new match notifications.
+                </p>
+              </div>
+            </div>
+          ) : (
+            // Desktop: Show QR code
+            <div className="space-y-6">
+              <div className="text-center">
+                <p className="text-gray-700 mb-4">Scan with your phone to install the app:</p>
+                
+                {/* Real QR Code */}
+                <div className="w-52 h-52 mx-auto bg-white border-2 border-slate-200 rounded-xl p-4 mb-4 shadow-soft-md">
+                  <QRCodeSVG 
+                    value={joinUrl}
+                    size={192}
+                    level="M"
+                    includeMargin={false}
+                    className="w-full h-full"
+                  />
+                </div>
+
+                <div className="bg-slate-100 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-mono text-gray-700 break-all">{joinUrl}</p>
+                </div>
+
+                <p className="text-sm text-gray-600">
+                  Or visit this page on your phone to download the app
+                </p>
+              </div>
+            </div>
+          )
+        ) : step === 'phone' ? (
           <form onSubmit={handleSendOTP}>
             <div className="mb-6">
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">

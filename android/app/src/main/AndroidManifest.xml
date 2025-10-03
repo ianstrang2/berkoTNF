@@ -23,6 +23,25 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep link support: capo:// custom scheme -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="capo" android:host="join" />
+            </intent-filter>
+
+            <!-- Universal links: https://capo.app/join -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data 
+                    android:scheme="https" 
+                    android:host="capo.app" 
+                    android:pathPrefix="/join" />
+            </intent-filter>
+
         </activity>
 
         <provider

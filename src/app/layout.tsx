@@ -5,6 +5,7 @@ import { ReactNode } from 'react';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { StatusBarConfig } from '@/components/native/StatusBarConfig.component';
+import { DeepLinkHandler } from '@/components/native/DeepLinkHandler.component';
 import Script from 'next/script';
 // Note: we'll use style tags for CSS in public directory
 
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="h-full bg-gray-50">
         <StatusBarConfig />
+        <DeepLinkHandler />
         <AuthProvider>
           <NavigationProvider>
             {children}
