@@ -13,7 +13,6 @@ export const ClubInviteLinkButton: React.FC = () => {
   const [inviteUrl, setInviteUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'message' | 'link'>('message');
 
   const fetchInviteLink = async () => {
     setLoading(true);
@@ -49,7 +48,6 @@ export const ClubInviteLinkButton: React.FC = () => {
   const closeModal = () => {
     setShowModal(false);
     setCopied(false);
-    setActiveTab('message');
   };
 
   const whatsappMessage = `Join BerkoTNF on Capo ⚽
@@ -89,113 +87,38 @@ Download to get notifications and secure your spot:
             {/* Modal panel */}
             <div className="relative bg-white rounded-2xl max-w-lg w-full mx-auto shadow-soft-xl transform transition-all p-6" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
-              <div className="flex justify-between items-center mb-5">
-                <h3 className="text-lg font-semibold text-slate-700">
-                  📱 Club Invite Link
-                </h3>
-                <button 
-                  onClick={closeModal}
-                  className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
-                  aria-label="Close"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex border-b border-gray-200 mb-4">
-                <button
-                  onClick={() => setActiveTab('message')}
-                  className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'message'
-                      ? 'text-purple-700 border-b-2 border-purple-700'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  📱 Pre-filled Message
-                </button>
-                <button
-                  onClick={() => setActiveTab('link')}
-                  className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'link'
-                      ? 'text-purple-700 border-b-2 border-purple-700'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  🔗 Link Only
-                </button>
-              </div>
+              <h3 className="text-lg font-semibold text-slate-700 mb-5">
+                Club Invite Link
+              </h3>
 
               {/* Content */}
-              <div className="space-y-4">
-                {activeTab === 'message' ? (
-                  <>
-                    <p className="text-sm text-slate-600">
-                      Copy and paste this into WhatsApp or your team group:
-                    </p>
+              <div className="mb-6">
+                <p className="text-sm text-slate-600 mb-3">
+                  Copy and paste this into WhatsApp or your team group:
+                </p>
 
-                    {/* Message Display */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                      <pre className="text-xs text-slate-700 whitespace-pre-wrap font-sans">{whatsappMessage}</pre>
-                    </div>
-
-                    {/* Copy Message Button */}
-                    <button
-                      onClick={copyMessage}
-                      className={`w-full px-4 py-3 font-medium text-white rounded-lg transition-all ${
-                        copied 
-                          ? 'bg-green-600' 
-                          : 'bg-gradient-to-tl from-purple-700 to-pink-500 hover:scale-102 active:opacity-85'
-                      }`}
-                    >
-                      {copied ? '✓ Copied!' : '📋 Copy Message'}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-slate-600">
-                      Share this link directly:
-                    </p>
-
-                    {/* Invite URL Display */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                        <code className="text-xs text-slate-700 break-all">{inviteUrl}</code>
-                      </div>
-                    </div>
-
-                    {/* Copy Link Button */}
-                    <button
-                      onClick={copyToClipboard}
-                      className={`w-full px-4 py-3 font-medium text-white rounded-lg transition-all ${
-                        copied 
-                          ? 'bg-green-600' 
-                          : 'bg-gradient-to-tl from-purple-700 to-pink-500 hover:scale-102 active:opacity-85'
-                      }`}
-                    >
-                      {copied ? '✓ Copied!' : '📋 Copy Link'}
-                    </button>
-                  </>
-                )}
-
-                {/* Info */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-xs text-blue-800">
-                    <strong>💡 How it works:</strong>
-                  </p>
-                  <ul className="mt-2 text-xs text-blue-700 space-y-1 ml-4 list-disc">
-                    <li>Share this link in your WhatsApp group</li>
-                    <li>Players tap → verify phone → automatically linked!</li>
-                    <li>Works for all players with phone numbers in the system</li>
-                  </ul>
+                {/* Message Display */}
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans">{whatsappMessage}</pre>
                 </div>
+              </div>
 
-                {/* Close Button */}
+              {/* Action buttons - Standardized to match SoftUI pattern */}
+              <div className="flex justify-center gap-3 mt-6">
+                <button
+                  onClick={copyMessage}
+                  className={`inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase rounded-lg transition-all leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 ${
+                    copied 
+                      ? 'bg-green-600' 
+                      : 'bg-gradient-to-tl from-purple-700 to-pink-500 hover:scale-102 active:opacity-85 shadow-soft-md'
+                  }`}
+                  disabled={copied}
+                >
+                  {copied ? '✓ Copied!' : 'Copy'}
+                </button>
                 <button
                   onClick={closeModal}
-                  className="w-full px-4 py-2 text-slate-600 font-medium text-sm hover:text-slate-900 transition-colors"
+                  className="inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase rounded-lg transition-all bg-gradient-to-tl from-slate-100 to-slate-200 hover:scale-102 active:opacity-85 shadow-soft-md leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 ml-3"
                 >
                   Close
                 </button>

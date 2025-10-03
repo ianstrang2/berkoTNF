@@ -61,8 +61,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [showRoleStatus, setShowRoleStatus] = useState(!!initialData); // Expanded if editing
-  const [showRatings, setShowRatings] = useState(!!initialData); // Expanded if editing
+  const [showRoleStatus, setShowRoleStatus] = useState(!!initialData && !!initialData.name); // Expanded if editing existing player
+  const [showRatings, setShowRatings] = useState(!!initialData && !!initialData.name); // Expanded if editing existing player
   
   const [formData, setFormData] = useState<PlayerFormData>({
     name: initialData?.name || '',
@@ -454,21 +454,21 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               )}
             </div>
             
-            <div className="flex justify-end pt-2 border-t border-slate-200 mt-4">
+            <div className="flex justify-center gap-3 mt-6">
+              <button
+                type="submit"
+                className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isProcessing || !formData.name || formData.name.length > 14 || !!nameError}
+              >
+                {isProcessing ? 'Processing...' : submitButtonText}
+              </button>
               <button
                 type="button"
-                className="mr-3 inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+                className="inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 ml-3"
                 onClick={onClose}
                 disabled={isProcessing}
               >
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-fuchsia-500 to-pink-400 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isProcessing || !formData.name || formData.name.length > 14 || !!nameError}
-              >
-                {isProcessing ? 'Processing...' : submitButtonText}
               </button>
             </div>
           </form>

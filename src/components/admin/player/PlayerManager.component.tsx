@@ -488,7 +488,7 @@ const PlayerManager: React.FC = () => {
           teamwork: selectedPlayer.teamwork,
           resilience: selectedPlayer.resilience,
           club: selectedPlayer.club,
-        } : {isRinger: false, goalscoring: 3, defending: 3, staminaPace: 3, control: 3, teamwork: 3, resilience: 3, club: null}}
+        } : undefined}
         title={selectedPlayer ? "Edit Player" : "Add New Player"}
         submitButtonText={selectedPlayer ? "Save Changes" : "Create Player"}
       />

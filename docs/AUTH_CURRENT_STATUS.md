@@ -1,10 +1,11 @@
 # Authentication System - Current Status
 
 **Date**: October 2, 2025  
-**Status**: Phase 1-4 Complete - MIGRATED TO PHONE-ONLY AUTH ✅  
-**Architecture**: Single authentication system (phone/SMS for all club users)  
-**Major Change**: Simplified from dual auth to phone-only + promotion model  
-**Last Session**: Migrated to phone-only auth, removed email auth complexity, added admin promotion
+**Status**: Phase 1-4 Complete, Phase 5 In Progress (Final Polish)  
+**Architecture**: Phone-only authentication (v5.0) with admin promotion model  
+**Core Functionality**: 100% Working and tested  
+**Remaining**: Modal styling standardization (~15 mins) + App-first landing page (~30 mins)  
+**Last Session**: Completed phone-only migration, built all features, need final UI polish
 
 ---
 
@@ -110,11 +111,44 @@ Superadmin header dropdown now offers:
 
 ---
 
-## 🚧 Phase 4: Final UI Polish (Remaining Work)
+## ✅ Phase 4: Phone-Only Migration - COMPLETE!
 
-### Must Complete Before RSVP:
+**All migrated and working**:
+- ✅ Phone auth for all club users (admins + players)
+- ✅ Admin promotion via `players.is_admin` flag
+- ✅ Admin toggle in edit player modal (progressive disclosure)
+- ✅ Profile dropdown menus (desktop + Capacitor, context-aware)
+- ✅ Pre-filled WhatsApp message in invite modal
+- ✅ Player table indicators (📱 phone, 🔗 claimed)
+- ✅ Join request system with name collection (14 char limit)
+- ✅ Reject confirmation modal
+- ✅ Approve modal with create/link options
+- ✅ Auto-linking by phone on direct login
+- ✅ Phone change auto-unlinks auth
+- ✅ Ringer default changed to OFF
+- ✅ All functionality tested and working
 
-**1. Invite Link UI** (~15 mins):
+---
+
+## 🚧 Phase 5: App-First Onboarding (Remaining Work)
+
+### Critical Before RSVP Launch:
+
+**1. Modal Styling Standardization** (~15 mins):
+- **Issue**: Join request modals don't match app's SweetAlert-based modal pattern
+- **Current**: Using custom React modals with inconsistent styling
+- **Target**: Match the orange-circle warning icon pattern from "Delete Match" and "Reset Settings" modals
+- **Audit needed**: Document exact styling pattern from existing SweetAlert modals
+- **Pattern to match**:
+  - Centered orange circle icon with white ! symbol
+  - Centered title and text
+  - Centered buttons (Action left/pink, Cancel right/gray)
+  - Font sizes, weights, colors must match existing
+- **Files to fix**: 
+  - `PendingJoinRequests.component.tsx` (Approve + Reject modals)
+  - `ClubInviteLinkButton.component.tsx` (Invite link modal)
+
+**2. App-First Landing Page** (~25 mins):
 - Add "📱 Club Invite Link" button to Players page header
 - Modal displays invite URL with copy-to-clipboard button
 - Uses existing `/api/admin/club-invite` endpoint

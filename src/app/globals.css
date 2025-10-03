@@ -149,4 +149,65 @@ body {
   .shadow-elevated {
     box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.08), 0 4px 6px -2px rgba(139, 92, 246, 0.05);
   }
+
+  /* SweetAlert2 Custom Icon Styling */
+  /* Purple/Pink gradient for questions and info icons */
+  .swal2-icon-custom-gradient.swal2-question,
+  .swal2-icon-custom-gradient.swal2-info {
+    background: linear-gradient(to top left, rgb(126 34 206), rgb(236 72 153)) !important;
+    border-color: rgb(126 34 206) !important;
+    color: white !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin: 1.5rem auto 1.25rem !important;
+  }
+
+  .swal2-icon-custom-gradient.swal2-question [class^='swal2-icon-content'],
+  .swal2-icon-custom-gradient.swal2-info [class^='swal2-icon-content'] {
+    color: white !important;
+    font-size: 32px !important;
+    line-height: 48px !important;
+  }
+
+  /* Red gradient for warnings, errors, and deletes */
+  .swal2-icon-custom-gradient.swal2-warning,
+  .swal2-icon-custom-gradient.swal2-error {
+    background: linear-gradient(to top left, rgb(220 38 38), rgb(248 113 113)) !important;
+    border-color: rgb(220 38 38) !important;
+    color: white !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin: 1.5rem auto 1.25rem !important;
+  }
+
+  .swal2-icon-custom-gradient.swal2-warning [class^='swal2-icon-content'],
+  .swal2-icon-custom-gradient.swal2-error [class^='swal2-icon-content'],
+  .swal2-icon-custom-gradient.swal2-warning .swal2-x-mark,
+  .swal2-icon-custom-gradient.swal2-error .swal2-x-mark {
+    color: white !important;
+    font-size: 32px !important;
+    line-height: 48px !important;
+  }
+
+  /* Success icon - keep default green but smaller */
+  .swal2-icon-custom-gradient.swal2-success {
+    width: 48px !important;
+    height: 48px !important;
+    margin: 1.5rem auto 1.25rem !important;
+  }
+
+  /* Ensure icon marks are visible */
+  .swal2-icon-custom-gradient .swal2-x-mark-line-left,
+  .swal2-icon-custom-gradient .swal2-x-mark-line-right {
+    background-color: white !important;
+  }
+
+  .swal2-icon-custom-gradient .swal2-success-ring {
+    border-color: rgb(34 197 94) !important;
+  }
+
+  .swal2-icon-custom-gradient .swal2-success-line-tip,
+  .swal2-icon-custom-gradient .swal2-success-line-long {
+    background-color: rgb(34 197 94) !important;
+  }
 }

@@ -54,8 +54,9 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
         popup: 'rounded-2xl shadow-soft-xl',
         title: 'text-lg leading-6 font-medium text-slate-700',
         htmlContainer: 'text-sm text-slate-500',
-        confirmButton: 'inline-block px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro text-xs ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25',
-        cancelButton: 'ml-3 inline-block px-6 py-3 font-bold text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro text-xs ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25'
+        icon: 'swal2-icon-custom-gradient',
+        confirmButton: 'inline-block px-4 py-2 font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro text-xs ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25',
+        cancelButton: 'ml-3 inline-block px-4 py-2 font-medium text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro text-xs ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25'
       },
       buttonsStyling: false,
       showClass: {
@@ -63,7 +64,8 @@ const SoftUIConfirmationModal: React.FC<SoftUIConfirmationModalProps> = ({
       },
       hideClass: {
         popup: 'animate-fade-out-down'
-      }
+      },
+      iconColor: 'transparent' // We'll use gradient via CSS
     });
 
     // Create the base modal configuration
