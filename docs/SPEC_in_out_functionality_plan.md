@@ -1,6 +1,6 @@
 BerkoTNF RSVP & Player Invitation System — Simplified Implementation Specification
 
-Version 4.1.0 • Streamlined Production-Ready Implementation
+Version 4.2.0 • Updated for Auth v5.0 (Phone-Only)
 
 **BUILDING ON COMPLETE MULTI-TENANCY FOUNDATION**
 
@@ -18,13 +18,20 @@ This specification builds on the **fully implemented multi-tenancy infrastructur
 
 ---
 
-**Dependencies:** This specification builds on `SPEC_auth.md` for:
-- Player authentication (Supabase phone provider)
-- Admin authentication (Supabase email provider)  
-- Role switching for admin-players
-- Session management and JWT tokens
+**Dependencies:** This specification builds on `SPEC_auth.md` (v5.0 - Phone-Only) for:
+- **Phone authentication** for ALL users (players AND admins via Supabase phone provider)
+- **Admin = player with privileges** (`players.is_admin` flag - no separate account type)
+- **Auto-linking** by phone number (club invite link flow)
+- **Session management** and JWT tokens
+- **Superadmin** (platform-level, email auth - separate from club users)
 
 All authentication logic is defined in the Auth Specification. This spec focuses on RSVP booking logic only.
+
+**Auth Architecture (v5.0):**
+- All club users authenticate via phone/SMS
+- Admin status is a boolean flag on player records
+- No email auth for club users (simplified from v4.0)
+- See `SPEC_auth.md` for complete details
 
 ---
 
@@ -378,16 +385,21 @@ Player authentication is handled by Supabase phone provider as defined in `SPEC_
 
 **Authentication Flow (Club Invite Link - Implemented ✅):**
 1. Admin shares club invite link in WhatsApp: `https://capo.app/join/berkotnf/abc123`
-2. Player taps link → Opens app or browser
+2. Player taps link → **App-first landing page** (Phase 5):
+   - **Mobile browser**: Shows app download CTA with benefits + web fallback option
+   - **Desktop browser**: Shows QR code to scan with phone
+   - **Already in app**: Skips landing, goes straight to verification
 3. Player enters phone number → receives SMS code → verifies
-4. Supabase creates `auth.users` record and session
-5. **Auto-linking** via phone number match:
+4. Player enters name (14 char max) for admin identification
+5. Supabase creates `auth.users` record and session
+6. **Auto-linking** via phone number match:
    - System normalizes phone numbers (both incoming and database)
    - Finds matching player by phone in `players.phone` field
    - If match: Auto-links `players.auth_user_id` to session.user.id
    - If no match: Creates `player_join_requests` entry for admin approval
-6. Player redirected to dashboard (auto-linked) or pending approval page
-7. For RSVP deep links: `capo://match/123` - authenticated players proceed directly to RSVP
+7. Player redirected to dashboard (auto-linked) or pending approval page
+8. For RSVP deep links: `capo://match/123` - authenticated players proceed directly to RSVP
+9. **Deep links configured**: Custom scheme (`capo://`) + universal links (`https://capo.app`)
 
 **RSVP API Integration:**
 All RSVP endpoints verify authentication via Supabase session:
@@ -402,20 +414,23 @@ const tenantId = session.user.app_metadata?.tenant_id;
 
 **See:** Auth Specification Section E (Authentication Flows) for complete implementation.
 
-### 3.6 Role Switching for Admin-Players (See Auth Spec)
+### 3.6 Admin-Players Access (See Auth Spec)
 
-Admin-player role switching is fully defined in `SPEC_auth.md` Section E2.
+**Simplified Model (v5.0):** Admin = player with `is_admin` flag set to true.
 
 **Integration with RSVP:**
-- RSVP interface detects admin sessions automatically
-- Admins with linked player profiles see role switcher
-- Current role determines navigation (player view vs admin view)
-- RSVP operations respect current role context
+- All admins are players (single account, single phone auth)
+- `players.is_admin = true` grants admin dashboard access
+- Same user can access both player features (RSVP, stats) and admin features (match management)
+- Navigation determined by URL path, not separate role switching
+- Admins can RSVP to matches like any other player
 
 **Database Schema:**
-Role switching uses `admin_profiles.player_id → players.player_id` linking (defined in auth spec).
+- No separate admin accounts or linking
+- Single `players` table with `is_admin` boolean flag
+- Admin promotion via toggle in player edit modal
 
-**See:** Auth Specification Section E2 (Role Switching) for complete implementation.
+**See:** Auth Specification v5.0 for phone-only architecture details.
 
 3.2 Upcoming Matches (Add RSVP Features Only)
 ```sql

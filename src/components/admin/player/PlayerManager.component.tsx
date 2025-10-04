@@ -51,6 +51,21 @@ const PlayerManager: React.FC = () => {
   const [showPlayerModal, setShowPlayerModal] = useState<boolean>(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithMatchCount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  
+  // Mobile view toggle
+  const [mobileView, setMobileView] = useState<'overview' | 'stats'>('overview');
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
 
   const fetchPlayers = useCallback(async (): Promise<void> => {
@@ -157,6 +172,15 @@ const PlayerManager: React.FC = () => {
   };
 
   const handleSort = (key: string): void => {
+    // On mobile, only allow sorting on visible columns
+    if (isMobile) {
+      const overviewCols = ['name', 'status', 'ringer', 'played'];
+      const statsCols = ['name', 'goalscoring', 'defending', 'staminaPace', 'control', 'teamwork', 'resilience'];
+      const allowedCols = mobileView === 'overview' ? overviewCols : statsCols;
+      
+      if (!allowedCols.includes(key)) return;
+    }
+    
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfig.key === key && sortConfig.direction === 'desc') {
       direction = 'asc';
@@ -272,6 +296,34 @@ const PlayerManager: React.FC = () => {
         </div>
       )}
       
+      {/* Mobile View Toggle - Only on mobile */}
+      {isMobile && (
+        <div className="mb-4 flex justify-center">
+          <div className="inline-flex bg-transparent border border-slate-300 rounded-full p-0.5">
+            <button
+              onClick={() => setMobileView('overview')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${
+                mobileView === 'overview'
+                  ? 'bg-slate-200 text-slate-800'
+                  : 'bg-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setMobileView('stats')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${
+                mobileView === 'stats'
+                  ? 'bg-slate-200 text-slate-800'
+                  : 'bg-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Stats
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6 flex flex-wrap items-center gap-4">
         <div className="w-full sm:w-64">
           <div className="relative flex w-full flex-wrap items-stretch">
@@ -310,45 +362,64 @@ const PlayerManager: React.FC = () => {
 
           <thead className="align-bottom">
             <tr>
+              {/* Name - Always visible */}
               <th onClick={() => handleSort('name')} className="cursor-pointer px-1 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Name {getSortIndicator('name')}
               </th>
-              <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Club
-              </th>
-              <th onClick={() => handleSort('status')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Status {getSortIndicator('status')}
-              </th>
-              <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Phone number set">
-                📱
-              </th>
-              <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="App access claimed">
-                🔗
-              </th>
-              <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Ringer {getSortIndicator('ringer')}
-              </th>
-              <th onClick={() => handleSort('played')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Played {getSortIndicator('played')}
-              </th>
-              <th onClick={() => handleSort('goalscoring')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                GOL {getSortIndicator('goalscoring')}
-              </th>
-              <th onClick={() => handleSort('defending')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                DEF {getSortIndicator('defending')}
-              </th>
-              <th onClick={() => handleSort('staminaPace')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                S&P {getSortIndicator('staminaPace')}
-              </th>
-              <th onClick={() => handleSort('control')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                CTL {getSortIndicator('control')}
-              </th>
-              <th onClick={() => handleSort('teamwork')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                TMW {getSortIndicator('teamwork')}
-              </th>
-              <th onClick={() => handleSort('resilience')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                RES {getSortIndicator('resilience')}
-              </th>
+              
+              {/* Overview columns - Desktop always, Mobile only in overview mode */}
+              {(!isMobile || mobileView === 'overview') && (
+                <>
+                  <th onClick={() => handleSort('status')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Active or Retired">
+                    ● {getSortIndicator('status')}
+                  </th>
+                  <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Phone number set">
+                    📱
+                  </th>
+                  <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="App access claimed">
+                    🔗
+                  </th>
+                  <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Ringer status">
+                    🎯 {getSortIndicator('ringer')}
+                  </th>
+                  <th onClick={() => handleSort('played')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    Played {getSortIndicator('played')}
+                  </th>
+                </>
+              )}
+              
+              {/* Club - Desktop only */}
+              {!isMobile && (
+                <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                  Club
+                </th>
+              )}
+              
+              {/* Stats columns - Desktop always, Mobile only in stats mode */}
+              {(!isMobile || mobileView === 'stats') && (
+                <>
+                  <th onClick={() => handleSort('goalscoring')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    GOL {getSortIndicator('goalscoring')}
+                  </th>
+                  <th onClick={() => handleSort('defending')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    DEF {getSortIndicator('defending')}
+                  </th>
+                  <th onClick={() => handleSort('staminaPace')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    S&P {getSortIndicator('staminaPace')}
+                  </th>
+                  <th onClick={() => handleSort('control')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    CTL {getSortIndicator('control')}
+                  </th>
+                  <th onClick={() => handleSort('teamwork')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    TMW {getSortIndicator('teamwork')}
+                  </th>
+                  <th onClick={() => handleSort('resilience')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    RES {getSortIndicator('resilience')}
+                  </th>
+                </>
+              )}
+              
+              {/* Actions - Always visible */}
               <th className="px-2 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Actions
               </th>
@@ -375,78 +446,97 @@ const PlayerManager: React.FC = () => {
             ) : (
               filteredPlayers.map(player => (
                     <tr key={player.id}>
+                      {/* Name - Always visible */}
                       <td className="p-2 align-middle bg-transparent border-b">
                         <h6 className="mb-0 leading-normal text-sm">{player.name}</h6>
                       </td>
-                      <td className="p-2 align-middle bg-transparent border-b text-center">
-                        <div className="flex justify-center items-center">
-                          {player.club ? (
-                            <img 
-                              src={`/club-logos-40px/${player.club.filename}`} 
-                              alt={player.club.name} 
-                              className="h-6 w-6" 
-                              title={player.club.name}
-                            />
-                          ) : (
-                            <DefaultPlayerIcon />
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRetired ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
-                          {player.isRetired ? 'RETIRED' : 'ACTIVE'}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b" title={player.phone ? `Phone: ${player.phone}` : 'No phone number'}>
-                        <span className={`text-lg ${player.phone ? 'text-green-500' : 'text-gray-300'}`}>
-                          {player.phone ? '✓' : '○'}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b" title={player.authUserId ? 'Claimed - has app access' : 'Not claimed - cannot access app'}>
-                        <span className={`text-lg ${player.authUserId ? 'text-green-500' : 'text-gray-300'}`}>
-                          {player.authUserId ? '✓' : '○'}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={`inline-flex px-2 py-1 text-xxs font-medium rounded-lg shadow-soft-xs ${player.isRinger ? 'bg-gradient-to-tl from-blue-600 to-blue-400 text-white' : 'bg-slate-300 text-slate-700'}`}>
-                          {player.isRinger ? 'YES' : 'NO'}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className="font-medium text-sm">
-                          {player.matches_played || 0}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={getRatingColor(player.goalscoring)}>
-                          {player.goalscoring}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={getRatingColor(player.defending)}>
-                          {player.defending}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={getRatingColor(player.staminaPace)}>
-                          {player.staminaPace}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={getRatingColor(player.control)}>
-                          {player.control}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={getRatingColor(player.teamwork)}>
-                          {player.teamwork}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center align-middle bg-transparent border-b">
-                        <span className={getRatingColor(player.resilience)}>
-                          {player.resilience}
-                        </span>
-                      </td>
+                      
+                      {/* Overview columns - Desktop always, Mobile only in overview mode */}
+                      {(!isMobile || mobileView === 'overview') && (
+                        <>
+                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.isRetired ? 'Retired player' : 'Active player'}>
+                            <span className={`text-lg ${player.isRetired ? 'text-red-500' : 'text-green-500'}`}>
+                              ●
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.phone ? `Phone: ${player.phone}` : 'No phone number'}>
+                            <span className={`text-lg ${player.phone ? 'text-green-500' : 'text-gray-300'}`}>
+                              {player.phone ? '✓' : '○'}
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.authUserId ? 'Claimed - has app access' : 'Not claimed - cannot access app'}>
+                            <span className={`text-lg ${player.authUserId ? 'text-green-500' : 'text-gray-300'}`}>
+                              {player.authUserId ? '✓' : '○'}
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.isRinger ? 'Ringer - guest player' : 'Regular player'}>
+                            <span className={`text-lg ${player.isRinger ? 'text-blue-500' : 'text-gray-300'}`}>
+                              ●
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
+                            <span className="font-medium text-sm">
+                              {player.matches_played || 0}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                      
+                      {/* Club - Desktop only */}
+                      {!isMobile && (
+                        <td className="p-2 align-middle bg-transparent border-b text-center">
+                          <div className="flex justify-center items-center">
+                            {player.club ? (
+                              <img 
+                                src={`/club-logos-40px/${player.club.filename}`} 
+                                alt={player.club.name} 
+                                className="h-6 w-6" 
+                                title={player.club.name}
+                              />
+                            ) : (
+                              <DefaultPlayerIcon />
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      
+                      {/* Stats columns - Desktop always, Mobile only in stats mode */}
+                      {(!isMobile || mobileView === 'stats') && (
+                        <>
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
+                            <span className={getRatingColor(player.goalscoring)}>
+                              {player.goalscoring}
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
+                            <span className={getRatingColor(player.defending)}>
+                              {player.defending}
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
+                            <span className={getRatingColor(player.staminaPace)}>
+                              {player.staminaPace}
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
+                            <span className={getRatingColor(player.control)}>
+                              {player.control}
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
+                            <span className={getRatingColor(player.teamwork)}>
+                              {player.teamwork}
+                            </span>
+                          </td>
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
+                            <span className={getRatingColor(player.resilience)}>
+                              {player.resilience}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                      
+                      {/* Actions - Always visible */}
                       <td className="p-2 text-center align-middle bg-transparent border-b">
                         <button
                           onClick={() => {
