@@ -320,19 +320,23 @@ const TeamTemplates = () => {
               <table className="items-center w-full mb-0 align-top border-slate-200 text-slate-500">
                 <thead className="align-bottom">
                   <tr>
-                    <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                      Team Size
+                    <th className="px-2 md:px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      <span className="hidden sm:inline">Team Size</span>
+                      <span className="sm:hidden">Size</span>
                     </th>
-                    <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                      Defenders
+                    <th className="px-2 md:px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      <span className="hidden sm:inline">Defenders</span>
+                      <span className="sm:hidden">DEF</span>
                     </th>
-                    <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                      Midfielders
+                    <th className="px-2 md:px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      <span className="hidden sm:inline">Midfielders</span>
+                      <span className="sm:hidden">MID</span>
                     </th>
-                    <th className="px-6 py-3 font-bold uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                      Attackers
+                    <th className="px-2 md:px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                      <span className="hidden sm:inline">Attackers</span>
+                      <span className="sm:hidden">ATT</span>
                     </th>
-                    <th className="px-6 py-3 font-bold text-right uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    <th className="px-2 md:px-6 py-3 font-bold text-center md:text-right uppercase align-middle bg-transparent border-b border-gray-200 border-solid shadow-none text-xxs tracking-none whitespace-nowrap text-slate-400 opacity-70">
                       Actions
                     </th>
                   </tr>
@@ -343,7 +347,7 @@ const TeamTemplates = () => {
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                         <p className="mb-0 font-semibold leading-normal text-sm">{template.team_size}-a-side</p>
                       </td>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                      <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         {editingTemplateId === template.template_id ? (
                           <input
                             type="number"
@@ -355,13 +359,13 @@ const TeamTemplates = () => {
                               'defenders', 
                               parseInt(e.target.value) || 0
                             )}
-                            className="w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+                            className="w-12 sm:w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm text-center"
                           />
                         ) : (
                           <span className="font-normal leading-normal text-sm">{template.defenders}</span>
                         )}
                       </td>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                      <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         {editingTemplateId === template.template_id ? (
                           <input
                             type="number"
@@ -373,13 +377,13 @@ const TeamTemplates = () => {
                               'midfielders', 
                               parseInt(e.target.value) || 0
                             )}
-                            className="w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+                            className="w-12 sm:w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm text-center"
                           />
                         ) : (
                           <span className="font-normal leading-normal text-sm">{template.midfielders}</span>
                         )}
                       </td>
-                      <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
+                      <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         {editingTemplateId === template.template_id ? (
                           <input
                             type="number"
@@ -391,7 +395,7 @@ const TeamTemplates = () => {
                               'attackers', 
                               parseInt(e.target.value) || 0
                             )}
-                            className="w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+                            className="w-12 sm:w-16 rounded-lg border-slate-200 shadow-soft-sm focus:border-primary-500 focus:ring-primary-500 text-sm text-center"
                           />
                         ) : (
                           <span className="font-normal leading-normal text-sm">{template.attackers}</span>

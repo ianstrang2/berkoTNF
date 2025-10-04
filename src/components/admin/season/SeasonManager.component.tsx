@@ -282,8 +282,8 @@ const SeasonManager: React.FC = () => {
                         <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                           Dates
                         </th>
-                        <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                          Status
+                        <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Season status">
+                          ●
                         </th>
                         <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                           Actions
@@ -316,15 +316,15 @@ const SeasonManager: React.FC = () => {
                                 <div>to {new Date(season.endDate).toLocaleDateString()}</div>
                               </div>
                             </td>
-                            <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
-                              <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
+                            <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent" title={isCurrent ? 'Current season' : isPast ? 'Past season' : 'Future season'}>
+                              <span className={`text-lg ${
                                 isCurrent 
-                                  ? 'bg-green-100 text-green-800' 
+                                  ? 'text-green-500' 
                                   : isPast 
-                                    ? 'bg-gray-100 text-gray-600'
-                                    : 'bg-blue-100 text-blue-800'
+                                    ? 'text-gray-300'
+                                    : 'text-blue-500'
                               }`}>
-                                {isCurrent ? 'Current' : isPast ? 'Past' : 'Future'}
+                                ●
                               </span>
                             </td>
                             <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap shadow-transparent">
@@ -338,10 +338,12 @@ const SeasonManager: React.FC = () => {
                                 </button>
                                 <button
                                   onClick={() => handleDeleteSeason(season)}
-                                  className="inline-block px-3 py-1 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-red-600 to-rose-400 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+                                  className="inline-block px-2 py-1 text-xs font-medium text-center text-white align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-red-600 to-rose-400 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
                                   title="Delete season"
                                 >
-                                  Delete
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
                                 </button>
                               </div>
                             </td>
