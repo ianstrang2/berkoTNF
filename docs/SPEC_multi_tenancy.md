@@ -12,7 +12,7 @@ This specification provides a comprehensive, execution-ready plan for introducin
 
 ### Why Multi-Tenancy Now
 
-The BerkoTNF RSVP system specification (`docs/SPEC_in_out_functionality_plan.md`) requires tenant-aware functionality across the entire application stack:
+The BerkoTNF RSVP system specification (`docs/SPEC_RSVP.md` v4.2.0-consolidated) requires tenant-aware functionality across the entire application stack:
 
 - **RSVP Token Uniqueness**: Invite tokens must be unique per tenant, not globally
 - **Activity Feed Isolation**: Each tenant needs isolated activity streams
@@ -2317,7 +2317,7 @@ This document serves as the **definitive implementation record** for BerkoTNF's 
 - 🔄 Add user management tables with tenant_id fields
 - 🔄 Implement proper tenant switching for superadmin
 
-**For RSVP System (`SPEC_in_out_functionality_plan.md`)**:
+**For RSVP System (`SPEC_RSVP.md` v4.2.0-consolidated)**:
 - ✅ Multi-tenancy foundation complete  
 - 🔄 Add RSVP-specific fields to existing tenant-aware tables
 - 🔄 Build on established tenant context patterns
