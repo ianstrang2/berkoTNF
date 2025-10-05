@@ -1,7 +1,7 @@
 -- sql/update_aggregated_player_teammate_stats.sql
 -- Dedicated function for teammate chemistry calculations
 -- Extracted from update_aggregated_player_profile_stats to resolve PostgREST timeout issues
-DROP FUNCTION IF EXISTS update_aggregated_player_teammate_stats();
+DROP FUNCTION IF EXISTS update_aggregated_player_teammate_stats(UUID);
 CREATE OR REPLACE FUNCTION update_aggregated_player_teammate_stats(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE

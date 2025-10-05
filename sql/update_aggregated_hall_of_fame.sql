@@ -21,21 +21,21 @@ BEGIN
     -- Use existing all-time stats table as source
     WITH ranked_stats AS (
         SELECT
-            player_id, goals, fantasy_points, win_percentage, games_played
+            player_id, goals, fantasy_points, win_percentage, games_played, name, selected_club
         FROM aggregated_all_time_stats -- Read from the table populated by the other function
         WHERE tenant_id = target_tenant_id
     )
-    INSERT INTO aggregated_hall_of_fame (category, player_id, tenant_id, value)
+    INSERT INTO aggregated_hall_of_fame (category, player_id, tenant_id, value, name, selected_club)
     -- Most Goals
-    (SELECT 'most_goals', player_id, target_tenant_id, goals::numeric
+    (SELECT 'most_goals', player_id, target_tenant_id, goals::numeric, name, selected_club
     FROM ranked_stats WHERE goals > 0 ORDER BY goals DESC LIMIT hof_limit)
     UNION ALL
     -- Best Win Percentage (min games applied)
-    (SELECT 'best_win_percentage', player_id, target_tenant_id, win_percentage
+    (SELECT 'best_win_percentage', player_id, target_tenant_id, win_percentage, name, selected_club
     FROM ranked_stats WHERE games_played >= min_games_hof AND win_percentage > 0 ORDER BY win_percentage DESC LIMIT hof_limit)
     UNION ALL
     -- Most Fantasy Points
-    (SELECT 'most_fantasy_points', player_id, target_tenant_id, fantasy_points::numeric
+    (SELECT 'most_fantasy_points', player_id, target_tenant_id, fantasy_points::numeric, name, selected_club
     FROM ranked_stats WHERE fantasy_points > 0 ORDER BY fantasy_points DESC LIMIT hof_limit);
 
     GET DIAGNOSTICS inserted_count = ROW_COUNT;

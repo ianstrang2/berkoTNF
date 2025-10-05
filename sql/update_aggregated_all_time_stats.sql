@@ -53,22 +53,26 @@ BEGIN
         player_id, tenant_id, games_played, wins, draws, losses, goals,
         win_percentage, minutes_per_goal, heavy_wins, heavy_win_percentage,
         heavy_losses, heavy_loss_percentage, clean_sheets, clean_sheet_percentage,
-        fantasy_points, points_per_game, last_updated
+        fantasy_points, points_per_game, name, is_retired, selected_club, last_updated
     )
     SELECT
-        player_id, target_tenant_id, games_played, wins, draws, losses, goals,
-        ROUND((CASE WHEN games_played > 0 THEN wins::numeric / games_played * 100 ELSE 0 END), 1),
-        CASE WHEN goals > 0 THEN ROUND((games_played::numeric * match_duration / goals), 1) ELSE NULL END,
-        heavy_wins,
-        ROUND((CASE WHEN games_played > 0 THEN heavy_wins::numeric / games_played * 100 ELSE 0 END), 1),
-        heavy_losses,
-        ROUND((CASE WHEN games_played > 0 THEN heavy_losses::numeric / games_played * 100 ELSE 0 END), 1),
-        clean_sheets,
-        ROUND((CASE WHEN games_played > 0 THEN clean_sheets::numeric / games_played * 100 ELSE 0 END), 1),
-        fantasy_points,
-        ROUND((CASE WHEN games_played > 0 THEN fantasy_points::numeric / games_played ELSE 0 END), 1),
+        pbs.player_id, target_tenant_id, pbs.games_played, pbs.wins, pbs.draws, pbs.losses, pbs.goals,
+        ROUND((CASE WHEN pbs.games_played > 0 THEN pbs.wins::numeric / pbs.games_played * 100 ELSE 0 END), 1),
+        CASE WHEN pbs.goals > 0 THEN ROUND((pbs.games_played::numeric * match_duration / pbs.goals), 1) ELSE NULL END,
+        pbs.heavy_wins,
+        ROUND((CASE WHEN pbs.games_played > 0 THEN pbs.heavy_wins::numeric / pbs.games_played * 100 ELSE 0 END), 1),
+        pbs.heavy_losses,
+        ROUND((CASE WHEN pbs.games_played > 0 THEN pbs.heavy_losses::numeric / pbs.games_played * 100 ELSE 0 END), 1),
+        pbs.clean_sheets,
+        ROUND((CASE WHEN pbs.games_played > 0 THEN pbs.clean_sheets::numeric / pbs.games_played * 100 ELSE 0 END), 1),
+        pbs.fantasy_points,
+        ROUND((CASE WHEN pbs.games_played > 0 THEN pbs.fantasy_points::numeric / pbs.games_played ELSE 0 END), 1),
+        p.name, -- Pull name from players table
+        p.is_retired, -- Pull is_retired from players table
+        p.selected_club, -- Pull club from players table
         NOW() -- last_updated
-    FROM player_base_stats;
+    FROM player_base_stats pbs
+    JOIN players p ON pbs.player_id = p.player_id AND p.tenant_id = target_tenant_id;
 
     GET DIAGNOSTICS inserted_count = ROW_COUNT;
     RAISE NOTICE 'update_aggregated_all_time_stats completed. Inserted % rows.', inserted_count;

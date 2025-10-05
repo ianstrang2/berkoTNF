@@ -1,7 +1,7 @@
 -- sql/update_aggregated_player_profile_stats.sql
 -- Optimized single function with schema fixes and performance improvements
 -- Based on original logic but with correct column order and data types
-DROP FUNCTION IF EXISTS update_aggregated_player_profile_stats();
+DROP FUNCTION IF EXISTS update_aggregated_player_profile_stats(UUID);
 CREATE OR REPLACE FUNCTION update_aggregated_player_profile_stats(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE

@@ -23,7 +23,7 @@ BEGIN
     INSERT INTO aggregated_half_season_stats (
         player_id, tenant_id, games_played, wins, draws, losses, goals,
         heavy_wins, heavy_losses, clean_sheets, fantasy_points, points_per_game,
-        win_percentage
+        win_percentage, name, selected_club
     )
     SELECT
         pm.player_id, target_tenant_id, COUNT(*),
@@ -33,7 +33,9 @@ BEGIN
         SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))),
         ROUND(CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)))::numeric / COUNT(*) ELSE 0 END, 1),
         -- Calculate win_percentage
-        ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100 ELSE 0 END), 1)
+        ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100 ELSE 0 END), 1),
+        MAX(p.name), -- Pull name from players table (MAX is safe since it's the same for all rows per player)
+        (SELECT selected_club FROM players WHERE player_id = pm.player_id LIMIT 1) -- Subquery for JSONB column
     FROM player_matches pm
     JOIN matches m ON pm.match_id = m.match_id
     JOIN players p ON pm.player_id = p.player_id
@@ -62,7 +64,7 @@ BEGIN
         INSERT INTO aggregated_season_stats (
             player_id, tenant_id, season_start_date, season_end_date, games_played, wins, draws, losses, goals,
             win_percentage, heavy_wins, heavy_losses, clean_sheets,
-            fantasy_points, points_per_game
+            fantasy_points, points_per_game, name, selected_club
         )
         SELECT
             pm.player_id, target_tenant_id, v_season_start_date, half_season_end_date AS season_end_date, COUNT(*),
@@ -75,7 +77,9 @@ BEGIN
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
             -- Call centralized helper with NULL protection
             SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))),
-            ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)))::numeric / COUNT(*) ELSE 0 END), 1)
+            ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)))::numeric / COUNT(*) ELSE 0 END), 1),
+            MAX(p.name), -- Pull name from players table (MAX is safe since it's the same for all rows per player)
+            (SELECT selected_club FROM players WHERE player_id = pm.player_id LIMIT 1) -- Subquery for JSONB column
         FROM player_matches pm
         JOIN matches m ON pm.match_id = m.match_id
         JOIN players p ON pm.player_id = p.player_id

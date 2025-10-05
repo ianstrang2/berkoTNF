@@ -23,18 +23,8 @@ const getHalfSeasonStats = unstable_cache(
     
     const preAggregatedData = await prisma.aggregated_half_season_stats.findMany({
       where: {
-        tenant_id: tenantId,
-        players: {
-          is_ringer: false
-        }
-      },
-      include: {
-        players: {
-          select: {
-            name: true,
-            selected_club: true
-          }
-        }
+        tenant_id: tenantId
+        // Note: is_ringer filtering will be handled by SQL function
       }
     });
     
@@ -48,11 +38,12 @@ const getHalfSeasonStats = unstable_cache(
     });
 
     const seasonStats = preAggregatedData.map(stat => {
+      // All data now comes directly from aggregated table - no JOIN needed
       const dbPlayer = {
         id: stat.player_id,
         player_id: stat.player_id,
-        name: (stat as any).players?.name,
-        selected_club: (stat as any).players?.selected_club,
+        name: stat.name,
+        selected_club: stat.selected_club,
         games_played: stat.games_played || 0,
         wins: stat.wins || 0,
         draws: stat.draws || 0,

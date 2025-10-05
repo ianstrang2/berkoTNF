@@ -17,22 +17,34 @@ const getAllTimeStats = unstable_cache(
     
     const preAggregatedData = await prisma.aggregated_all_time_stats.findMany({
       where: { tenant_id: tenantId },
-      include: {
-        players: {
-          select: {
-            name: true,
-            is_retired: true,
-            selected_club: true,
-          },
-        },
-      },
       orderBy: {
         fantasy_points: 'desc',
       },
     });
 
     const allTimeStats = preAggregatedData.map(stat => {
-      const dbPlayer = { ...stat, ...(stat as any).players };
+      // All data now comes directly from aggregated table - no JOIN needed
+      const dbPlayer = { 
+        player_id: stat.player_id,
+        name: stat.name,
+        is_retired: stat.is_retired,
+        selected_club: stat.selected_club,
+        games_played: stat.games_played,
+        wins: stat.wins,
+        draws: stat.draws,
+        losses: stat.losses,
+        goals: stat.goals,
+        win_percentage: stat.win_percentage,
+        minutes_per_goal: stat.minutes_per_goal,
+        heavy_wins: stat.heavy_wins,
+        heavy_win_percentage: stat.heavy_win_percentage,
+        heavy_losses: stat.heavy_losses,
+        heavy_loss_percentage: stat.heavy_loss_percentage,
+        clean_sheets: stat.clean_sheets,
+        clean_sheet_percentage: stat.clean_sheet_percentage,
+        fantasy_points: stat.fantasy_points,
+        points_per_game: stat.points_per_game,
+      };
       return toPlayerWithStats(dbPlayer);
     });
 

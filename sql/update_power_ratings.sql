@@ -94,6 +94,10 @@ BEGIN
     player_percentiles AS (
         SELECT 
             pa.*,
+            p.name, -- Pull name from players table
+            p.is_retired, -- Pull is_retired from players table
+            p.is_ringer, -- Pull is_ringer from players table
+            p.selected_club, -- Pull selected_club from players table
             CASE WHEN pa.is_qualified 
                  THEN ROUND((PERCENT_RANK() OVER (ORDER BY pa.power_rating) * 100)::numeric, 1) 
                  ELSE 50 END AS power_percentile,
@@ -112,11 +116,11 @@ BEGIN
     INSERT INTO aggregated_performance_ratings 
         (player_id, tenant_id, power_rating, goal_threat, participation, weighted_played, 
          weighted_available, is_qualified, power_percentile, goal_percentile, 
-         participation_percentile, first_match_date, updated_at)
+         participation_percentile, first_match_date, name, is_retired, is_ringer, selected_club, updated_at)
     SELECT 
         player_id, target_tenant_id, power_rating, goal_threat, participation, weighted_played,
         weighted_available, is_qualified, power_percentile, goal_percentile,
-        participation_percentile, first_match_date, NOW()
+        participation_percentile, first_match_date, name, is_retired, is_ringer, selected_club, NOW()
     FROM player_percentiles
     ON CONFLICT (player_id) DO UPDATE SET
         tenant_id = EXCLUDED.tenant_id,
@@ -130,6 +134,10 @@ BEGIN
         goal_percentile = EXCLUDED.goal_percentile,
         participation_percentile = EXCLUDED.participation_percentile,
         first_match_date = EXCLUDED.first_match_date,
+        name = EXCLUDED.name,
+        is_retired = EXCLUDED.is_retired,
+        is_ringer = EXCLUDED.is_ringer,
+        selected_club = EXCLUDED.selected_club,
         updated_at = NOW();
 
     -- Update cache metadata (tenant-scoped)
