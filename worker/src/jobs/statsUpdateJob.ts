@@ -46,9 +46,10 @@ export async function processStatsUpdateJob(
       cacheTags: allCacheTags.length
     });
 
-    // Convert results to job format
+    // Convert results to job format with actual function names
+    const { STATS_FUNCTIONS } = await import('../lib/statsProcessor.js');
     const jobResults: JobResult[] = results.map((result, index) => ({
-      function: `stats_function_${index}`,
+      function: STATS_FUNCTIONS[index]?.rpcName || `stats_function_${index}`,
       status: result.success ? 'success' : 'failed',
       duration: result.duration,
       error: result.error

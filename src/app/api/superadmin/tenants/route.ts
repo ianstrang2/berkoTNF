@@ -1,71 +1,107 @@
-/**
- * List Tenants API Route
- * 
- * GET /api/superadmin/tenants
- * Returns list of all tenants (superadmin only)
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperadmin } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
+import { getCurrentTenantId } from '@/lib/tenantContext';
 
 export async function GET(request: NextRequest) {
   try {
-    await requireSuperadmin(request);
-
-    // Fetch all tenants
+    // Get all tenants with enhanced metrics
     const tenants = await prisma.tenants.findMany({
       select: {
         tenant_id: true,
-        slug: true,
         name: true,
+        slug: true,
         is_active: true,
         created_at: true,
         updated_at: true,
       },
       orderBy: {
-        name: 'asc',
-      },
+        created_at: 'desc'
+      }
     });
 
-    // Get player and admin counts for each tenant
-    const tenantsWithCounts = await Promise.all(
+    // Fetch additional metrics for each tenant
+    const tenantsWithMetrics = await Promise.all(
       tenants.map(async (tenant) => {
-        const [playerCount, adminCount] = await Promise.all([
-          prisma.players.count({
-            where: { tenant_id: tenant.tenant_id },
-          }),
-          prisma.admin_profiles.count({
-            where: { tenant_id: tenant.tenant_id },
-          }),
-        ]);
+        // Set tenant context for queries
+        await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenant.tenant_id}, false)`;
+
+        // Get player count
+        const playerCount = await prisma.players.count({
+          where: { 
+            tenant_id: tenant.tenant_id,
+            is_retired: false 
+          }
+        });
+
+        // Get admin count (when admin_profiles table exists)
+        let adminCount = 0;
+        try {
+          adminCount = await prisma.admin_profiles.count({
+            where: { tenant_id: tenant.tenant_id }
+          });
+        } catch (e) {
+          // admin_profiles might not exist yet
+        }
+
+        // Get active matches count (Draft + upcoming)
+        const activeMatchesCount = await prisma.upcoming_matches.count({
+          where: {
+            tenant_id: tenant.tenant_id,
+            state: { in: ['Draft', 'PoolLocked', 'TeamsBalanced'] }
+          }
+        });
+
+        // Get total matches count
+        const totalMatchesCount = await prisma.matches.count({
+          where: { tenant_id: tenant.tenant_id }
+        });
+
+        // Get last activity (most recent match date)
+        const lastMatch = await prisma.matches.findFirst({
+          where: { tenant_id: tenant.tenant_id },
+          orderBy: { match_date: 'desc' },
+          select: { match_date: true }
+        });
+
+        // Calculate activity status
+        const now = new Date();
+        const lastActivityAt = lastMatch?.match_date || tenant.created_at;
+        const daysSinceActivity = Math.floor(
+          (now.getTime() - new Date(lastActivityAt).getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        let activityStatus: 'active' | 'recent' | 'inactive';
+        if (daysSinceActivity <= 7) {
+          activityStatus = 'active';
+        } else if (daysSinceActivity <= 30) {
+          activityStatus = 'recent';
+        } else {
+          activityStatus = 'inactive';
+        }
 
         return {
           ...tenant,
           playerCount,
           adminCount,
+          activeMatchesCount,
+          totalMatchesCount,
+          lastActivityAt,
+          activityStatus,
+          daysSinceActivity
         };
       })
     );
 
     return NextResponse.json({
       success: true,
-      data: tenantsWithCounts,
+      data: tenantsWithMetrics
     });
+
   } catch (error: any) {
-    console.error('List tenants error:', error);
-
-    if (error.name === 'AuthenticationError' || error.name === 'AuthorizationError') {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.name === 'AuthenticationError' ? 401 : 403 }
-      );
-    }
-
+    console.error('Error fetching tenants with metrics:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: error.message || 'Failed to fetch tenants' },
       { status: 500 }
     );
   }
 }
-

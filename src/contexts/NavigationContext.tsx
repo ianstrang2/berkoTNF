@@ -83,7 +83,8 @@ const NAVIGATION_CONFIG = {
     icon: 'shield',
     secondary: {
       tenants: { label: 'Tenants' },
-      info: { label: 'System Info' }
+      'system-health': { label: 'System Health' },
+      'tenant-metrics': { label: 'Tenant Metrics' }
     }
   }
 };

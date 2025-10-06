@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
+import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring background jobs include tenant context
 import { getCurrentTenantId } from '@/lib/tenantContext';
 
@@ -46,12 +47,43 @@ async function triggerStatsUpdate() {
     return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 });
   }
 
+  // Multi-tenant: Get tenant context for fallback edge function calls
+  const tenantId = getCurrentTenantId();
+  
+  // Create audit log entry for fallback execution
+  console.log('⚠️ FALLBACK MODE: Using edge functions directly (background worker disabled or unavailable)');
+  let auditJobId: string | null = null;
+  
+  try {
+    const auditLog = await prisma.background_job_status.create({
+      data: {
+        job_type: 'stats_update_fallback',
+        job_payload: {
+          triggeredBy: 'fallback',
+          requestId: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          note: 'Direct edge function execution (background worker bypassed)'
+        },
+        status: 'processing',
+        tenant_id: tenantId,
+        started_at: new Date()
+      }
+    });
+    auditJobId = auditLog.id;
+    console.log(`📝 Created fallback audit log: ${auditJobId}`);
+  } catch (auditError) {
+    console.warn('Failed to create audit log (non-critical):', auditError);
+  }
+
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-  const results: { function: string, status: string, revalidated?: boolean, error?: string, revalidation_error?: string }[] = [];
+  const results: { function: string, status: string, duration?: number, revalidated?: boolean, error?: string, revalidation_error?: string }[] = [];
   let hasFailed = false;
+  const startTime = Date.now();
 
   for (const func of FUNCTIONS_TO_CALL) {
     console.log(`Invoking Edge Function: ${func.name}`);
+    
+    const funcStartTime = Date.now();
     
     // Add retry logic for network issues
     let attempt = 0;
@@ -62,7 +94,9 @@ async function triggerStatsUpdate() {
       attempt++;
       console.log(`Attempt ${attempt} for ${func.name}`);
       
-      const { error } = await supabase.functions.invoke(func.name);
+      const { error } = await supabase.functions.invoke(func.name, {
+        body: { tenantId } // Pass tenant context to edge functions
+      });
       
       if (!error) {
         invokeError = null;
@@ -78,11 +112,14 @@ async function triggerStatsUpdate() {
       }
     }
 
+    const funcDuration = Date.now() - funcStartTime;
+
     if (invokeError) {
       console.error(`All attempts failed for ${func.name}:`, invokeError);
       results.push({ 
         function: func.name, 
-        status: 'failed', 
+        status: 'failed',
+        duration: funcDuration,
         error: String(invokeError),
         revalidated: false,
         revalidation_error: 'Skipped due to function failure'
@@ -110,9 +147,45 @@ async function triggerStatsUpdate() {
     results.push({
       function: func.name,
       status: 'success',
+      duration: funcDuration,
       revalidated: allRevalidationSucceeded,
       revalidation_error: revalidationErrors.length > 0 ? revalidationErrors.join('; ') : undefined
     });
+  }
+
+  const totalDuration = Date.now() - startTime;
+  
+  // Update audit log with results
+  if (auditJobId) {
+    try {
+      const finalStatus = hasFailed ? 'failed' : 'completed';
+      const errorSummary = hasFailed 
+        ? `${results.filter(r => r.status === 'failed').length}/${results.length} functions failed`
+        : null;
+      
+      await prisma.background_job_status.update({
+        where: { id: auditJobId },
+        data: {
+          status: finalStatus,
+          completed_at: new Date(),
+          error_message: errorSummary,
+          results: {
+            total_functions: results.length,
+            successful_functions: results.filter(r => r.status === 'success').length,
+            failed_functions: results.filter(r => r.status === 'failed').length,
+            function_results: results.map(r => ({
+              function: r.function,
+              status: r.status,
+              duration: r.duration || 0,
+              error: r.error
+            }))
+          }
+        }
+      });
+      console.log(`📝 Updated fallback audit log ${auditJobId} with ${finalStatus} status`);
+    } catch (auditUpdateError) {
+      console.warn('Failed to update audit log (non-critical):', auditUpdateError);
+    }
   }
 
   // Generate user-friendly summary
