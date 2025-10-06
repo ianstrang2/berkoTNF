@@ -54,7 +54,13 @@ BEGIN
             SUM(CASE WHEN mw.match_date >= COALESCE(pjd.join_date, '1900-01-01'::date) 
                      THEN mw.weight ELSE 0 END) AS weighted_available,
             SUM(CASE WHEN pm.player_id IS NOT NULL 
-                     THEN calculate_match_fantasy_points(pm.result, pm.heavy_win, pm.heavy_loss, pm.clean_sheet) * mw.weight
+                     THEN calculate_match_fantasy_points(
+                         pm.result, 
+                         CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
+                         pm.clean_sheet, 
+                         pm.goals,
+                         target_tenant_id
+                     ) * mw.weight
                      ELSE 0 END) AS weighted_fp,
             SUM(CASE WHEN pm.player_id IS NOT NULL 
                      THEN COALESCE(pm.goals, 0) * mw.weight
@@ -63,6 +69,7 @@ BEGIN
         LEFT JOIN player_join_dates pjd ON pjd.player_id = ap.player_id
         CROSS JOIN matches_weighted mw
         LEFT JOIN player_matches pm ON pm.match_id = mw.match_id AND pm.player_id = ap.player_id AND pm.tenant_id = target_tenant_id
+        LEFT JOIN matches m ON mw.match_id = m.match_id AND m.tenant_id = target_tenant_id
         GROUP BY ap.player_id, pjd.join_date
     ),
     league_means AS (

@@ -15,6 +15,8 @@ const defaultConfig: AppConfig = {
   fantasy_heavy_clean_sheet_win_points: 40,
   fantasy_clean_sheet_draw_points: 20,
   fantasy_heavy_loss_points: -20,
+  fantasy_goals_scored_points: 0,        // NEW: Points per goal scored
+  fantasy_heavy_win_threshold: 4,        // NEW: Goal difference threshold for heavy win/loss
   win_streak_threshold: 4,
   unbeaten_streak_threshold: 6,
   loss_streak_threshold: 4,

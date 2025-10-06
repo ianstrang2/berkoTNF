@@ -75,13 +75,18 @@ BEGIN
     DELETE FROM aggregated_season_honours WHERE tenant_id = target_tenant_id;
     WITH season_stats AS (
         SELECT p.name, s.id as season_id, get_season_display_name(s.start_date, s.end_date) as season_name,
-               SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))) as points,
-               SUM(COALESCE(pm.goals, 0)) as goals, COUNT(*) as games_played
+               SUM(calculate_match_fantasy_points(
+                   COALESCE(mps.result, 'loss'), 
+                   mps.goal_difference,  -- Use pre-calculated value from view
+                   COALESCE(mps.clean_sheet, false),
+                   COALESCE(mps.goals, 0),  -- goals_scored
+                   target_tenant_id
+               )) as points,
+               SUM(COALESCE(mps.goals, 0)) as goals, COUNT(*) as games_played
         FROM players p 
-        JOIN player_matches pm ON p.player_id = pm.player_id 
-        JOIN matches m ON pm.match_id = m.match_id
-        JOIN seasons s ON m.match_date BETWEEN s.start_date AND s.end_date
-        WHERE p.tenant_id = target_tenant_id AND pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id AND s.tenant_id = target_tenant_id
+        JOIN match_player_stats mps ON p.player_id = mps.player_id  -- Use view instead of separate joins
+        JOIN seasons s ON mps.match_date BETWEEN s.start_date AND s.end_date
+        WHERE p.tenant_id = target_tenant_id AND mps.tenant_id = target_tenant_id AND s.tenant_id = target_tenant_id
         AND p.is_ringer = false AND s.end_date < CURRENT_DATE -- Only past seasons for honours
         GROUP BY p.name, s.id, s.start_date, s.end_date
         HAVING COUNT(*) >= min_games_for_honours

@@ -14,6 +14,7 @@ DECLARE
     heavy_clean_sheet_win_points INTEGER;
     clean_sheet_draw_points INTEGER;
     heavy_loss_points INTEGER;
+    v_heavy_win_threshold INTEGER;  -- NEW: Configurable heavy win threshold
     -- Season tracking
     start_year INTEGER;
     end_year INTEGER;
@@ -45,6 +46,9 @@ BEGIN
     SELECT CAST(config_value AS INTEGER) INTO heavy_loss_points 
     FROM app_config WHERE config_key = 'fantasy_heavy_loss_points';
     
+    SELECT CAST(config_value AS INTEGER) INTO v_heavy_win_threshold 
+    FROM app_config WHERE config_key = 'fantasy_heavy_win_threshold';
+    
     -- Default values if any config is missing
     win_points := COALESCE(win_points, 20);
     draw_points := COALESCE(draw_points, 10);
@@ -54,6 +58,7 @@ BEGIN
     heavy_clean_sheet_win_points := COALESCE(heavy_clean_sheet_win_points, 40);
     clean_sheet_draw_points := COALESCE(clean_sheet_draw_points, 20);
     heavy_loss_points := COALESCE(heavy_loss_points, -20);
+    v_heavy_win_threshold := COALESCE(v_heavy_win_threshold, 4);
 
     -- Get current date parts
     current_year := EXTRACT(YEAR FROM CURRENT_DATE);
@@ -79,11 +84,11 @@ BEGIN
             COUNT(*) FILTER (WHERE mps.result = 'D') as draws,
             COUNT(*) FILTER (WHERE mps.result = 'L') as losses,
             SUM(mps.goals) as total_goals,
-            COUNT(*) FILTER (WHERE mps.goal_difference >= 3 AND mps.result = 'W') as heavy_wins,
-            COUNT(*) FILTER (WHERE mps.goal_difference <= -3 AND mps.result = 'L') as heavy_losses,
+            COUNT(*) FILTER (WHERE ABS(mps.goal_difference) >= v_heavy_win_threshold AND mps.result = 'W') as heavy_wins,
+            COUNT(*) FILTER (WHERE ABS(mps.goal_difference) >= v_heavy_win_threshold AND mps.result = 'L') as heavy_losses,
             COUNT(*) FILTER (WHERE mps.clean_sheet = true AND mps.result = 'W') as clean_sheet_wins,
             COUNT(*) FILTER (WHERE mps.clean_sheet = true AND mps.result = 'D') as clean_sheet_draws,
-            COUNT(*) FILTER (WHERE mps.clean_sheet = true AND mps.result = 'W' AND mps.goal_difference >= 3) as heavy_clean_sheet_wins,
+            COUNT(*) FILTER (WHERE mps.clean_sheet = true AND mps.result = 'W' AND ABS(mps.goal_difference) >= v_heavy_win_threshold) as heavy_clean_sheet_wins,
             COUNT(*) FILTER (WHERE mps.clean_sheet = true) as clean_sheets
         FROM match_player_stats mps
         JOIN players p ON mps.player_id = p.player_id
@@ -174,11 +179,11 @@ BEGIN
                 COUNT(*) FILTER (WHERE mps.result = 'D') as draws,
                 COUNT(*) FILTER (WHERE mps.result = 'L') as losses,
                 SUM(mps.goals) as total_goals,
-                COUNT(*) FILTER (WHERE mps.goal_difference >= 3 AND mps.result = 'W') as heavy_wins,
-                COUNT(*) FILTER (WHERE mps.goal_difference <= -3 AND mps.result = 'L') as heavy_losses,
+                COUNT(*) FILTER (WHERE ABS(mps.goal_difference) >= v_heavy_win_threshold AND mps.result = 'W') as heavy_wins,
+                COUNT(*) FILTER (WHERE ABS(mps.goal_difference) >= v_heavy_win_threshold AND mps.result = 'L') as heavy_losses,
                 COUNT(*) FILTER (WHERE mps.clean_sheet = true AND mps.result = 'W') as clean_sheet_wins,
                 COUNT(*) FILTER (WHERE mps.clean_sheet = true AND mps.result = 'D') as clean_sheet_draws,
-                COUNT(*) FILTER (WHERE mps.clean_sheet = true AND mps.result = 'W' AND mps.goal_difference >= 3) as heavy_clean_sheet_wins,
+                COUNT(*) FILTER (WHERE mps.clean_sheet = true AND mps.result = 'W' AND ABS(mps.goal_difference) >= v_heavy_win_threshold) as heavy_clean_sheet_wins,
                 COUNT(*) FILTER (WHERE mps.clean_sheet = true) as clean_sheets
             FROM match_player_stats mps
             JOIN players p ON mps.player_id = p.player_id

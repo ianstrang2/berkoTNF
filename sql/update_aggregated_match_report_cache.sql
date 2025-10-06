@@ -106,7 +106,7 @@ BEGIN
             pm.heavy_win,
             pm.heavy_loss,
             pm.clean_sheet,
-            calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)) AS fantasy_points
+            calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id) AS fantasy_points
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id
         JOIN players p ON pm.player_id = p.player_id
@@ -306,7 +306,7 @@ BEGIN
     match_stats_with_points AS (
         SELECT
             ms.*,
-            calculate_match_fantasy_points(COALESCE(ms.result, 'loss'), COALESCE(ms.heavy_win, false), COALESCE(ms.heavy_loss, false), COALESCE(ms.clean_sheet, false)) as calculated_fantasy_points
+            calculate_match_fantasy_points(COALESCE(ms.result, 'loss'), CASE WHEN ms.team = 'A' THEN ms.team_a_score - ms.team_b_score WHEN ms.team = 'B' THEN ms.team_b_score - ms.team_a_score ELSE 0 END, COALESCE(ms.clean_sheet, false), COALESCE(ms.goals, 0), target_tenant_id) as calculated_fantasy_points
         FROM match_stats ms
     ),
     current_season_stats AS (

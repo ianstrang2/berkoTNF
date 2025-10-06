@@ -27,27 +27,30 @@ BEGIN
     CREATE TEMP TABLE temp_teammate_stats_json AS
     WITH teammate_data AS (
         SELECT
-            pm_player.player_id,
-            pm_teammate.player_id as teammate_id,
+            mps_player.player_id,
+            mps_teammate.player_id as teammate_id,
             p_teammate.name as teammate_name,
-            COUNT(DISTINCT m.match_id) as games_played_with,
+            COUNT(DISTINCT mps_player.match_id) as games_played_with,
             AVG(
                 calculate_match_fantasy_points(
-                    pm_player.result, pm_player.heavy_win, pm_player.heavy_loss,
-                    CASE WHEN pm_player.team = 'A' AND m.team_b_score = 0 THEN TRUE WHEN pm_player.team = 'B' AND m.team_a_score = 0 THEN TRUE ELSE FALSE END
+                    mps_player.result,
+                    mps_player.goal_difference,  -- Use pre-calculated from view
+                    mps_player.clean_sheet,
+                    mps_player.goals,
+                    target_tenant_id
                 )
             ) as player_avg_fp_with_teammate
-        FROM public.player_matches pm_player
-        JOIN public.matches m ON pm_player.match_id = m.match_id
-        JOIN public.player_matches pm_teammate ON m.match_id = pm_teammate.match_id AND pm_player.team = pm_teammate.team AND pm_player.player_id != pm_teammate.player_id
-        JOIN public.players p_teammate ON pm_teammate.player_id = p_teammate.player_id
-        WHERE pm_player.tenant_id = target_tenant_id 
-        AND m.tenant_id = target_tenant_id 
-        AND pm_teammate.tenant_id = target_tenant_id 
+        FROM match_player_stats mps_player  -- Use view for better performance
+        JOIN match_player_stats mps_teammate ON mps_player.match_id = mps_teammate.match_id 
+            AND mps_player.team = mps_teammate.team 
+            AND mps_player.player_id != mps_teammate.player_id
+        JOIN public.players p_teammate ON mps_teammate.player_id = p_teammate.player_id
+        WHERE mps_player.tenant_id = target_tenant_id 
+        AND mps_teammate.tenant_id = target_tenant_id 
         AND p_teammate.tenant_id = target_tenant_id
         AND p_teammate.is_ringer = FALSE AND p_teammate.is_retired = FALSE
-        GROUP BY pm_player.player_id, pm_teammate.player_id, p_teammate.name
-        HAVING COUNT(DISTINCT m.match_id) >= 10
+        GROUP BY mps_player.player_id, mps_teammate.player_id, p_teammate.name
+        HAVING COUNT(DISTINCT mps_player.match_id) >= 10
     )
     SELECT
         player_id,

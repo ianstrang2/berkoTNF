@@ -455,8 +455,8 @@ model player_matches {
   team            String?   @db.VarChar(20)
   goals           Int?      @default(0)
   clean_sheet     Boolean?  @default(false)
-  heavy_win       Boolean?  @default(false)
-  heavy_loss      Boolean?  @default(false)
+  heavy_win       Boolean?  @default(false)  // DEPRECATED: Calculated on-the-fly from goal_difference
+  heavy_loss      Boolean?  @default(false)  // DEPRECATED: Calculated on-the-fly from goal_difference
   result          String?   @db.VarChar
   fantasy_points  Int?
   updated_at      DateTime? @default(now()) @db.Timestamptz(6)

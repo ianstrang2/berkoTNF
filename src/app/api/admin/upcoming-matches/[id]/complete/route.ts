@@ -114,11 +114,8 @@ export async function POST(
       // 2. Create player_matches records with calculated result fields
       const goalsMap = new Map(player_stats.map((p: { player_id: number; goals: number }) => [p.player_id, p.goals]));
       
-      // Calculate match result metrics
-      const scoreDiff = Math.abs(score.team_a - score.team_b);
-      const isHeavyWin = scoreDiff >= 4;
-      
-      console.log(`MATCH COMPLETION DEBUG: Match ${matchId}, Score: ${score.team_a}-${score.team_b}, Own Goals: ${own_goals.team_a}-${own_goals.team_b}, ScoreDiff: ${scoreDiff}, IsHeavyWin: ${isHeavyWin}`);
+      // Note: heavy_win/heavy_loss NO LONGER stored - calculated from goal_difference in SQL
+      console.log(`MATCH COMPLETION DEBUG: Match ${matchId}, Score: ${score.team_a}-${score.team_b}, Own Goals: ${own_goals.team_a}-${own_goals.team_b}`);
       
       const assignedPlayers = (upcomingMatch as any).upcoming_match_players.filter(p => p.team === 'A' || p.team === 'B');
       console.log(`ASSIGNED PLAYERS: ${assignedPlayers.length} players found`);
@@ -131,9 +128,7 @@ export async function POST(
           // Calculate result - ensure we always get a valid string
           const result = teamScore > opposingScore ? 'win' : (teamScore < opposingScore ? 'loss' : 'draw');
           
-          // Calculate result-specific flags - ensure we always get valid booleans
-          const heavy_win = result === 'win' && isHeavyWin;
-          const heavy_loss = result === 'loss' && isHeavyWin;
+          // Calculate clean_sheet flag
           const clean_sheet = opposingScore === 0;
           
           const playerData = {
@@ -142,13 +137,12 @@ export async function POST(
             team: p.team,
             goals: goalsMap.get(p.player_id) || 0,
             result,
-            heavy_win,
-            heavy_loss,
+            // REMOVED: heavy_win and heavy_loss - calculated from goal_difference in SQL
             clean_sheet,
             tenant_id: tenantId  // Multi-tenant: Include tenant in player match records
           };
           
-          console.log(`PLAYER ${p.player_id} (Team ${p.team}): result=${result}, heavy_win=${heavy_win}, heavy_loss=${heavy_loss}, clean_sheet=${clean_sheet}`);
+          console.log(`PLAYER ${p.player_id} (Team ${p.team}): result=${result}, clean_sheet=${clean_sheet}`);
           
           return playerData;
         });
@@ -158,7 +152,7 @@ export async function POST(
       if (playerMatchesData.length > 0) {
         // Validate that all critical fields are populated
         const invalidRecords = playerMatchesData.filter(p => 
-          !p.result || typeof p.heavy_win !== 'boolean' || typeof p.heavy_loss !== 'boolean' || typeof p.clean_sheet !== 'boolean'
+          !p.result || typeof p.clean_sheet !== 'boolean'
         );
         
         if (invalidRecords.length > 0) {

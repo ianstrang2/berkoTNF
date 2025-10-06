@@ -29,9 +29,9 @@ BEGIN
         pm.player_id, target_tenant_id, COUNT(*),
         SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END), SUM(CASE WHEN pm.result = 'draw' THEN 1 ELSE 0 END), SUM(CASE WHEN pm.result = 'loss' THEN 1 ELSE 0 END),
         SUM(COALESCE(pm.goals, 0)), SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END), SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END), SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
-        -- Call centralized helper with NULL protection
-        SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))),
-        ROUND(CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)))::numeric / COUNT(*) ELSE 0 END, 1),
+        -- Call centralized helper with new signature
+        SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id)),
+        ROUND(CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id))::numeric / COUNT(*) ELSE 0 END, 1),
         -- Calculate win_percentage
         ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100 ELSE 0 END), 1),
         MAX(p.name), -- Pull name from players table (MAX is safe since it's the same for all rows per player)
@@ -75,9 +75,9 @@ BEGIN
             SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END),
             SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END),
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
-            -- Call centralized helper with NULL protection
-            SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))),
-            ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false)))::numeric / COUNT(*) ELSE 0 END), 1),
+            -- Call centralized helper with new signature
+            SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id)),
+            ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id))::numeric / COUNT(*) ELSE 0 END), 1),
             MAX(p.name), -- Pull name from players table (MAX is safe since it's the same for all rows per player)
             (SELECT selected_club FROM players WHERE player_id = pm.player_id LIMIT 1) -- Subquery for JSONB column
         FROM player_matches pm

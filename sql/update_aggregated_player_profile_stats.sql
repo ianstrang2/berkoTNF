@@ -34,12 +34,11 @@ BEGIN
         COUNT(pm.match_id) as games_played,
         SUM(
             calculate_match_fantasy_points(
-                pm.result, pm.heavy_win, pm.heavy_loss,
-                CASE
-                    WHEN pm.team = 'A' AND m.team_b_score = 0 THEN TRUE
-                    WHEN pm.team = 'B' AND m.team_a_score = 0 THEN TRUE
-                    ELSE FALSE
-                END
+                pm.result, 
+                CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
+                COALESCE(pm.clean_sheet, false),
+                COALESCE(pm.goals, 0),
+                target_tenant_id
             )
         ) as fantasy_points
     FROM public.players p
@@ -268,8 +267,11 @@ BEGIN
             COUNT(pm.match_id) as games_played,
             SUM(pm.goals) as goals_scored,
             SUM(calculate_match_fantasy_points(
-                pm.result, pm.heavy_win, pm.heavy_loss,
-                CASE WHEN pm.team = 'A' AND m.team_b_score = 0 THEN TRUE WHEN pm.team = 'B' AND m.team_a_score = 0 THEN TRUE ELSE FALSE END
+                pm.result, 
+                CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
+                COALESCE(pm.clean_sheet, false),
+                COALESCE(pm.goals, 0),
+                target_tenant_id
             )) as fantasy_points
         FROM public.player_matches pm JOIN public.matches m ON pm.match_id = m.match_id
         WHERE pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id

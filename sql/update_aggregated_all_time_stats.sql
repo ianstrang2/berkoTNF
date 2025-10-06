@@ -35,18 +35,26 @@ BEGIN
             SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END) as heavy_wins,
             SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END) as heavy_losses,
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END) as clean_sheets,
-            -- Call the centralized helper function (no config needed)
+            -- Call the centralized helper function with goal_difference
             SUM(calculate_match_fantasy_points(
                 pm.result, 
-                COALESCE(pm.heavy_win, false), 
-                COALESCE(pm.heavy_loss, false), 
-                COALESCE(pm.clean_sheet, false)
+                COALESCE((
+                    SELECT CASE 
+                        WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score
+                        WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score
+                        ELSE 0
+                    END
+                    FROM matches m WHERE m.match_id = pm.match_id
+                ), 0),  -- goal_difference
+                COALESCE(pm.clean_sheet, false),
+                COALESCE(pm.goals, 0),  -- goals_scored
+                target_tenant_id
             )) as fantasy_points
         FROM player_matches pm
         JOIN players p ON pm.player_id = p.player_id
         WHERE p.is_ringer = false AND pm.tenant_id = target_tenant_id AND p.tenant_id = target_tenant_id
         GROUP BY pm.player_id
-        HAVING SUM(calculate_match_fantasy_points(pm.result, COALESCE(pm.heavy_win, false), COALESCE(pm.heavy_loss, false), COALESCE(pm.clean_sheet, false))) IS NOT NULL
+        HAVING SUM(calculate_match_fantasy_points(pm.result, COALESCE((SELECT CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END FROM matches m WHERE m.match_id = pm.match_id), 0), COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id)) IS NOT NULL
            AND COUNT(*) >= min_games_for_hof -- Add this condition
     )
     INSERT INTO aggregated_all_time_stats (

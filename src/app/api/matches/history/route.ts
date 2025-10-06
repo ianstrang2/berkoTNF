@@ -102,7 +102,8 @@ export async function POST(request: Request) {
     
     const { match_date, team_a_score, team_b_score, players } = body;
 
-    // Calculate win/loss/clean sheet for each player
+    // Calculate result and clean sheet for each player
+    // Note: heavy_win/heavy_loss are NO LONGER stored - calculated on-the-fly from goal_difference
     const processedPlayers = players.map(player => {
       let teamScore, opposingScore;
       
@@ -117,8 +118,6 @@ export async function POST(request: Request) {
         return null;
       }
 
-      const scoreDiff = Math.abs(team_a_score - team_b_score);
-
       // Skip retired players
       if (player.is_retired) {
         return null;
@@ -132,8 +131,7 @@ export async function POST(request: Request) {
         team: player.team,
         goals: player.goals,
         clean_sheet: opposingScore === 0,
-        heavy_win: teamScore > opposingScore && scoreDiff >= 4,
-        heavy_loss: teamScore < opposingScore && scoreDiff >= 4,
+        // REMOVED: heavy_win and heavy_loss - calculated from goal_difference in SQL
         result,  // Add result to be stored in the database
       };
     }).filter(Boolean); // Remove any null players (retired ones)
@@ -217,7 +215,8 @@ export async function PUT(request: Request) {
 
     console.log(`Updating match with ID: ${match_id}`);
 
-    // Calculate win/loss/clean sheet for each player
+    // Calculate result and clean sheet for each player
+    // Note: heavy_win/heavy_loss are NO LONGER stored - calculated on-the-fly from goal_difference
     const processedPlayers = players.map(player => {
       let teamScore, opposingScore;
       
@@ -231,8 +230,6 @@ export async function PUT(request: Request) {
         // Ignore players who are not on team A or B
         return null;
       }
-      
-      const scoreDiff = Math.abs(team_a_score - team_b_score);
 
       // Skip retired players
       if (player.is_retired) {
@@ -247,8 +244,7 @@ export async function PUT(request: Request) {
         team: player.team,
         goals: player.goals,
         clean_sheet: opposingScore === 0,
-        heavy_win: teamScore > opposingScore && scoreDiff >= 4,
-        heavy_loss: teamScore < opposingScore && scoreDiff >= 4,
+        // REMOVED: heavy_win and heavy_loss - calculated from goal_difference in SQL
         result,  // Add result to be stored in the database
       };
     }).filter(Boolean); // Remove any null players (retired ones)

@@ -3,11 +3,12 @@
 
 -- Function to calculate fantasy points based on match result and config
 -- Fetches configuration values directly from app_config table.
+-- UPDATED: Now calculates heavy_win/heavy_loss on-the-fly from goal_difference
 CREATE OR REPLACE FUNCTION calculate_match_fantasy_points(
     result TEXT,
-    heavy_win BOOLEAN,
-    heavy_loss BOOLEAN,
+    goal_difference INT,           -- CHANGED: from heavy_win/heavy_loss booleans
     clean_sheet BOOLEAN,
+    goals_scored INT DEFAULT 0,    -- NEW: goals scored by player
     target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID
 )
 RETURNS INT LANGUAGE plpgsql STABLE AS $$
@@ -21,10 +22,18 @@ DECLARE
     v_cs_win_bonus INT             := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 10) - v_win_points;
     v_cs_draw_bonus INT            := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_draw_points' AND tenant_id = target_tenant_id LIMIT 1), v_draw_points + 10) - v_draw_points;
     v_heavy_cs_win_bonus INT       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 20) - v_win_points - v_heavy_win_bonus - v_cs_win_bonus;
+    
+    -- NEW: Fetch new config values
+    v_goals_scored_points INT      := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_goals_scored_points' AND tenant_id = target_tenant_id LIMIT 1), 0);
+    v_heavy_win_threshold INT      := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_win_threshold' AND tenant_id = target_tenant_id LIMIT 1), 4);
+    
+    -- CHANGED: Calculate heavy_win/heavy_loss from goal_difference and threshold
+    heavy_win BOOLEAN := (result = 'win' AND ABS(goal_difference) >= v_heavy_win_threshold);
+    heavy_loss BOOLEAN := (result = 'loss' AND ABS(goal_difference) >= v_heavy_win_threshold);
+    
     points INT := 0;
 BEGIN
-    -- Fetch config only once (optimization - removed redundant fetches)
-    -- Calculation logic remains the same
+    -- Calculation logic (same as before)
     IF result = 'win' THEN
         points := v_win_points;
         IF heavy_win THEN points := points + v_heavy_win_bonus; END IF;
@@ -37,6 +46,9 @@ BEGIN
         points := v_loss_points;
         IF heavy_loss THEN points := points + v_heavy_loss_penalty; END IF;
     END IF;
+
+    -- NEW: Add points for goals scored
+    points := points + (goals_scored * v_goals_scored_points);
 
     RETURN points;
 END;

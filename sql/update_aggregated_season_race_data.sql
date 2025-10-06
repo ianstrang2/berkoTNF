@@ -32,9 +32,10 @@ BEGIN
         SELECT m.match_id, m.match_date, pm.player_id, p.name,
                calculate_match_fantasy_points(
                    COALESCE(pm.result, 'loss'), 
-                   COALESCE(pm.heavy_win, false), 
-                   COALESCE(pm.heavy_loss, false), 
-                   COALESCE(pm.clean_sheet, false)
+                   CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
+                   COALESCE(pm.clean_sheet, false),
+                   COALESCE(pm.goals, 0),
+                   target_tenant_id
                ) as fantasy_points
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id  
