@@ -192,7 +192,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
     const isCurrentYear = selectedYear === currentYear;
 
     return (
-      <Link href={`/players/${playerId}`} className="hover:underline">
+      <Link href={`/player/profiles/${playerId}`} className="hover:underline">
         <div className="flex items-center">
           <span>{name}</span>
           {isCurrentYear && showOnFireConfig && playerId === onFirePlayerId && (

@@ -86,13 +86,13 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
           {
             key: 'half',
             label: 'Half Season',
-            href: '/table/half',
+            href: '/player/table/half',
             active: secondarySection === 'half'
           },
           {
             key: 'whole',
             label: 'Whole Season',
-            href: '/table/whole',
+            href: '/player/table/whole',
             active: secondarySection === 'whole'
           }
         ];
@@ -102,19 +102,19 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
           {
             key: 'leaderboard',
             label: 'Leaderboard',
-            href: '/records/leaderboard',
+            href: '/player/records/leaderboard',
             active: secondarySection === 'leaderboard'
           },
           {
             key: 'legends',
             label: 'Legends',
-            href: '/records/legends',
+            href: '/player/records/legends',
             active: secondarySection === 'legends'
           },
           {
             key: 'feats',
             label: 'Feats',
-            href: '/records/feats',
+            href: '/player/records/feats',
             active: secondarySection === 'feats'
           }
         ];

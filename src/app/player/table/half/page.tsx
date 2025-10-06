@@ -1,7 +1,8 @@
 'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import LegendsComponent from '@/components/records/Legends.component';
+import CurrentHalfSeason from '@/components/tables/CurrentHalfSeason.component';
+import SeasonRaceGraph from '@/components/tables/SeasonRaceGraph.component';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
 // Loading component
@@ -17,11 +18,11 @@ const LoadingIndicator = () => (
 );
 
 // Component that uses useSearchParams - wrapped in its own Suspense boundary
-function LegendsContent() {
+function TableHalfContent() {
   const [isClient, setIsClient] = useState(false);
   const searchParams = useSearchParams();
-  const view = searchParams?.get('view') || 'winners'; // Default to winners
-
+  const view = searchParams?.get('view') || 'points'; // Default to points
+  
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -43,18 +44,27 @@ function LegendsContent() {
       </div>
     );
   }
+  
+  // Render different components based on view
+  if (view === 'race') {
+    return (
+      <ErrorBoundary>
+        <SeasonRaceGraph period="current_half" showHalfSeasonLine={false} />
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary>
-      <LegendsComponent initialView={view as 'winners' | 'scorers'} />
+      <CurrentHalfSeason initialView={view as 'points' | 'goals'} />
     </ErrorBoundary>
   );
 }
 
-export default function RecordsLegendsPage() {
+export default function TableHalfPage() {
   return (
     <Suspense fallback={<LoadingIndicator />}>
-      <LegendsContent />
+      <TableHalfContent />
     </Suspense>
   );
-} 
+}

@@ -18,4 +18,4 @@ export default function SpecificPlayerPage() {
       </ErrorBoundary>
     </div>
   );
-} 
+}

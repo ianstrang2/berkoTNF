@@ -162,28 +162,28 @@ export const BottomNavigation: React.FC = () => {
       return [
         {
           section: 'dashboard' as const,
-          href: '/',
+          href: '/player/dashboard',
           icon: getIcon('dashboard'),
           label: 'Dashboard',
           isActive: isActive('dashboard')
         },
         {
           section: 'upcoming' as const,
-          href: '/upcoming',
+          href: '/player/upcoming',
           icon: getIcon('calendar'),
           label: 'Upcoming',
           isActive: isActive('upcoming')
         },
         {
           section: 'table' as const,
-          href: '/table',
+          href: '/player/table',
           icon: getIcon('table'),
           label: 'Table',
           isActive: isActive('table')
         },
         {
           section: 'records' as const,
-          href: '/records/leaderboard',
+          href: '/player/records/leaderboard',
           icon: getIcon('trophy'),
           label: 'Records',
           isActive: isActive('records')

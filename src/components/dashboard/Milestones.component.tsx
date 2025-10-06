@@ -262,7 +262,7 @@ const Milestones: React.FC = () => {
       if (playerId) {
         // This part is a player name, make it a link
         result.push(
-          <Link key={i} href={`/players/${playerId}`} className="hover:underline text-slate-700">
+          <Link key={i} href={`/player/profiles/${playerId}`} className="hover:underline text-slate-700">
             {part}
           </Link>
         );
@@ -549,7 +549,7 @@ const Milestones: React.FC = () => {
                     {item.type === 'leader_change' ? (
                       renderSectionHeader(item.player)
                     ) : item.playerId && (item.type === 'game_milestone' || item.type === 'goal_milestone' || item.type === 'form_streak' || item.type === 'goal_streak') ? (
-                      <Link href={`/players/${item.playerId}`} className="hover:underline">
+                      <Link href={`/player/profiles/${item.playerId}`} className="hover:underline">
                         {item.player}
                       </Link>
                     ) : (

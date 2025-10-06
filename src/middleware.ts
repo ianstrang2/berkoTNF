@@ -74,7 +74,7 @@ export async function middleware(req: NextRequest) {
   }
   
   // Player routes - require player profile (phone auth OR admin with linked player)
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/stats')) {
+  if (pathname.startsWith('/player')) {
     if (!session) {
       return redirectToLogin(req, pathname, 'player');
     }
@@ -92,15 +92,13 @@ export async function middleware(req: NextRequest) {
  * Only runs on protected routes:
  * - /admin/* - Admin dashboard
  * - /superadmin/* - Superadmin panel
- * - /dashboard/* - Player dashboard
- * - /stats/* - Player statistics
+ * - /player/* - Player pages (dashboard, upcoming, table, records, profiles)
  */
 export const config = {
   matcher: [
     '/admin/:path*',
     '/superadmin/:path*',
-    '/dashboard/:path*',
-    '/stats/:path*',
+    '/player/:path*',
   ],
 };
 

@@ -225,7 +225,7 @@ const RecordsAndAchievements: React.FC = () => {
     if (item.playerId) {
       return (
         <Link 
-          href={`/players/${item.playerId}`}
+          href={`/player/profiles/${item.playerId}`}
           className="block hover:no-underline"
         >
           {content}
@@ -287,7 +287,7 @@ const RecordsAndAchievements: React.FC = () => {
               <h6 className="mb-1 text-lg font-semibold text-slate-700">Records & Achievements</h6>
               <p className="text-sm text-slate-500">Latest record-breaking moments and personal bests</p>
             </div>
-            <Link href="/records" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+            <Link href="/player/records" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
               View All →
             </Link>
           </div>

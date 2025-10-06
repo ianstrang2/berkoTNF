@@ -7,8 +7,8 @@ export default function RecordsPage() {
   
   useEffect(() => {
     // Redirect to leaderboard by default
-    router.replace('/records/leaderboard');
+    router.replace('/player/records/leaderboard');
   }, [router]);
   
   return null;
-} 
+}

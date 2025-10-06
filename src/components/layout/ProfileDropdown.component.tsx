@@ -50,7 +50,7 @@ export const ProfileDropdown: React.FC = () => {
     if (view === 'admin') {
       window.location.href = '/admin/matches';
     } else if (view === 'player') {
-      window.location.href = '/';
+      window.location.href = '/player/dashboard';
     } else if (view === 'platform') {
       // Superadmin return to platform
       const response = await fetch('/api/auth/superadmin/switch-tenant', {

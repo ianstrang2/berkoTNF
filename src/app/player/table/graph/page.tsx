@@ -29,4 +29,4 @@ export default function TableGraphPage() {
       <TableGraphContent />
     </Suspense>
   );
-} 
+}

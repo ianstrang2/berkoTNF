@@ -170,7 +170,7 @@ const CurrentFormAndStandings: React.FC = () => {
 
     if (actualPlayerId && !isRinger) {
       return (
-        <Link href={`/players/${actualPlayerId}`} className="hover:border-b hover:border-current">
+        <Link href={`/player/profiles/${actualPlayerId}`} className="hover:border-b hover:border-current">
           <span className="inline-flex items-center text-slate-700">
             {content}
           </span>
@@ -459,7 +459,7 @@ const CurrentFormAndStandings: React.FC = () => {
                   <h6 className="mb-1 text-lg font-semibold text-slate-700">Leaderboard Updates</h6>
                   <p className="text-sm text-slate-500">Recent changes in standings</p>
                 </div>
-                <Link href="/table" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+                <Link href="/player/table" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
                   View Table →
                 </Link>
               </div>

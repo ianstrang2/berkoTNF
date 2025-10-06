@@ -80,7 +80,7 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
 
     // User mode tertiary navigation - Points/Goals for Table only, Season Winners/Top Scorers for Records > Legends
     if (primarySection === 'table') {
-      const baseHref = `/table/${secondarySection}`;
+      const baseHref = `/player/table/${secondarySection}`;
       
       // Base options for both half and whole season
       const baseOptions = [
@@ -108,7 +108,7 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
     }
 
     if (primarySection === 'records' && secondarySection === 'legends') {
-      const baseHref = `/records/legends`;
+      const baseHref = `/player/records/legends`;
       
       return [
         {

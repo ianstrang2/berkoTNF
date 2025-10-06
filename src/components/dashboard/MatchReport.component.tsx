@@ -546,7 +546,7 @@ const LatestMatch: React.FC = () => {
 
     if (actualPlayerId && !isRinger) {
       return (
-        <Link href={`/players/${actualPlayerId}`} className="hover:border-b hover:border-current">
+        <Link href={`/player/profiles/${actualPlayerId}`} className="hover:border-b hover:border-current">
           <span className="inline-flex items-center text-slate-700">
             {content}
           </span>

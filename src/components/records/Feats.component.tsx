@@ -138,7 +138,7 @@ const Feats: React.FC = () => {
       const playerId = getPlayerIdByName(cleanNameForIdLookup);
 
       const content = playerId ? (
-        <Link href={`/players/${playerId}`} className="hover:underline">
+        <Link href={`/player/profiles/${playerId}`} className="hover:underline">
           {name}
         </Link>
       ) : (
@@ -160,7 +160,7 @@ const Feats: React.FC = () => {
 
     if (playerId) {
       return (
-        <Link href={`/players/${playerId}`} className="hover:underline">
+        <Link href={`/player/profiles/${playerId}`} className="hover:underline">
           {name}
         </Link>
       );

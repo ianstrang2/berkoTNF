@@ -172,24 +172,28 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
         setSecondarySection(adminSection);
         setLastVisitedAdminSection(adminSection);
       }
-    } else if (pathname.startsWith('/table/')) {
-      setPrimarySection('table');
+    } else if (pathname === '/player' || pathname === '/player/dashboard' || pathname.startsWith('/player/dashboard')) {
+      setPrimarySection('dashboard');
       setIsAdminMode(false);
-      const pathParts = pathname.split('/');
-      if (pathParts.length >= 3) {
-        setSecondarySection(pathParts[2]);
-      }
-    } else if (pathname.startsWith('/records/')) {
-      setPrimarySection('records');
-      setIsAdminMode(false);
-      const pathParts = pathname.split('/');
-      if (pathParts.length >= 3) {
-        setSecondarySection(pathParts[2]);
-      }
-    } else if (pathname.startsWith('/upcoming')) {
+      setSecondarySection(undefined);
+    } else if (pathname.startsWith('/player/upcoming')) {
       setPrimarySection('upcoming');
       setIsAdminMode(false);
       setSecondarySection(undefined);
+    } else if (pathname.startsWith('/player/table/')) {
+      setPrimarySection('table');
+      setIsAdminMode(false);
+      const pathParts = pathname.split('/');
+      if (pathParts.length >= 4) {
+        setSecondarySection(pathParts[3]);
+      }
+    } else if (pathname.startsWith('/player/records/')) {
+      setPrimarySection('records');
+      setIsAdminMode(false);
+      const pathParts = pathname.split('/');
+      if (pathParts.length >= 4) {
+        setSecondarySection(pathParts[3]);
+      }
     } else {
       setPrimarySection('dashboard');
       setIsAdminMode(false);
@@ -228,7 +232,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       setSecondarySection(undefined);
       
       // Navigate back to last user location or dashboard
-      const targetUrl = lastVisitedUserSection || '/';
+      const targetUrl = lastVisitedUserSection || '/player/dashboard';
       router.push(targetUrl);
     }
   };

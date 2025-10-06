@@ -257,7 +257,7 @@ const CurrentForm: React.FC = () => {
       if (playerId) {
         // This part is a player name, make it a link
         result.push(
-          <Link key={i} href={`/players/${playerId}`} className="hover:underline text-slate-700">
+          <Link key={i} href={`/player/profiles/${playerId}`} className="hover:underline text-slate-700">
             {part}
           </Link>
         );
@@ -421,7 +421,7 @@ const CurrentForm: React.FC = () => {
                   <p className="text-sm text-slate-700">
                     {allPlayers.find(p => p.id === milestonesData.grim_reaper_player_id) ? (
                       <Link 
-                        href={`/players/${milestonesData.grim_reaper_player_id}`} 
+                        href={`/player/profiles/${milestonesData.grim_reaper_player_id}`} 
                         className="hover:underline"
                       >
                         {allPlayers.find(p => p.id === milestonesData.grim_reaper_player_id)?.name}
@@ -442,7 +442,7 @@ const CurrentForm: React.FC = () => {
                   <p className="text-sm text-slate-700">
                     {allPlayers.find(p => p.id === milestonesData.on_fire_player_id) ? (
                       <Link 
-                        href={`/players/${milestonesData.on_fire_player_id}`} 
+                        href={`/player/profiles/${milestonesData.on_fire_player_id}`} 
                         className="hover:underline"
                       >
                         {allPlayers.find(p => p.id === milestonesData.on_fire_player_id)?.name}
@@ -506,7 +506,7 @@ const CurrentForm: React.FC = () => {
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto">
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700">
                     {item.playerId && (item.type === 'game_milestone' || item.type === 'goal_milestone' || item.type === 'form_streak' || item.type === 'goal_streak') ? (
-                      <Link href={`/players/${item.playerId}`} className="hover:underline">
+                      <Link href={`/player/profiles/${item.playerId}`} className="hover:underline">
                         {item.player}
                       </Link>
                     ) : (

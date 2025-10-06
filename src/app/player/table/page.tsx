@@ -7,8 +7,8 @@ export default function TablePage() {
   
   useEffect(() => {
     // Redirect to half season by default
-    router.replace('/table/half');
+    router.replace('/player/table/half');
   }, [router]);
   
   return null;
-} 
+}

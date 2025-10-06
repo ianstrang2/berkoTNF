@@ -272,7 +272,7 @@ const LeaderboardStats: React.FC = () => {
                       <div className="flex flex-col justify-center">
                         <h6 className={`mb-0 leading-normal text-sm ${isRetired ? 'text-slate-400' : ''}`}>
                           {playerId && !isRinger ? (
-                            <Link href={`/players/${playerId}`} className="hover:underline">
+                            <Link href={`/player/profiles/${playerId}`} className="hover:underline">
                               {player.name}
                             </Link>
                           ) : (

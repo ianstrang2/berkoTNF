@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import CurrentHalfSeason from '@/components/tables/CurrentHalfSeason.component';
+import OverallSeasonPerformance from '@/components/tables/OverallSeasonPerformance.component';
 import SeasonRaceGraph from '@/components/tables/SeasonRaceGraph.component';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 
@@ -18,7 +18,7 @@ const LoadingIndicator = () => (
 );
 
 // Component that uses useSearchParams - wrapped in its own Suspense boundary
-function TableHalfContent() {
+function TableWholeContent() {
   const [isClient, setIsClient] = useState(false);
   const searchParams = useSearchParams();
   const view = searchParams?.get('view') || 'points'; // Default to points
@@ -49,22 +49,22 @@ function TableHalfContent() {
   if (view === 'race') {
     return (
       <ErrorBoundary>
-        <SeasonRaceGraph period="current_half" showHalfSeasonLine={false} />
+        <SeasonRaceGraph period="whole_season" showHalfSeasonLine={true} />
       </ErrorBoundary>
     );
   }
 
   return (
     <ErrorBoundary>
-      <CurrentHalfSeason initialView={view as 'points' | 'goals'} />
+      <OverallSeasonPerformance initialView={view as 'points' | 'goals'} />
     </ErrorBoundary>
   );
 }
 
-export default function TableHalfPage() {
+export default function TableWholePage() {
   return (
     <Suspense fallback={<LoadingIndicator />}>
-      <TableHalfContent />
+      <TableWholeContent />
     </Suspense>
   );
-} 
+}

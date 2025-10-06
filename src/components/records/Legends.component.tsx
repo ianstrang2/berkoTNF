@@ -157,7 +157,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
     const playerId = getPlayerIdByName(name);
     if (playerId) {
       return (
-        <Link href={`/players/${playerId}`} className="hover:underline">
+        <Link href={`/player/profiles/${playerId}`} className="hover:underline">
           {name}
         </Link>
       );
