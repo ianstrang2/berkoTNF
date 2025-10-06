@@ -97,8 +97,7 @@ export async function POST(request: NextRequest) {
           team: teamName,
           goals: 0,
           clean_sheet: true, // Both teams have 0 goals
-          heavy_win: false,
-          heavy_loss: false,
+          // REMOVED: heavy_win and heavy_loss - calculated from goal_difference in SQL
           result: 'draw' // Initial result is a draw since scores are 0-0
         }
       });

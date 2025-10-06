@@ -225,7 +225,7 @@ export const ProfileDropdown: React.FC = () => {
             <>
               {isInAdminView ? (
                 <button
-                  onClick={() => switchToView('player')}
+                  onClick={() => switchToView('player', null)}
                   disabled={switching}
                   className="w-full text-left px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors disabled:opacity-50 flex items-center gap-3"
                 >
@@ -238,7 +238,7 @@ export const ProfileDropdown: React.FC = () => {
                 </button>
               ) : (
                 <button
-                  onClick={() => switchToView('admin')}
+                  onClick={() => switchToView('admin', null)}
                   disabled={switching}
                   className="w-full text-left px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors disabled:opacity-50 flex items-center gap-3"
                 >

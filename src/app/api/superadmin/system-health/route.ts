@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         select: { match_date: true }
       });
 
-      const lastActivityAt = lastMatch?.match_date || tenant.created_at;
+      const lastActivityAt = lastMatch?.match_date || tenant.created_at || now;
       const daysSinceActivity = Math.floor(
         (now.getTime() - new Date(lastActivityAt).getTime()) / (1000 * 60 * 60 * 24)
       );

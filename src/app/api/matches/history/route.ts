@@ -65,8 +65,7 @@ export async function GET() {
         team: pm.team,
         goals: pm.goals,
         clean_sheet: pm.clean_sheet,
-        heavy_win: pm.heavy_win,
-        heavy_loss: pm.heavy_loss,
+        // REMOVED: heavy_win and heavy_loss - no longer stored in database
         result: pm.result,
         fantasy_points: pm.fantasy_points,
         players: pm.players ? {

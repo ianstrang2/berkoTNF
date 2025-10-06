@@ -608,7 +608,7 @@ export default function SystemHealthPage() {
                                   <details className="cursor-pointer">
                                     <summary className={job.status === 'failed' ? 'text-red-600 hover:text-red-800 font-medium' : 'text-green-600 hover:text-green-800'}>
                                       {job.results.successful_functions}/{job.results.total_functions} functions succeeded
-                                      {job.results.failed_functions > 0 && ` • ${job.results.failed_functions} failed`}
+                                      {(job.results.failed_functions ?? 0) > 0 && ` • ${job.results.failed_functions} failed`}
                                     </summary>
                                     <div className="mt-2 p-3 bg-slate-50 rounded text-xs space-y-1 max-h-64 overflow-y-auto">
                                       {job.results.function_results.map((result: any, idx: number) => (
