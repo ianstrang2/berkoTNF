@@ -547,11 +547,11 @@ Superadmin operates in two distinct contexts:
 ```typescript
 // Requires player authentication (phone/OTP via Supabase)
 const PLAYER_ROUTES = [
-  '/dashboard',    // Personal stats and upcoming matches
-  '/upcoming',     // RSVP to matches
-  '/table',        // League standings
-  '/records',      // All-time records
-  '/stats'         // Detailed player statistics
+  '/player/dashboard',    // Personal stats and upcoming matches
+  '/player/upcoming',     // RSVP to matches
+  '/player/table',        // League standings
+  '/player/records',      // All-time records
+  '/player/profiles'      // Player profiles
 ];
 ```
 
@@ -565,7 +565,7 @@ const PLAYER_ROUTES = [
 - Superadmin has 3-way view selector in header dropdown:
   - **Platform View**: Manage tenants, system settings (`/superadmin/*`)
   - **Admin View (Tenant X)**: Manage club as admin (`/admin/*` with tenant context)
-  - **Player View (Tenant X)**: View club as player (`/`, `/upcoming`, `/table`, `/records` with tenant context)
+  - **Player View (Tenant X)**: View club as player (`/player/*` with tenant context)
 - Allows testing all three user perspectives without separate accounts
 - View selection persists in session (tenant_id in app_metadata)
 
@@ -1147,10 +1147,10 @@ export default function ProfileMenu() {
 ```typescript
 // Player View Navigation (default for phone auth users)
 const PLAYER_NAV = [
-  { label: 'Dashboard', path: '/dashboard', icon: 'home' },
-  { label: 'Upcoming', path: '/upcoming', icon: 'calendar' },
-  { label: 'Table', path: '/table', icon: 'bar-chart' },
-  { label: 'Records', path: '/records', icon: 'target' }
+  { label: 'Dashboard', path: '/player/dashboard', icon: 'home' },
+  { label: 'Upcoming', path: '/player/upcoming', icon: 'calendar' },
+  { label: 'Table', path: '/player/table', icon: 'bar-chart' },
+  { label: 'Records', path: '/player/records', icon: 'target' }
 ];
 
 // Admin View Navigation (default for email auth users)
@@ -1539,7 +1539,7 @@ This section documents exactly what each user type sees on each platform, servin
 
 ### Role 1: Player (Phone Auth)
 
-**Access**: Player pages only (`/`, `/upcoming`, `/table`, `/records`)
+**Access**: Player pages only (`/player/dashboard`, `/player/upcoming`, `/player/table`, `/player/records`)
 
 | Platform | Primary Nav | Header | Menu Icon | Menu Contents |
 |----------|-------------|--------|-----------|---------------|

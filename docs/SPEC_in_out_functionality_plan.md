@@ -94,7 +94,7 @@ All authentication logic is defined in the Auth Specification. This spec focuses
 - Get push notifications for tier opens, waitlist offers, last-calls
 - View teams once they're balanced (if auto-balance enabled)
 
-**Enhanced /upcoming overview** shows match cards with:
+**Enhanced /player/upcoming overview** shows match cards with:
 - 📅 Sunday 15th Jan, 2pm at Berko Astro
 - 👥 15/20 confirmed • 3 waiting  
 - 🟢 You're IN | ⏸️ Waitlist #2
@@ -272,7 +272,7 @@ In scope
 - Invitations & responses (IN / OUT / WAITLIST) with tier open windows (A | B | C)
 - Waitlist with top-3 simultaneous offers and offer TTL
 - Native push notifications via Capacitor (FCM/APNs)
-- Unified RSVP experience: `/upcoming/match/[id]?token=...` for all users
+- Unified RSVP experience: `/player/upcoming/match/[id]?token=...` for all users
 - Optional calendar .ics files for reminders
 
 **Enhanced Admin Features:**
@@ -1263,7 +1263,7 @@ Others get "spot filled"; remain on waitlist.
 
 ```typescript
 // UPDATED: Unified RSVP components
-// src/app/upcoming/match/[id]/page.tsx
+// src/app/player/upcoming/match/[id]/page.tsx
 // Unified RSVP page for all users (app, web, logged-in)
 // Uses existing MainLayout.layout.tsx
 
@@ -1734,8 +1734,8 @@ Notification frequency tuning based on user feedback?
 - [ ] Integration with existing useMatchState hook
 
 **PHASE 4: Unified RSVP Interface (Week 4-5)**
-- [ ] **Enhanced `/upcoming` overview** with RSVP status cards
-- [ ] **Unified RSVP experience**: `/upcoming/match/[id]?token=...` for all users
+- [ ] **Enhanced `/player/upcoming` overview** with RSVP status cards
+- [ ] **Unified RSVP experience**: `/player/upcoming/match/[id]?token=...` for all users
 - [ ] Phone number capture and validation with E.164 normalization
 - [ ] **Production**: Rate limiting, burst protection, and security
 - [ ] Ringer access control (friendly blocking messages)
@@ -2437,7 +2437,7 @@ interface ActivityEvent {
 This **production-ready multi-tenant specification** delivers:
 
 ✅ **Multi-Tenant SaaS Architecture** with proper data isolation, RLS, and tenant-aware advisory locks  
-✅ **Streamlined RSVP System** with unified `/upcoming/match/[id]?token=...` experience  
+✅ **Streamlined RSVP System** with unified `/player/upcoming/match/[id]?token=...` experience  
 ✅ **Strict Auto-Balance Triggers** (capacity reached OR manual) with optional auto-lock  
 ✅ **Admin-Only Ringer Management** using existing "Add Player" modal  
 ✅ **Real-Time Activity Feed** with comprehensive event tracking and emoji display  

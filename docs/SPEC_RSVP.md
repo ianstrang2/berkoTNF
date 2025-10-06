@@ -605,7 +605,7 @@ Integration with existing BerkoTNF soft-UI styling and component patterns.
 **Unified RSVP page:**
 
 ```typescript
-// src/app/upcoming/match/[id]/page.tsx
+// src/app/player/upcoming/match/[id]/page.tsx
 // Unified RSVP page for all users (app, web, logged-in)
 // Uses existing MainLayout.layout.tsx
 
@@ -960,7 +960,7 @@ teams.published → "📝 Teams published"
 - Integration with existing useMatchState hook
 
 **PHASE 4: Unified RSVP Interface (Week 4-5)**
-- Enhanced /upcoming overview with RSVP status
+- Enhanced /player/upcoming overview with RSVP status
 - Unified RSVP experience for all users
 - Phone validation with E.164 normalization
 - Rate limiting, burst protection, security
