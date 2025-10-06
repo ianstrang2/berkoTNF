@@ -6,7 +6,7 @@ import { Club } from '@/types/player.types';
 // Define attribute descriptions for tooltips
 const attributeDescriptions: Record<string, string> = {
   isAdmin: 'Club admin with full management access. Player must have claimed profile (phone verified) first.',
-  isRinger: 'Occasional players not shown in any stats',
+  isRinger: 'Guest players not shown in any stats',
   isRetired: 'Player who is no longer actively playing but whose historical data is preserved.',
   goalscoring: 'Ability to score goals and convert chances.',
   defending: 'Willingness to be a defender.',
@@ -285,9 +285,9 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               {showRoleStatus && (
                 <div className="space-y-3 pl-2">
                   <div className="flex items-center justify-between gap-4">
-                    {/* Ringer Section */}
+                    {/* Guest Section */}
                     <div className="flex items-center">
-                  <label htmlFor="isRinger" className="text-slate-700 text-sm font-medium mr-2">Ringer</label>
+                  <label htmlFor="isRinger" className="text-slate-700 text-sm font-medium mr-2">Guest</label>
                   <button
                     type="button"
                     className="text-slate-400 hover:text-slate-600 mr-3"
@@ -307,7 +307,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                     />
                     {activeTooltip === 'isRinger' && (
                       <AttributeTooltip 
-                        attribute="Ringer" 
+                        attribute="Guest" 
                         description={attributeDescriptions.isRinger}
                         onClose={() => setActiveTooltip(null)}
                       />

@@ -379,7 +379,7 @@ const PlayerManager: React.FC = () => {
                   <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="App access claimed">
                     🔗
                   </th>
-                  <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Ringer status">
+                  <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Guest status">
                     🎯 {getSortIndicator('ringer')}
                   </th>
                   <th onClick={() => handleSort('played')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
@@ -469,7 +469,7 @@ const PlayerManager: React.FC = () => {
                               {player.authUserId ? '✓' : '○'}
                             </span>
                           </td>
-                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.isRinger ? 'Ringer - guest player' : 'Regular player'}>
+                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.isRinger ? 'Guest player' : 'Regular player'}>
                             <span className={`text-lg ${player.isRinger ? 'text-blue-500' : 'text-gray-300'}`}>
                               ●
                             </span>

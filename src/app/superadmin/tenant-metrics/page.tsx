@@ -279,7 +279,7 @@ export default function TenantMetricsPage() {
                     </div>
                     <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-lg">
                       <div className="text-2xl font-bold text-pink-800">{metrics.stats.players.ringers}</div>
-                      <div className="text-xs text-pink-600 uppercase font-semibold">Ringers</div>
+                      <div className="text-xs text-pink-600 uppercase font-semibold">Guests</div>
                       <div className="text-xs text-pink-500 mt-1">{metrics.stats.players.retired} retired</div>
                     </div>
                   </div>
@@ -342,7 +342,7 @@ export default function TenantMetricsPage() {
                         <tr className="bg-gray-50">
                           <th className="p-3 text-left text-xs font-bold uppercase text-slate-600">Player</th>
                           <th className="p-3 text-center text-xs font-bold uppercase text-slate-600">Retired</th>
-                          <th className="p-3 text-center text-xs font-bold uppercase text-slate-600">Ringer</th>
+                          <th className="p-3 text-center text-xs font-bold uppercase text-slate-600">Guest</th>
                           <th className="p-3 text-left text-xs font-bold uppercase text-slate-600">Profile Updated</th>
                         </tr>
                       </thead>
@@ -408,7 +408,7 @@ export default function TenantMetricsPage() {
                       <option value="">Select a player...</option>
                       {metrics.players.filter(p => !p.is_retired).map(p => (
                         <option key={p.player_id} value={p.player_id}>
-                          {p.name} {p.is_ringer ? '(Ringer)' : ''}
+                          {p.name} {p.is_ringer ? '(Guest)' : ''}
                         </option>
                       ))}
                     </select>

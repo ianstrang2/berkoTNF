@@ -36,10 +36,10 @@ This specification builds on **fully implemented multi-tenancy infrastructure** 
 
 **Watch real-time updates** in Match Control Centre:
 - Live counters: "Booked 15/20" • "Waitlist 3"
-- Player lists with source badges: 📱 App, 🌐 Web, 👤 Admin, 🎯 Ringer
+- Player lists with source badges: 📱 App, 🌐 Web, 👤 Admin, 🎯 Guest
 - Activity feed showing timeline of all RSVP events
 
-**Add ringers manually** using existing "Add Player" modal.
+**Add guests manually** using existing "Add Player" modal.
 
 **Teams auto-balance when full** (if enabled):
 - Triggers when confirmed IN count reaches capacity
@@ -70,7 +70,7 @@ This specification builds on **fully implemented multi-tenancy infrastructure** 
 
 **Tiered mode:** Time-based windows - Tier A (regulars) first, Tier B (semi-regulars) later, Tier C (casuals/default) last. New players default to Tier C; admins manually promote to A or B.
 
-**Who gets notifications:** Regular players get tier-open and last-call pushes. Ringers excluded from auto-notifications but receive transactional pushes (teams released, cancellation, waitlist offers).
+**Who gets notifications:** Regular players get tier-open and last-call pushes. Guests excluded from auto-notifications but receive transactional pushes (teams released, cancellation, waitlist offers).
 
 ### **4) Waitlist & offers**
 
@@ -84,7 +84,7 @@ Push-only via Capacitor (FCM/APNs). Tier-open, waitlist offers, last-call, teams
 
 Enhanced booking panel with live counters, invite mode selection, auto-balance controls (method dropdown + enable checkbox), player lists with badges, activity feed, manual triggers, waitlist dashboard.
 
-### **7) Ringers explained**
+### **7) Guests explained**
 
 Guest players admin brings occasionally. Don't self-book, admin adds manually, don't get invite/last-call pushes, DO get transactional pushes. Can be promoted to regulars via `is_ringer=false` toggle.
 
@@ -319,8 +319,8 @@ INSERT INTO app_config(config_key, config_value, config_description, config_grou
 ('default_auto_balance_enabled', 'false', 'Auto-balance by default', 'match_settings'),
 ('default_auto_balance_method', 'performance', 'Default balance method', 'match_settings'),
 ('default_auto_lock_when_full', 'false', 'Auto-lock when full', 'match_settings'),
-('enable_ringer_self_book', 'false', 'Allow ringer self-booking', 'rsvp_policies'),
-('include_ringers_in_invites', 'false', 'Include ringers in invites', 'rsvp_policies'),
+('enable_ringer_self_book', 'false', 'Allow guest self-booking', 'rsvp_policies'),
+('include_ringers_in_invites', 'false', 'Include guests in invites', 'rsvp_policies'),
 ('block_unknown_players', 'true', 'Block unknown phone numbers', 'rsvp_policies'),
 ('rsvp_burst_guard_enabled', 'true', 'Enable burst protection', 'rsvp_advanced'),
 ('default_phone_country', 'GB', 'Phone normalization country', 'rsvp_advanced')
@@ -832,7 +832,7 @@ Invalid/expired link:
 This link isn't valid anymore. Please ask the organiser for a new one.
 ```
 
-Ringer blocked (self-book OFF):
+Guest blocked (self-book OFF):
 ```
 Please ask the organiser to add you for this match.
 ```
@@ -964,11 +964,11 @@ teams.published → "📝 Teams published"
 - Unified RSVP experience for all users
 - Phone validation with E.164 normalization
 - Rate limiting, burst protection, security
-- Ringer access control
+- Guest access control
 
 **PHASE 5: Polish & Testing (Week 5-6)**
 - App installation tracking
-- Ringer management UI polish
+- Guest management UI polish
 - End-to-end testing
 - Load testing
 - Documentation
@@ -1244,7 +1244,7 @@ This consolidated specification delivers a **production-ready multi-tenant RSVP 
 
 ✅ **Streamlined RSVP** with unified experience for all users  
 ✅ **Auto-balance integration** leveraging existing team balancing system  
-✅ **Admin-only ringer management** without complex approval flows  
+✅ **Admin-only guest management** without complex approval flows  
 ✅ **Real-time activity feed** with comprehensive event tracking  
 ✅ **Fixed last-call windows** (T-12h/T-3h) with timestamp-based idempotency  
 ✅ **Enhanced waitlist** with offer logging and batch tracking  

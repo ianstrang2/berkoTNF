@@ -40,7 +40,7 @@ The Performance Rating System provides player performance metrics for both team 
 - **Threshold**: 5 weighted games (configurable in `app_config`)
 - **Display Logic**: Only qualified players get percentile rankings (unqualified default to 50th percentile)
 - **Team Balancing**: Uses all players (with Bayesian defaults for unqualified)  
-- **Ringer Handling**: Uses EWMA values if qualified, otherwise defaults
+- **Guest Handling**: Uses EWMA values if qualified, otherwise defaults
 - **Universal Coverage**: ALL non-retired players get EWMA ratings through Bayesian shrinkage
 
 
@@ -126,24 +126,24 @@ interface EWMAPerformanceRating {
 - ✅ Percentile rankings accurate and stable
 - ✅ Admin debugging interface functional for EWMA validation
 
-## Ringer Data Strategy (v5.4)
+## Guest Data Strategy (v5.4)
 
-### Problem: Inconsistent Ringer Handling
-- **Profile 404s**: Ringers with substantial match history (Jude McKay: 18 matches) couldn't access player profiles
-- **Debug Tool Gaps**: Admin debugging page excluded ringers, preventing power rating validation
-- **Data Fragmentation**: Ringers had power ratings but missing profile/historical data
-- **Team Balancing**: Some ringers (Jude: 18 matches, Finn: 7 matches) have enough data for meaningful balance calculations
+### Problem: Inconsistent Guest Handling
+- **Profile 404s**: Guests with substantial match history (Jude McKay: 18 matches) couldn't access player profiles
+- **Debug Tool Gaps**: Admin debugging page excluded guests, preventing power rating validation
+- **Data Fragmentation**: Guests had power ratings but missing profile/historical data
+- **Team Balancing**: Some guests (Jude: 18 matches, Finn: 7 matches) have enough data for meaningful balance calculations
 
 ### Solution: Data Layer vs Presentation Layer Strategy
-**Data Layer (SQL Functions)**: Generate data for all non-retired players (including ringers)
-- ✅ `update_half_and_full_season_stats.sql`: Include ringers (`WHERE p.is_retired = false`)
-- ✅ `update_aggregated_player_profile_stats.sql`: Include ringers (`WHERE p.is_retired = false`)
-- ✅ `update_aggregated_all_time_stats.sql`: Include ringers (`WHERE p.is_retired = false`)
+**Data Layer (SQL Functions)**: Generate data for all non-retired players (including guests)
+- ✅ `update_half_and_full_season_stats.sql`: Include guests (`WHERE p.is_retired = false`)
+- ✅ `update_aggregated_player_profile_stats.sql`: Include guests (`WHERE p.is_retired = false`)
+- ✅ `update_aggregated_all_time_stats.sql`: Include guests (`WHERE p.is_retired = false`)
 - ❌ **Keep exclusions**: `aggregated_season_race_data`, `aggregated_season_honours_and_records`, `aggregated_hall_of_fame` (competition integrity)
 
 **Presentation Layer (Frontend)**: Filter display based on context
-- **Include Ringers**: Admin tools, debugging pages, player profiles, team balancing
-- **Exclude Ringers**: Public leaderboards, season races, awards/honors, records
+- **Include Guests**: Admin tools, debugging pages, player profiles, team balancing
+- **Exclude Guests**: Public leaderboards, season races, awards/honors, records
 
 ### Benefits
 - **🔧 Robust Debugging**: Admin tools work for all players with data
@@ -153,29 +153,29 @@ interface EWMAPerformanceRating {
 - **📊 Complete Analysis**: Backend has full dataset for team balancing
 
 ### API Improvements
-- **Trends API**: Enhanced to handle missing `historical_blocks` gracefully for ringers
+- **Trends API**: Enhanced to handle missing `historical_blocks` gracefully for guests
 - **Admin Players API**: Added retirement filter to exclude retired players from debugging dropdown
-- **Debug Page**: Enhanced with special ringer display showing current trend values in card format
-- **Team Balancing**: Ringers contribute meaningful calculated values (Jude: trend_rating=3, trend_goal_threat=1.85) instead of zeros
+- **Debug Page**: Enhanced with special guest display showing current trend values in card format
+- **Team Balancing**: Guests contribute meaningful calculated values (Jude: trend_rating=3, trend_goal_threat=1.85) instead of zeros
 
-### Critical Fix: Ringer Data Anomalies (v5.4.1)
-- **Root Cause**: Including ringers in percentile calculations caused data anomalies that disrupted window functions
+### Critical Fix: Guest Data Anomalies (v5.4.1)
+- **Root Cause**: Including guests in percentile calculations caused data anomalies that disrupted window functions
 - **Symptom**: All players (including regular players) had empty `historical_blocks = []`
-- **Solution**: Hybrid approach - include ringers in basic stats calculation but exclude from historical blocks generation
-- **Result**: Regular players get full data, ringers get real trend values but empty historical blocks (preventing 404s)
+- **Solution**: Hybrid approach - include guests in basic stats calculation but exclude from historical blocks generation
+- **Result**: Regular players get full data, guests get real trend values but empty historical blocks (preventing 404s)
 
 ### Admin Interface Improvements (v5.4.2)
 - **Retired Player Filter**: Updated `/api/admin/players` to exclude retired players from debugging dropdown (`WHERE is_retired = false`)
-- **Ringer Trend Calculation**: Modified power ratings function to include ringers in trend calculation but exclude from historical blocks
-- **Hybrid Approach**: Ringers get real calculated trend values (for team balancing) but empty historical blocks (to avoid percentile issues)
-- **Enhanced Ringer Display**: Added special debugging view for ringers showing current trend values in card format
-- **Validated Results**: Jude McKay (ringer) now shows trend_rating=3, trend_goal_threat=1.85, power_rating_percentile=34, goal_threat_percentile=100
+- **Guest Trend Calculation**: Modified power ratings function to include guests in trend calculation but exclude from historical blocks
+- **Hybrid Approach**: Guests get real calculated trend values (for team balancing) but empty historical blocks (to avoid percentile issues)
+- **Enhanced Guest Display**: Added special debugging view for guests showing current trend values in card format
+- **Validated Results**: Jude McKay (guest) now shows trend_rating=3, trend_goal_threat=1.85, power_rating_percentile=34, goal_threat_percentile=100
 
 ### Final Implementation Status (v5.4.4)
 - ✅ **Regular Players**: Full historical blocks + trend data with accurate percentile rankings
-- ✅ **Ringers**: Real trend values displayed in special card layout with amber warning indicator
+- ✅ **Guests**: Real trend values displayed in special card layout with amber warning indicator
 - ✅ **Retired Players**: Completely excluded from debugging interface
-- ✅ **Team Balancing**: Ringers now contribute meaningful data instead of zeros
+- ✅ **Team Balancing**: Guests now contribute meaningful data instead of zeros
 - ✅ **Data Integrity**: Historical blocks remain stable through proper execution order
 - ✅ **Percentile Accuracy**: True rank-based percentiles using PERCENT_RANK() instead of width_bucket()
 - ⚠️ **Known Issue**: Fragile execution order dependency between update functions (architectural fix needed)
@@ -193,7 +193,7 @@ interface EWMAPerformanceRating {
 
 ### Function Execution Order Dependency
 - **Issue**: `update_half_and_full_season_stats()` deletes all `aggregated_half_season_stats` data, including `historical_blocks` populated by `update_power_ratings()`
-- **Symptom**: Players showing as "ringers" with empty historical data after stats updates
+- **Symptom**: Players showing as "guests" with empty historical data after stats updates
 - **Root Cause**: `DELETE FROM aggregated_half_season_stats WHERE TRUE;` removes complex analytics data
 - **Temporary Fix**: Moved `call-update-power-ratings` to run LAST in execution order
 - **Location**: `src/app/api/admin/trigger-stats-update/route.ts` - reordered `FUNCTIONS_TO_CALL` array

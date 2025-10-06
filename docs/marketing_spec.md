@@ -86,7 +86,7 @@ Custom Balancing Algorithms: Use ratings or live stats — or let the AI mix bot
 
 Season Setup: Define start/half/end dates, manage templates, and let the system track it all.
 
-Guest Management: Add ringers for a one-off, with separate stats until they “go regular.”
+Guest Management: Add guests for a one-off, with separate stats until they "go regular."
 
 Payout Certainty: Always receive full match fees — system fee is player-side.
 

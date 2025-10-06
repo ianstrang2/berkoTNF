@@ -71,8 +71,8 @@ export async function GET() {
       .sort((a, b) => b.daysAbsent - a.daysAbsent); 
       // No explicit limit here, will be handled by frontend table display (max 5 records with scroll)
 
-    // "Ringers To Add To Stats?" Table Data
-    // Filters for players marked as ringers who have played >= 10 games this year and are not retired.
+    // "Guests To Add To Stats?" Table Data
+    // Filters for players marked as guests who have played >= 10 games this year and are not retired.
     const ringersToAdd = processedPlayers
       .filter(p => p.is_ringer === true && p.gamesPlayedThisYear >= 10 && !p.is_retired)
       .sort((a, b) => b.gamesPlayedThisYear - a.gamesPlayedThisYear); // Sort by games played this year

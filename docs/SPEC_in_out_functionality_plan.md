@@ -10,7 +10,7 @@ This specification builds on the **fully implemented multi-tenancy infrastructur
 - ✅ **Production-ready infrastructure**: Tenant-aware locks, background jobs, SQL functions
 - Current match lifecycle system (Draft → PoolLocked → TeamsBalanced → Completed)
 - Established UI patterns and soft-UI styling
-- **SIMPLIFIED**: Admin-only ringer management (no self-booking approval flows)
+- **SIMPLIFIED**: Admin-only guest management (no self-booking approval flows)
 - **ENHANCED**: Auto-balance with optional auto-lock for hands-off management
 - **STREAMLINED**: Single unified RSVP flow for all users
 - **FOCUSED**: Core RSVP functionality without complex onboarding
@@ -51,13 +51,13 @@ All authentication logic is defined in the Auth Specification. This spec focuses
 
 **Watch real-time updates** in Match Control Centre:
 - "Booked 15/20" and "Waitlist 3" counters
-- Player list with source badges: 📱 App, 🌐 Web, 👤 Admin, 🎯 Ringer
+- Player list with source badges: 📱 App, 🌐 Web, 👤 Admin, 🎯 Guest
 - **Activity feed** showing reverse-chronological timeline: invites sent, offers issued/claimed, teams balanced
 - **Manual controls:** "Auto-balance now" button (Draft state), waitlist management
 
-**Add ringers manually** using existing "Add Player" modal:
-- **Ringers = guests/one-off players** who don't self-book or pay online
-- **Admin retains full control** - ringers can't use the public booking link
+**Add guests manually** using existing "Add Player" modal:
+- **Guests = one-off players** who don't self-book or pay online
+- **Admin retains full control** - guests can't use the public booking link
 - **No complexity** - same workflow as today, just with RSVP happening around them
 
 **Teams auto-balance when full** (if enabled):
@@ -84,8 +84,8 @@ All authentication logic is defined in the Auth Specification. This spec focuses
 - **OUT** - "Can't make it" (with optional "Might be available later" for last-call notifications)  
 - **Join Waitlist** - if match is full (first-come-first-served queue)
 
-**If they're a ringer or unknown player:**
-- **Ringers blocked:** "Please ask the organiser to add you for this match."
+**If they're a guest or unknown player:**
+- **Guests blocked:** "Please ask the organiser to add you for this match."
 - **Unknown numbers:** "This number isn't registered with this club. Please ask the organiser to add you."
 - **Too early (tiered):** "Too early — Tier C opens at 2pm. The IN button will appear here 👍"
 
@@ -138,7 +138,7 @@ All authentication logic is defined in the Auth Specification. This spec focuses
 
 **Who gets notifications:**
 - **Regular players:** Get tier-open and last-call pushes based on their tier
-- **Ringers:** Excluded from invite/last-call pushes; they do get transactional pushes when participating (teams released, cancellation, waitlist offers)
+- **Guests:** Excluded from invite/last-call pushes; they do get transactional pushes when participating (teams released, cancellation, waitlist offers)
 
 ### **4) How the waitlist & offers work**
 
@@ -177,7 +177,7 @@ All authentication logic is defined in the Auth Specification. This spec focuses
 
 **Smart targeting:**
 - **Regular players only** get automatic invites (tier-open, last-call)
-- **Ringers excluded** from auto-notifications (admin controls their participation)
+- **Guests excluded** from auto-notifications (admin controls their participation)
 - **Last-call targeting:** Unresponded players + "OUT but flexible" players only
 
 **Spam protection:**
@@ -204,8 +204,8 @@ All authentication logic is defined in the Auth Specification. This spec focuses
 
 **Player lists with smart badges:**
 - **📱 App / 🌐 Web:** Self-RSVP'd regular players
-- **👤 Admin:** Admin-added players (regulars and ringers)
-- **🎯 Ringer:** Optional badge when `is_ringer=true` for quick identification
+- **👤 Admin:** Admin-added players (regulars and guests)
+- **🎯 Guest:** Optional badge when `is_ringer=true` for quick identification
 
 **Smart removal system:**
 - **Admin-added players:** Simple "❌" remove (admin added, admin removes)
@@ -223,41 +223,41 @@ All authentication logic is defined in the Auth Specification. This spec focuses
 - **Auto-balance just speeds it up** - teams appear automatically when full
 - **Admin can still override** everything manually
 
-### **7) Ringers explained - Why they're different**
+### **7) Guests explained - Why they're different**
 
-**What's a ringer in RSVP context?**
+**What's a guest in RSVP context?**
 - **Guest players** the admin brings occasionally (friends, subs, one-offs)
 - **Don't self-book or pay online** - admin handles their participation directly
 - **Don't get automatic notifications** - admin decides when to include them
 - **Same as today's workflow** - admin adds them via "Add Player" modal when needed
 
-**Why keep ringers separate from RSVP?**
+**Why keep guests separate from RSVP?**
 - **Admin control:** Some players shouldn't have direct booking access
-- **Payment simplicity:** Ringers often pay cash or are comped by admin
+- **Payment simplicity:** Guests often pay cash or are comped by admin
 - **Notification control:** Avoid spamming occasional players with regular match invites
-- **Flexibility:** Admin can promote ringers to regulars anytime
+- **Flexibility:** Admin can promote guests to regulars anytime
 
-**How ringers work with RSVP:**
+**How guests work with RSVP:**
 - **Admin adds them manually** to any match (same as today)
-- **They appear in player lists** with 👤 Admin badge (and optional 🎯 Ringer badge)
+- **They appear in player lists** with 👤 Admin badge (and optional 🎯 Guest badge)
 - **They count toward capacity** once added
 - **They don't receive invite/last-call pushes** (unless admin enables `include_ringers_in_invites=true`)
 - **They DO get transactional pushes** when participating (teams released, cancellation, waitlist offers)
 - **They can't use the public booking link** (blocked with message: "Please ask the organiser to add you for this match.")
 
-**Promoting ringers to regulars:**
+**Promoting guests to regulars:**
 - **Admin decision:** Open player profile → toggle `is_ringer=false`
 - **Instant upgrade:** Player becomes Tier C regular
 - **New capabilities:** Can self-RSVP, will get notifications, can (future) pay online
 - **No data loss:** All match history and stats preserved
 
 **Global policy controls:**
-- `include_ringers_in_invites = false` (default) - ringers don't get invite/last-call pushes
-- `enable_ringer_self_book = false` (default) - ringers can't use public links
-- **Admin can enable either** if they want more ringer autonomy
-- **Important:** No visible UI control for "Include ringers in invites" - keep it config-only
+- `include_ringers_in_invites = false` (default) - guests don't get invite/last-call pushes
+- `enable_ringer_self_book = false` (default) - guests can't use public links
+- **Admin can enable either** if they want more guest autonomy
+- **Important:** No visible UI control for "Include guests in invites" - keep it config-only
 
-**The key insight:** Ringers represent **admin-managed participation** vs. **self-service participation** for regulars.
+**The key insight:** Guests represent **admin-managed participation** vs. **self-service participation** for regulars.
 
 ---
 
@@ -280,7 +280,7 @@ In scope
 - Auto-balance system with optional auto-lock for hands-off management
 - Enhanced player removal warnings based on source (admin vs self-RSVP)
 - Real-time RSVP activity monitoring
-- Admin-only ringer management (no self-booking approval flows)
+- Admin-only guest management (no self-booking approval flows)
 
 **Technical Infrastructure:**
 - DB schema, APIs, background jobs (Render worker), RLS, and UI
@@ -1287,7 +1287,7 @@ Others get "spot filled"; remain on waitlist.
 // All users use native Capacitor app: capo://match/123
 // - Authenticated users: Immediate RSVP access
 // - New users: SMS verification flow first
-// - Ringer users: Admin adds them manually (no self-booking)
+// - Guest users: Admin adds them manually (no self-booking)
 ```
 
 9) Background Jobs (Enhanced Render Worker Integration)
@@ -1469,7 +1469,7 @@ Players can SELECT limited fields for matches they’re invited to or have a val
 
 **Auto-balance triggers** when IN count first reaches capacity (not on every IN/OUT toggle) or via admin manual trigger. Uses existing tenant-aware advisory locks.
 
-**Ringer blocking:** Public booking respects `enable_ringer_self_book=false`; ringers can't IN/WAITLIST, show friendly block message.
+**Guest blocking:** Public booking respects `enable_ringer_self_book=false`; guests can't IN/WAITLIST, show friendly block message.
 
 **✅ Background jobs** use existing tenant-scoped infrastructure and are idempotent with batch_key scoping.
 
@@ -1644,11 +1644,11 @@ Public match status (after open):
 **Error Messages**
 Invalid/expired link: "This link isn't valid anymore. Please ask the organiser for a new one."
 
-**Ringer Access Control**
-Ringer blocked (self-book OFF):
+**Guest Access Control**
+Guest blocked (self-book OFF):
 "Please ask the organiser to add you for this match."
 
-Ringer allowed (self-book ON, before open):
+Guest allowed (self-book ON, before open):
 "Booking opens for your tier at {time}."
 
 Unknown number (global block_unknown_players=true - DEFAULT):
@@ -1730,7 +1730,7 @@ Notification frequency tuning based on user feedback?
 - [ ] **Enhanced RSVPBookingPane** with source badges and removal warnings
 - [ ] **SIMPLIFIED**: Auto-balance and auto-lock toggles in match creation
 - [ ] **Enhanced**: RSVP Activity Feed with comprehensive event logging
-- [ ] **SIMPLIFIED**: Use existing "Add Player" modal for ringers
+- [ ] **SIMPLIFIED**: Use existing "Add Player" modal for guests
 - [ ] Integration with existing useMatchState hook
 
 **PHASE 4: Unified RSVP Interface (Week 4-5)**
@@ -1738,12 +1738,12 @@ Notification frequency tuning based on user feedback?
 - [ ] **Unified RSVP experience**: `/player/upcoming/match/[id]?token=...` for all users
 - [ ] Phone number capture and validation with E.164 normalization
 - [ ] **Production**: Rate limiting, burst protection, and security
-- [ ] Ringer access control (friendly blocking messages)
+- [ ] Guest access control (friendly blocking messages)
 
 **PHASE 5: Polish & Testing (Week 5-6)**
 - [ ] **Enhanced**: App installation tracking (passive monitoring)
 - [ ] Calendar integration (.ics files)
-- [ ] Ringer management UI polish (badges, quick actions)
+- [ ] Guest management UI polish (badges, quick actions)
 - [ ] Name uniqueness handling (per-club or UI disambiguation)
 
 **PHASE 6: Testing & Production Readiness (Week 6-7)**
@@ -1769,8 +1769,8 @@ Notification frequency tuning based on user feedback?
   - [ ] Manual override buttons (Send new waitlist offers, Release spot now)
   - [ ] Adaptive last-call notifications (T-12h/T-3h)
   - [ ] Capacity management (increase/decrease with proper notifications)
-  - [ ] Ringer access control (blocked with friendly message)
-  - [ ] Ringer notification exclusion (skip ringers unless flag enabled)
+  - [ ] Guest access control (blocked with friendly message)
+  - [ ] Guest notification exclusion (skip guests unless flag enabled)
   - [ ] Phone-based identity (one phone = one player, no duplicates)
   - [ ] Unknown player blocking (block_unknown_players=true by default)
   - [ ] OUT with flexibility option ("can sub late")
@@ -1944,11 +1944,11 @@ if (maxAllowedTTL < 15) {
 **DECISION:** Billing is completely out of scope for v3.1 to keep the release lean and focused.
 **FUTURE:** Billing implementation is covered in the existing `Billing_Plan.md` specification.
 
-### 22.6 Ringer/Guest System ✅ **CONFIRMED**
+### 22.6 Guest Player System ✅ **CONFIRMED**
 **APPROACH:** Use existing `players.is_ringer=true` for guest/one-off players
 **IDENTITY:** Phone-based (one phone = one player record, prevents duplicates)
-**DEFAULT POLICY:** Ringers excluded from auto-invites, admin retains control
-**FLEXIBILITY:** Two flags allow ringer self-booking and invite inclusion if desired
+**DEFAULT POLICY:** Guests excluded from auto-invites, admin retains control
+**FLEXIBILITY:** Two flags allow guest self-booking and invite inclusion if desired
 **PROMOTION PATH:** `is_ringer=false` converts to regular (preserves all history/stats)
 
 ---
@@ -2054,7 +2054,7 @@ const SECURITY_COPY = {
   tokenExpired: "This link has expired. Ask the organiser for a new one.",
   rateLimited: "Too many attempts. Please wait a moment and try again.",
   unknownBlocked: "This number isn't registered with this club. Please ask the organiser to add you.",
-  ringerBlocked: "Please ask the organiser to add you for this match.",
+  guestBlocked: "Please ask the organiser to add you for this match.",
   tooEarly: "Too early — Tier {tierLabel} opens at {time}. The IN button will appear here 👍",
   offerExpired: "This offer has expired — check the waitlist for your current place.",
   kickoffSoon: "Kick-off soon — spots are first-come, first-served."
@@ -2380,7 +2380,7 @@ interface ActivityEvent {
 - [ ] **Idempotent auto-balance:** Double-trigger protection works
 - [ ] **Last-call single-fire:** T-12h/T-3h timestamps prevent duplicates
 - [ ] **Offer issuance → claim:** Both events appear in activity feed
-- [ ] **Ringer block enforcement:** Public endpoints reject with friendly message
+- [ ] **Guest block enforcement:** Public endpoints reject with friendly message
 - [ ] **Token TTL enforcement:** Expired tokens rejected with friendly copy
 - [ ] **Tenant isolation:** Two tenants with same phone/match IDs don't collide
 - [ ] **Advisory lock isolation:** Tenant-aware locks prevent cross-tenant blocking
@@ -2390,8 +2390,8 @@ interface ActivityEvent {
 - [ ] Minimal implementation (UTC, no alarms)
 - [ ] Proper Content-Type and filename headers
 
-**✅ Ringer & Access Control:**
-- [ ] Public booking respects ringer blocking with friendly message
+**✅ Guest & Access Control:**
+- [ ] Public booking respects guest blocking with friendly message
 - [ ] Unknown player blocking with club-specific copy
 - [ ] Token TTL enforcement with friendly expiry message
 
@@ -2415,11 +2415,11 @@ interface ActivityEvent {
 - [ ] **Auto-lock behavior:** Only locks if `auto_lock_when_full=true` (default false)
 - [ ] **Concurrent protection:** `withMatchLock` prevents double-processing
 
-### **26.4 Ringer Access Control**
-- [ ] **Ringer blocking:** `is_ringer=true` + `enable_ringer_self_book=false` blocks with friendly message
-- [ ] **Admin addition:** Ringers show 👤 Admin badge, count toward capacity
-- [ ] **Notification exclusion:** Ringers don't get invite/last-call pushes (default)
-- [ ] **Transactional pushes:** Ringers DO get teams released, cancellation when participating
+### **26.4 Guest Access Control**
+- [ ] **Guest blocking:** `is_ringer=true` + `enable_ringer_self_book=false` blocks with friendly message
+- [ ] **Admin addition:** Guests show 👤 Admin badge, count toward capacity
+- [ ] **Notification exclusion:** Guests don't get invite/last-call pushes (default)
+- [ ] **Transactional pushes:** Guests DO get teams released, cancellation when participating
 
 ### **26.5 Token Security & Rotation**
 - [ ] **Hash comparison:** Raw token in URL, hash stored in DB, secure comparison
@@ -2439,7 +2439,7 @@ This **production-ready multi-tenant specification** delivers:
 ✅ **Multi-Tenant SaaS Architecture** with proper data isolation, RLS, and tenant-aware advisory locks  
 ✅ **Streamlined RSVP System** with unified `/player/upcoming/match/[id]?token=...` experience  
 ✅ **Strict Auto-Balance Triggers** (capacity reached OR manual) with optional auto-lock  
-✅ **Admin-Only Ringer Management** using existing "Add Player" modal  
+✅ **Admin-Only Guest Management** using existing "Add Player" modal  
 ✅ **Real-Time Activity Feed** with comprehensive event tracking and emoji display  
 ✅ **Fixed Last-Call Windows** (T-12h/T-3h) with timestamp-based idempotency  
 ✅ **Enhanced Waitlist System** with offer logging and batch tracking  
@@ -2463,7 +2463,7 @@ This **production-ready multi-tenant specification** delivers:
 - **ActivityFeed.component.tsx** (minimal, no filters)
 - **Auto-balance button** in Match Control Centre
 - **Enhanced removal modals** with waitlist context
-- **Source badges** (📱 App, 🌐 Web, 👤 Admin, 🎯 Ringer)
+- **Source badges** (📱 App, 🌐 Web, 👤 Admin, 🎯 Guest)
 
 ### **27.5 Production Readiness**
 - **Multi-tenant advisory locks** prevent cross-tenant collisions

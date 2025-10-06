@@ -124,13 +124,13 @@ The system uses a single flexible generation mode with configurable frequency (w
 | Player Status | Has Profile? | Played in Last X Days? | Action | Notes |
 |---------------|--------------|------------------------|---------|-------|
 | <5 games (any status) | No | Any | **Ignore** | Too few games for meaningful bio |
-| 5+ games, Not Retired, Not Ringer | No | Any | **Generate new bio** | Standard new player bio, adapted for league context |
-| 5+ games, Not Retired, Not Ringer | Yes | Yes | **Replace existing bio** | Update with recent performance, full history |
-| 5+ games, Not Retired, Not Ringer | Yes | No | **Ignore** | No recent changes; keep existing |
+| 5+ games, Not Retired, Not Guest | No | Any | **Generate new bio** | Standard new player bio, adapted for league context |
+| 5+ games, Not Retired, Not Guest | Yes | Yes | **Replace existing bio** | Update with recent performance, full history |
+| 5+ games, Not Retired, Not Guest | Yes | No | **Ignore** | No recent changes; keep existing |
 | Retired = Yes | No | Any | **Generate new bio (retro style)** | Retrospective career summary |
 | Retired = Yes | Yes | Yes | **Replace existing bio (retro style)** | Retrospective if recent play (e.g., comeback) |
 | Retired = Yes | Yes | No | **Ignore** | No updates for inactive retirees |
-| Ringer = True (any other status) | Any | Any | **Ignore** | Exclude ringers entirely |
+| Guest = True (any other status) | Any | Any | **Ignore** | Exclude guests entirely |
 
 **"Played in Last X Days"** uses `last_match_date` from aggregates, with X configurable (default 30 days, amendable to 7 for weekly via code variable or app_settings).
 

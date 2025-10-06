@@ -780,7 +780,7 @@ const AdminInfoPage = () => {
     },
     { 
       key: 'is_ringer', 
-      label: 'Ringer', 
+      label: 'Guest', 
       isNumeric: false, 
       formatter: (value: boolean) => value ? 'Yes' : 'No'
     },
@@ -982,7 +982,7 @@ const AdminInfoPage = () => {
 
               <div className="break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
                 <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
-                  <h3 className="mb-0 text-lg font-semibold text-slate-700">Ringers To Add To Stats?</h3>
+                  <h3 className="mb-0 text-lg font-semibold text-slate-700">Guests To Add To Stats?</h3>
                 </div>
                 <div className="p-4">
                   {isLoadingInfoData ? (
