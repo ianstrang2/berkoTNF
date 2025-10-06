@@ -76,6 +76,14 @@ BEGIN
     RAISE NOTICE 'Using config: game_milestone=%, goal_milestone=%, window_days=%, min_games=%', 
         milestone_game_threshold, milestone_goal_threshold, v_window_days, v_min_games;
 
+    -- Load heavy win threshold config
+    DROP TABLE IF EXISTS temp_fantasy_config;
+    CREATE TEMP TABLE temp_fantasy_config AS
+    SELECT 
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_win_threshold' THEN config_value::int END), 4) as heavy_win_threshold
+    FROM app_config 
+    WHERE tenant_id = target_tenant_id;
+
     -- 1. Get Latest Match
     SELECT * INTO latest_match
     FROM matches 
@@ -103,13 +111,15 @@ BEGIN
             pm.team,
             pm.goals,
             pm.result,
-            pm.heavy_win,
-            pm.heavy_loss,
             pm.clean_sheet,
+            -- Calculate heavy_win and heavy_loss from goal_difference
+            (pm.result = 'win' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold) as heavy_win,
+            (pm.result = 'loss' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold) as heavy_loss,
             calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id) AS fantasy_points
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id
         JOIN players p ON pm.player_id = p.player_id
+        CROSS JOIN temp_fantasy_config c
         WHERE m.tenant_id = target_tenant_id 
         AND pm.tenant_id = target_tenant_id 
         AND p.tenant_id = target_tenant_id
@@ -293,8 +303,6 @@ BEGIN
             pm.goals,
             pm.result,
             pm.clean_sheet,
-            pm.heavy_win,
-            pm.heavy_loss,
             pm.team,
             m.team_a_score, m.team_b_score
         FROM players p
@@ -1034,6 +1042,9 @@ BEGIN
     );
 
     RAISE NOTICE 'Successfully updated aggregated_match_report with match data and streaks';
+
+    -- Clean up temp table
+    DROP TABLE IF EXISTS temp_fantasy_config;
 
     -- Update Cache Metadata
     RAISE NOTICE 'Updating match_report cache metadata...';

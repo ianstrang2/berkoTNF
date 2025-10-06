@@ -18,7 +18,8 @@ BEGIN
     RAISE NOTICE 'Starting update_aggregated_player_teammate_stats processing...';
 
     -- Load config once into a temp table (single query!)
-    CREATE TEMP TABLE IF NOT EXISTS temp_fantasy_config AS
+    DROP TABLE IF EXISTS temp_fantasy_config;
+    CREATE TEMP TABLE temp_fantasy_config AS
     SELECT 
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_win_points' THEN config_value::int END), 20) as win_points,
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_draw_points' THEN config_value::int END), 10) as draw_points,

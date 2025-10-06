@@ -54,9 +54,7 @@ BEGIN
                     pm.result,
                     pm.team,
                     m.team_a_score,
-                    m.team_b_score,
-                    pm.heavy_win,
-                    pm.heavy_loss
+                    m.team_b_score
                 FROM player_matches pm
                 JOIN matches m ON pm.match_id = m.match_id
                 WHERE pm.player_id = player_batch.player_id 
@@ -73,8 +71,6 @@ BEGIN
                         'goals', COALESCE(l5m.goals, 0),
                         'result', COALESCE(l5m.result, ''),
                         'score', CASE WHEN l5m.team = 'A' THEN (COALESCE(l5m.team_a_score,0)::text || '-' || COALESCE(l5m.team_b_score,0)::text) ELSE (COALESCE(l5m.team_b_score,0)::text || '-' || COALESCE(l5m.team_a_score,0)::text) END,
-                        'heavy_win', COALESCE(l5m.heavy_win, false),
-                        'heavy_loss', COALESCE(l5m.heavy_loss, false),
                         'clean_sheet', CASE WHEN l5m.team = 'A' THEN COALESCE(l5m.team_b_score,0) = 0 ELSE COALESCE(l5m.team_a_score,0) = 0 END
                     ) ORDER BY l5m.match_date DESC
                 ), '[]'::jsonb)

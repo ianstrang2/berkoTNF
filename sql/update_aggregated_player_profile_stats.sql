@@ -19,7 +19,8 @@ BEGIN
     RAISE NOTICE 'Starting update_aggregated_player_profile_stats processing (v5, optimized single function)...';
 
     -- Load config once into a temp table (optimization to avoid repeated lookups)
-    CREATE TEMP TABLE IF NOT EXISTS temp_fantasy_config AS
+    DROP TABLE IF EXISTS temp_fantasy_config;
+    CREATE TEMP TABLE temp_fantasy_config AS
     SELECT 
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_win_points' THEN config_value::int END), 20) as win_points,
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_draw_points' THEN config_value::int END), 10) as draw_points,

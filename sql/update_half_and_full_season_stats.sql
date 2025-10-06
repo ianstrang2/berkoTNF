@@ -19,6 +19,14 @@ BEGIN
     RAISE NOTICE 'Using config: match_duration=%', match_duration;
     RAISE NOTICE 'Calculating half-season stats (Start: %, End: %)...', half_season_start_date, half_season_end_date;
 
+    -- Load config once into a temp table
+    DROP TABLE IF EXISTS temp_fantasy_config;
+    CREATE TEMP TABLE temp_fantasy_config AS
+    SELECT 
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_win_threshold' THEN config_value::int END), 4) as heavy_win_threshold
+    FROM app_config 
+    WHERE tenant_id = target_tenant_id;
+
     DELETE FROM aggregated_half_season_stats WHERE tenant_id = target_tenant_id;
     INSERT INTO aggregated_half_season_stats (
         player_id, tenant_id, games_played, wins, draws, losses, goals,
@@ -28,7 +36,10 @@ BEGIN
     SELECT
         pm.player_id, target_tenant_id, COUNT(*),
         SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END), SUM(CASE WHEN pm.result = 'draw' THEN 1 ELSE 0 END), SUM(CASE WHEN pm.result = 'loss' THEN 1 ELSE 0 END),
-        SUM(COALESCE(pm.goals, 0)), SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END), SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END), SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
+        SUM(COALESCE(pm.goals, 0)), 
+        SUM(CASE WHEN pm.result = 'win' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END), 
+        SUM(CASE WHEN pm.result = 'loss' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END), 
+        SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
         -- Call centralized helper with new signature
         SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id)),
         ROUND(CASE WHEN COUNT(*) > 0 THEN SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id))::numeric / COUNT(*) ELSE 0 END, 1),
@@ -39,6 +50,7 @@ BEGIN
     FROM player_matches pm
     JOIN matches m ON pm.match_id = m.match_id
     JOIN players p ON pm.player_id = p.player_id
+    CROSS JOIN temp_fantasy_config c
     WHERE p.tenant_id = target_tenant_id AND pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
     AND p.is_ringer = false AND m.match_date::date BETWEEN half_season_start_date AND half_season_end_date
     GROUP BY pm.player_id;
@@ -72,8 +84,8 @@ BEGIN
             SUM(COALESCE(pm.goals, 0)),
             -- Calculated fields
             ROUND((CASE WHEN COUNT(*) > 0 THEN SUM(CASE WHEN pm.result = 'win' THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100 ELSE 0 END), 1),
-            SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END),
-            SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END),
+            SUM(CASE WHEN pm.result = 'win' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END),
+            SUM(CASE WHEN pm.result = 'loss' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END),
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END),
             -- Call centralized helper with new signature
             SUM(calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id)),
@@ -83,6 +95,7 @@ BEGIN
         FROM player_matches pm
         JOIN matches m ON pm.match_id = m.match_id
         JOIN players p ON pm.player_id = p.player_id
+        CROSS JOIN temp_fantasy_config c
         WHERE p.tenant_id = target_tenant_id AND pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
         AND p.is_ringer = false AND m.match_date BETWEEN v_season_start_date AND half_season_end_date
         GROUP BY pm.player_id;
@@ -98,6 +111,9 @@ BEGIN
     INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
     VALUES ('half_season_stats', NOW(), 'half_season_stats', target_tenant_id)
     ON CONFLICT (cache_key, tenant_id) DO UPDATE SET last_invalidated = NOW();
+
+    -- Clean up temp table
+    DROP TABLE IF EXISTS temp_fantasy_config;
 
     RAISE NOTICE 'Season stats update complete.';
 

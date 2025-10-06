@@ -12,9 +12,19 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
+interface Tenant {
+  tenant_id: string;
+  name: string;
+  slug: string;
+}
+
 export const ProfileDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [showTenantSelector, setShowTenantSelector] = useState(false);
+  const [targetView, setTargetView] = useState<'admin' | 'player' | null>(null);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loadingTenants, setLoadingTenants] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname() || '';
   const router = useRouter();
@@ -44,23 +54,62 @@ export const ProfileDropdown: React.FC = () => {
     }
   };
 
-  const switchToView = async (view: 'admin' | 'player' | 'platform') => {
+  // Fetch tenants when superadmin opens dropdown
+  useEffect(() => {
+    if (isOpen && profile.isSuperadmin && tenants.length === 0) {
+      fetchTenants();
+    }
+  }, [isOpen, profile.isSuperadmin]);
+
+  const fetchTenants = async () => {
+    setLoadingTenants(true);
+    try {
+      const response = await fetch('/api/superadmin/tenants');
+      const result = await response.json();
+      if (result.success) {
+        setTenants(result.data.map((t: any) => ({
+          tenant_id: t.tenant_id,
+          name: t.name,
+          slug: t.slug
+        })));
+      }
+    } catch (err) {
+      console.error('Error fetching tenants:', err);
+    } finally {
+      setLoadingTenants(false);
+    }
+  };
+
+  const initiateViewSwitch = (view: 'admin' | 'player' | 'platform') => {
+    if (view === 'platform') {
+      // Direct switch to platform view (no tenant needed)
+      window.location.href = '/superadmin/tenants';
+      return;
+    }
+
+    // For admin/player views from superadmin, show tenant selector if multiple tenants
+    if (profile.isSuperadmin && tenants.length > 1) {
+      setTargetView(view);
+      setShowTenantSelector(true);
+      setIsOpen(false);
+    } else {
+      // Single tenant or already has tenant context
+      switchToView(view, null);
+    }
+  };
+
+  const switchToView = async (view: 'admin' | 'player', tenantId: string | null) => {
     setSwitching(true);
+    
+    // Store selected tenant in localStorage for tenant context
+    if (tenantId) {
+      localStorage.setItem('selectedTenantId', tenantId);
+    }
     
     if (view === 'admin') {
       window.location.href = '/admin/matches';
     } else if (view === 'player') {
       window.location.href = '/player/dashboard';
-    } else if (view === 'platform') {
-      // Superadmin return to platform
-      const response = await fetch('/api/auth/superadmin/switch-tenant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: null }),
-      });
-      if ((await response.json()).success) {
-        window.location.href = '/superadmin/tenants';
-      }
     }
   };
 
@@ -113,7 +162,7 @@ export const ProfileDropdown: React.FC = () => {
           {profile.isSuperadmin && (
             <>
               <button
-                onClick={() => switchToView('platform')}
+                onClick={() => initiateViewSwitch('platform')}
                 disabled={switching || isInSuperadminView}
                 className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-3 ${
                   isInSuperadminView
@@ -129,7 +178,7 @@ export const ProfileDropdown: React.FC = () => {
                 <span>Platform View</span>
               </button>
               <button
-                onClick={() => switchToView('admin')}
+                onClick={() => initiateViewSwitch('admin')}
                 disabled={switching || isInAdminView}
                 className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-3 ${
                   isInAdminView
@@ -143,10 +192,13 @@ export const ProfileDropdown: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <span>View as Admin</span>
+                <span>
+                  View as Admin
+                  {tenants.length > 1 && <span className="text-xs text-purple-600 ml-1">({tenants.length} tenants)</span>}
+                </span>
               </button>
               <button
-                onClick={() => switchToView('player')}
+                onClick={() => initiateViewSwitch('player')}
                 disabled={switching || isInPlayerView}
                 className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-3 ${
                   isInPlayerView
@@ -159,7 +211,10 @@ export const ProfileDropdown: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
-                <span>View as Player</span>
+                <span>
+                  View as Player
+                  {tenants.length > 1 && <span className="text-xs text-purple-600 ml-1">({tenants.length} tenants)</span>}
+                </span>
               </button>
               <div className="border-t border-gray-100 my-1"></div>
             </>
@@ -212,6 +267,47 @@ export const ProfileDropdown: React.FC = () => {
             </div>
             <span>Logout</span>
           </button>
+        </div>
+      )}
+
+      {/* Tenant Selector Modal */}
+      {showTenantSelector && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTenantSelector(false)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">Select Tenant</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Choose which tenant to view as {targetView === 'admin' ? 'admin' : 'player'}:
+            </p>
+            
+            {loadingTenants ? (
+              <div className="text-center py-4">
+                <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {tenants.map(tenant => (
+                  <button
+                    key={tenant.tenant_id}
+                    onClick={() => {
+                      setShowTenantSelector(false);
+                      switchToView(targetView!, tenant.tenant_id);
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all"
+                  >
+                    <div className="font-medium text-slate-800">{tenant.name}</div>
+                    <div className="text-xs text-slate-500">{tenant.slug}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            <button
+              onClick={() => setShowTenantSelector(false)}
+              className="mt-4 w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-slate-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>

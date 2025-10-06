@@ -27,7 +27,8 @@ BEGIN
                  match_duration, min_games_for_hof;
 
     -- Load config once into a temp table (optimization to avoid repeated lookups)
-    CREATE TEMP TABLE IF NOT EXISTS temp_fantasy_config AS
+    DROP TABLE IF EXISTS temp_fantasy_config;
+    CREATE TEMP TABLE temp_fantasy_config AS
     SELECT 
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_win_points' THEN config_value::int END), 20) as win_points,
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_draw_points' THEN config_value::int END), 10) as draw_points,
@@ -55,8 +56,8 @@ BEGIN
             SUM(CASE WHEN pm.result = 'draw' THEN 1 ELSE 0 END) as draws,
             SUM(CASE WHEN pm.result = 'loss' THEN 1 ELSE 0 END) as losses,
             SUM(COALESCE(pm.goals, 0)) as goals,
-            SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END) as heavy_wins,
-            SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END) as heavy_losses,
+            SUM(CASE WHEN pm.result = 'win' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END) as heavy_wins,
+            SUM(CASE WHEN pm.result = 'loss' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END) as heavy_losses,
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END) as clean_sheets,
             -- Inline fantasy points calculation using config from temp table
             SUM(
