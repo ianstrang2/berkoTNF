@@ -1,5 +1,12 @@
 -- sql/update_aggregated_all_time_stats.sql
-
+--
+-- ⚠️ FANTASY POINT CALCULATION DUPLICATED IN 3 PLACES:
+-- 1. sql/update_aggregated_player_teammate_stats.sql (lines 50-69)
+-- 2. sql/update_aggregated_player_profile_stats.sql (lines 52-72)
+-- 3. sql/update_aggregated_all_time_stats.sql (this file - lines 56-75)
+-- If you change the fantasy points logic, update all 3 files!
+-- Uses temp_fantasy_config table to avoid repeated config lookups (performance optimization)
+--
 -- Helper function is now defined in sql/helpers.sql
 -- CREATE OR REPLACE FUNCTION calculate_match_fantasy_points(...) ...
 
@@ -12,12 +19,28 @@ AS $$
 DECLARE
     -- Fetch config from app_config using helper function
     match_duration INT := get_config_value('match_duration_minutes', '60')::int;
-    min_games_for_hof INT := get_config_value('games_required_for_hof', '0')::int; -- Default to 0 if not found
+    min_games_for_hof INT := get_config_value('games_required_for_hof', '0')::int;
     inserted_count INT := 0;
 BEGIN
     RAISE NOTICE 'Starting update_aggregated_all_time_stats...';
     RAISE NOTICE 'Using config: match_duration=% min, min_games_for_hof=%',
                  match_duration, min_games_for_hof;
+
+    -- Load config once into a temp table (optimization to avoid repeated lookups)
+    CREATE TEMP TABLE IF NOT EXISTS temp_fantasy_config AS
+    SELECT 
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_win_points' THEN config_value::int END), 20) as win_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_draw_points' THEN config_value::int END), 10) as draw_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_loss_points' THEN config_value::int END), -10) as loss_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_win_points' THEN config_value::int END), 30) as heavy_win_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_loss_points' THEN config_value::int END), -20) as heavy_loss_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_clean_sheet_win_points' THEN config_value::int END), 30) as cs_win_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_clean_sheet_draw_points' THEN config_value::int END), 20) as cs_draw_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_clean_sheet_win_points' THEN config_value::int END), 40) as heavy_cs_win_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_goals_scored_points' THEN config_value::int END), 0) as goals_scored_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_win_threshold' THEN config_value::int END), 4) as heavy_win_threshold
+    FROM app_config 
+    WHERE tenant_id = target_tenant_id;
 
     -- Calculate base stats directly into insert statement (tenant-scoped)
     RAISE NOTICE 'Deleting existing all-time stats for tenant %...', target_tenant_id;
@@ -35,27 +58,36 @@ BEGIN
             SUM(CASE WHEN pm.heavy_win THEN 1 ELSE 0 END) as heavy_wins,
             SUM(CASE WHEN pm.heavy_loss THEN 1 ELSE 0 END) as heavy_losses,
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END) as clean_sheets,
-            -- Call the centralized helper function with goal_difference
-            SUM(calculate_match_fantasy_points(
-                pm.result, 
-                COALESCE((
-                    SELECT CASE 
-                        WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score
-                        WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score
-                        ELSE 0
-                    END
-                    FROM matches m WHERE m.match_id = pm.match_id
-                ), 0),  -- goal_difference
-                COALESCE(pm.clean_sheet, false),
-                COALESCE(pm.goals, 0),  -- goals_scored
-                target_tenant_id
-            )) as fantasy_points
+            -- Inline fantasy points calculation using config from temp table
+            SUM(
+                CASE 
+                    WHEN pm.result = 'win' THEN
+                        c.win_points
+                        + CASE WHEN ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold 
+                               THEN (c.heavy_win_points - c.win_points) ELSE 0 END
+                        + CASE WHEN COALESCE(pm.clean_sheet, false) THEN (c.cs_win_points - c.win_points) ELSE 0 END
+                        + CASE WHEN COALESCE(pm.clean_sheet, false) AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                               THEN (c.heavy_cs_win_points - c.win_points - (c.heavy_win_points - c.win_points) - (c.cs_win_points - c.win_points)) ELSE 0 END
+                        + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                    WHEN pm.result = 'draw' THEN
+                        c.draw_points
+                        + CASE WHEN COALESCE(pm.clean_sheet, false) THEN (c.cs_draw_points - c.draw_points) ELSE 0 END
+                        + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                    WHEN pm.result = 'loss' THEN
+                        c.loss_points
+                        + CASE WHEN ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                               THEN (c.heavy_loss_points - c.loss_points) ELSE 0 END
+                        + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                    ELSE 0
+                END
+            ) as fantasy_points
         FROM player_matches pm
+        JOIN matches m ON pm.match_id = m.match_id AND m.tenant_id = target_tenant_id
         JOIN players p ON pm.player_id = p.player_id
+        CROSS JOIN temp_fantasy_config c
         WHERE p.is_ringer = false AND pm.tenant_id = target_tenant_id AND p.tenant_id = target_tenant_id
         GROUP BY pm.player_id
-        HAVING SUM(calculate_match_fantasy_points(pm.result, COALESCE((SELECT CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END FROM matches m WHERE m.match_id = pm.match_id), 0), COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id)) IS NOT NULL
-           AND COUNT(*) >= min_games_for_hof -- Add this condition
+        HAVING COUNT(*) >= min_games_for_hof
     )
     INSERT INTO aggregated_all_time_stats (
         player_id, tenant_id, games_played, wins, draws, losses, goals,
@@ -85,9 +117,12 @@ BEGIN
     GET DIAGNOSTICS inserted_count = ROW_COUNT;
     RAISE NOTICE 'update_aggregated_all_time_stats completed. Inserted % rows.', inserted_count;
 
+    -- Clean up temp table
+    DROP TABLE IF EXISTS temp_fantasy_config;
+
     -- Update Cache Metadata
     INSERT INTO cache_metadata (cache_key, last_invalidated, dependency_type, tenant_id)
-    VALUES ('all_time_stats', NOW(), 'match_result', target_tenant_id) -- Assuming depends on match results
+    VALUES ('all_time_stats', NOW(), 'match_result', target_tenant_id)
     ON CONFLICT (cache_key, tenant_id) DO UPDATE SET last_invalidated = NOW();
 
 EXCEPTION

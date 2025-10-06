@@ -1,6 +1,13 @@
 -- sql/update_aggregated_player_teammate_stats.sql
 -- Dedicated function for teammate chemistry calculations
 -- Extracted from update_aggregated_player_profile_stats to resolve PostgREST timeout issues
+--
+-- ⚠️ FANTASY POINT CALCULATION DUPLICATED IN 3 PLACES:
+-- 1. sql/update_aggregated_player_teammate_stats.sql (this file - lines 50-69)
+-- 2. sql/update_aggregated_player_profile_stats.sql (lines 52-72)
+-- 3. sql/update_aggregated_all_time_stats.sql (lines 56-75)
+-- If you change the fantasy points logic, update all 3 files!
+-- Uses temp_fantasy_config table to avoid repeated config lookups (performance optimization)
 DROP FUNCTION IF EXISTS update_aggregated_player_teammate_stats(UUID);
 CREATE OR REPLACE FUNCTION update_aggregated_player_teammate_stats(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$

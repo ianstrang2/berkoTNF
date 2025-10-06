@@ -1,6 +1,13 @@
 -- sql/update_aggregated_player_profile_stats.sql
 -- Optimized single function with schema fixes and performance improvements
 -- Based on original logic but with correct column order and data types
+--
+-- ⚠️ FANTASY POINT CALCULATION DUPLICATED IN 3 PLACES:
+-- 1. sql/update_aggregated_player_teammate_stats.sql (lines 50-69)
+-- 2. sql/update_aggregated_player_profile_stats.sql (this file - lines 52-72)
+-- 3. sql/update_aggregated_all_time_stats.sql (lines 56-75)
+-- If you change the fantasy points logic, update all 3 files!
+-- Uses temp_fantasy_config table to avoid repeated config lookups (performance optimization)
 DROP FUNCTION IF EXISTS update_aggregated_player_profile_stats(UUID);
 CREATE OR REPLACE FUNCTION update_aggregated_player_profile_stats(target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
@@ -10,6 +17,22 @@ DECLARE
 BEGIN
     start_time := clock_timestamp();
     RAISE NOTICE 'Starting update_aggregated_player_profile_stats processing (v5, optimized single function)...';
+
+    -- Load config once into a temp table (optimization to avoid repeated lookups)
+    CREATE TEMP TABLE IF NOT EXISTS temp_fantasy_config AS
+    SELECT 
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_win_points' THEN config_value::int END), 20) as win_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_draw_points' THEN config_value::int END), 10) as draw_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_loss_points' THEN config_value::int END), -10) as loss_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_win_points' THEN config_value::int END), 30) as heavy_win_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_loss_points' THEN config_value::int END), -20) as heavy_loss_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_clean_sheet_win_points' THEN config_value::int END), 30) as cs_win_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_clean_sheet_draw_points' THEN config_value::int END), 20) as cs_draw_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_clean_sheet_win_points' THEN config_value::int END), 40) as heavy_cs_win_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_goals_scored_points' THEN config_value::int END), 0) as goals_scored_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_win_threshold' THEN config_value::int END), 4) as heavy_win_threshold
+    FROM app_config 
+    WHERE tenant_id = target_tenant_id;
 
     -- Clear the table before repopulating
     block_start_time := clock_timestamp();
@@ -33,17 +56,32 @@ BEGIN
         p.selected_club,
         COUNT(pm.match_id) as games_played,
         SUM(
-            calculate_match_fantasy_points(
-                pm.result, 
-                CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
-                COALESCE(pm.clean_sheet, false),
-                COALESCE(pm.goals, 0),
-                target_tenant_id
-            )
+            -- Inline fantasy point calculation using config from temp table
+            CASE 
+                WHEN pm.result = 'win' THEN
+                    c.win_points
+                    + CASE WHEN ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold 
+                           THEN (c.heavy_win_points - c.win_points) ELSE 0 END
+                    + CASE WHEN COALESCE(pm.clean_sheet, false) THEN (c.cs_win_points - c.win_points) ELSE 0 END
+                    + CASE WHEN COALESCE(pm.clean_sheet, false) AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                           THEN (c.heavy_cs_win_points - c.win_points - (c.heavy_win_points - c.win_points) - (c.cs_win_points - c.win_points)) ELSE 0 END
+                    + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                WHEN pm.result = 'draw' THEN
+                    c.draw_points
+                    + CASE WHEN COALESCE(pm.clean_sheet, false) THEN (c.cs_draw_points - c.draw_points) ELSE 0 END
+                    + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                WHEN pm.result = 'loss' THEN
+                    c.loss_points
+                    + CASE WHEN ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                           THEN (c.heavy_loss_points - c.loss_points) ELSE 0 END
+                    + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                ELSE 0
+            END
         ) as fantasy_points
     FROM public.players p
     LEFT JOIN public.player_matches pm ON p.player_id = pm.player_id AND pm.tenant_id = target_tenant_id
     LEFT JOIN public.matches m ON pm.match_id = m.match_id AND m.tenant_id = target_tenant_id
+    CROSS JOIN temp_fantasy_config c
     WHERE p.tenant_id = target_tenant_id AND p.is_ringer = FALSE
     GROUP BY p.player_id, p.name, p.selected_club;
     
@@ -266,14 +304,32 @@ BEGIN
             EXTRACT(YEAR FROM m.match_date)::integer as year,
             COUNT(pm.match_id) as games_played,
             SUM(pm.goals) as goals_scored,
-            SUM(calculate_match_fantasy_points(
-                pm.result, 
-                CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
-                COALESCE(pm.clean_sheet, false),
-                COALESCE(pm.goals, 0),
-                target_tenant_id
-            )) as fantasy_points
-        FROM public.player_matches pm JOIN public.matches m ON pm.match_id = m.match_id
+            SUM(
+                -- Inline fantasy point calculation using config from temp table
+                CASE 
+                    WHEN pm.result = 'win' THEN
+                        c.win_points
+                        + CASE WHEN ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold 
+                               THEN (c.heavy_win_points - c.win_points) ELSE 0 END
+                        + CASE WHEN COALESCE(pm.clean_sheet, false) THEN (c.cs_win_points - c.win_points) ELSE 0 END
+                        + CASE WHEN COALESCE(pm.clean_sheet, false) AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                               THEN (c.heavy_cs_win_points - c.win_points - (c.heavy_win_points - c.win_points) - (c.cs_win_points - c.win_points)) ELSE 0 END
+                        + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                    WHEN pm.result = 'draw' THEN
+                        c.draw_points
+                        + CASE WHEN COALESCE(pm.clean_sheet, false) THEN (c.cs_draw_points - c.draw_points) ELSE 0 END
+                        + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                    WHEN pm.result = 'loss' THEN
+                        c.loss_points
+                        + CASE WHEN ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                               THEN (c.heavy_loss_points - c.loss_points) ELSE 0 END
+                        + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                    ELSE 0
+                END
+            ) as fantasy_points
+        FROM public.player_matches pm 
+        JOIN public.matches m ON pm.match_id = m.match_id
+        CROSS JOIN temp_fantasy_config c
         WHERE pm.tenant_id = target_tenant_id AND m.tenant_id = target_tenant_id
         GROUP BY pm.player_id, EXTRACT(YEAR FROM m.match_date)
     ) ys
@@ -337,6 +393,9 @@ BEGIN
     ON CONFLICT (cache_key, tenant_id) DO UPDATE
     SET last_invalidated = NOW(),
         dependency_type = excluded.dependency_type;
+
+    -- Clean up temp table
+    DROP TABLE IF EXISTS temp_fantasy_config;
 
     -- Log total execution time
     PERFORM pg_sleep(0); -- dummy to keep position
