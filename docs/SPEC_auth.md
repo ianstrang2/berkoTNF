@@ -1,6 +1,6 @@
-# BerkoTNF Authentication Implementation Specification
+# Capo Authentication Implementation Specification
 
-Version 5.0.0 • Phone-Only Authentication (Simplified)
+Version 6.0.0 • Phone-Only Authentication + Club Creation
 
 **PHONE/SMS AUTHENTICATION FOR ALL USERS**
 
@@ -8,7 +8,7 @@ Version 5.0.0 • Phone-Only Authentication (Simplified)
 
 ### Why Authentication Now
 
-The BerkoTNF platform requires authentication to support:
+The Capo platform requires authentication to support:
 - **Multi-Tenant Architecture**: Secure tenant isolation with role-based access control
 - **Admin Management**: Club administrators manage matches, players, and settings
 - **Mobile App Access**: Players and admins access features through native Capacitor app
@@ -50,8 +50,13 @@ The BerkoTNF platform requires authentication to support:
 - App-first landing page (mobile + desktop)
 - Pre-filled invite messages  
 - Modal UI standardization (gradient icons, consistent buttons)
-**Phase 6**: iOS platform ⏸️ **BLOCKED** (Waiting for MacBook hardware)
-**Phase 7**: Advanced security (2FA, biometric, enhanced audit) 📋 **FUTURE**
+**Phase 6**: Club creation + No-club handling 🚧 **IN PROGRESS** (October 7, 2025)
+- Admin signup flow with club creation
+- Email collection for admins and players
+- No-club-found edge case handling
+- Platform detection and app download prompts
+**Phase 7**: iOS platform ⏸️ **BLOCKED** (Waiting for MacBook hardware)
+**Phase 8**: Advanced security (2FA, biometric, enhanced audit) 📋 **FUTURE**
 
 ### Architectural Decision: Phone-Only (October 2, 2025)
 
@@ -113,6 +118,349 @@ The BerkoTNF platform requires authentication to support:
 - Session analytics
 
 **Authentication system is production-ready for Android + Web!**
+
+---
+
+## A2. Club Creation & Onboarding (Phase 6)
+
+**Status:** 🚧 In Progress (as of October 7, 2025)
+
+### Overview
+
+Phase 6 adds the ability for new admins to create clubs (tenants) and handles the edge case where users authenticate successfully but aren't associated with any club. This completes the onboarding flow from marketing site to fully functional club.
+
+---
+
+### Club Creation Flow (Admin Signup)
+
+**Purpose**: Allow new admins to create their own clubs without manual intervention.
+
+#### Route
+- **Web**: `/signup/admin`
+- **API**: `/api/admin/create-club`
+
+#### User Flow
+
+1. Marketing site (`caposport.com`) → **"Start Your Club"** button
+2. Lands on signup page (`app.caposport.com/signup/admin`)
+3. Platform detection applies (see below)
+4. Completes phone authentication (existing OTP flow)
+5. Provides additional details:
+   - **Email** (required) - for admin communications, notifications
+   - **Name** (required) - becomes first player in club
+   - **Club Name** (required) - displayed throughout app
+6. System creates (in single transaction):
+   - **Tenant record** (clubs table)
+   - **Player record** (phone, email, name, `is_admin=true`, `tenant_id`)
+   - **Links** player to `auth.user` via `auth_user_id`
+7. Redirects to `/admin/dashboard`
+8. Shows onboarding tip: _"Add players or share your club invite link"_
+
+#### Platform Detection
+
+**Desktop:**
+- Direct to web form at `app.caposport.com/signup/admin`
+- Full-featured, no limitations
+- Clean, instant onboarding
+
+**Mobile:**
+- Shows interstitial: _"For the best experience, download our app first"_
+- Options: **[Download App]** or **[Continue on Web]**
+- Both paths work, app provides better UX + push notifications
+- Continue on Web → same form as desktop
+
+**Implementation:**
+```typescript
+// Detect user agent in page component
+const userAgent = headers().get('user-agent') || '';
+const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
+
+// Show appropriate UI
+{isMobile ? <AppDownloadInterstitial /> : <SignupForm />}
+```
+
+#### Database Schema
+
+Uses existing tables, **no migrations needed**:
+
+**tenants table:**
+```sql
+-- Existing columns
+id UUID PRIMARY KEY
+name TEXT NOT NULL  -- from "Club Name" input
+created_at TIMESTAMPTZ DEFAULT now()
+is_active BOOLEAN DEFAULT true
+-- Optional addition (for audit)
+created_by_user_id UUID REFERENCES auth.users(id)
+```
+
+**players table:**
+```sql
+-- Existing columns
+id UUID PRIMARY KEY
+tenant_id UUID REFERENCES tenants(id)
+phone TEXT NOT NULL  -- E.164 format
+email TEXT           -- ⚠️ VERIFY THIS EXISTS, add if missing
+name TEXT NOT NULL
+is_admin BOOLEAN DEFAULT false  -- set to TRUE for club creator
+auth_user_id UUID REFERENCES auth.users(id)
+created_at TIMESTAMPTZ DEFAULT now()
+```
+
+**Schema Check Required:**
+```sql
+-- Check if email column exists in players table
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'players' AND column_name = 'email';
+
+-- If it doesn't exist, add it:
+ALTER TABLE players ADD COLUMN IF NOT EXISTS email TEXT;
+```
+
+#### Security
+
+- Same phone OTP verification as player auth (Supabase managed)
+- RLS policies automatically apply tenant isolation
+- First player in tenant is always admin (`is_admin=true`)
+- Activity logging captures club creation events
+- Transaction rollback if any step fails
+
+#### API Implementation
+
+**Endpoint:** `POST /api/admin/create-club`
+
+**Request body:**
+```typescript
+{
+  phone: string,      // From completed auth session
+  email: string,      // Required, validated
+  name: string,       // Required, 1-14 chars
+  club_name: string   // Required, 1-50 chars
+}
+```
+
+**Process:**
+1. Verify phone auth session exists (`supabase.auth.getSession()`)
+2. Validate inputs:
+   - Email format (standard regex)
+   - Name length (1-14 chars, matching player name limits)
+   - Club name length (1-50 chars)
+3. **Create tenant:**
+   - `name` = `club_name` from input
+   - `created_by_user_id` = current `auth.user.id` (if column exists)
+   - `created_at` = `now()`
+4. **Create player:**
+   - `tenant_id` = newly created `tenant.id`
+   - `phone` = from session (normalized E.164)
+   - `email` = from input
+   - `name` = from input
+   - `is_admin` = `true`
+   - `auth_user_id` = current `auth.user.id`
+   - `created_at` = `now()`
+5. **Log activity** in `auth_activity_log`:
+   - `activity_type` = `'club_created'`
+   - `user_id` = `auth.user.id`
+   - `tenant_id` = new `tenant.id`
+   - `success` = `true`
+   - Include hashed IP/UA like existing logs
+6. **Return success:**
+```typescript
+{
+  success: true,
+  tenant_id: string,
+  player_id: string,
+  redirect_url: '/admin/dashboard'
+}
+```
+
+**Error Handling:**
+- Database errors → 500 with generic message
+- Validation errors → 400 with specific field errors
+- Auth errors → 401 with redirect to login
+- Duplicate club name → Allow (tenants are isolated)
+
+---
+
+### No Club Found Flow
+
+**Status:** 🚧 In Progress (as of October 7, 2025)
+
+**Purpose**: Handle edge case where user authenticates successfully but phone number isn't in any `players` table.
+
+#### Scenario
+
+1. User downloads app from Play Store (no invite link)
+2. Opens app and completes phone authentication ✅
+3. Phone number **not found** in any tenant's `players` table
+4. System redirects to "no club found" page
+
+#### Route
+
+- **Page**: `/auth/no-club`
+- **API**: `/api/leads/club-request` (for lead capture)
+
+#### User Experience
+
+**Page displays:**
+
+> **We couldn't find your club**
+
+**Option A: Have an invite link?**
+
+- Text input field for invite URL
+- Placeholder: `https://app.caposport.com/join/...` or `capo://join/...`
+- **[Join]** button
+- On submit:
+  - Extract tenant and token from URL
+  - Validate format
+  - Check token against `club_invite_tokens` table
+  - If valid → Redirect to join flow (reuse existing logic)
+  - If invalid → Show error: _"Invalid or expired invite link"_
+
+**Option B: Request your club join Capo**
+
+- Form fields:
+  - **Club name** (text input)
+  - **Admin email** (email input, validated)
+- **[Submit]** button
+- On submit:
+  - POST to `/api/leads/club-request`
+  - Shows confirmation: _"Thanks! We'll reach out to them."_
+  - Doesn't redirect, lets user stay on page
+
+#### Implementation
+
+**Detection Logic** (in middleware or auth callback):
+
+```typescript
+// After successful phone authentication
+const { data: { session } } = await supabase.auth.getSession();
+
+if (session) {
+  const normalizedPhone = normalizeToE164(session.user.phone);
+  
+  const { data: player } = await supabase
+    .from('players')
+    .select('id, tenant_id')
+    .eq('phone', normalizedPhone)
+    .maybeSingle();
+  
+  if (!player) {
+    // No club found for this phone number
+    return NextResponse.redirect('/auth/no-club');
+  }
+  
+  // Player exists, continue to dashboard
+  return NextResponse.redirect('/admin/dashboard'); // or /players/dashboard
+}
+```
+
+**Invite Link Validation:**
+
+- Accepts formats:
+  - `https://app.caposport.com/join/{tenant_slug}/{token}`
+  - `capo://join/{tenant_slug}/{token}`
+- Validates token against `club_invite_tokens` table
+- If valid → Continue to normal join flow
+- If invalid → Show error message
+
+**Lead Form Submission:**
+
+```typescript
+// POST /api/leads/club-request
+{
+  phone: string,      // From authenticated session
+  club_name: string,  // From form input
+  admin_email: string // From form input
+}
+```
+
+**Lead Storage Options** (choose one for MVP):
+- **Option A**: Create `leads` table and insert record
+- **Option B**: Send email notification to support
+- **Option C**: Log to console (simplest for MVP)
+
+#### Frequency
+
+This is a **rare edge case** (< 1% of users). Most users:
+- Are added by admins first (phone already in `players` table)
+- Have invite links from admins (shared via WhatsApp/SMS)
+- Auto-link on first authentication
+
+---
+
+### Email Collection
+
+**Purpose**: Enable better communication and notifications for both admins and players.
+
+#### Admin Signup
+- **Email** is **required** during club creation
+- Stored in `players.email` for the admin/first player
+- Used for:
+  - Password reset (if email auth ever added)
+  - Admin notifications
+  - Club communications
+
+#### Player Join
+- **Email** is **optional** during join request
+- Added to join form with label: _"Email (optional) - For match notifications"_
+- Stored in `players.email` when provided
+- Used for:
+  - Match notifications (future)
+  - RSVP reminders (future)
+  - General club communications
+
+#### Implementation
+- Add email field to `/join/[tenant]/[token]/page.tsx`
+- Update `/api/join/link-player` to accept optional email parameter
+- Don't fail if email is missing (it's optional for players)
+
+---
+
+### Platform Detection & App Download Prompts
+
+**Purpose**: Encourage users to download the native app for push notifications and better UX.
+
+#### Platform Detection Utility
+
+**File**: `src/utils/platform-detection.ts`
+
+```typescript
+export function isMobileUserAgent(userAgent: string): boolean {
+  return /Android|iPhone|iPad|iPod/i.test(userAgent);
+}
+
+export function isInCapacitorApp(): boolean {
+  return typeof window !== 'undefined' && 
+         window.Capacitor?.isNativePlatform() === true;
+}
+```
+
+#### Download App Banners
+
+**Component**: `src/components/common/DownloadAppBanner.component.tsx`
+
+**Requirements:**
+- Check if in Capacitor app: `Capacitor.isNativePlatform()`
+- If `false` (web browser), show banner:
+  - Message: _"📱 Download our app for push notifications"_
+  - App Store badge (link to iOS app when available)
+  - Play Store badge (link to Android APK/AAB)
+  - **[Dismiss]** button
+  - Store dismiss preference in `localStorage`
+- Match existing Soft-UI component styling
+
+**Banner Placement:**
+- `/admin/dashboard` layout
+- `/players/matches` or main players layout
+- Any page where push notifications provide value
+
+**Banner Behavior:**
+- Show on first visit
+- Dismiss stores preference: `localStorage.setItem('dismissedAppBanner', 'true')`
+- Don't show again for 30 days after dismiss
+- Never show if already in Capacitor app
 
 ---
 
@@ -2403,7 +2751,95 @@ export async function GET(request: NextRequest) {
 - [ ] Role preference persists (localStorage)
 - [ ] Admin without player link cannot access player view
 
-### Phase 3: Advanced Security 📋 **FUTURE**
+### Phase 6: Club Creation & Onboarding 🚧 **IN PROGRESS**
+
+**Deliverables**:
+- [ ] Admin signup page (`/signup/admin`)
+- [ ] Club creation API (`/api/admin/create-club`)
+- [ ] No club found page (`/auth/no-club`)
+- [ ] Lead capture API (`/api/leads/club-request`)
+- [ ] Email field added to players table (if not exists)
+- [ ] Email collection in join request form
+- [ ] Platform detection utility
+- [ ] Download app banner component
+- [ ] Middleware check for no-club condition
+
+**API Endpoints**:
+- [ ] `POST /api/admin/create-club` (tenant + player creation)
+- [ ] `POST /api/leads/club-request` (capture join requests)
+- [ ] Updated `/api/join/link-player` (accept optional email)
+
+**Testing** (detailed in Section A2):
+
+**Test Admin Club Creation:**
+- [ ] Visit `app.caposport.com/signup/admin`
+- [ ] Enter phone: `07700900123` (or any new number not in system)
+- [ ] Complete OTP verification (use `123456` if test mode enabled)
+- [ ] Enter email: `testadmin@example.com`, Name: `Test Admin`, Club Name: `Test FC`
+- [ ] Submit form
+- [ ] ✅ Redirects to `/admin/dashboard`
+- [ ] ✅ Tenant created with name "Test FC"
+- [ ] ✅ Player created with `is_admin=true`, email, phone, name
+- [ ] ✅ `auth_user_id` linked correctly
+- [ ] ✅ Can access all admin pages
+- [ ] ✅ Can see "Club Invite Link" button
+- [ ] Logout and login again with same phone
+- [ ] ✅ Auto-logs in to same club
+- [ ] ✅ Still has admin access
+- [ ] ✅ Email is preserved
+
+**Test No Club Found Flow:**
+- [ ] Create `auth.user` with phone NOT in any `players` table
+- [ ] Complete phone authentication successfully
+- [ ] ✅ Redirects to `/auth/no-club` page
+- [ ] ✅ Shows "We couldn't find your club" message
+- [ ] ✅ Shows both options (invite link paste and lead form)
+- [ ] **Test Option A** (invite link):
+  - [ ] Get valid invite link from existing club
+  - [ ] Paste into text field
+  - [ ] Click [Join]
+  - [ ] ✅ Validates token and continues to join flow
+  - [ ] ✅ Can complete join process
+- [ ] **Test Option B** (lead form):
+  - [ ] Enter club name: "Local FC"
+  - [ ] Enter admin email: `admin@localfc.com`
+  - [ ] Submit
+  - [ ] ✅ Shows confirmation message
+  - [ ] ✅ Lead stored/notification sent (check logs/database)
+- [ ] **Test invalid invite link**:
+  - [ ] Paste invalid URL or malformed token
+  - [ ] ✅ Shows error message
+  - [ ] ✅ Doesn't crash or redirect
+
+**Test Platform Detection:**
+- [ ] Open signup page on mobile device (or use mobile user agent)
+- [ ] ✅ Shows app download interstitial
+- [ ] ✅ [Download App] button links correctly
+- [ ] ✅ [Continue on Web] shows signup form
+- [ ] Open signup page on desktop
+- [ ] ✅ Shows signup form immediately (no interstitial)
+
+**Test Download Banners:**
+- [ ] Login to web interface (Chrome/Firefox, not Capacitor app)
+- [ ] Navigate to `/admin/dashboard`
+- [ ] ✅ See download app banner
+- [ ] ✅ Banner shows App Store and Play Store badges
+- [ ] Click [Dismiss]
+- [ ] ✅ Banner disappears
+- [ ] Refresh page
+- [ ] ✅ Banner stays hidden (localStorage persisted)
+- [ ] Open same page in Capacitor app
+- [ ] ✅ Banner NOT shown (detected native platform)
+
+**Test Email Collection:**
+- [ ] Use join flow with invite link
+- [ ] ✅ See optional email field with label "For match notifications"
+- [ ] Submit without email
+- [ ] ✅ Join succeeds (email not required for players)
+- [ ] Submit with email
+- [ ] ✅ Email stored in `players.email` column
+
+### Phase 7: Advanced Security 📋 **FUTURE**
 
 **Deliverables**:
 - [ ] TOTP 2FA for admins
@@ -2616,6 +3052,19 @@ async function checkDatabaseHealth(): Promise<boolean> {
 - [ ] **Role Switcher UI**: Shows only for admins with linked player_id
 - [ ] **Navigation Updates**: Bottom nav changes based on current role
 - [ ] **Preference Persistence**: Role choice saved in localStorage
+
+#### Club Creation & Onboarding (Phase 6)
+- [ ] **Admin Signup**: New admins can create clubs via web or mobile app
+- [ ] **Email Collection**: Email collected and stored during admin signup (required)
+- [ ] **Player Email**: Email optionally collected during player join requests
+- [ ] **Platform Detection**: Mobile users see app download prompt on signup page
+- [ ] **No Club Detection**: Middleware correctly redirects to no-club page when phone not found
+- [ ] **Invite Link Parsing**: No-club page validates and processes invite links
+- [ ] **Lead Capture**: Lead form captures club join requests
+- [ ] **Download Banners**: App download banners shown on web (hidden in Capacitor)
+- [ ] **Club Creation Transaction**: Tenant + player created atomically (rollback on error)
+- [ ] **Admin Auto-Login**: After club creation, admin can immediately access dashboard
+- [ ] **Onboarding Tip**: Dashboard shows "Add players or share invite link" after creation
 
 ### Performance Requirements
 
@@ -2953,15 +3402,28 @@ export async function logAuthActivity(params: {
 
 ---
 
-**Document Status**: ✅ Implementation Complete - Phase 1  
-**Version**: 4.1.0 (Implemented with enhancements)  
-**Last Updated**: October 1, 2025  
-**Implementation Notes**: See `docs/AUTH_IMPLEMENTATION_PROGRESS.md` for detailed progress  
+**Document Status**: 🚧 Phase 6 In Progress - Club Creation & Onboarding  
+**Version**: 6.0.0 (Club creation + No-club handling)  
+**Last Updated**: October 7, 2025  
+**Implementation Notes**: Phase 1-5 complete. Phase 6 adds admin signup, club creation, and edge case handling.
 
-**Next Steps**: 
-1. Configure Supabase Auth providers (email + phone)
-2. Run database migrations (Section C)
-3. Implement Phase 1 authentication flows
-4. Test admin and player signup/login
+**Phase 6 Implementation Summary**:
+- **Pages**: 2 new pages (`/signup/admin`, `/auth/no-club`)
+- **API Routes**: 2 new endpoints (`/api/admin/create-club`, `/api/leads/club-request`)
+- **Components**: Platform detection utility, download app banner
+- **Database**: Email column verification/addition to players table (if needed)
+- **Middleware**: No-club detection and redirect logic
+- **Estimated Lines of Code**: ~800 additional lines
 
-This specification provides a complete, production-ready authentication system using industry-standard Supabase Auth for all users. Admins authenticate via email/password, players via phone/SMS OTP, unified under one auth system with proper multi-tenancy isolation.
+**Next Steps** (Phase 6): 
+1. Verify `players.email` column exists, add if missing (Section A2)
+2. Implement admin signup page with platform detection
+3. Implement club creation API with transaction handling
+4. Implement no-club page with dual options (invite paste + lead form)
+5. Add email field to player join flow (optional)
+6. Create download app banner component
+7. Add middleware check for no-club condition
+8. Run comprehensive tests (Section J, Phase 6)
+9. Update status to ✅ **Complete** when all tests pass
+
+This specification provides a complete, production-ready authentication system using industry-standard Supabase Auth for all users. Phase 6 adds self-service club creation, completing the onboarding flow from marketing site to fully functional club with proper multi-tenancy isolation.
