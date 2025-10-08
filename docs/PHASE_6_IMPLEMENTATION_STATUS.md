@@ -231,7 +231,101 @@ export async function GET(request: NextRequest) {
 
 ---
 
+## 🔒 RLS Enforcement Migration (Pre-Launch Critical)
+
+### Issue Discovered
+
+During pre-launch security audit, discovered RLS policies not enforcing:
+
+```sql
+SELECT rolname, rolbypassrls FROM pg_roles WHERE rolname = 'postgres';
+Result: postgres | true  -- BYPASSES ALL RLS!
+```
+
+**Impact:** Prisma connects as `postgres` superuser, all 25+ RLS policies bypassed
+
+### 3-Phase Fix Plan
+
+**Phase 1: Create Restricted Database Role** ✅ **COMPLETE** (with fix)
+- Create `prisma_app` role with NOBYPASSRLS
+- Grant proper permissions (SELECT, INSERT, UPDATE, DELETE)
+- Update DATABASE_URL to use restricted role
+- **Status:** Executed and working
+- **Issue Found:** Login flow broke (cross-tenant phone lookup blocked by RLS)
+- **Fix Applied:** Use Supabase service role for auth-specific cross-tenant queries
+- **Testing:** ✅ Verified with both tenants (BerkoTNF, Poo Wanderers)
+- **Files:** 
+  - `sql/migrations/001_create_restricted_role.sql`
+  - `sql/migrations/001_rollback_restricted_role.sql`
+  - `docs/RLS_MIGRATION_CHECKLIST.md`
+  - `docs/RLS_MIGRATION_QUICKSTART.md`
+  - `docs/ENV_CONFIGURATION_PHASE1.md`
+  - `docs/PHASE1_RLS_ISSUE_LOGIN_FIX.md` (fix documentation)
+
+**Phase 2: Add Prisma Middleware** 📋 **NEXT**
+- Implement tenant context middleware
+- Automatically set `app.tenant_id` before queries
+- Transparent to API routes
+- **Time:** 30-45 minutes
+- **Status:** Specification in progress
+
+**Phase 3: Integration Tests** 📋 **FUTURE**
+- Automated tenant isolation tests
+- Cross-tenant access prevention tests
+- CI/CD integration
+- **Time:** 1-2 hours
+- **Status:** Planned after Phase 2
+
+### Security Architecture Change
+
+**Before (Current):**
+- ❌ **Layer 1 (Application):** Explicit `where: { tenant_id }` filtering
+- ❌ **Layer 2 (Database):** RLS policies (NOT enforcing - postgres bypasses)
+- **Result:** Single layer of protection
+
+**After (Phase 1-2):**
+- ✅ **Layer 1 (Application):** Explicit `where: { tenant_id }` filtering  
+- ✅ **Layer 2 (Database):** RLS policies (NOW enforcing - prisma_app restricted)
+- **Result:** True defense-in-depth
+
+### Launch Timeline
+
+**Target:** Public launch in 2 weeks (January 22, 2025)
+
+**Must Complete Before Launch:**
+- [ ] Phase 1: Restricted role (1 day)
+- [ ] Phase 2: Middleware (1 day)
+- [ ] Test with both tenants (2 days)
+- [ ] Phase 3: Integration tests (optional but recommended)
+- [ ] Final security audit
+- [ ] Performance verification
+
+**Estimated Total:** 4-5 days (leaves buffer for issues)
+
+### Risk Assessment
+
+**Risk Level:** Low
+- Instant rollback available
+- No data migration required
+- Only connection string change
+- Tested in development first
+
+**Mitigation:**
+- Comprehensive rollback procedure documented
+- Can revert to postgres role in < 1 minute
+- Full verification checklist provided
+- Two test tenants for validation
+
+---
+
 **Status:** Code complete, security verified, features need testing
 
-**Recommendation:** Complete player join flow testing before production
+**Critical Pre-Launch:** RLS enforcement migration must complete before public launch
+
+**Recommendation:** 
+1. Complete player join flow testing
+2. Execute Phase 1 RLS migration
+3. Execute Phase 2 middleware implementation
+4. Final security verification
+5. Public launch
 
