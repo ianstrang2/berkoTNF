@@ -141,9 +141,9 @@ async function getHonourRollData(tenantId: string) {
     };
   }
 
+// Phase 2: Use withTenantContext wrapper
 export async function GET(request: NextRequest) {
-  try {
-    const tenantId = await getTenantFromRequest(request);
+  return withTenantContext(request, async (tenantId) => {
     const data = await getHonourRollData(tenantId);
     return NextResponse.json({ data }, {
       headers: {
@@ -151,7 +151,5 @@ export async function GET(request: NextRequest) {
         'Vary': 'Cookie'
       }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

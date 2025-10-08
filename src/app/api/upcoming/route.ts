@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerInPool } from '@/lib/transform/player.transform';
-// Multi-tenant imports - gradually introducing tenant-aware functionality
-import { getTenantFromRequest } from '@/lib/tenantContext';
+// Phase 2: Using withTenantContext for automatic RLS setup
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
-// GET: Fetch upcoming matches for public view
+// Phase 2: Fetch upcoming matches with automatic RLS context
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant setup - get current tenant context
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+  return withTenantContext(request, async (tenantId) => {
+    // Middleware automatically sets RLS context
     
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
@@ -89,7 +87,5 @@ export async function GET(request: NextRequest) {
         }
       });
     }
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

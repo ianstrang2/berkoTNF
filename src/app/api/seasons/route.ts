@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-// Multi-tenant imports - ensuring seasons are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+// Phase 2: Using withTenantContext for automatic RLS setup
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
-// GET /api/seasons - List all seasons with computed display names
+// Phase 2: GET /api/seasons with automatic RLS context
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = await getTenantFromRequest(request);
+  return withTenantContext(request, async (tenantId) => {
+    // Middleware automatically sets RLS context
     
     const seasons = await prisma.$queryRaw`
       SELECT 
@@ -49,16 +48,13 @@ export async function GET(request: NextRequest) {
         'Vary': 'Cookie'
       }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
-// POST /api/seasons - Create new season
+// Phase 2: POST /api/seasons - Create new season with automatic RLS context
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure season creation is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
+  return withTenantContext(request, async (tenantId) => {
+    // Middleware automatically sets RLS context
     
     const body = await request.json();
     const { startDate, endDate } = body;
@@ -130,7 +126,5 @@ export async function POST(request: NextRequest) {
       }
       throw dbError;
     }
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

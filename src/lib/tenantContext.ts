@@ -4,10 +4,14 @@
  * This module provides utilities for managing tenant context throughout the application.
  * It includes functions for resolving tenant information and maintaining context.
  * 
+ * Phase 2 Enhancement: Added withTenantContext wrapper for automatic RLS context
+ * via AsyncLocalStorage and Prisma middleware.
+ * 
  * Based on SPEC_multi_tenancy.md - Tenant Context Implementation
  */
 
 import { DEFAULT_TENANT_ID, getTenantContext as getTenantDetails, TenantContext } from './tenantLocks';
+import { tenantContext } from './prisma';
 
 /**
  * Get the current tenant ID for the application
@@ -148,8 +152,8 @@ export async function getTenantFromRequest(
 ): Promise<string> {
   try {
     const { createRouteHandlerClient } = await import('@supabase/auth-helpers-nextjs');
+    const { createClient } = await import('@supabase/supabase-js');
     const { cookies } = await import('next/headers');
-    const { prisma } = await import('@/lib/prisma');
     
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session } } = await supabase.auth.getSession();
@@ -170,28 +174,43 @@ export async function getTenantFromRequest(
       throw new Error('Authentication required: No session found');
     }
     
+    // Use Supabase admin client for cross-tenant tenant resolution
+    // This avoids RLS blocking the tenant lookup itself
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+    
     // Priority 1: Check app_metadata (for superadmin tenant switching)
     if (session.user.app_metadata?.tenant_id) {
       console.log(`[TENANT_CONTEXT] Resolved from app_metadata: ${session.user.app_metadata.tenant_id}`);
       return session.user.app_metadata.tenant_id;
     }
     
-    // Priority 2: Check admin_profiles table
-    const adminProfile = await prisma.admin_profiles.findUnique({
-      where: { user_id: session.user.id },
-      select: { tenant_id: true }
-    });
+    // Priority 2: Check admin_profiles table (use service role)
+    const { data: adminProfile } = await supabaseAdmin
+      .from('admin_profiles')
+      .select('tenant_id')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
     
     if (adminProfile?.tenant_id) {
       console.log(`[TENANT_CONTEXT] Resolved from admin_profiles: ${adminProfile.tenant_id}`);
       return adminProfile.tenant_id;
     }
     
-    // Priority 3: Check players table (phone auth users)
-    const playerProfile = await prisma.players.findFirst({
-      where: { auth_user_id: session.user.id },
-      select: { tenant_id: true, name: true, player_id: true }
-    });
+    // Priority 3: Check players table (phone auth users) - use service role
+    const { data: playerProfile } = await supabaseAdmin
+      .from('players')
+      .select('tenant_id, name, player_id')
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle();
     
     if (playerProfile?.tenant_id) {
       console.log(`[TENANT_CONTEXT] ✅ Resolved from players:`, {
@@ -208,13 +227,8 @@ export async function getTenantFromRequest(
     // User is authenticated but has no tenant assignment
     console.error(`[TENANT_CONTEXT] SECURITY: User ${session.user.id} authenticated but has no tenant association`);
     
-    if (options.throwOnMissing) {
-      throw new Error(`User ${session.user.id} has no tenant association`);
-    }
-    
-    // This should only happen during development or for new users in signup flow
-    console.warn(`[TENANT_CONTEXT] Falling back to default tenant for user ${session.user.id} - THIS IS A SECURITY RISK IN PRODUCTION`);
-    return DEFAULT_TENANT_ID;
+    // NEVER fall back to default tenant - this is a security vulnerability
+    throw new Error(`SECURITY: User ${session.user.id} has no tenant association - redirect to /auth/no-club`);
     
   } catch (error) {
     console.error(`[TENANT_CONTEXT] Error resolving tenant:`, error);
@@ -255,3 +269,90 @@ export const TENANT_CONSTANTS = {
   TENANT_QUERY_PARAM: 'tenant',
   SESSION_TENANT_KEY: 'tenantId'
 } as const;
+
+/**
+ * Phase 2: Wrap API route handler with automatic tenant context
+ * 
+ * This function resolves the tenant from the request and sets it in AsyncLocalStorage,
+ * making it available to Prisma middleware for automatic RLS context setting.
+ * 
+ * Usage in API routes:
+ * ```typescript
+ * export async function GET(request: NextRequest) {
+ *   return withTenantContext(request, async (tenantId) => {
+ *     // Tenant context is automatically available to Prisma
+ *     const players = await prisma.players.findMany({
+ *       where: { tenant_id: tenantId } // Still required for defense-in-depth
+ *     });
+ *     
+ *     return NextResponse.json({ players });
+ *   });
+ * }
+ * ```
+ * 
+ * @param request - NextRequest object
+ * @param handler - Async handler function that receives the resolved tenantId
+ * @param options - Optional configuration
+ * @returns Promise<T> - Result from the handler function
+ * @throws Error if tenant cannot be resolved
+ */
+export async function withTenantContext<T>(
+  request: any,
+  handler: (tenantId: string) => Promise<T>,
+  options?: { allowUnauthenticated?: boolean; throwOnMissing?: boolean }
+): Promise<T> {
+  const tenantId = await getTenantFromRequest(request, options);
+  
+  console.log(`[WITH_TENANT_CONTEXT] Setting tenant context: ${tenantId}`);
+  
+  // Run handler within tenant context (available to Prisma middleware)
+  return tenantContext.run({ tenantId }, () => {
+    console.log(`[WITH_TENANT_CONTEXT] Inside context, tenant: ${tenantId}`);
+    return handler(tenantId);
+  });
+}
+
+/**
+ * Phase 2: Set tenant context for background jobs
+ * 
+ * Background jobs should pass tenant_id in their payload and use this function
+ * to set context before performing database operations.
+ * 
+ * Usage in background jobs:
+ * ```typescript
+ * async function processJob(job: { tenant_id: string, data: any }) {
+ *   return withBackgroundTenantContext(job.tenant_id, async () => {
+ *     // Tenant context is automatically available to Prisma
+ *     await prisma.some_table.updateMany({ ... });
+ *   });
+ * }
+ * ```
+ * 
+ * @param tenantId - Tenant ID from job payload
+ * @param handler - Async handler function to execute with tenant context
+ * @returns Promise<T> - Result from the handler function
+ */
+export async function withBackgroundTenantContext<T>(
+  tenantId: string,
+  handler: () => Promise<T>
+): Promise<T> {
+  if (!tenantId) {
+    throw new Error('[TENANT_CONTEXT] Background job missing tenant_id in payload');
+  }
+  
+  console.log(`[TENANT_CONTEXT] Setting background job context: ${tenantId}`);
+  return tenantContext.run({ tenantId }, handler);
+}
+
+/**
+ * Phase 2: Get current tenant context (if available)
+ * 
+ * This can be used to check if code is running within a tenant context.
+ * Useful for debugging or conditional logic.
+ * 
+ * @returns string | undefined - Current tenant ID or undefined if no context
+ */
+export function getCurrentTenantFromContext(): string | undefined {
+  const context = tenantContext.getStore();
+  return context?.tenantId;
+}

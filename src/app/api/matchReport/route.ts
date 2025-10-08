@@ -1,11 +1,9 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { unstable_cache } from 'next/cache';
-import { CACHE_TAGS } from '@/lib/cache/constants';
 import { FeatBreakingItem } from '@/types/feat-breaking.types';
-// Multi-tenant imports - ensuring match reports are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+// Phase 2: Using withTenantContext for automatic RLS setup
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // Add dynamic configuration to prevent static generation
@@ -373,8 +371,7 @@ async function getMatchReportData(tenantId: string) {
   // All of the original GET logic will be moved here
   console.log(`------ START: Match Report API for tenant ${tenantId} ------`);
     
-    // Multi-tenant setup - ensure match reports are tenant-scoped
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    // Phase 2: Middleware automatically sets RLS context - no manual setup needed
     
     // Emergency fallback data
     const emergencyResponse = {
@@ -563,9 +560,9 @@ async function getMatchReportData(tenantId: string) {
     }
   }
 
+// Phase 2: Use withTenantContext wrapper
 export async function GET(request: NextRequest) {
-  try {
-    const tenantId = await getTenantFromRequest(request);
+  return withTenantContext(request, async (tenantId) => {
     const data = await getMatchReportData(tenantId);
 
     if (!data) {
@@ -594,16 +591,9 @@ export async function GET(request: NextRequest) {
       }
     }, {
       headers: {
-        'Cache-Control': 'private, max-age=300', // Private cache, 5 min per tenant
-        'Vary': 'Cookie', // Cache varies by session cookie
+        'Cache-Control': 'private, max-age=300',
+        'Vary': 'Cookie',
       }
     });
-
-  } catch (error: any) {
-    console.error('Failed to fetch match report:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch match report', details: error.message },
-      { status: 500 }
-    );
-  }
+  }).catch(handleTenantError);
 } 

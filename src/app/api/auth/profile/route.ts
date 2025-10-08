@@ -3,27 +3,39 @@
  * 
  * GET /api/auth/profile
  * Returns current user's session and profile information
+ * 
+ * SECURITY NOTE: This endpoint needs to look up user profile across tenants
+ * to determine which tenant they belong to. We use Supabase admin client to
+ * bypass RLS for this cross-tenant lookup.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/apiAuth';
-import { prisma } from '@/lib/prisma';
+import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuth(request);
 
+    // Use Supabase admin client for cross-tenant profile lookup
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
     // Check for superadmin (email auth - platform level)
-    const superadminProfile = await prisma.admin_profiles.findUnique({
-      where: { user_id: user.id },
-      select: {
-        user_role: true,
-        tenant_id: true,
-        player_id: true,
-        display_name: true,
-      },
-    });
+    const { data: superadminProfile } = await supabaseAdmin
+      .from('admin_profiles')
+      .select('user_role, tenant_id, player_id, display_name')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     // If superadmin, return superadmin profile
     if (superadminProfile && superadminProfile.user_role === 'superadmin') {
@@ -51,15 +63,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Check for player profile (phone auth - club level)
-    const playerProfile = await prisma.players.findFirst({
-      where: { auth_user_id: user.id },
-      select: {
-        player_id: true,
-        name: true,
-        tenant_id: true,
-        is_admin: true,
-      },
-    });
+    const { data: playerProfile } = await supabaseAdmin
+      .from('players')
+      .select('player_id, name, tenant_id, is_admin')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
 
     if (!playerProfile) {
       // Authenticated but no profile yet (shouldn't happen)

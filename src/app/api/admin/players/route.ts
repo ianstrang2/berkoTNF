@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerProfile } from '@/lib/transform/player.transform';
-// Multi-tenant imports - ensuring admin routes are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+// Phase 2: Using withTenantContext for automatic RLS setup
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 const serializeData = (data) => {
@@ -11,12 +11,10 @@ const serializeData = (data) => {
   ));
 };
 
-// Get all players
+// Phase 2: Get all players with automatic RLS context
 export async function GET(request: Request) {
-  try {
-    // Multi-tenant setup - ensure admin operations are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+  return withTenantContext(request, async (tenantId) => {
+    // Middleware automatically sets RLS context
     
     const url = new URL(request.url);
     const includeMatchCounts = url.searchParams.get('include_match_counts') === 'true';
@@ -87,17 +85,13 @@ export async function GET(request: Request) {
         'Expires': '0',
       }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
-// Add a new player
+// Phase 2: Add a new player with automatic RLS context
 export async function POST(request: Request) {
-  try {
-    // Multi-tenant setup - ensure new players are created in the correct tenant
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+  return withTenantContext(request, async (tenantId) => {
+    // Middleware automatically sets RLS context
     
     const body = await request.json();
     const {
@@ -150,17 +144,13 @@ export async function POST(request: Request) {
     // Transform the created player to canonical format
     const transformedPlayer = toPlayerProfile(player);
     return NextResponse.json({ data: serializeData(transformedPlayer) });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
-// Update a player
+// Phase 2: Update a player with automatic RLS context
 export async function PUT(request: Request) {
-  try {
-    // Multi-tenant setup - ensure player updates are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+  return withTenantContext(request, async (tenantId) => {
+    // Middleware automatically sets RLS context
     
     const body = await request.json();
     const { 
@@ -243,7 +233,5 @@ export async function PUT(request: Request) {
     // Transform the updated player to canonical format
     const transformedPlayer = toPlayerProfile(player);
     return NextResponse.json({ data: serializeData(transformedPlayer) });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

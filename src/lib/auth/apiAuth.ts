@@ -3,12 +3,14 @@
  * 
  * Helper functions for protecting API routes with authentication and authorization checks
  * Uses Supabase Auth for session management
+ * 
+ * Phase 2 Update: Uses Supabase service role for auth checks to avoid RLS blocking
  */
 
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import type { User } from '@supabase/supabase-js';
 
 /**
@@ -123,15 +125,24 @@ export async function requireAdminRole(
 ): Promise<AdminAuthResult> {
   const { user, session, supabase } = await requireAuth(request);
   
+  // Phase 2: Use Supabase admin client to bypass RLS for auth checks
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
+  
   // Check for superadmin first (email auth, admin_profiles table)
-  const superadminProfile = await prisma.admin_profiles.findUnique({
-    where: { user_id: user.id },
-    select: {
-      user_role: true,
-      tenant_id: true,
-      player_id: true,
-    },
-  });
+  const { data: superadminProfile } = await supabaseAdmin
+    .from('admin_profiles')
+    .select('user_role, tenant_id, player_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
   
   if (superadminProfile && superadminProfile.user_role === 'superadmin') {
     if (!allowedRoles.includes('superadmin')) {
@@ -150,17 +161,12 @@ export async function requireAdminRole(
   
   // Check for club admin (phone auth, players.is_admin = true)
   if (allowedRoles.includes('admin')) {
-    const playerAdmin = await prisma.players.findFirst({
-      where: {
-        auth_user_id: user.id,
-        is_admin: true,
-      },
-      select: {
-        player_id: true,
-        name: true,
-        tenant_id: true,
-      },
-    });
+    const { data: playerAdmin } = await supabaseAdmin
+      .from('players')
+      .select('player_id, name, tenant_id')
+      .eq('auth_user_id', user.id)
+      .eq('is_admin', true)
+      .maybeSingle();
     
     if (playerAdmin) {
       return {
@@ -213,33 +219,51 @@ export async function requireSuperadmin(request: NextRequest): Promise<AdminAuth
 export async function requirePlayerAccess(request: NextRequest): Promise<PlayerAuthResult> {
   const { user, session, supabase } = await requireAuth(request);
   
-  // Check if user has player profile (either direct or via admin link)
-  const player = await prisma.players.findFirst({
-    where: {
-      OR: [
-        { auth_user_id: user.id }, // Direct player account
-        {
-          player_id: {
-            in: (
-              await prisma.admin_profiles.findMany({
-                where: { user_id: user.id },
-                select: { player_id: true },
-              })
-            )
-              .map((ap) => ap.player_id)
-              .filter((id): id is number => id !== null),
-          },
-        }, // Admin with linked player
-      ],
-    },
-    select: {
-      player_id: true,
-      name: true,
-      tenant_id: true,
-      auth_user_id: true,
-      phone: true,
-    },
-  });
+  // Phase 2: Use Supabase admin client to bypass RLS for auth checks
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
+  
+  // Check if user has player profile (direct via auth_user_id)
+  const { data: player } = await supabaseAdmin
+    .from('players')
+    .select('player_id, name, tenant_id, auth_user_id, phone')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+  
+  // If no direct player, check if they're an admin with linked player
+  if (!player) {
+    const { data: adminProfile } = await supabaseAdmin
+      .from('admin_profiles')
+      .select('player_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (adminProfile?.player_id) {
+      const { data: linkedPlayer } = await supabaseAdmin
+        .from('players')
+        .select('player_id, name, tenant_id, auth_user_id, phone')
+        .eq('player_id', adminProfile.player_id)
+        .maybeSingle();
+      
+      if (linkedPlayer) {
+        return {
+          user,
+          session,
+          supabase,
+          player: linkedPlayer,
+          tenantId: linkedPlayer.tenant_id,
+        };
+      }
+    }
+  }
   
   if (!player) {
     throw new AuthorizationError('Player profile required');

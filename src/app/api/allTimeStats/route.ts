@@ -1,19 +1,15 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { unstable_cache } from 'next/cache';
-import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
-// Multi-tenant imports - ensuring all-time stats are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+// Phase 2: Using withTenantContext for automatic RLS setup
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
-// Define a function to fetch and cache the data
-// Note: Removed unstable_cache to prevent cross-tenant data leaks  
+// Phase 2: Helper function no longer needs manual RLS setup
 async function getAllTimeStats(tenantId: string) {
   console.log(`Fetching fresh all-time stats data from DB for tenant ${tenantId}`);
     
-    // Multi-tenant: Use tenant-scoped query for all-time stats
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    // Middleware automatically sets RLS context
     
     const preAggregatedData = await prisma.aggregated_all_time_stats.findMany({
       where: { tenant_id: tenantId },
@@ -51,9 +47,9 @@ async function getAllTimeStats(tenantId: string) {
     return allTimeStats;
   }
 
+// Phase 2: Use withTenantContext wrapper
 export async function GET(request: NextRequest) {
-  try {
-    const tenantId = await getTenantFromRequest(request);
+  return withTenantContext(request, async (tenantId) => {
     const data = await getAllTimeStats(tenantId);
     return NextResponse.json({ data }, {
       headers: {
@@ -61,7 +57,5 @@ export async function GET(request: NextRequest) {
         'Vary': 'Cookie'
       }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

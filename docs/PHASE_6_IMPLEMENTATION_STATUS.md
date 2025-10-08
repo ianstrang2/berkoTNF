@@ -262,12 +262,28 @@ Result: postgres | true  -- BYPASSES ALL RLS!
   - `docs/ENV_CONFIGURATION_PHASE1.md`
   - `docs/PHASE1_RLS_ISSUE_LOGIN_FIX.md` (fix documentation)
 
-**Phase 2: Add Prisma Middleware** 📋 **NEXT**
-- Implement tenant context middleware
-- Automatically set `app.tenant_id` before queries
-- Transparent to API routes
-- **Time:** 30-45 minutes
-- **Status:** Specification in progress
+**Phase 2: Add Prisma Middleware** ✅ **COMPLETE** (all auth fixed)
+- Implement tenant context middleware via AsyncLocalStorage
+- Automatically set `app.tenant_id` before queries via Prisma middleware
+- Added `withTenantContext` wrapper for API routes
+- Added `withBackgroundTenantContext` for background jobs
+- **Status:** Core implementation complete + all auth functions fixed
+- **Issues Found & Fixed:**
+  1. Profile API blocked by RLS → Use service role ✅
+  2. Infinite loop in middleware → Recursion prevention flag ✅
+  3. requireAdminRole blocked by RLS → Use service role ✅
+  4. requirePlayerAccess blocked by RLS → Use service role ✅
+  5. getTenantFromRequest blocked by RLS → Use service role ✅
+  6. Default tenant fallback → REMOVED (security fix) ✅
+- **Testing:** Ready for full verification after restart
+- **Files:**
+  - `src/lib/prisma.ts` - Middleware with recursion prevention
+  - `src/lib/tenantContext.ts` - Service role for tenant resolution, no default fallback
+  - `src/lib/auth/apiAuth.ts` - Service role for requireAdminRole and requirePlayerAccess
+  - `src/app/api/auth/profile/route.ts` - Service role for profile lookup
+  - `src/app/api/auth/link-by-phone/route.ts` - Service role for login flow
+  - 7 API routes updated to use withTenantContext
+  - `docs/PHASE2_AUTH_FIXES_COMPLETE.md` - Complete auth fix documentation
 
 **Phase 3: Integration Tests** 📋 **FUTURE**
 - Automated tenant isolation tests
