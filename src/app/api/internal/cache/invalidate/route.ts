@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
+import { handleTenantError } from '@/lib/api-helpers';
 
 interface CacheInvalidationRequest {
   tags: string[];
@@ -93,18 +94,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('🚨 Cache invalidation endpoint error:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: `Server error: ${errorMessage}`,
-        invalidated_tags: [],
-        failed_tags: []
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
 

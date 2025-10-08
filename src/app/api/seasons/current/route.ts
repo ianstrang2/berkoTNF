@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring current season is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET /api/seasons/current - Get current season based on today's date
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     const currentSeason = await prisma.$queryRaw`
       SELECT 
@@ -56,12 +57,13 @@ export async function GET() {
         createdAt: season.created_at.toISOString(),
         updatedAt: season.updated_at.toISOString()
       }
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300',
+        'Vary': 'Cookie'
+      }
     });
   } catch (error) {
-    console.error('Error fetching current season:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch current season' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

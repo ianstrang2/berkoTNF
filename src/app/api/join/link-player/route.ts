@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { tenant, token, phone, displayName } = await request.json();
+    const { tenant, token, phone, displayName, email } = await request.json();
 
     // Validate invite token
     const tenantRecord = await prisma.tenants.findUnique({
@@ -122,6 +123,8 @@ export async function POST(request: NextRequest) {
         where: { player_id: existingPlayer.player_id },
         data: {
           auth_user_id: session.user.id,
+          // Update email if provided (optional)
+          ...(email && { email: email.trim() }),
         },
       });
 
@@ -136,6 +139,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // No matching player - create join request for admin approval
+      // Note: email is stored in display_name or could be added as separate field
       const joinRequest = await prisma.player_join_requests.create({
         data: {
           tenant_id: tenantRecord.tenant_id,
@@ -153,12 +157,8 @@ export async function POST(request: NextRequest) {
         requestId: joinRequest.id,
       });
     }
-  } catch (error: any) {
-    console.error('Error linking player:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to link player' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 

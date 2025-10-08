@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerProfile } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring admin routes are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 const serializeData = (data) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
@@ -14,7 +15,7 @@ const serializeData = (data) => {
 export async function GET(request: Request) {
   try {
     // Multi-tenant setup - ensure admin operations are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const url = new URL(request.url);
@@ -87,11 +88,7 @@ export async function GET(request: Request) {
       }
     });
   } catch (error) {
-    console.error('Error fetching players:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch players', details: error },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
 
@@ -99,7 +96,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Multi-tenant setup - ensure new players are created in the correct tenant
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -153,19 +150,8 @@ export async function POST(request: Request) {
     // Transform the created player to canonical format
     const transformedPlayer = toPlayerProfile(player);
     return NextResponse.json({ data: serializeData(transformedPlayer) });
-  } catch (error: any) {
-    console.error('API POST Error in /api/admin/players:', error);
-    let errorMessage = 'Failed to create player';
-    if (error.message) {
-      errorMessage = error.message;
-    }
-    return NextResponse.json(
-      { 
-        error: errorMessage, 
-        details: error instanceof Error ? error.stack : String(error)
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 
@@ -173,7 +159,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     // Multi-tenant setup - ensure player updates are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -257,18 +243,7 @@ export async function PUT(request: Request) {
     // Transform the updated player to canonical format
     const transformedPlayer = toPlayerProfile(player);
     return NextResponse.json({ data: serializeData(transformedPlayer) });
-  } catch (error: any) {
-    console.error('API PUT Error in /api/admin/players:', error); // Enhanced server-side logging
-    let errorMessage = 'Failed to update player';
-    if (error.message) {
-      errorMessage = error.message;
-    }
-    return NextResponse.json(
-      { 
-        error: errorMessage, 
-        details: error instanceof Error ? error.stack : String(error) // Send stack or stringified error
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { splitSizesFromPool, getPoolValidation, MIN_PLAYERS, MAX_PLAYERS, MIN_TEAM } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring pool locking is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 
 /**
@@ -18,7 +19,7 @@ export async function PATCH(
   
   try {
     // Multi-tenant setup - ensure pool locking is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     console.log(`[LOCK_POOL] Resolved tenant ID: ${tenantId}`);
     
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;

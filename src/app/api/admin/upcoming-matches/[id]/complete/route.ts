@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match completion is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
+import { handleTenantError } from '@/lib/api-helpers';
 
 /**
  * API route to complete a match.
@@ -15,7 +16,7 @@ export async function POST(
 ) {
   try {
     // Multi-tenant setup - ensure match completion is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const matchId = parseInt(params.id, 10);

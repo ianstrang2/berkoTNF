@@ -20,6 +20,7 @@ function JoinForm() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
   const [step, setStep] = useState<'landing' | 'phone' | 'otp' | 'name' | 'linking'>('landing');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -157,6 +158,7 @@ function JoinForm() {
           token,
           phone: formattedPhone,
           displayName: displayName.trim() || null,
+          email: email.trim() || null,
         }),
       });
 
@@ -425,6 +427,24 @@ function JoinForm() {
               <p className="mt-2 text-xs text-gray-500 flex justify-between">
                 <span>This helps the admin identify you when approving</span>
                 <span>{displayName.length} / 14</span>
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address (optional)
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                disabled={loading}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                For match notifications and updates
               </p>
             </div>
 

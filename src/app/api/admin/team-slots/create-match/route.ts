@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match creation is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: Request) {
   try {
     const { match_date, team_a_score, team_b_score } = await request.json();
     
     // Multi-tenant: Get tenant context for scoped operations
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
     // Get current slot assignments
@@ -101,10 +102,6 @@ export async function POST(request: Request) {
       data: match 
     });
   } catch (error) {
-    console.error('Error creating match from slots:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create match' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

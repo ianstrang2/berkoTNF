@@ -39,6 +39,12 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const { pathname } = req.nextUrl;
   
+  // IMPORTANT: Skip middleware for API routes - they handle auth errors as JSON responses
+  // API routes use handleTenantError() to return proper 401/403 responses
+  if (pathname.startsWith('/api/')) {
+    return res;
+  }
+  
   // Create Supabase client
   const supabase = createMiddlewareClient({ req, res });
   
@@ -89,10 +95,13 @@ export async function middleware(req: NextRequest) {
 /**
  * Configure which routes to run middleware on
  * 
- * Only runs on protected routes:
- * - /admin/* - Admin dashboard
- * - /superadmin/* - Superadmin panel
+ * Only runs on protected UI routes:
+ * - /admin/* - Admin dashboard (UI only, not /api/admin/*)
+ * - /superadmin/* - Superadmin panel (UI only, not /api/superadmin/*)
  * - /player/* - Player pages (dashboard, upcoming, table, records, profiles)
+ * 
+ * API routes (/api/*) are explicitly excluded in middleware function
+ * API routes return JSON 401/403 errors via handleTenantError()
  */
 export const config = {
   matcher: [

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { shouldUseBackgroundJobs, getFeatureFlagStatus } from '@/config/feature-flags';
 import { createClient } from '@supabase/supabase-js';
+import { handleTenantError } from '@/lib/api-helpers';
 
 interface SystemHealthResponse {
   timestamp: string;

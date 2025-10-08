@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@supabase/supabase-js';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: Request) {
   try {
@@ -69,15 +70,7 @@ export async function POST(request: Request) {
       generation_result: profileResult
     });
 
-  } catch (error: any) {
-    console.error('Error resetting player profiles:', error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to reset player profiles',
-        details: error.message 
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }

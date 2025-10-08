@@ -1,13 +1,14 @@
 // src/app/api/admin/player-profile-metadata/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring player profile metadata is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     // Get profile generation statistics
     const profileStats = await prisma.$queryRaw`
@@ -55,11 +56,7 @@ export async function GET() {
       players_list: playersList
     });
 
-  } catch (error: any) {
-    console.error('Error fetching player profile metadata:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch player profile metadata' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }

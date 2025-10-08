@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch admin settings
 export async function GET(request: NextRequest) {
@@ -10,12 +11,8 @@ export async function GET(request: NextRequest) {
         days_between_matches: 7  // Default value
       }
     });
-  } catch (error: any) {
-    console.error('Error fetching settings:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 
@@ -39,11 +36,7 @@ export async function PUT(request: NextRequest) {
         days_between_matches
       }
     });
-  } catch (error: any) {
-    console.error('Error updating settings:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 } 

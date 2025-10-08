@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET() {
   try {
@@ -49,14 +50,6 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Error fetching background job status:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        data: []
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

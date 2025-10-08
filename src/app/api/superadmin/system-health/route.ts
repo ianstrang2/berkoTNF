@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -141,11 +142,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
-    console.error('Error fetching system health:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to fetch system health' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }

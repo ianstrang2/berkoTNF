@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring orphaned matches are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export interface OrphanedMatch {
   match_id: number;
@@ -11,10 +12,10 @@ export interface OrphanedMatch {
 }
 
 // GET /api/matches/orphaned - Find matches not covered by any season
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     const orphanedMatches = await prisma.$queryRaw`
       SELECT 
@@ -47,10 +48,6 @@ export async function GET() {
       }))
     });
   } catch (error) {
-    console.error('Error fetching orphaned matches:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch orphaned matches' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

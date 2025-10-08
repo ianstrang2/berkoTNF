@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring balance algorithm reset is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // POST handler - reset balance algorithm weights to defaults
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure balance algorithm reset is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Get the default values from team_balance_weights_defaults table
@@ -53,10 +54,6 @@ export async function POST() {
       }))
     });
   } catch (error) {
-    console.error('Error resetting balance algorithm weights:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to reset balance algorithm weights' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

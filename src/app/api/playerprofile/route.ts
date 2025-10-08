@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // Prevent static generation for this route
 export const dynamic = 'force-dynamic';
@@ -13,45 +14,7 @@ export async function GET(request: NextRequest) {
     console.log("Fetching player profile from aggregated table...");
 
     // Get tenant from authenticated user session or fall back to default
-    let tenantId = getCurrentTenantId(); // Default fallback
-    
-    try {
-      const supabase = createRouteHandlerClient({ cookies });
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        // Try to get tenant from user's session
-        const userTenantId = session.user.app_metadata?.tenant_id;
-        
-        if (userTenantId) {
-          tenantId = userTenantId;
-        } else {
-          // Check if user has admin profile
-          const adminProfile = await prisma.admin_profiles.findUnique({
-            where: { user_id: session.user.id },
-            select: { tenant_id: true }
-          });
-          
-          if (adminProfile?.tenant_id) {
-            tenantId = adminProfile.tenant_id;
-          } else {
-            // Check if user has player profile
-            const playerProfile = await prisma.players.findFirst({
-              where: { auth_user_id: session.user.id },
-              select: { tenant_id: true }
-            });
-            
-            if (playerProfile?.tenant_id) {
-              tenantId = playerProfile.tenant_id;
-            }
-          }
-        }
-      }
-    } catch (authError) {
-      // Auth check failed, use default tenant
-      console.log('Auth check failed, using default tenant:', authError);
-    }
-    
+    const tenantId = await getTenantFromRequest(request);
     console.log('Using tenant ID:', tenantId);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
@@ -368,10 +331,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Database Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch player profile', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

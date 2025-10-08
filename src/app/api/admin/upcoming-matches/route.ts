@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerInPool } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring admin match operations are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch upcoming matches
 export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure admin operations are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const searchParams = request.nextUrl.searchParams;
@@ -180,19 +181,8 @@ export async function GET(request: NextRequest) {
         }
       });
     }
-  } catch (error: any) {
-    console.error('[UPCOMING_MATCHES] Error details:', {
-      message: error.message,
-      stack: error.stack,
-      cause: error.cause,
-      tenantId: getCurrentTenantId()
-    });
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message,
-      details: error.stack,
-      tenantId: getCurrentTenantId()
-    }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 
@@ -200,7 +190,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure new matches are created in the correct tenant
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -239,9 +229,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: newMatch });
-  } catch (error: any) {
-    console.error('Error creating upcoming match:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 
@@ -249,7 +238,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure match updates are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -324,9 +313,8 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: updatedMatch });
-  } catch (error: any) {
-    console.error('Error updating upcoming match:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 
@@ -334,7 +322,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure deletion is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const searchParams = request.nextUrl.searchParams;
@@ -438,8 +426,7 @@ export async function DELETE(request: NextRequest) {
         ? 'Match deleted successfully. Stats are being recalculated.'
         : 'Match deleted successfully.'
     });
-  } catch (error: any) {
-    console.error('Error deleting upcoming match:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 } 

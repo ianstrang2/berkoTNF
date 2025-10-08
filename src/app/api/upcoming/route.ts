@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerInPool } from '@/lib/transform/player.transform';
 // Multi-tenant imports - gradually introducing tenant-aware functionality
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch upcoming matches for public view
 export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - get current tenant context
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const searchParams = request.nextUrl.searchParams;
@@ -88,11 +89,7 @@ export async function GET(request: NextRequest) {
         }
       });
     }
-  } catch (error: any) {
-    console.error('Error fetching upcoming matches:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 }

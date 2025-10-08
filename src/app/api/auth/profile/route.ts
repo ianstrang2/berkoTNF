@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,6 +42,11 @@ export async function GET(request: NextRequest) {
           linkedPlayerId: superadminProfile.player_id,
           canSwitchRoles: false, // Superadmin uses 3-way view selector instead
         },
+      }, {
+        headers: {
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          'Vary': 'Cookie',
+        }
       });
     }
 
@@ -72,6 +78,11 @@ export async function GET(request: NextRequest) {
           linkedPlayerId: null,
           canSwitchRoles: false,
         },
+      }, {
+        headers: {
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          'Vary': 'Cookie',
+        }
       });
     }
 
@@ -92,13 +103,14 @@ export async function GET(request: NextRequest) {
         linkedPlayerId: playerProfile.player_id,
         canSwitchRoles: playerProfile.is_admin || false, // Admins can switch to player view
       },
+    }, {
+      headers: {
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+        'Vary': 'Cookie',
+      }
     });
   } catch (error) {
-    console.error('Profile fetch error:', error);
-    return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
-    );
+    return handleTenantError(error);
   }
 }
 

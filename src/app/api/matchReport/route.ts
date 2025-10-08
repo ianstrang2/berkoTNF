@@ -1,11 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { FeatBreakingItem } from '@/types/feat-breaking.types';
 // Multi-tenant imports - ensuring match reports are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // Add dynamic configuration to prevent static generation
 export const dynamic = 'force-dynamic';
@@ -366,13 +367,13 @@ const validateFeatBreakingData = (featData: any): FeatBreakingItem[] => {
   }
 };
 
-const getMatchReportData = unstable_cache(
-  async () => {
-    // All of the original GET logic will be moved here
-    console.log('------ START: Match Report API (cached) ------');
+// Note: Removed unstable_cache to prevent cross-tenant data leaks
+// Cache keys were static and shared between tenants
+async function getMatchReportData(tenantId: string) {
+  // All of the original GET logic will be moved here
+  console.log(`------ START: Match Report API for tenant ${tenantId} ------`);
     
     // Multi-tenant setup - ensure match reports are tenant-scoped
-    const tenantId = getCurrentTenantId();
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Emergency fallback data
@@ -396,6 +397,9 @@ const getMatchReportData = unstable_cache(
       console.log('Fetching match report from DB...');
       
       const rawMatchReport = await prisma.aggregated_match_report.findFirst({
+        where: {
+          tenant_id: tenantId
+        },
         orderBy: {
           match_date: 'desc'
         }
@@ -408,6 +412,9 @@ const getMatchReportData = unstable_cache(
         console.log('Attempting fallback: fetching latest match from matches table...');
         try {
           const fallbackMatch = await prisma.matches.findFirst({
+            where: {
+              tenant_id: tenantId
+            },
             orderBy: { match_date: 'desc' },
             include: {
               player_matches: {
@@ -554,38 +561,43 @@ const getMatchReportData = unstable_cache(
       console.error('CRITICAL ERROR fetching match report:', error);
       return null;
     }
-  },
-  ['match-report-data-v3'],
-  {
-    tags: [CACHE_TAGS.MATCH_REPORT],
-    revalidate: 3600,
   }
-);
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const data = await getMatchReportData();
+    const tenantId = await getTenantFromRequest(request);
+    const data = await getMatchReportData(tenantId);
 
     if (!data) {
-      return NextResponse.json({ success: false, error: 'No match data available' }, { status: 404 });
+      // Return success with null data for tenants with no matches (don't return 404)
+      return NextResponse.json({ 
+        success: true, 
+        data: null,
+        message: 'No match data available yet'
+      }, {
+        status: 200,
+        headers: {
+          'Cache-Control': 'private, max-age=300',
+          'Vary': 'Cookie'
+        }
+      });
     }
 
-    // Add cache freshness metadata
-    const response = NextResponse.json({ 
+    // Return with tenant-aware cache headers
+    return NextResponse.json({ 
       success: true, 
       data,
       meta: {
         cached_at: new Date().toISOString(),
         cache_tag: 'match_report',
-        ttl_seconds: 3600
+        ttl_seconds: 300
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300', // Private cache, 5 min per tenant
+        'Vary': 'Cookie', // Cache varies by session cookie
       }
     });
-
-    // Add cache headers for debugging
-    response.headers.set('X-Cache-Tag', 'match_report');
-    response.headers.set('X-Cache-TTL', '3600');
-    
-    return response;
 
   } catch (error: any) {
     console.error('Failed to fetch match report:', error);

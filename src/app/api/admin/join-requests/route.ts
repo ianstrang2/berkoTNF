@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,12 +40,8 @@ export async function GET(request: NextRequest) {
       success: true,
       data: requests,
     });
-  } catch (error: any) {
-    console.error('Error fetching join requests:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 

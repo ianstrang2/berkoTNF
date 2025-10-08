@@ -4,6 +4,7 @@ import { toPlayerWithTrend } from '@/lib/transform/player.transform';
 import { PlayerWithTrend } from '@/types/player.types';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // Define a function to fetch and cache the data
 const getPlayerTrends = unstable_cache(

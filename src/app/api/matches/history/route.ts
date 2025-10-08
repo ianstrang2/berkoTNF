@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { revalidateTag } from 'next/cache';
 import { ALL_MATCH_RELATED_TAGS } from '@/lib/cache/constants';
 // Multi-tenant imports - ensuring match history is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 async function revalidateMatchCaches() {
   console.log('Revalidating all match-related cache tags...');
@@ -14,8 +15,11 @@ async function revalidateMatchCaches() {
 }
 
 // Get matches with player details - only show completed matches
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const tenantId = await getTenantFromRequest(request);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const matches = await prisma.matches.findMany({
       where: {
         OR: [
@@ -83,21 +87,18 @@ export async function GET() {
       }
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch matches', details: error },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
 
 // Add a new match
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log('Received request body:', body);  // Log the request body
 
     // Multi-tenant: Get tenant context for scoped operations
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     const { match_date, team_a_score, team_b_score, players } = body;
 
@@ -185,32 +186,19 @@ export async function POST(request: Request) {
     await revalidateMatchCaches();
 
     return NextResponse.json({ data: newMatch });
-  } catch (error: any) {
-    console.error('Error creating match:', error);
-    
-    // Better error details for debugging
-    const errorDetails = {
-      message: error.message || 'Unknown error',
-      name: error.name,
-      code: error.code,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    };
-    
-    return NextResponse.json(
-      { error: 'Failed to create match', details: errorDetails },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 
 // Update a match
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { match_id, match_date, team_a_score, team_b_score, players } = body;
 
     // Multi-tenant: Get tenant context for scoped operations
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
 
     console.log(`Updating match with ID: ${match_id}`);
 
@@ -291,27 +279,17 @@ export async function PUT(request: Request) {
     await revalidateMatchCaches();
 
     return NextResponse.json({ data: updatedMatch });
-  } catch (error: any) {
-    console.error('Error updating match:', error);
-    
-    // Better error details for debugging
-    const errorDetails = {
-      message: error.message || 'Unknown error',
-      name: error.name,
-      code: error.code,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    };
-    
-    return NextResponse.json(
-      { error: 'Failed to update match', details: errorDetails },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 
 // Delete a match
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
+    const tenantId = await getTenantFromRequest(request);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     // Get match ID from URL params
     const url = new URL(request.url);
     const matchId = url.searchParams.get('matchId');
@@ -408,10 +386,6 @@ export async function DELETE(request: Request) {
       message: 'Match deleted successfully. Stats are being recalculated.'
     });
   } catch (error) {
-    console.error('Error deleting match:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete match', details: error },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

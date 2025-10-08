@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,11 +52,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'All players cleared from match'
     });
-  } catch (error: any) {
-    console.error('Error clearing match players:', error);
-    return NextResponse.json(
-      { success: false, error: `Failed to clear match players: ${error.message}` },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 } 

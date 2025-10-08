@@ -108,11 +108,13 @@ const CurrentFormAndStandings: React.FC = () => {
       ]);
       
       if (!matchResponse.ok) {
-        throw new Error(`Match API error: ${matchResponse.status}`);
-      }
-      const matchResult = await matchResponse.json();
-      if (matchResult.success) {
-        setMatchData(matchResult.data);
+        console.warn(`Match API returned ${matchResponse.status} - no match data available`);
+        setMatchData(null); // Set null data for new tenants
+      } else {
+        const matchResult = await matchResponse.json();
+        if (matchResult.success) {
+          setMatchData(matchResult.data); // Can be null for new tenants
+        }
       }
 
       if (playersResponse.ok) {
@@ -245,9 +247,12 @@ const CurrentFormAndStandings: React.FC = () => {
   if (!matchData || !matchData.matchInfo) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+        <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+          <h5 className="mb-0">Latest Match</h5>
+        </div>
         <div className="p-4">
-          <div className="text-center text-slate-500">
-            <p>No match data available</p>
+          <div className="text-center">
+            <p className="text-sm text-slate-500">No match data available</p>
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match validation is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // POST /api/seasons/validate-match - Validate match can be created (has active season)
 export async function POST(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     const season = await prisma.$queryRaw`
       SELECT 
@@ -61,10 +62,6 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error validating match date:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to validate match date' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring seasons are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET /api/seasons - List all seasons with computed display names
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     const seasons = await prisma.$queryRaw`
       SELECT 
@@ -42,13 +43,14 @@ export async function GET() {
         createdAt: season.created_at.toISOString(),
         updatedAt: season.updated_at.toISOString()
       }))
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300',
+        'Vary': 'Cookie'
+      }
     });
   } catch (error) {
-    console.error('Error fetching seasons:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch seasons' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
 
@@ -56,7 +58,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure season creation is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     const body = await request.json();
     const { startDate, endDate } = body;
@@ -129,10 +131,6 @@ export async function POST(request: NextRequest) {
       throw dbError;
     }
   } catch (error) {
-    console.error('Error creating season:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create season' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

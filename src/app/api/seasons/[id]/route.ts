@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring season operations are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 interface RouteParams {
   params: {
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     const season = await prisma.$queryRaw`
       SELECT 
@@ -68,11 +69,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     });
   } catch (error) {
-    console.error('Error fetching season:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch season' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
 
@@ -113,6 +110,26 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const halfDate = new Date(start.getTime() + timeDiff / 2);
 
     try {
+      // ✅ SECURITY: Verify season belongs to tenant before updating
+      const existingSeason = await prisma.seasons.findUnique({
+        where: { id: seasonId },
+        select: { tenant_id: true }
+      });
+
+      if (!existingSeason) {
+        return NextResponse.json(
+          { success: false, error: 'Season not found' },
+          { status: 404 }
+        );
+      }
+
+      if (existingSeason.tenant_id !== tenantId) {
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized: Season belongs to different tenant' },
+          { status: 403 }
+        );
+      }
+
       // Update the season using Prisma's standard update
       const updatedSeason = await prisma.seasons.update({
         where: { id: seasonId },
@@ -152,11 +169,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       throw dbError;
     }
   } catch (error) {
-    console.error('Error updating season:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to update season' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
 
@@ -174,7 +187,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
 
     // Multi-tenant: Get tenant context for scoped deletion
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     const deletedSeason = await prisma.$queryRaw`
       DELETE FROM seasons WHERE id = ${seasonId}
@@ -194,10 +207,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Season deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting season:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete season' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

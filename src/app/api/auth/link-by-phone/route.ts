@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -99,12 +100,8 @@ export async function POST(request: NextRequest) {
         tenant_id: matchingPlayer.tenant_id,
       },
     });
-  } catch (error: any) {
-    console.error('Error linking by phone:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to link profile' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 

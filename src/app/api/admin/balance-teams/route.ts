@@ -1,15 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { balanceByRating } from './balanceByRating';
 import { balanceByPerformance } from './balanceByPerformance';
 import { splitSizesFromPool } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring team balancing is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure team balancing is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -93,8 +94,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: result });
 
-  } catch (error: any) {
-    console.error(`Error balancing teams with method:`, error);
-    return NextResponse.json({ success: false, error: error.message || 'An unexpected error occurred.' }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 } 

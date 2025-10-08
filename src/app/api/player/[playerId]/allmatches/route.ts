@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { handleTenantError } from '@/lib/api-helpers';
 import { prisma } from '@/lib/prisma'; // Assuming prisma client is here
 
 // Helper to serialize BigInt if present (though less likely in this specific query result)

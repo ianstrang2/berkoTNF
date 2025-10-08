@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -112,12 +113,8 @@ export async function POST(request: NextRequest) {
         name: linkedPlayer.name,
       },
     });
-  } catch (error: any) {
-    console.error('Error approving join request:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to approve request' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 

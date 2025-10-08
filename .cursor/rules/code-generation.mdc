@@ -47,25 +47,47 @@ src/
 
 ## Database Access Patterns
 
+### 🚨 CRITICAL: Multi-Tenancy Security (MANDATORY)
+
+**RLS DOES NOT ENFORCE** - Explicit tenant filtering is your ONLY security.
+
+**Every tenant-scoped query MUST include `where: { tenant_id }`**
+
+```typescript
+// ✅ CORRECT - Secure
+const data = await prisma.players.findMany({
+  where: { tenant_id: tenantId }  // ← MANDATORY
+});
+
+// ❌ SECURITY VULNERABILITY - Missing tenant filter
+const data = await prisma.players.findMany({});
+```
+
 ### API Routes - Use Prisma for Fresh Data
 - **ALWAYS use Prisma** for API routes that read application data
+- **ALWAYS include tenant_id filter** on tenant-scoped tables
 - **Supabase client causes stale data issues** due to connection pooling/caching
 - Use `import { prisma } from '@/lib/prisma';`
+- Use `getTenantFromRequest(request)` to get tenant context
 
 **✅ Correct Pattern:**
 ```typescript
-// API routes - use Prisma for fresh data
+const tenantId = await getTenantFromRequest(request);
 const playerData = await prisma.aggregated_player_power_ratings.findUnique({
-  where: { player_id: playerId },
+  where: { 
+    player_id: playerId,
+    tenant_id: tenantId  // ⚠️ MANDATORY
+  },
   select: { trend_rating: true, trend_goal_threat: true } as any
 });
 ```
 
-**❌ Avoid in API Routes:**
+**❌ SECURITY VULNERABILITY:**
 ```typescript
-// Causes stale data issues
-const supabase = createClient(url, key);
-const { data } = await supabase.from('aggregated_player_power_ratings')...
+// Missing tenant_id - ALLOWS CROSS-TENANT DATA LEAK  
+const playerData = await prisma.aggregated_player_power_ratings.findUnique({
+  where: { player_id: playerId }  // ❌ NO tenant_id!
+});
 ```
 
 ### Edge Functions - Use Supabase Client
@@ -208,25 +230,47 @@ src/
 
 ## Database Access Patterns
 
+### 🚨 CRITICAL: Multi-Tenancy Security (MANDATORY)
+
+**RLS DOES NOT ENFORCE** - Explicit tenant filtering is your ONLY security.
+
+**Every tenant-scoped query MUST include `where: { tenant_id }`**
+
+```typescript
+// ✅ CORRECT - Secure
+const data = await prisma.players.findMany({
+  where: { tenant_id: tenantId }  // ← MANDATORY
+});
+
+// ❌ SECURITY VULNERABILITY - Missing tenant filter
+const data = await prisma.players.findMany({});
+```
+
 ### API Routes - Use Prisma for Fresh Data
 - **ALWAYS use Prisma** for API routes that read application data
+- **ALWAYS include tenant_id filter** on tenant-scoped tables
 - **Supabase client causes stale data issues** due to connection pooling/caching
 - Use `import { prisma } from '@/lib/prisma';`
+- Use `getTenantFromRequest(request)` to get tenant context
 
 **✅ Correct Pattern:**
 ```typescript
-// API routes - use Prisma for fresh data
+const tenantId = await getTenantFromRequest(request);
 const playerData = await prisma.aggregated_player_power_ratings.findUnique({
-  where: { player_id: playerId },
+  where: { 
+    player_id: playerId,
+    tenant_id: tenantId  // ⚠️ MANDATORY
+  },
   select: { trend_rating: true, trend_goal_threat: true } as any
 });
 ```
 
-**❌ Avoid in API Routes:**
+**❌ SECURITY VULNERABILITY:**
 ```typescript
-// Causes stale data issues
-const supabase = createClient(url, key);
-const { data } = await supabase.from('aggregated_player_power_ratings')...
+// Missing tenant_id - ALLOWS CROSS-TENANT DATA LEAK  
+const playerData = await prisma.aggregated_player_power_ratings.findUnique({
+  where: { player_id: playerId }  // ❌ NO tenant_id!
+});
 ```
 
 ### Edge Functions - Use Supabase Client

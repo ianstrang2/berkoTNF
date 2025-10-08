@@ -10,6 +10,7 @@ import { requireSuperadmin } from '@/lib/auth/apiAuth';
 import { createClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
 import { logAuthActivity } from '@/lib/auth/activity';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -101,20 +102,8 @@ export async function POST(request: NextRequest) {
       } : null,
       requiresRefresh: true, // Client should call refreshSession()
     });
-  } catch (error: any) {
-    console.error('Tenant switch error:', error);
-
-    if (error.name === 'AuthenticationError' || error.name === 'AuthorizationError') {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.name === 'AuthenticationError' ? 401 : 403 }
-      );
-    }
-
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 

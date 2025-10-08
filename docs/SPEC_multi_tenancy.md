@@ -1918,13 +1918,49 @@ export async function checkTenantRateLimit(
 - **60+ API routes** - All routes in `src/app/api/` updated to use tenant-scoped queries
 - **Background Jobs** - All Edge Functions and job processing tenant-aware
 
-### **🛡️ Security Enhancements Beyond Original Plan**
+### **🛡️ Security Architecture - CRITICAL UPDATE (Oct 2025)**
 
-#### **Comprehensive RLS Implementation**
-We implemented **full Row Level Security** on all tenant-scoped tables:
+#### **IMPORTANT: RLS Policies Are NOT Enforcing**
+
+**Discovery Date:** October 8, 2025  
+**Severity:** CRITICAL  
+**Status:** Documented & Mitigated
+
+**Finding:** Database connection uses `postgres` role with `BYPASS RLS` privilege, causing ALL RLS policies to be ignored.
 
 ```sql
--- Pattern applied to 25+ tables
+-- Current database role status
+SELECT current_user, rolbypassrls FROM pg_roles WHERE rolname = current_user;
+Result: postgres | true (BYPASSES ALL RLS POLICIES)
+```
+
+#### **Actual Security Architecture**
+
+**SINGLE Protection Layer (Not Double):**
+- ✅ **Layer 1: Explicit Filtering (MANDATORY)** - Application queries with `where: { tenant_id }`
+  - This is our ONLY security layer
+  - Missing filters = cross-tenant data leak
+  - Every query MUST include tenant filtering
+  
+- ❌ **Layer 2: RLS Policies (DORMANT)** - Database-level enforcement
+  - Policies exist but do NOT enforce
+  - `postgres` role bypasses all RLS
+  - Serve as documentation only
+
+#### **Why This Architecture Still Works**
+
+**Explicit filtering is actually BETTER than relying on RLS:**
+- ✅ **Visible** - Filters are explicit in code, easy to audit
+- ✅ **Debuggable** - Can see tenant scope in every query
+- ✅ **Performant** - Optimizer uses indexes better with explicit conditions
+- ✅ **Reliable** - No connection pooling issues or role confusion
+- ✅ **Flexible** - Works with any database role or connection method
+
+#### **RLS Policy Status**
+
+**25+ RLS policies deployed:**
+```sql
+-- Pattern applied to all tenant-scoped tables
 ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY {table_name}_tenant_isolation ON {table_name}
@@ -1932,18 +1968,37 @@ CREATE POLICY {table_name}_tenant_isolation ON {table_name}
     USING (tenant_id = current_setting('app.tenant_id', true)::uuid);
 ```
 
-#### **Automatic RLS Context Setting**
-Enhanced beyond the spec with automatic session context:
+**Why they don't enforce:**
+- Policies apply to: `authenticated, anon` roles only
+- Prisma connects as: `postgres` role  
+- `postgres` role has: `BYPASS RLS` privilege
+- Result: All policies ignored
+
+**Why we keep them:**
+- Documentation of intent
+- Future-proofing if switching to restricted role
+- Defense-in-depth if connection method changes
+
+#### **Mandatory Security Pattern**
+
+**Every API route MUST follow this pattern:**
 
 ```typescript
-// Every createTenantPrisma() call now automatically sets:
-await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+export async function GET(request: NextRequest) {
+  // 1. Get tenant context (MANDATORY)
+  const tenantId = await getTenantFromRequest(request);
+  
+  // 2. Set RLS context (for documentation/future-proofing)
+  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+  
+  // 3. ⚠️ CRITICAL: Use explicit tenant filtering in ALL queries
+  const data = await prisma.table.findMany({
+    where: { tenant_id: tenantId, ...otherConditions }  // ← MANDATORY
+  });
+}
 ```
 
-#### **Double Protection Architecture**
-- **Layer 1**: Application queries explicitly filtered with `where: { tenant_id }`
-- **Layer 2**: Database RLS policies enforce tenant isolation
-- **Result**: Bulletproof protection with improved debuggability and performance
+**⚠️ FAILURE TO INCLUDE `where: { tenant_id }` CAUSES SECURITY VULNERABILITY**
 
 ### **📊 Final Implementation Statistics**
 

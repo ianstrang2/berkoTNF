@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { differenceInDays, startOfYear, endOfYear } from 'date-fns';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // Helper to serialize data (especially for BigInt and Date types if needed)
 const serializeData = (data: any) => {
@@ -86,14 +87,6 @@ export async function GET() {
     }));
 
   } catch (error) {
-    console.error('Error fetching admin info data:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch admin info data', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

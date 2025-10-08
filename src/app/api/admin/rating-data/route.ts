@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // Get player rating data for admin debugging - EWMA only
 export async function GET(request: Request) {
@@ -62,10 +63,6 @@ export async function GET(request: Request) {
       }
     });
   } catch (error) {
-    console.error('Error fetching rating data:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch rating data' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

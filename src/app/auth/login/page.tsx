@@ -106,8 +106,8 @@ function PlayerLoginForm() {
               window.location.href = '/';
             }
           } else {
-            setError('No player profile found. Please use your club invite link to join.');
-            setStep('phone');
+            // No player found - redirect to no-club page
+            router.push('/auth/no-club');
           }
         } catch (linkError) {
           console.error('Link error:', linkError);

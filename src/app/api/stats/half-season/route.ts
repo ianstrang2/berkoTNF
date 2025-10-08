@@ -4,7 +4,8 @@ import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring half-season stats are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 interface RecentGame {
   goals: number;
@@ -13,12 +14,11 @@ interface RecentGame {
   heavy_loss: boolean;
 }
 
-const getHalfSeasonStats = unstable_cache(
-  async () => {
-    console.log('Cache miss, fetching fresh half-season data');
+// Note: Removed unstable_cache to prevent cross-tenant data leaks
+async function getHalfSeasonStats(tenantId: string) {
+  console.log(`Fetching fresh half-season data for tenant ${tenantId}`);
 
     // Multi-tenant: Use tenant-scoped query for half-season stats
-    const tenantId = getCurrentTenantId();
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const preAggregatedData = await prisma.aggregated_half_season_stats.findMany({
@@ -88,27 +88,14 @@ const getHalfSeasonStats = unstable_cache(
     })).sort((a, b) => a.name.localeCompare(b.name));
 
     return { seasonStats, goalStats, formData };
-  },
-  ['half_season_stats'],
-  {
-    tags: [CACHE_TAGS.HALF_SEASON_STATS],
-    revalidate: 3600,
   }
-);
 
 export async function POST(request: NextRequest) {
   try {
-    const responseData = await getHalfSeasonStats();
+    const tenantId = await getTenantFromRequest(request);
+    const responseData = await getHalfSeasonStats(tenantId);
     return NextResponse.json({ data: responseData });
   } catch (error) {
-    console.error('Error in half-season stats API:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch half-season stats',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

@@ -3,13 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { balanceByPastPerformance } from './utils'; // Import the helper function
 import { createClient } from '@supabase/supabase-js'; // Import createClient
 // Multi-tenant imports - ensuring balance by past performance is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // POST handler for API route
 export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure balance by past performance is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -145,11 +146,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
-    console.error('Error balancing teams by past performance:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 } 

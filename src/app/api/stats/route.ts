@@ -4,7 +4,8 @@ import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring stats are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest, getCurrentTenantId } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 interface RecentGame {
   goals: number;
@@ -13,12 +14,11 @@ interface RecentGame {
   heavy_loss: boolean;
 }
 
-const getFullSeasonStats = unstable_cache(
-  async (startDate: string, endDate: string) => {
-    console.log(`Cache miss, fetching fresh data for ${startDate} to ${endDate}`);
+// Note: Removed unstable_cache to prevent cross-tenant data leaks
+async function getFullSeasonStats(startDate: string, endDate: string, tenantId: string) {
+  console.log(`Fetching fresh data for ${startDate} to ${endDate}, tenant ${tenantId}`);
 
     // Multi-tenant: Use tenant-scoped query for season stats
-    const tenantId = getCurrentTenantId();
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
     const preAggregatedData = await prisma.aggregated_season_stats.findMany({
@@ -89,33 +89,20 @@ const getFullSeasonStats = unstable_cache(
     })).sort((a, b) => a.name.localeCompare(b.name));
 
     return { seasonStats, goalStats, formData };
-  },
-  ['full_season_stats'], // Base key for the cache
-  {
-    tags: [CACHE_TAGS.SEASON_STATS], // Tag for revalidation
-    revalidate: 3600,
   }
-);
 
 export async function POST(request: NextRequest) {
   try {
+    const tenantId = await getTenantFromRequest(request);
     const { startDate, endDate } = await request.json();
     if (!startDate || !endDate) {
       return NextResponse.json({ error: 'startDate and endDate are required' }, { status: 400 });
     }
     
-    const responseData = await getFullSeasonStats(startDate, endDate);
+    const responseData = await getFullSeasonStats(startDate, endDate, tenantId);
     return NextResponse.json({ data: responseData });
 
   } catch (error) {
-    console.error('Error in stats API:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch stats',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

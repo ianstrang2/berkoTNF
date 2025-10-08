@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { handleTenantError } from '@/lib/api-helpers';
 import { prisma } from '@/lib/prisma'; // Assuming prisma client is exported from here
 
 // Helper to serialize data (especially for BigInt and Date types if needed)
@@ -26,14 +27,6 @@ export async function GET() {
     return NextResponse.json({ success: true, data: serializeData(cacheMetadata) });
 
   } catch (error) {
-    console.error('Error fetching cache_metadata:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch cache metadata', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

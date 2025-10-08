@@ -1,17 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { PersonalBestsAPIResponseData } from '@/types/personal-bests.types';
 // Multi-tenant imports - ensuring personal bests are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
-const getPersonalBestsData = unstable_cache(
-  async (): Promise<PersonalBestsAPIResponseData | null> => {
-    console.log('Fetching fresh personal bests data from DB.');
+// Note: Removed unstable_cache to prevent cross-tenant data leaks
+async function getPersonalBestsData(tenantId: string): Promise<PersonalBestsAPIResponseData | null> {
+  console.log(`Fetching fresh personal bests data from DB for tenant ${tenantId}`);
     
     // Multi-tenant: Use tenant-scoped query for personal bests
-    const tenantId = getCurrentTenantId();
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const latestPb = await prisma.aggregated_personal_bests.findFirst({
@@ -40,24 +40,20 @@ const getPersonalBestsData = unstable_cache(
     };
 
     return responseData;
-  },
-  ['personal_bests'],
-  {
-    tags: [CACHE_TAGS.PERSONAL_BESTS],
-    revalidate: 3600,
   }
-);
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const data = await getPersonalBestsData();
+    const tenantId = await getTenantFromRequest(request);
+    const data = await getPersonalBestsData(tenantId);
     // Return success: true for consistency with how other components might handle this
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300',
+        'Vary': 'Cookie'
+      }
+    });
   } catch (error) {
-    console.error('Failed to fetch personal bests:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch personal bests', details: error },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

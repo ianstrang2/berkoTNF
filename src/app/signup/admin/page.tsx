@@ -1,0 +1,511 @@
+/**
+ * Admin Club Creation Page
+ * 
+ * /signup/admin
+ * New admins create their club and become first player with admin privileges
+ */
+
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { isMobileUserAgent } from '@/utils/platform-detection';
+
+function AdminSignupForm() {
+  // Multi-step form state
+  const [step, setStep] = useState<'phone' | 'otp' | 'details'>('phone');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [initializing, setInitializing] = useState(true);
+  
+  // Form fields
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [clubName, setClubName] = useState('');
+  
+  // Platform detection
+  const [showAppPrompt, setShowAppPrompt] = useState(false);
+  
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+
+  // Force logout any existing session on mount (clean slate for signup)
+  useEffect(() => {
+    const initializePage = async () => {
+      try {
+        // Check if there's an existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          console.log('[ADMIN_SIGNUP] Found existing session, checking if user already has a player...');
+          
+          // Check if this user already has a player in any club
+          const response = await fetch('/api/auth/profile');
+          if (response.ok) {
+            const profileData = await response.json();
+            
+            if (profileData.profile?.player_id) {
+              // User is already linked to a player - redirect them
+              console.log('[ADMIN_SIGNUP] User already has player_id:', profileData.profile.player_id);
+              setError(`You are already a member of a club. Cannot create a new club. Please log out first.`);
+              
+              // Force sign out and redirect after 3 seconds
+              setTimeout(async () => {
+                await supabase.auth.signOut();
+                // Clear all local storage
+                localStorage.clear();
+                sessionStorage.clear();
+                // Force reload to clear all state
+                window.location.href = '/auth/login';
+              }, 3000);
+              
+              setInitializing(false);
+              return; // Stop initialization
+            }
+          }
+          
+          // No player linked - safe to proceed, but sign out first for clean slate
+          console.log('[ADMIN_SIGNUP] Signing out existing session (no player linked)');
+          await supabase.auth.signOut();
+          
+          // Clear all storage to ensure clean state
+          localStorage.clear();
+          sessionStorage.clear();
+          
+          // Wait a moment for signout to propagate
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Check platform
+        if (typeof window !== 'undefined') {
+          const userAgent = navigator.userAgent;
+          const isMobile = isMobileUserAgent(userAgent);
+          const isCapacitor = document.documentElement.classList.contains('capacitor');
+          
+          // Show app prompt for mobile web users (not Capacitor app)
+          setShowAppPrompt(isMobile && !isCapacitor);
+        }
+      } catch (error) {
+        console.error('Error initializing signup page:', error);
+        // Don't block signup if checks fail
+      } finally {
+        setInitializing(false);
+      }
+    };
+
+    initializePage();
+  }, [supabase]);
+
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    
+    if (numbers.startsWith('0')) {
+      return '+44' + numbers.slice(1);
+    }
+    if (numbers.startsWith('44')) {
+      return '+' + numbers;
+    }
+    if (numbers.length === 10) {
+      return '+44' + numbers;
+    }
+    
+    return value;
+  };
+
+  const handleSendOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const formattedPhone = formatPhoneNumber(phone);
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+      });
+
+      if (error) throw error;
+
+      setStep('otp');
+    } catch (error: any) {
+      console.error('Error sending OTP:', error);
+      setError(error.message || 'Failed to send verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const formattedPhone = formatPhoneNumber(phone);
+      
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: formattedPhone,
+        token: otp,
+        type: 'sms',
+      });
+
+      if (error) throw error;
+
+      if (!data.session) {
+        throw new Error('No session created');
+      }
+
+      // OTP verified! Now collect club details
+      setStep('details');
+    } catch (error: any) {
+      console.error('Error verifying OTP:', error);
+      setError(error.message || 'Invalid verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateClub = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // Validate inputs
+      if (!email || !name || !clubName) {
+        throw new Error('All fields are required');
+      }
+
+      if (name.length > 14) {
+        throw new Error('Name must be 14 characters or less');
+      }
+
+      if (clubName.length > 50) {
+        throw new Error('Club name must be 50 characters or less');
+      }
+
+      // Phone comes from authenticated session, not from frontend
+      const response = await fetch('/api/admin/create-club', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          name: name.trim(),
+          club_name: clubName.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to create club');
+      }
+
+      console.log('✅ Club created successfully:', data);
+
+      // Success! Redirect to admin dashboard
+      window.location.href = '/admin/matches';
+    } catch (error: any) {
+      console.error('❌ Error creating club:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response,
+        stack: error.stack
+      });
+      setError(error.message || 'Failed to create club');
+      setStep('details'); // Stay on details page to see error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show loading while initializing (signing out any existing sessions)
+  if (initializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+          <div className="text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+            <p className="mt-2 text-gray-600">Initializing...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // App download interstitial for mobile users
+  if (showAppPrompt && step === 'phone') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-700 to-pink-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <img 
+                src="/img/logo.png" 
+                alt="Capo Logo" 
+                className="w-10 h-10 object-contain"
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Start Your Club</h1>
+            <p className="text-gray-600">
+              For the best experience, download our app first
+            </p>
+          </div>
+
+          <div className="space-y-4 mb-6">
+            <div className="flex items-start">
+              <span className="text-2xl mr-3">⚡</span>
+              <div>
+                <p className="font-medium text-gray-900">Instant match notifications</p>
+                <p className="text-sm text-gray-600">Get RSVPs and updates in real-time</p>
+              </div>
+            </div>
+            <div className="flex items-start">
+              <span className="text-2xl mr-3">📊</span>
+              <div>
+                <p className="font-medium text-gray-900">Track player stats</p>
+                <p className="text-sm text-gray-600">Fantasy points, leaderboards, records</p>
+              </div>
+            </div>
+            <div className="flex items-start">
+              <span className="text-2xl mr-3">🎯</span>
+              <div>
+                <p className="font-medium text-gray-900">Balance teams automatically</p>
+                <p className="text-sm text-gray-600">AI-powered fair team generation</p>
+              </div>
+            </div>
+          </div>
+
+          <a
+            href="https://play.google.com/store/apps/details?id=com.capo.app"
+            className="block w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg text-center hover:opacity-90 transition-opacity mb-3"
+          >
+            Download App
+          </a>
+
+          <button
+            onClick={() => setShowAppPrompt(false)}
+            className="w-full py-2 px-4 text-gray-600 font-medium text-sm hover:text-gray-900 transition-colors"
+          >
+            Continue on Web →
+          </button>
+          
+          <p className="text-xs text-gray-500 text-center mt-4">
+            ⚠️ Web version has limited notifications
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mx-auto mb-4 p-3">
+            <img 
+              src="/img/logo.png" 
+              alt="Capo Logo" 
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {step === 'phone' && 'Start Your Club'}
+            {step === 'otp' && 'Verify Your Phone'}
+            {step === 'details' && 'Club Details'}
+          </h1>
+          <p className="text-gray-600 mt-2">
+            {step === 'phone' && 'Enter your mobile number to begin'}
+            {step === 'otp' && 'Enter the 6-digit code we sent you'}
+            {step === 'details' && 'Tell us about your club'}
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Step 1: Phone Number */}
+        {step === 'phone' && (
+          <form onSubmit={handleSendOTP}>
+            <div className="mb-6">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                Mobile Number
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="07XXX XXXXXX"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+                disabled={loading}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                We'll send you a verification code via SMS
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !phone}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Sending...' : 'Send Verification Code'}
+            </button>
+          </form>
+        )}
+
+        {/* Step 2: OTP Verification */}
+        {step === 'otp' && (
+          <form onSubmit={handleVerifyOTP}>
+            <div className="mb-6">
+              <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
+                Verification Code
+              </label>
+              <input
+                id="otp"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                placeholder="123456"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-2xl tracking-widest font-mono"
+                required
+                disabled={loading}
+                autoFocus
+              />
+              <p className="mt-2 text-xs text-gray-500 text-center">
+                Sent to {phone}
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || otp.length !== 6}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+            >
+              {loading ? 'Verifying...' : 'Verify Code'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStep('phone');
+                setOtp('');
+                setError('');
+              }}
+              className="w-full py-2 px-4 text-gray-600 font-medium text-sm hover:text-gray-900 transition-colors"
+            >
+              ← Change Phone Number
+            </button>
+          </form>
+        )}
+
+        {/* Step 3: Club Details */}
+        {step === 'details' && (
+          <form onSubmit={handleCreateClub}>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                  disabled={loading}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  For admin notifications and account recovery
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Smith"
+                  maxLength={14}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                  disabled={loading}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {name.length}/14 characters
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="clubName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Club Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="clubName"
+                  type="text"
+                  value={clubName}
+                  onChange={(e) => setClubName(e.target.value)}
+                  placeholder="FC United"
+                  maxLength={50}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                  disabled={loading}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {clubName.length}/50 characters
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !email || !name || !clubName}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Creating Club...' : 'Create Club'}
+            </button>
+
+            <p className="mt-4 text-xs text-gray-500 text-center">
+              By creating a club, you become the first admin and player
+            </p>
+          </form>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+export default function AdminSignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+          <div className="text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+            <p className="mt-2 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <AdminSignupForm />
+    </Suspense>
+  );
+}

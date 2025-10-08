@@ -1,18 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring all-time stats are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // Define a function to fetch and cache the data
-const getAllTimeStats = unstable_cache(
-  async () => {
-    console.log('Fetching fresh all-time stats data from DB.');
+// Note: Removed unstable_cache to prevent cross-tenant data leaks  
+async function getAllTimeStats(tenantId: string) {
+  console.log(`Fetching fresh all-time stats data from DB for tenant ${tenantId}`);
     
     // Multi-tenant: Use tenant-scoped query for all-time stats
-    const tenantId = getCurrentTenantId();
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const preAggregatedData = await prisma.aggregated_all_time_stats.findMany({
@@ -49,23 +49,19 @@ const getAllTimeStats = unstable_cache(
     });
 
     return allTimeStats;
-  },
-  ['all_time_stats'], // Unique key for this cache entry
-  {
-    tags: [CACHE_TAGS.ALL_TIME_STATS], // Tag for revalidation
-    revalidate: 3600, // Optional: revalidate every hour
   }
-);
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const data = await getAllTimeStats();
-    return NextResponse.json({ data });
+    const tenantId = await getTenantFromRequest(request);
+    const data = await getAllTimeStats(tenantId);
+    return NextResponse.json({ data }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300',
+        'Vary': 'Cookie'
+      }
+    });
   } catch (error) {
-    console.error('Database Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch stats', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

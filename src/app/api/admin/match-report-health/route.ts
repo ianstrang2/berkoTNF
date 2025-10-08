@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match report health is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   // Simple auth check for admin access
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Multi-tenant setup - ensure match report health is tenant-scoped
-  const tenantId = getCurrentTenantId();
+  const tenantId = await getTenantFromRequest(request);
   await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
   try {
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
     // Check aggregated_match_report table
     try {
       const latestReport = await prisma.aggregated_match_report.findFirst({
+        where: { tenant_id: tenantId },
         orderBy: { match_date: 'desc' },
         select: {
           match_id: true,
@@ -67,6 +69,7 @@ export async function GET(request: NextRequest) {
     // Check fallback data source (matches table)
     try {
       const latestMatch = await prisma.matches.findFirst({
+        where: { tenant_id: tenantId },
         orderBy: { match_date: 'desc' },
         select: {
           match_id: true,
@@ -162,15 +165,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Match report health check failed:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      health: {
-        status: 'critical',
-        issues: ['Health check system failure'],
-        timestamp: new Date().toISOString()
-      }
-    }, { status: 500 });
+    return handleTenantError(error);
   }
 } 

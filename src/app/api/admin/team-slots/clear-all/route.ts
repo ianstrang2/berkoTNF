@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST() {
   try {
@@ -23,10 +24,6 @@ export async function POST() {
       data: clearedSlots
     });
   } catch (error) {
-    console.error('Error clearing team slots:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to clear team slots' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

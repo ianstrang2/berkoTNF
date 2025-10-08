@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match creation is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // POST: Create a real match from a planned match
 export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure match creation is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -113,11 +114,7 @@ export async function POST(request: NextRequest) {
       },
       message: 'Match created successfully'
     });
-  } catch (error: any) {
-    console.error('Error creating match from planned match:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to create match from planned match'
-    }, { status: 500 });
+  } catch (error) {
+    return handleTenantError(error);
   }
 } 

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match player operations are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch players for an upcoming match
 export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure match player operations are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const searchParams = request.nextUrl.searchParams;
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure player assignment is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -291,7 +292,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Multi-tenant setup - ensure player assignment updates are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Find the specific upcoming_match_player record
@@ -346,7 +347,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure player removal is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     const searchParams = request.nextUrl.searchParams;
     const playerId = searchParams.get('player_id');
@@ -361,7 +362,7 @@ export async function DELETE(request: NextRequest) {
         const body = await request.json();
         if (body && (body.player_id || body.upcoming_match_id || body.match_id)) {
           // Handle DELETE with JSON body
-          return await handleDeleteWithBody(body);
+          return await handleDeleteWithBody(body, request);
         }
       } catch (parseError) {
         // If parsing fails, likely not a JSON body, continue with query params
@@ -457,9 +458,9 @@ export async function DELETE(request: NextRequest) {
 }
 
 // Helper function to handle DELETE with request body
-async function handleDeleteWithBody(body: any) {
+async function handleDeleteWithBody(body: any, request: NextRequest) {
   // Multi-tenant setup - ensure deletion is tenant-scoped
-  const tenantId = getCurrentTenantId();
+  const tenantId = await getTenantFromRequest(request);
   await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
   let { player_id, match_id, upcoming_match_id } = body;
   

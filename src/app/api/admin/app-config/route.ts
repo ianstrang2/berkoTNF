@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring app config is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch all app configuration settings
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure config operations are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // First, check if the app_config table exists and is accessible
@@ -69,28 +70,37 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       data: configs
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300', // Private cache, 5 min per tenant
+        'Vary': 'Cookie', // Cache varies by session cookie
+      }
     });
   } catch (error) {
-    console.error('Error fetching app config:', error);
-    return NextResponse.json({ error: 'Failed to fetch app configuration' }, { status: 500 });
+    return handleTenantError(error);
   }
 }
 
 // PUT: Update app configuration settings
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    // Skip auth check since AdminLayout already handles this
-    const body = await request.json();
+    // Multi-tenant setup - ensure config updates are tenant-scoped
+    const tenantId = await getTenantFromRequest(request);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
-    if (!body || !Array.isArray(body.configs)) {
-      return NextResponse.json({ error: 'Invalid input format' }, { status: 400 });
+    const body = await request.json();
+
+    if (!body.configs || !Array.isArray(body.configs)) {
+      return NextResponse.json({ 
+        error: 'configs array is required' 
+      }, { status: 400 });
     }
 
     // Update configs in a transaction
     const updateResults = await prisma.$transaction(
       body.configs.map((config: { config_key: string; config_value: string }) => 
         prisma.app_config.updateMany({
-          where: { config_key: config.config_key },
+          where: { config_key: config.config_key, tenant_id: tenantId },
           data: { 
             config_value: config.config_value,
             updated_at: new Date()
@@ -104,21 +114,23 @@ export async function PUT(request: Request) {
       data: updateResults
     });
   } catch (error) {
-    console.error('Error updating app config:', error);
-    return NextResponse.json({ error: 'Failed to update app configuration' }, { status: 500 });
+    return handleTenantError(error);
   }
 }
 
-// POST: Reset config group to defaults
-export async function POST(request: Request) {
+// POST: Reset configuration group to defaults
+export async function POST(request: NextRequest) {
   try {
-    // Skip auth check since AdminLayout already handles this
+    // Multi-tenant setup - ensure reset is tenant-scoped
+    const tenantId = await getTenantFromRequest(request);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     const body = await request.json();
-    
-    console.log('Reset request body:', body);
-    
-    if (!body || !body.group) {
-      return NextResponse.json({ error: 'Group parameter is required' }, { status: 400 });
+
+    if (!body.group) {
+      return NextResponse.json({ 
+        error: 'group is required' 
+      }, { status: 400 });
     }
 
     // First, check if the app_config_defaults table exists and is accessible
@@ -165,7 +177,10 @@ export async function POST(request: Request) {
       defaultValues.map(config => {
         console.log('Updating config:', config);
         return prisma.app_config.updateMany({
-          where: { config_key: config.config_key },
+          where: { 
+            config_key: config.config_key,
+            tenant_id: tenantId  // ✅ SECURITY: Ensure updates only affect current tenant
+          },
           data: { 
             config_value: config.config_value,
             updated_at: new Date()
@@ -181,9 +196,6 @@ export async function POST(request: Request) {
       data: updateResults
     });
   } catch (error) {
-    console.error('Detailed error resetting app config:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Failed to reset app configuration to defaults' 
-    }, { status: 500 });
+    return handleTenantError(error);
   }
 } 

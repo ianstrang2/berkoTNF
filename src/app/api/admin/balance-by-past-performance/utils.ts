@@ -46,7 +46,8 @@ export async function balanceByPastPerformance(
   _unused_supabaseClient: any, // Keep parameter for compatibility but don't use
   playerIds: number[],
   performanceWeights?: { power_weight: number; goal_weight: number },
-  targetSizes?: { a: number; b: number }
+  targetSizes?: { a: number; b: number },
+  tenantId?: string // Add optional tenant ID for filtering
 ): Promise<TeamResult> {
   // Get performance weights (use provided or fetch from database)
   let weights = performanceWeights;
@@ -67,10 +68,17 @@ export async function balanceByPastPerformance(
   }
 
   // UPDATED: Use new EWMA performance ratings table
+  const whereClause: any = {
+    player_id: { in: playerIds }
+  };
+  
+  // Add tenant filter if provided (recommended for multi-tenancy)
+  if (tenantId) {
+    whereClause.tenant_id = tenantId;
+  }
+  
   const fetchedRatings = await prisma.aggregated_performance_ratings.findMany({
-    where: {
-      player_id: { in: playerIds }
-    },
+    where: whereClause,
     select: {
       player_id: true,
       power_rating: true,    // Direct field (no trend_rating)

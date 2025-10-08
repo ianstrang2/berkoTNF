@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring season race data is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
     }
     
     // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Get current season to find the correct season_year
@@ -67,27 +68,6 @@ export async function GET(request: Request) {
     });
 
   } catch (error) {
-    // Enhanced error logging for production debugging
-    const errorDetails = {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : 'UnknownError',
-      timestamp: new Date().toISOString(),
-      endpoint: '/api/season-race-data',
-      method: 'GET',
-      seasonYear: seasonYear
-    };
-    
-    console.error('Season race data API error:', errorDetails);
-    
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch season race data',
-        // Only include detailed error info in development
-        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

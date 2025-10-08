@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,20 +84,8 @@ export async function POST(request: NextRequest) {
         name: player.name,
       },
     });
-  } catch (error: any) {
-    console.error('Link player error:', error);
-
-    if (error.name === 'AuthenticationError' || error.name === 'AuthorizationError') {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.name === 'AuthenticationError' ? 401 : 403 }
-      );
-    }
-
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 
@@ -118,20 +107,8 @@ export async function DELETE(request: NextRequest) {
       success: true,
       message: 'Player profile unlinked successfully',
     });
-  } catch (error: any) {
-    console.error('Unlink player error:', error);
-
-    if (error.name === 'AuthenticationError' || error.name === 'AuthorizationError') {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.name === 'AuthenticationError' ? 401 : 403 }
-      );
-    }
-
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 

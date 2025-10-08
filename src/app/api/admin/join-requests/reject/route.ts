@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,12 +47,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Join request rejected',
     });
-  } catch (error: any) {
-    console.error('Error rejecting join request:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to reject request' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 

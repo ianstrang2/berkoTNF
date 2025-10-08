@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 // Multi-tenant imports - ensuring background jobs include tenant context
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 interface StatsUpdateJobPayload {
   triggeredBy: 'post-match' | 'admin' | 'cron';
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     // Multi-tenant setup - ensure background jobs include tenant context
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     // Parse request body
     const payload: StatsUpdateJobPayload = await request.json();
@@ -143,17 +144,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     } as EnqueueResponse);
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('🚨 Enqueue endpoint error:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: `Server error: ${errorMessage}`,
-        message: 'Failed to process enqueue request'
-      } as EnqueueResponse,
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
 

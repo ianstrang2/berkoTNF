@@ -3,14 +3,15 @@
  * Replaces direct Supabase queries from frontend to handle RLS properly
  */
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Get tenant context
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     
     // Set RLS context for this session
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
@@ -40,14 +41,6 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Error fetching background job status:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        data: []
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

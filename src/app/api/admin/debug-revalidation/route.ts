@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   // Allow access from admin interface (simplified for debugging)
@@ -141,10 +142,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Debug endpoint error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return handleTenantError(error);
   }
 } 

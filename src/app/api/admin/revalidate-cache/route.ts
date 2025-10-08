@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // DEPRECATED: This endpoint is deprecated in favor of /api/internal/cache/invalidate
 // The background job system uses the internal endpoint for batch cache invalidation
@@ -57,10 +58,6 @@ export async function POST(request: NextRequest) {
       now: Date.now(),
     });
   } catch (error) {
-    console.error(`Error revalidating tag ${cacheKey}:`, error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to revalidate cache' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

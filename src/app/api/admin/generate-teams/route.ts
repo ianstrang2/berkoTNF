@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { PlayerProfile } from '@/types/player.types';
 import { toPlayerProfile } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring team generation is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 type PlayerWithSlot = PlayerProfile & { slot_number?: number };
 
@@ -130,10 +131,10 @@ const shuffleArray = <T>(array: T[]): T[] => {
   return array;
 };
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure team generation is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Get current slot assignments and create any missing slots

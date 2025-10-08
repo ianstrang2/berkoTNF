@@ -194,8 +194,16 @@ const CurrentForm: React.FC = () => {
       ]);
       
       if (!milestonesResponse.ok) {
-        const errorText = await milestonesResponse.text();
-        throw new Error(`Milestones API error: ${milestonesResponse.status} - ${errorText || 'No details'}`);
+        console.warn(`Milestones API returned ${milestonesResponse.status} - no match data available`);
+        // Don't throw error for new tenants - just set empty data
+        setMilestonesData(null);
+        setTimelineItems([]);
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json();
+          setAllPlayers(playersData.data || []);
+        }
+        setLoading(false); // Stop loading
+        return; // Exit early for new tenants
       }
       const milestonesResult = await milestonesResponse.json();
       
@@ -270,8 +278,15 @@ const CurrentForm: React.FC = () => {
     return result;
   };
 
-  const processTimelineItems = (data: MilestonesData) => {
+  const processTimelineItems = (data: MilestonesData | null) => {
     const items: TimelineItem[] = [];
+    
+    // Handle null data for new tenants
+    if (!data || !data.matchInfo) {
+      setTimelineItems([]);
+      return;
+    }
+    
     const matchDate = data.matchInfo.match_date ? formatDateSafely(data.matchInfo.match_date) : '';
     
     // Get all players who played in this match
@@ -389,7 +404,7 @@ const CurrentForm: React.FC = () => {
         </div>
         <div className="p-4">
           <div className="text-center">
-            <p className="text-neutral-500">No current form data to display</p>
+            <p className="text-sm text-slate-500">No current form data to display</p>
           </div>
         </div>
       </div>

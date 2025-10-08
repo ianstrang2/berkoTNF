@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentTenantId } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -97,11 +98,7 @@ export async function GET(request: NextRequest) {
       data: tenantsWithMetrics
     });
 
-  } catch (error: any) {
-    console.error('Error fetching tenants with metrics:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to fetch tenants' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }

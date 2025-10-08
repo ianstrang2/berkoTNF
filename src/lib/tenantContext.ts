@@ -12,23 +12,16 @@ import { DEFAULT_TENANT_ID, getTenantContext as getTenantDetails, TenantContext 
 /**
  * Get the current tenant ID for the application
  * 
- * For now, this returns the default tenant ID to maintain backward compatibility.
- * In the future, this will be enhanced to support:
- * - Session-based tenant resolution for admin users
- * - Token-based tenant resolution for RSVP functionality  
- * - Request context-based tenant resolution
+ * DEPRECATED: This synchronous function cannot resolve tenant from async sources.
+ * Use getTenantFromRequest() in API routes instead.
  * 
- * @returns string - The current tenant ID
+ * @returns string - The default tenant ID
+ * @deprecated Use getTenantFromRequest() for proper tenant resolution
  */
 export function getCurrentTenantId(): string {
-  // TODO: Implement proper tenant resolution based on:
-  // - Admin session context
-  // - RSVP token context
-  // - Request headers
-  // - Default tenant fallback
-  
+  console.warn(`[TENANT_CONTEXT] getCurrentTenantId() is deprecated - use getTenantFromRequest() instead`);
   const tenantId = DEFAULT_TENANT_ID;
-  console.log(`[TENANT_CONTEXT] getCurrentTenantId() returning: ${tenantId}`);
+  console.log(`[TENANT_CONTEXT] Returning default tenant: ${tenantId}`);
   return tenantId;
 }
 
@@ -46,10 +39,11 @@ export async function setRLSContext(tenantId: string): Promise<void> {
 /**
  * Get the current tenant context with full details
  * 
+ * @param request - Optional NextRequest object for tenant resolution
  * @returns Promise<TenantContext | null> - Full tenant context or null if not found
  */
-export async function getCurrentTenantContext(): Promise<TenantContext | null> {
-  const tenantId = getCurrentTenantId();
+export async function getCurrentTenantContext(request?: any): Promise<TenantContext | null> {
+  const tenantId = request ? await getTenantFromRequest(request) : getCurrentTenantId();
   return getTenantDetails(tenantId);
 }
 
@@ -139,21 +133,117 @@ export async function resolveTenantContext(): Promise<TenantResolutionResult> {
 
 /**
  * Middleware helper for tenant context
- * This will be used in API routes to ensure tenant context is available
+ * Resolves tenant from authenticated user session
  * 
- * @param request - Request object (placeholder for future implementation)
+ * @param request - NextRequest object (optional)
+ * @param options - Configuration options
+ *   - allowUnauthenticated: If true, returns DEFAULT_TENANT_ID for unauthenticated requests (DANGEROUS - use only for public routes)
+ *   - throwOnMissing: If true, throws error instead of returning default (recommended for API routes)
  * @returns Promise<string> - Resolved tenant ID
+ * @throws Error if tenant cannot be resolved and throwOnMissing is true
  */
-export async function getTenantFromRequest(request?: any): Promise<string> {
-  // TODO: Implement request-based tenant resolution
-  // This will examine:
-  // - Request headers
-  // - Session data
-  // - URL parameters
-  // - Authentication context
-  
-  console.log(`[TENANT_CONTEXT] Getting tenant from request - using default for now`);
-  return getCurrentTenantId();
+export async function getTenantFromRequest(
+  request?: any, 
+  options: { allowUnauthenticated?: boolean; throwOnMissing?: boolean } = {}
+): Promise<string> {
+  try {
+    const { createRouteHandlerClient } = await import('@supabase/auth-helpers-nextjs');
+    const { cookies } = await import('next/headers');
+    const { prisma } = await import('@/lib/prisma');
+    
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      console.warn(`[TENANT_CONTEXT] No session found`);
+      
+      if (options.throwOnMissing) {
+        throw new Error('Authentication required: No session found');
+      }
+      
+      if (options.allowUnauthenticated) {
+        console.log(`[TENANT_CONTEXT] No session - using default tenant (allowUnauthenticated=true)`);
+        return DEFAULT_TENANT_ID;
+      }
+      
+      // SECURE DEFAULT: For authenticated API routes, fail instead of exposing data
+      throw new Error('Authentication required: No session found');
+    }
+    
+    // Priority 1: Check app_metadata (for superadmin tenant switching)
+    if (session.user.app_metadata?.tenant_id) {
+      console.log(`[TENANT_CONTEXT] Resolved from app_metadata: ${session.user.app_metadata.tenant_id}`);
+      return session.user.app_metadata.tenant_id;
+    }
+    
+    // Priority 2: Check admin_profiles table
+    const adminProfile = await prisma.admin_profiles.findUnique({
+      where: { user_id: session.user.id },
+      select: { tenant_id: true }
+    });
+    
+    if (adminProfile?.tenant_id) {
+      console.log(`[TENANT_CONTEXT] Resolved from admin_profiles: ${adminProfile.tenant_id}`);
+      return adminProfile.tenant_id;
+    }
+    
+    // Priority 3: Check players table (phone auth users)
+    const playerProfile = await prisma.players.findFirst({
+      where: { auth_user_id: session.user.id },
+      select: { tenant_id: true, name: true, player_id: true }
+    });
+    
+    if (playerProfile?.tenant_id) {
+      console.log(`[TENANT_CONTEXT] ✅ Resolved from players:`, {
+        tenant_id: playerProfile.tenant_id,
+        player_name: playerProfile.name,
+        player_id: playerProfile.player_id,
+        auth_user_id: session.user.id
+      });
+      return playerProfile.tenant_id;
+    }
+    
+    console.error(`[TENANT_CONTEXT] ❌ NO PLAYER FOUND for auth_user_id: ${session.user.id}`);
+    
+    // User is authenticated but has no tenant assignment
+    console.error(`[TENANT_CONTEXT] SECURITY: User ${session.user.id} authenticated but has no tenant association`);
+    
+    if (options.throwOnMissing) {
+      throw new Error(`User ${session.user.id} has no tenant association`);
+    }
+    
+    // This should only happen during development or for new users in signup flow
+    console.warn(`[TENANT_CONTEXT] Falling back to default tenant for user ${session.user.id} - THIS IS A SECURITY RISK IN PRODUCTION`);
+    return DEFAULT_TENANT_ID;
+    
+  } catch (error) {
+    console.error(`[TENANT_CONTEXT] Error resolving tenant:`, error);
+    
+    if (options.throwOnMissing || error.message?.includes('Authentication required')) {
+      throw error;
+    }
+    
+    // Only fall back to default if explicitly allowed AND error is not auth-related
+    if (options.allowUnauthenticated) {
+      console.warn(`[TENANT_CONTEXT] Error occurred but allowUnauthenticated=true, using default`);
+      return DEFAULT_TENANT_ID;
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Get tenant from request with secure defaults for authenticated API routes
+ * This is the recommended function for all authenticated API endpoints
+ * Throws error if tenant cannot be resolved instead of falling back
+ * 
+ * @param request - NextRequest object
+ * @returns Promise<string> - Resolved tenant ID
+ * @throws Error if tenant cannot be resolved
+ */
+export async function requireTenantFromRequest(request?: any): Promise<string> {
+  return getTenantFromRequest(request, { throwOnMissing: true });
 }
 
 /**

@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring balance algorithm is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET handler - retrieve balance algorithm weights
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure balance algorithm is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Fetch balance weights from database
@@ -28,19 +29,15 @@ export async function GET() {
       }))
     });
   } catch (error) {
-    console.error('Error fetching balance algorithm weights:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch balance algorithm weights' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
 
 // PUT handler - update balance algorithm weights
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure balance algorithm updates are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -63,10 +60,6 @@ export async function PUT(request: Request) {
     
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating balance algorithm weights:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to update balance algorithm weights' },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 } 

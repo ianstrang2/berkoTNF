@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring background jobs include tenant context
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest, getCurrentTenantId } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // Define the list of Edge Functions to call and their associated cache tags
 // UPDATED: EWMA system has no execution order dependencies
@@ -287,10 +288,10 @@ export async function GET() {
 }
 
 // POST handler for manual admin triggers
-export async function POST() {
+export async function POST(request: NextRequest) {
   console.log('👤 Manual stats update triggered');
   // Multi-tenant: Manual triggers also use tenant context
-  const tenantId = getCurrentTenantId();
+  const tenantId = await getTenantFromRequest(request);
   console.log(`👤 Manual stats update triggered for tenant: ${tenantId}`);
   return triggerStatsUpdate();
 }

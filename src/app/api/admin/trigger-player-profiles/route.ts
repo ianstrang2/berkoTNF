@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // Main profile generation logic that can be called by both GET (cron) and POST (manual)
 async function triggerProfileGeneration() {
@@ -56,13 +57,7 @@ async function triggerProfileGeneration() {
     }, { status: 500 });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Profile generation error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: `Profile generation failed: ${errorMessage}`,
-      recent_days_threshold: recentDaysThreshold
-    }, { status: 500 });
+    return handleTenantError(error);
   }
 }
 

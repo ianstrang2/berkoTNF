@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
+    // Multi-tenant: Get tenant context for scoped queries
+    const tenantId = await getTenantFromRequest(request);
+    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+    
     console.log('Fetching league averages...');
 
     // Get all player profile stats with yearly_stats JSON
     const playerStats = await prisma.aggregated_player_profile_stats.findMany({
+      where: { tenant_id: tenantId },
       select: {
         yearly_stats: true
       }
@@ -77,15 +82,14 @@ export async function GET(request: NextRequest) {
       averages: leagueAverages,
       totalPlayers: playerStats.length,
       yearsWithData: leagueAverages.length
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300',
+        'Vary': 'Cookie'
+      }
     });
 
   } catch (error) {
-    console.error('Error fetching league averages:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch league averages' },
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
+    return handleTenantError(error);
   }
 } 

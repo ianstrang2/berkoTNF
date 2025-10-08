@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team template operations are tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch team size templates
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure template operations are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Get query parameters
@@ -99,16 +100,15 @@ export async function GET(request: Request) {
       data: templates
     });
   } catch (error) {
-    console.error('Error fetching team templates:', error);
-    return NextResponse.json({ error: 'Failed to fetch team templates' }, { status: 500 });
+    return handleTenantError(error);
   }
 }
 
 // POST: Create a new team template
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure template creation is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -144,16 +144,15 @@ export async function POST(request: Request) {
       data: newTemplate
     });
   } catch (error) {
-    console.error('Error creating team template:', error);
-    return NextResponse.json({ error: 'Failed to create team template' }, { status: 500 });
+    return handleTenantError(error);
   }
 }
 
 // PUT: Update an existing team template
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure template updates are tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const body = await request.json();
@@ -205,16 +204,15 @@ export async function PUT(request: Request) {
       data: updatedTemplate
     });
   } catch (error) {
-    console.error('Error updating team template:', error);
-    return NextResponse.json({ error: 'Failed to update team template' }, { status: 500 });
+    return handleTenantError(error);
   }
 }
 
 // DELETE: Delete a team template
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
     // Multi-tenant setup - ensure template deletion is tenant-scoped
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getTenantFromRequest(request);
     await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     const { searchParams } = new URL(request.url);
@@ -243,7 +241,6 @@ export async function DELETE(request: Request) {
       data: { templateId: parseInt(templateId) }
     });
   } catch (error) {
-    console.error('Error deleting team template:', error);
-    return NextResponse.json({ error: 'Failed to delete team template' }, { status: 500 });
+    return handleTenantError(error);
   }
 } 

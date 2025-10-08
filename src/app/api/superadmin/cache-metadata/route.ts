@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,14 +44,6 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Error fetching cache metadata:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch cache metadata', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }

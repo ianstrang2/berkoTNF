@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,12 +67,8 @@ export async function POST(request: NextRequest) {
         is_admin: updatedPlayer.is_admin,
       },
     });
-  } catch (error: any) {
-    console.error('Error updating admin status:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to update admin status' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleTenantError(error);
   }
 }
 

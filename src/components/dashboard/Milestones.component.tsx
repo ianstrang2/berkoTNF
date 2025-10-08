@@ -187,8 +187,16 @@ const Milestones: React.FC = () => {
       ]);
       
       if (!milestonesResponse.ok) {
-        const errorText = await milestonesResponse.text();
-        throw new Error(`Milestones API error: ${milestonesResponse.status} - ${errorText || 'No details'}`);
+        console.warn(`Milestones API returned ${milestonesResponse.status} - no match data available`);
+        // Don't set error for new tenants - just set empty data
+        setMilestonesData(null);
+        setTimelineItems([]);
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json();
+          setAllPlayers(playersData.data || []);
+        }
+        setLoading(false); // Stop loading
+        return; // Exit early
       }
       const milestonesResult = await milestonesResponse.json();
       
@@ -202,9 +210,13 @@ const Milestones: React.FC = () => {
         setAllPlayers([]);
       }
       
-      if (milestonesResult.success) {
+      if (milestonesResult.success && milestonesResult.data) {
         setMilestonesData(milestonesResult.data);
         processTimelineItems(milestonesResult.data);
+      } else if (milestonesResult.success && !milestonesResult.data) {
+        // New tenant with no data yet
+        setMilestonesData(null);
+        setTimelineItems([]);
       } else {
         setError(new Error(milestonesResult.error || 'Failed to fetch milestones data'));
       }
@@ -275,8 +287,15 @@ const Milestones: React.FC = () => {
     return result;
   };
 
-  const processTimelineItems = useCallback((data: MilestonesData) => {
+  const processTimelineItems = useCallback((data: MilestonesData | null) => {
     const items: TimelineItem[] = [];
+    
+    // Handle null data for new tenants
+    if (!data || !data.matchInfo) {
+      setTimelineItems([]);
+      return;
+    }
+    
     const matchDate = data.matchInfo.match_date ? formatDateSafely(data.matchInfo.match_date) : '';
     
     // REMOVED: Game and goal milestones - moved to Records & Achievements component
@@ -480,11 +499,14 @@ const Milestones: React.FC = () => {
   if (timelineItems.length === 0) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
-                 <div className="p-4">
-           <div className="text-center">
-             <p className="text-neutral-500">No current standings data to display</p>
-           </div>
-         </div>
+        <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+          <h5 className="mb-0">Current Standings</h5>
+        </div>
+        <div className="p-4">
+          <div className="text-center">
+            <p className="text-sm text-slate-500">No current standings data to display</p>
+          </div>
+        </div>
       </div>
     );
   }

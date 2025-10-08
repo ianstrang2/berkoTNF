@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 // Multi-tenant imports - ensuring honour roll is tenant-scoped
-import { getCurrentTenantId } from '@/lib/tenantContext';
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { handleTenantError } from '@/lib/api-helpers';
 
 const serializeData = (data: any) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
@@ -11,12 +12,9 @@ const serializeData = (data: any) => {
   ));
 };
 
-const getHonourRollData = unstable_cache(
-  async () => {
-    console.log('Fetching fresh honour roll data from DB.');
-    
-    // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = getCurrentTenantId();
+// Note: Removed unstable_cache to prevent cross-tenant data leaks
+async function getHonourRollData(tenantId: string) {
+  console.log(`Fetching fresh honour roll data from DB for tenant ${tenantId}`);
     
     const seasonHonours: { season_id: number; season_name: string; season_winners: any; top_scorers: any; }[] = await prisma.$queryRaw`
       SELECT season_id, season_name, season_winners, top_scorers 
@@ -141,23 +139,19 @@ const getHonourRollData = unstable_cache(
       topScorers: serializeData(topScorers),
       records: serializeData(finalRecords)
     };
-  },
-  [CACHE_TAGS.HONOUR_ROLL],
-  {
-    tags: [CACHE_TAGS.HONOUR_ROLL],
-    revalidate: 3600,
   }
-);
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const data = await getHonourRollData();
-    return NextResponse.json({ data });
+    const tenantId = await getTenantFromRequest(request);
+    const data = await getHonourRollData(tenantId);
+    return NextResponse.json({ data }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300',
+        'Vary': 'Cookie'
+      }
+    });
   } catch (error) {
-    console.error('Database Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch honour roll data', details: error },
-      { status: 500 }
-    );
+    return handleTenantError(error);
   }
 }
