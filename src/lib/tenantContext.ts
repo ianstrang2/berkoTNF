@@ -136,8 +136,88 @@ export async function resolveTenantContext(): Promise<TenantResolutionResult> {
 }
 
 /**
- * Middleware helper for tenant context
- * Resolves tenant from authenticated user session
+ * Resolve tenant ID from authenticated request
+ * 
+ * This function uses a multi-source priority hierarchy to resolve tenant context.
+ * The cookie-based Priority 0 exists to solve a specific Supabase architecture constraint.
+ * 
+ * ============================================================================
+ * WHY WE USE A COOKIE (Priority 0)
+ * ============================================================================
+ * 
+ * PROBLEM: Superadmin tenant switching has a JWT refresh timing issue
+ * 
+ * When a superadmin switches tenants, we update their app_metadata in Supabase's
+ * database. However, the JWT in the browser's cookies is immutable - it still
+ * contains the OLD tenant_id until the client calls refreshSession().
+ * 
+ * Why can't the server just refresh the JWT?
+ * - Supabase uses single-use refresh tokens (security: prevents replay attacks)
+ * - Client SDK has an auto-refresh timer that runs every 30 seconds
+ * - If server uses the refresh token, it invalidates it for the client
+ * - Client's next auto-refresh fails: "Invalid Refresh Token: Already Used"
+ * - User gets logged out randomly 30-60 seconds after switching
+ * 
+ * The cookie-based approach avoids this by:
+ * - Not touching Supabase's refresh token mechanism
+ * - Providing immediate tenant context (no timing issues)
+ * - Letting client SDK continue managing session normally
+ * - Allowing JWT to eventually "catch up" via normal client refresh
+ * 
+ * ============================================================================
+ * WHY THIS IS SECURE
+ * ============================================================================
+ * 
+ * The cookie is NOT a backdoor that bypasses authentication:
+ * 
+ * 1. VALIDATED: Cookie is only honored if user is verified superadmin
+ *    - We check session.user.id (from JWT - can't be forged)
+ *    - We verify user_role === 'superadmin' in database
+ *    - Non-superadmin users can't exploit the cookie
+ * 
+ * 2. HTTP-ONLY: Cookie can't be read or modified by client JavaScript
+ *    - XSS attacks can't steal or manipulate it
+ *    - Only server-side code can set/read it
+ * 
+ * 3. EPHEMERAL: Cookie is cleared on logout
+ *    - Not a long-lived alternative auth mechanism
+ *    - Cleaned up automatically when session ends
+ * 
+ * 4. DEFENSE-IN-DEPTH: All queries still require explicit tenant_id filtering
+ *    - Cookie only helps RESOLVE tenant, doesn't bypass RLS
+ *    - Database queries still enforce tenant isolation
+ * 
+ * ============================================================================
+ * PRIORITY ORDER AND REASONING
+ * ============================================================================
+ * 
+ * Priority 0: superadmin_selected_tenant cookie (HTTP-only)
+ *   - For: Superadmin tenant switching
+ *   - Why first: Provides immediate context while JWT is stale
+ *   - Validation: Only honored if user is verified superadmin
+ *   - Set by: /api/auth/superadmin/switch-tenant
+ * 
+ * Priority 1: session.user.app_metadata.tenant_id (JWT claim)
+ *   - For: Superadmin tenant switching (JWT-based, after refresh)
+ *   - Why second: Eventually contains updated tenant after client refresh
+ *   - Validation: JWT is signed by Supabase (can't be forged)
+ *   - Set by: Supabase when updateUserById() is called
+ * 
+ * Priority 2: admin_profiles.tenant_id (Database lookup)
+ *   - For: Regular admin users (email/password auth)
+ *   - Why third: Admins belong to a specific tenant
+ *   - Validation: Authenticated user has admin_profile record
+ *   - Set by: Admin signup process
+ * 
+ * Priority 3: players.tenant_id (Database lookup)
+ *   - For: Player users (phone auth)
+ *   - Why last: Players belong to a specific tenant
+ *   - Validation: Authenticated user has player record
+ *   - Set by: Phone auth signup process
+ * 
+ * If none match: Throw error (user has no tenant association)
+ * 
+ * ============================================================================
  * 
  * @param request - NextRequest object (optional)
  * @param options - Configuration options
@@ -145,6 +225,9 @@ export async function resolveTenantContext(): Promise<TenantResolutionResult> {
  *   - throwOnMissing: If true, throws error instead of returning default (recommended for API routes)
  * @returns Promise<string> - Resolved tenant ID
  * @throws Error if tenant cannot be resolved and throwOnMissing is true
+ * 
+ * @see ANSWER_TO_CORE_QUESTIONS.md - Technical deep-dive on why cookie is needed
+ * @see THE_ACTUAL_CONSTRAINT.md - Supabase refresh token race condition explained
  */
 export async function getTenantFromRequest(
   request?: any, 
@@ -155,6 +238,7 @@ export async function getTenantFromRequest(
     const { createClient } = await import('@supabase/supabase-js');
     const { cookies } = await import('next/headers');
     
+    const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session } } = await supabase.auth.getSession();
     
@@ -187,9 +271,30 @@ export async function getTenantFromRequest(
       }
     );
     
-    // Priority 1: Check app_metadata (for superadmin tenant switching)
+    // Priority 0: Check superadmin_selected_tenant cookie (for tenant switching)
+    // This bypasses JWT refresh timing issues - cookie is immediately available
+    const cookieTenant = cookieStore.get('superadmin_selected_tenant');
+    if (cookieTenant?.value) {
+      // Verify this is actually a superadmin user
+      const { data: superadminProfile } = await supabaseAdmin
+        .from('admin_profiles')
+        .select('user_role')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+      
+      if (superadminProfile?.user_role === 'superadmin') {
+        console.log(`[TENANT_CONTEXT] ✅ Resolved from superadmin cookie: ${cookieTenant.value}`);
+        return cookieTenant.value;
+      } else {
+        // Not a superadmin - clear the cookie (security measure)
+        console.warn(`[TENANT_CONTEXT] ⚠️ Non-superadmin has tenant cookie - clearing`);
+        cookieStore.delete('superadmin_selected_tenant');
+      }
+    }
+    
+    // Priority 1: Check app_metadata (for superadmin tenant switching - JWT based)
     if (session.user.app_metadata?.tenant_id) {
-      console.log(`[TENANT_CONTEXT] Resolved from app_metadata: ${session.user.app_metadata.tenant_id}`);
+      console.log(`[TENANT_CONTEXT] ✅ Resolved from app_metadata: ${session.user.app_metadata.tenant_id}`);
       return session.user.app_metadata.tenant_id;
     }
     

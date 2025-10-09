@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { differenceInDays, startOfYear, endOfYear } from 'date-fns';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantContext } from '@/lib/tenantContext';
 
 // Helper to serialize data (especially for BigInt and Date types if needed)
 const serializeData = (data: any) => {
@@ -13,9 +14,11 @@ const serializeData = (data: any) => {
   }));
 };
 
-export async function GET() {
-  try {
-    const allPlayers = await prisma.players.findMany({
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      const allPlayers = await prisma.players.findMany({
+        where: { tenant_id: tenantId },
       include: {
         player_matches: {
           include: {
@@ -78,15 +81,16 @@ export async function GET() {
       .filter(p => p.is_ringer === true && p.gamesPlayedThisYear >= 10 && !p.is_retired)
       .sort((a, b) => b.gamesPlayedThisYear - a.gamesPlayedThisYear); // Sort by games played this year
 
-    return NextResponse.json(serializeData({
-      success: true,
-      data: {
-        absentees,
-        showOnStatsPlayers: ringersToAdd, // Still using this key for response
-      },
-    }));
+      return NextResponse.json(serializeData({
+        success: true,
+        data: {
+          absentees,
+          showOnStatsPlayers: ringersToAdd, // Still using this key for response
+        },
+      }));
 
-  } catch (error) {
-    return handleTenantError(error);
-  }
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
 } 

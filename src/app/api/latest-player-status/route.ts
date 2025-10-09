@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleTenantError } from '@/lib/api-helpers';
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { prisma } from '@/lib/prisma'; // Assuming prisma client is at @/lib/prisma
 
 // Ensure this route is revalidated on every request
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const latestStatus = await prisma.aggregated_match_report.findFirst({
       where: {
         tenant_id: tenantId
@@ -51,8 +47,5 @@ export async function GET(request: NextRequest) {
         'Vary': 'Cookie'
       }
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

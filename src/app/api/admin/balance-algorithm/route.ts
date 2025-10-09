@@ -1,16 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring balance algorithm is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // GET handler - retrieve balance algorithm weights
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure balance algorithm is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     // Fetch balance weights from database
     const weights = await prisma.team_balance_weights.findMany({
       where: { tenant_id: tenantId },
@@ -28,18 +24,12 @@ export async function GET(request: NextRequest) {
         weight: Number(w.weight)
       }))
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // PUT handler - update balance algorithm weights
 export async function PUT(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure balance algorithm updates are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     const { weights } = body;
     
@@ -59,7 +49,5 @@ export async function PUT(request: NextRequest) {
     }
     
     return NextResponse.json({ success: true });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

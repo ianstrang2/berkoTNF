@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match report health is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
@@ -13,11 +13,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Admin access only' }, { status: 401 });
   }
 
-  // Multi-tenant setup - ensure match report health is tenant-scoped
-  const tenantId = await getTenantFromRequest(request);
-  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-
-  try {
+  return withTenantContext(request, async (tenantId) => {
     const healthData: any = {
       timestamp: new Date().toISOString(),
       status: 'healthy',
@@ -163,8 +159,5 @@ export async function GET(request: NextRequest) {
       success: true,
       health: healthData
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

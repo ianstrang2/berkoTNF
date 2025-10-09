@@ -13,26 +13,39 @@ CREATE OR REPLACE FUNCTION calculate_match_fantasy_points(
 )
 RETURNS INT LANGUAGE plpgsql STABLE AS $$
 DECLARE
-    -- Fantasy Points Config (fetched from app_config with defaults, tenant-scoped)
-    v_win_points INT               := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_win_points' AND tenant_id = target_tenant_id LIMIT 1), 20);
-    v_draw_points INT              := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_draw_points' AND tenant_id = target_tenant_id LIMIT 1), 10);
-    v_loss_points INT              := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_loss_points' AND tenant_id = target_tenant_id LIMIT 1), -10);
-    v_heavy_win_bonus INT          := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 10) - v_win_points;
-    v_heavy_loss_penalty INT       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_loss_points' AND tenant_id = target_tenant_id LIMIT 1), v_loss_points - 10) - v_loss_points;
-    v_cs_win_bonus INT             := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 10) - v_win_points;
-    v_cs_draw_bonus INT            := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_draw_points' AND tenant_id = target_tenant_id LIMIT 1), v_draw_points + 10) - v_draw_points;
-    v_heavy_cs_win_bonus INT       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 20) - v_win_points - v_heavy_win_bonus - v_cs_win_bonus;
-    
-    -- NEW: Fetch new config values
-    v_goals_scored_points INT      := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_goals_scored_points' AND tenant_id = target_tenant_id LIMIT 1), 0);
-    v_heavy_win_threshold INT      := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_win_threshold' AND tenant_id = target_tenant_id LIMIT 1), 4);
-    
-    -- CHANGED: Calculate heavy_win/heavy_loss from goal_difference and threshold
-    heavy_win BOOLEAN := (result = 'win' AND ABS(goal_difference) >= v_heavy_win_threshold);
-    heavy_loss BOOLEAN := (result = 'loss' AND ABS(goal_difference) >= v_heavy_win_threshold);
-    
+    v_win_points INT;
+    v_draw_points INT;
+    v_loss_points INT;
+    v_heavy_win_bonus INT;
+    v_heavy_loss_penalty INT;
+    v_cs_win_bonus INT;
+    v_cs_draw_bonus INT;
+    v_heavy_cs_win_bonus INT;
+    v_goals_scored_points INT;
+    v_heavy_win_threshold INT;
+    heavy_win BOOLEAN;
+    heavy_loss BOOLEAN;
     points INT := 0;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
+    -- Fetch Fantasy Points Config from app_config with defaults (tenant-scoped)
+    v_win_points               := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_win_points' AND tenant_id = target_tenant_id LIMIT 1), 20);
+    v_draw_points              := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_draw_points' AND tenant_id = target_tenant_id LIMIT 1), 10);
+    v_loss_points              := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_loss_points' AND tenant_id = target_tenant_id LIMIT 1), -10);
+    v_heavy_win_bonus          := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 10) - v_win_points;
+    v_heavy_loss_penalty       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_loss_points' AND tenant_id = target_tenant_id LIMIT 1), v_loss_points - 10) - v_loss_points;
+    v_cs_win_bonus             := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 10) - v_win_points;
+    v_cs_draw_bonus            := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_draw_points' AND tenant_id = target_tenant_id LIMIT 1), v_draw_points + 10) - v_draw_points;
+    v_heavy_cs_win_bonus       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 20) - v_win_points - v_heavy_win_bonus - v_cs_win_bonus;
+    v_goals_scored_points      := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_goals_scored_points' AND tenant_id = target_tenant_id LIMIT 1), 0);
+    v_heavy_win_threshold      := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_win_threshold' AND tenant_id = target_tenant_id LIMIT 1), 4);
+    
+    -- Calculate heavy_win/heavy_loss from goal_difference and threshold
+    heavy_win := (result = 'win' AND ABS(goal_difference) >= v_heavy_win_threshold);
+    heavy_loss := (result = 'loss' AND ABS(goal_difference) >= v_heavy_win_threshold);
+    
     -- Calculation logic (same as before)
     IF result = 'win' THEN
         points := v_win_points;
@@ -91,6 +104,9 @@ RETURNS TEXT LANGUAGE plpgsql STABLE AS $$
 DECLARE
     v_config_value TEXT;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     SELECT config_value INTO v_config_value
     FROM app_config
     WHERE config_key = p_config_key AND tenant_id = target_tenant_id

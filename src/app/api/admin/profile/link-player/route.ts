@@ -9,11 +9,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantContext } from '@/lib/tenantContext';
 
 export async function POST(request: NextRequest) {
-  try {
-    const { user, tenantId } = await requireAdminRole(request);
-    const { player_id } = await request.json();
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      const { user } = await requireAdminRole(request);
+      const { player_id } = await request.json();
 
     // Validate player_id
     if (!player_id) {
@@ -76,17 +78,18 @@ export async function POST(request: NextRequest) {
       data: { player_id: playerId },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Player profile linked successfully',
-      player: {
-        id: player.player_id,
-        name: player.name,
-      },
-    });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+      return NextResponse.json({
+        success: true,
+        message: 'Player profile linked successfully',
+        player: {
+          id: player.player_id,
+          name: player.name,
+        },
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
 }
 
 /**
@@ -94,21 +97,23 @@ export async function POST(request: NextRequest) {
  * Unlink player from admin profile
  */
 export async function DELETE(request: NextRequest) {
-  try {
-    const { user } = await requireAdminRole(request);
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      const { user } = await requireAdminRole(request);
 
-    // Update admin profile to remove player link
-    await prisma.admin_profiles.update({
-      where: { user_id: user.id },
-      data: { player_id: null },
-    });
+      // Update admin profile to remove player link
+      await prisma.admin_profiles.update({
+        where: { user_id: user.id },
+        data: { player_id: null },
+      });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Player profile unlinked successfully',
-    });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+      return NextResponse.json({
+        success: true,
+        message: 'Player profile unlinked successfully',
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
 }
 

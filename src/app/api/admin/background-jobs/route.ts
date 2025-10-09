@@ -5,17 +5,11 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
-  try {
-    // Get tenant context
-    const tenantId = await getTenantFromRequest(request);
-    
-    // Set RLS context for this session
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-
+  return withTenantContext(request, async (tenantId) => {
     // Fetch background job status with tenant scoping using raw query
     const jobs = await prisma.$queryRaw`
       SELECT 
@@ -39,8 +33,5 @@ export async function GET(request: NextRequest) {
       success: true,
       data: jobs
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

@@ -1,16 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team slots operations are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // Get all slots with their assigned players
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure team slots operations are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const slots = await prisma.team_slots.findMany({
       where: { tenant_id: tenantId },
       orderBy: {
@@ -25,18 +21,12 @@ export async function GET(request: NextRequest) {
       success: true,
       data: slots 
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // Update a slot's player assignment
 export async function PUT(request: Request) {
-  try {
-    // Multi-tenant setup - ensure team slots operations are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const { slot_number, player_id } = await request.json();
 
     // Validate input
@@ -94,7 +84,5 @@ export async function PUT(request: Request) {
       success: true,
       data: updatedSlot 
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

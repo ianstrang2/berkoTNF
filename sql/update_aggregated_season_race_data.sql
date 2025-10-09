@@ -7,6 +7,9 @@ DECLARE
     is_first_half BOOLEAN;
     inserted_count INT := 0;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     -- Get current season for this tenant
     SELECT id, start_date, end_date, half_date
     INTO current_season_record
@@ -16,7 +19,8 @@ BEGIN
     LIMIT 1;
     
     IF current_season_record.id IS NULL THEN
-        RAISE EXCEPTION 'No current season found. Please create a season that includes today''s date.';
+        RAISE NOTICE 'No current season found for tenant %. Skipping season race data.', target_tenant_id;
+        RETURN; -- Exit gracefully - new clubs may not have seasons yet
     END IF;
     
     is_first_half := CURRENT_DATE <= current_season_record.half_date;

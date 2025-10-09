@@ -4,15 +4,11 @@ import { balanceByRating } from './balanceByRating';
 import { balanceByPerformance } from './balanceByPerformance';
 import { splitSizesFromPool } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring team balancing is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure team balancing is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     const { matchId, playerIds, method, state_version } = body;
 
@@ -93,8 +89,5 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, data: result });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

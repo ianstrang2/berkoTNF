@@ -24,6 +24,9 @@ DECLARE
     -- JSON object built from fetched config
     config_obj JSONB;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     -- Fetch config values from app_config with defaults
     RAISE NOTICE 'Fetching configuration from app_config...';
     SELECT CAST(config_value AS INT) INTO min_games_for_honours FROM app_config WHERE config_key = 'min_games_for_honours' AND tenant_id = target_tenant_id;

@@ -26,6 +26,9 @@ DECLARE
     MIN_GOALS_FOR_PB CONSTANT INT := 2;
     MIN_STREAK_FOR_PB CONSTANT INT := 4;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     RAISE NOTICE 'Starting update_aggregated_personal_bests processing (v2 with player names)...';
 
     SELECT match_id, match_date INTO v_latest_match_id, v_latest_match_date

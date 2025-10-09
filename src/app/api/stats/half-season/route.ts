@@ -4,7 +4,7 @@ import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring half-season stats are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 interface RecentGame {
@@ -18,9 +18,7 @@ interface RecentGame {
 async function getHalfSeasonStats(tenantId: string) {
   console.log(`Fetching fresh half-season data for tenant ${tenantId}`);
 
-    // Multi-tenant: Use tenant-scoped query for half-season stats
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+    // Middleware automatically sets RLS context
     const preAggregatedData = await prisma.aggregated_half_season_stats.findMany({
       where: {
         tenant_id: tenantId
@@ -91,11 +89,8 @@ async function getHalfSeasonStats(tenantId: string) {
   }
 
 export async function POST(request: NextRequest) {
-  try {
-    const tenantId = await getTenantFromRequest(request);
+  return withTenantContext(request, async (tenantId) => {
     const responseData = await getHalfSeasonStats(tenantId);
     return NextResponse.json({ data: responseData });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

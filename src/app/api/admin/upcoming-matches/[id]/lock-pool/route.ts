@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { splitSizesFromPool, getPoolValidation, MIN_PLAYERS, MAX_PLAYERS, MIN_TEAM } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring pool locking is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 
@@ -14,16 +14,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const matchId = parseInt(params.id, 10);
-  console.log(`[LOCK_POOL] Starting lock pool operation for match ${matchId}`);
-  
-  try {
-    // Multi-tenant setup - ensure pool locking is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
+  return withTenantContext(request, async (tenantId) => {
+    const matchId = parseInt(params.id, 10);
+    console.log(`[LOCK_POOL] Starting lock pool operation for match ${matchId}`);
     console.log(`[LOCK_POOL] Resolved tenant ID: ${tenantId}`);
-    
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    console.log(`[LOCK_POOL] Created tenant Prisma instance successfully`);
     
     const { playerIds, state_version } = await request.json();
     console.log(`[LOCK_POOL] Request data - playerIds: ${playerIds?.length}, state_version: ${state_version}`);
@@ -196,5 +190,5 @@ export async function PATCH(
       error: `Server error: ${error.message}`,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
-  }
+  });
 } 

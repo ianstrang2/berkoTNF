@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring player swaps are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // POST: Swap two players atomically in a single transaction
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure player swaps are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     const { upcoming_match_id, playerA, playerB, state_version } = body;
 
@@ -156,5 +152,5 @@ export async function POST(request: NextRequest) {
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
     );
-  }
+  });
 }

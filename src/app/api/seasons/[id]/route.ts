@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring season operations are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 interface RouteParams {
@@ -12,7 +12,7 @@ interface RouteParams {
 
 // GET /api/seasons/[id] - Get specific season
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  try {
+  return withTenantContext(request, async (tenantId) => {
     const seasonId = parseInt(params.id);
 
     if (isNaN(seasonId)) {
@@ -22,9 +22,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = await getTenantFromRequest(request);
-    
     const season = await prisma.$queryRaw`
       SELECT 
         id,
@@ -68,14 +65,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         updatedAt: seasonData.updated_at.toISOString()
       }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // PUT /api/seasons/[id] - Update season
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
+  return withTenantContext(request, async (tenantId) => {
     const seasonId = parseInt(params.id);
 
     if (isNaN(seasonId)) {
@@ -168,14 +163,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       console.error('Season update error:', dbError);
       throw dbError;
     }
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // DELETE /api/seasons/[id] - Delete season
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
+  return withTenantContext(request, async (tenantId) => {
     const seasonId = parseInt(params.id);
 
     if (isNaN(seasonId)) {
@@ -185,10 +178,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-
-    // Multi-tenant: Get tenant context for scoped deletion
-    const tenantId = await getTenantFromRequest(request);
-    
     const deletedSeason = await prisma.$queryRaw`
       DELETE FROM seasons WHERE id = ${seasonId}
         AND tenant_id = ${tenantId}::uuid
@@ -206,7 +195,5 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       success: true,
       message: 'Season deleted successfully'
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

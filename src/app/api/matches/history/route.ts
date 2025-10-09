@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidateTag } from 'next/cache';
 import { ALL_MATCH_RELATED_TAGS } from '@/lib/cache/constants';
 // Multi-tenant imports - ensuring match history is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 async function revalidateMatchCaches() {
@@ -16,10 +16,7 @@ async function revalidateMatchCaches() {
 
 // Get matches with player details - only show completed matches
 export async function GET(request: NextRequest) {
-  try {
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const matches = await prisma.matches.findMany({
       where: {
         OR: [
@@ -86,20 +83,15 @@ export async function GET(request: NextRequest) {
         'Expires': '0',
       }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // Add a new match
 export async function POST(request: NextRequest) {
-  try {
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     console.log('Received request body:', body);  // Log the request body
 
-    // Multi-tenant: Get tenant context for scoped operations
-    const tenantId = await getTenantFromRequest(request);
-    
     const { match_date, team_a_score, team_b_score, players } = body;
 
     // Calculate result and clean sheet for each player
@@ -186,19 +178,14 @@ export async function POST(request: NextRequest) {
     await revalidateMatchCaches();
 
     return NextResponse.json({ data: newMatch });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // Update a match
 export async function PUT(request: NextRequest) {
-  try {
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     const { match_id, match_date, team_a_score, team_b_score, players } = body;
-
-    // Multi-tenant: Get tenant context for scoped operations
-    const tenantId = await getTenantFromRequest(request);
 
     console.log(`Updating match with ID: ${match_id}`);
 
@@ -279,17 +266,12 @@ export async function PUT(request: NextRequest) {
     await revalidateMatchCaches();
 
     return NextResponse.json({ data: updatedMatch });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // Delete a match
 export async function DELETE(request: NextRequest) {
-  try {
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     // Get match ID from URL params
     const url = new URL(request.url);
     const matchId = url.searchParams.get('matchId');
@@ -385,7 +367,5 @@ export async function DELETE(request: NextRequest) {
       success: true, 
       message: 'Match deleted successfully. Stats are being recalculated.'
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

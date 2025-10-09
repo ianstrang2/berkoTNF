@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import type { players } from '@prisma/client';
 import { splitSizesFromPool, MIN_PLAYERS, MAX_PLAYERS } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring random balance is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // Define interface for player pool entries
@@ -29,11 +29,7 @@ const shuffleArray = <T>(array: T[]): T[] => {
 
 // POST: Randomly balance teams
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure random balancing is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     // Get matchId from URL query parameters
     const url = new URL(request.url);
     const matchId = url.searchParams.get('matchId');
@@ -204,7 +200,5 @@ export async function POST(request: NextRequest) {
       }
     });
     
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

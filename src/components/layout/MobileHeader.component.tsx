@@ -23,6 +23,15 @@ export const MobileHeader: React.FC = () => {
 
   const handleLogout = async () => {
     if (confirm('Are you sure you want to logout?')) {
+      // Clear server-side cookies first
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (e) {
+        console.warn('Failed to clear server cookies:', e);
+        // Continue with logout anyway
+      }
+      
+      // Clear Supabase session
       await supabase.auth.signOut();
       localStorage.removeItem('adminAuth');
       localStorage.removeItem('userProfile');

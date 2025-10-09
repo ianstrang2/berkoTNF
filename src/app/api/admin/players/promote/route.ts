@@ -9,19 +9,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantContext } from '@/lib/tenantContext';
 
 export async function POST(request: NextRequest) {
-  try {
-    const { tenantId } = await requireAdminRole(request);
-    
-    if (!tenantId) {
-      return NextResponse.json(
-        { success: false, error: 'No tenant context' },
-        { status: 400 }
-      );
-    }
-    
-    const { player_id, is_admin } = await request.json();
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      await requireAdminRole(request);
+      
+      const { player_id, is_admin } = await request.json();
 
     if (!player_id || is_admin === undefined) {
       return NextResponse.json(
@@ -56,19 +51,20 @@ export async function POST(request: NextRequest) {
 
     console.log(`[PROMOTION] ${player.name} ${is_admin ? 'promoted to' : 'demoted from'} admin`);
 
-    return NextResponse.json({
-      success: true,
-      message: is_admin 
-        ? `${player.name} promoted to admin` 
-        : `${player.name} demoted to player`,
-      player: {
-        id: updatedPlayer.player_id.toString(),
-        name: updatedPlayer.name,
-        is_admin: updatedPlayer.is_admin,
-      },
-    });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+      return NextResponse.json({
+        success: true,
+        message: is_admin 
+          ? `${player.name} promoted to admin` 
+          : `${player.name} demoted to player`,
+        player: {
+          id: updatedPlayer.player_id.toString(),
+          name: updatedPlayer.name,
+          is_admin: updatedPlayer.is_admin,
+        },
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
 }
 

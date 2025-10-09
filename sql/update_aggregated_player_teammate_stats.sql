@@ -14,6 +14,9 @@ RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
     start_time TIMESTAMPTZ;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     start_time := clock_timestamp();
     RAISE NOTICE 'Starting update_aggregated_player_teammate_stats processing...';
 

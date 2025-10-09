@@ -15,6 +15,9 @@ DECLARE
     historical_year INT;
     v_season_start_date DATE;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     RAISE NOTICE 'Starting update_half_and_full_season_stats...';
     RAISE NOTICE 'Using config: match_duration=%', match_duration;
     RAISE NOTICE 'Calculating half-season stats (Start: %, End: %)...', half_season_start_date, half_season_end_date;

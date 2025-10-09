@@ -11,6 +11,9 @@ DECLARE
     prior_weight CONSTANT numeric := 5;  -- Bayesian prior strength
     qualification_threshold numeric;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     -- Fetch configuration values from app_config table (tenant-scoped)
     SELECT COALESCE(
         (SELECT config_value::numeric FROM app_config WHERE config_key = 'performance_half_life_days' AND tenant_id = target_tenant_id LIMIT 1),

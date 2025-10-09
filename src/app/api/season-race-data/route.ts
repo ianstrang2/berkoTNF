@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring season race data is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const period = searchParams.get('period') || 'whole_season';
-  let seasonYear = new Date().getFullYear(); // Default fallback
-  
-  try {
+  return withTenantContext(request, async (tenantId) => {
+    const { searchParams } = new URL(request.url);
+    const period = searchParams.get('period') || 'whole_season';
+    let seasonYear = new Date().getFullYear(); // Default fallback
+    
     // Validate period parameter
     if (!['whole_season', 'current_half'].includes(period)) {
       return NextResponse.json(
@@ -17,10 +17,6 @@ export async function GET(request: Request) {
         { status: 400 }
       );
     }
-    
-    // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
     
     // Get current season to find the correct season_year
     const currentSeason = await prisma.$queryRaw`
@@ -66,8 +62,5 @@ export async function GET(request: Request) {
         periodType: raceData.period_type
       }
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

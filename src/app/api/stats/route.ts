@@ -4,7 +4,7 @@ import { unstable_cache } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring stats are tenant-scoped
-import { getTenantFromRequest, getCurrentTenantId } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 interface RecentGame {
@@ -18,9 +18,7 @@ interface RecentGame {
 async function getFullSeasonStats(startDate: string, endDate: string, tenantId: string) {
   console.log(`Fetching fresh data for ${startDate} to ${endDate}, tenant ${tenantId}`);
 
-    // Multi-tenant: Use tenant-scoped query for season stats
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-
+    // Middleware automatically sets RLS context
     const preAggregatedData = await prisma.aggregated_season_stats.findMany({
       where: {
         tenant_id: tenantId,
@@ -92,8 +90,7 @@ async function getFullSeasonStats(startDate: string, endDate: string, tenantId: 
   }
 
 export async function POST(request: NextRequest) {
-  try {
-    const tenantId = await getTenantFromRequest(request);
+  return withTenantContext(request, async (tenantId) => {
     const { startDate, endDate } = await request.json();
     if (!startDate || !endDate) {
       return NextResponse.json({ error: 'startDate and endDate are required' }, { status: 400 });
@@ -101,8 +98,5 @@ export async function POST(request: NextRequest) {
     
     const responseData = await getFullSeasonStats(startDate, endDate, tenantId);
     return NextResponse.json({ data: responseData });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

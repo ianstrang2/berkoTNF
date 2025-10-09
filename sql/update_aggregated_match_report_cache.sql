@@ -39,6 +39,9 @@ DECLARE
     v_streaks_json JSONB := '[]'::jsonb;
     v_goal_streaks_json JSONB := '[]'::jsonb;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     -- Removed the temporary debug notices and RETURN
     RAISE NOTICE 'Starting update_aggregated_match_report_cache...';
     
@@ -91,7 +94,8 @@ BEGIN
     ORDER BY match_date DESC, match_id DESC LIMIT 1;
     
     IF latest_match.match_id IS NULL THEN
-        RAISE EXCEPTION 'No matches found in the database';
+        RAISE NOTICE 'No matches found for tenant %. Skipping aggregation.', target_tenant_id;
+        RETURN; -- Exit gracefully - new clubs with no data yet
     END IF;
     
     RAISE NOTICE 'Processing latest match ID: %, Date: %', latest_match.match_id, latest_match.match_date;

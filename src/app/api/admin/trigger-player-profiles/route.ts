@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantContext } from '@/lib/tenantContext';
 
 // Main profile generation logic that can be called by both GET (cron) and POST (manual)
-async function triggerProfileGeneration() {
+async function triggerProfileGeneration(tenantId: string) {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const recentDaysThreshold = parseInt(process.env.PROFILE_RECENT_DAYS_THRESHOLD || '7');
@@ -24,10 +25,13 @@ async function triggerProfileGeneration() {
 
     while (attempt < maxAttempts) {
       attempt++;
-      console.log(`Attempt ${attempt} for generate-player-profiles`);
+      console.log(`Attempt ${attempt} for generate-player-profiles (tenant: ${tenantId})`);
       
       const { data, error } = await supabase.functions.invoke('generate-player-profiles', {
-        body: { recent_days_threshold: recentDaysThreshold }
+        body: { 
+          recent_days_threshold: recentDaysThreshold,
+          tenant_id: tenantId  // Pass tenant context to edge function
+        }
       });
       
       if (!error) {
@@ -62,13 +66,17 @@ async function triggerProfileGeneration() {
 }
 
 // GET handler for Vercel cron jobs
-export async function GET() {
-  console.log('📅 Cron job triggered profile generation');
-  return triggerProfileGeneration();
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    console.log(`📅 Cron job triggered profile generation for tenant ${tenantId}`);
+    return triggerProfileGeneration(tenantId);
+  });
 }
 
 // POST handler for manual admin triggers
-export async function POST() {
-  console.log('👤 Manual admin triggered profile generation');
-  return triggerProfileGeneration();
+export async function POST(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    console.log(`👤 Manual admin triggered profile generation for tenant ${tenantId}`);
+    return triggerProfileGeneration(tenantId);
+  });
 }

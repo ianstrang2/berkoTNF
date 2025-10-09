@@ -2,14 +2,11 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring player profile metadata is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = await getTenantFromRequest(request);
-    
+  return withTenantContext(request, async (tenantId) => {
     // Get profile generation statistics
     const profileStats = await prisma.$queryRaw`
       SELECT 
@@ -55,8 +52,5 @@ export async function GET(request: NextRequest) {
       },
       players_list: playersList
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

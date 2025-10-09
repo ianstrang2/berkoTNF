@@ -18,6 +18,9 @@ DECLARE
     -- Temporary table to hold calculated stats before final insert
     temp_recent_perf_table TEXT := 'temp_recent_perf_' || replace(uuid_generate_v4()::text, '-', '');
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     RAISE NOTICE 'Starting update_aggregated_recent_performance...';
 
     -- Create a temporary table to store results

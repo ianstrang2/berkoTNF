@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match completion is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 import { handleTenantError } from '@/lib/api-helpers';
 
@@ -14,11 +14,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    // Multi-tenant setup - ensure match completion is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const matchId = parseInt(params.id, 10);
     const { state_version, score, own_goals, player_stats } = await request.json();
 
@@ -242,5 +238,5 @@ export async function POST(
       success: false, 
       error: `Match completion failed: ${error.message}` 
     }, { status: 500 });
-  }
+  });
 } 

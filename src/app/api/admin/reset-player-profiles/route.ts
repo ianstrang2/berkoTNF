@@ -1,23 +1,26 @@
 // src/app/api/admin/reset-player-profiles/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantContext } from '@/lib/tenantContext';
 
-export async function POST(request: Request) {
-  try {
-    console.log('Starting player profile reset...');
-    
-    // Check if user only wants to clear profiles without regenerating
-    const body = await request.json().catch(() => ({}));
-    const clearOnly = body.clear_only === true;
+export async function POST(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      console.log(`[RESET_PROFILES] Starting for tenant ${tenantId}...`);
+      
+      // Check if user only wants to clear profiles without regenerating
+      const body = await request.json().catch(() => ({}));
+      const clearOnly = body.clear_only === true;
 
-    // Clear all existing profiles
-    const clearResult = await prisma.players.updateMany({
-      where: {
-        is_ringer: false,
-        profile_text: { not: null }
-      },
+      // Clear all existing profiles - MULTI-TENANT: Scoped to tenant
+      const clearResult = await prisma.players.updateMany({
+        where: {
+          tenant_id: tenantId,
+          is_ringer: false,
+          profile_text: { not: null }
+        },
       data: {
         profile_text: null,
         profile_generated_at: null
@@ -48,7 +51,11 @@ export async function POST(request: Request) {
     
     console.log('Triggering profile regeneration via Edge Function...');
     const { data: profileResult, error: profileError } = await supabase.functions.invoke('generate-player-profiles', {
-      body: { recent_days_threshold: recentDaysThreshold, limit: 100 }
+      body: { 
+        recent_days_threshold: recentDaysThreshold, 
+        limit: 100,
+        tenant_id: tenantId  // Pass tenant context to edge function
+      }
     });
 
     if (profileError) {
@@ -63,14 +70,15 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Player profiles reset and regeneration triggered successfully',
-      cleared_profiles: clearResult.count,
-      generation_result: profileResult
-    });
+      return NextResponse.json({
+        success: true,
+        message: 'Player profiles reset and regeneration triggered successfully',
+        cleared_profiles: clearResult.count,
+        generation_result: profileResult
+      });
 
-  } catch (error) {
-    return handleTenantError(error);
-  }
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
 }

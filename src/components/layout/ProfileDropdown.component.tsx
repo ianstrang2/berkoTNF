@@ -47,6 +47,15 @@ export const ProfileDropdown: React.FC = () => {
 
   const handleLogout = async () => {
     if (confirm('Are you sure you want to logout?')) {
+      // Clear server-side cookies first
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (e) {
+        console.warn('Failed to clear server cookies:', e);
+        // Continue with logout anyway
+      }
+      
+      // Clear Supabase session
       await supabase.auth.signOut();
       localStorage.removeItem('adminAuth');
       localStorage.removeItem('userProfile');
@@ -92,24 +101,82 @@ export const ProfileDropdown: React.FC = () => {
       setTargetView(view);
       setShowTenantSelector(true);
       setIsOpen(false);
+    } else if (profile.isSuperadmin && tenants.length === 1) {
+      // Single tenant - auto-select it
+      switchToView(view, tenants[0].tenant_id);
     } else {
-      // Single tenant or already has tenant context
-      switchToView(view, null);
+      // Regular admin - already has tenant context from profile
+      switchToView(view, profile.tenantId || null);
     }
   };
 
   const switchToView = async (view: 'admin' | 'player', tenantId: string | null) => {
     setSwitching(true);
     
-    // Store selected tenant in localStorage for tenant context
-    if (tenantId) {
-      localStorage.setItem('selectedTenantId', tenantId);
-    }
-    
-    if (view === 'admin') {
-      window.location.href = '/admin/matches';
-    } else if (view === 'player') {
-      window.location.href = '/player/dashboard';
+    try {
+      // For superadmin, must call API to update session with tenant context
+      if (profile.isSuperadmin && tenantId) {
+        const response = await fetch('/api/auth/superadmin/switch-tenant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId }),
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+          console.error('Failed to switch tenant:', result.error);
+          setSwitching(false);
+          return;
+        }
+        
+        console.log('✅ Tenant switched to:', tenantId);
+        
+        // CRITICAL: Refresh session to get new JWT with updated app_metadata
+        const supabase = createClientComponentClient();
+        const { data, error } = await supabase.auth.refreshSession();
+        
+        if (error) {
+          console.error('❌ Session refresh failed:', error);
+          setSwitching(false);
+          return; // Don't redirect if session refresh failed
+        }
+        
+        // Verify the session actually has the new tenant before redirecting
+        const newSession = data.session;
+        if (!newSession?.user?.app_metadata?.tenant_id) {
+          console.error('❌ Session refreshed but app_metadata.tenant_id not set!');
+          console.log('Session data:', newSession);
+          setSwitching(false);
+          return; // Don't redirect without tenant context
+        }
+        
+        if (newSession.user.app_metadata.tenant_id !== tenantId) {
+          console.error('❌ Wrong tenant in session!', {
+            expected: tenantId,
+            actual: newSession.user.app_metadata.tenant_id
+          });
+        } else {
+          console.log('✅ Session verified with correct tenant:', tenantId);
+        }
+        
+        // Small delay to ensure cookies fully propagate
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Store selected tenant in localStorage for tenant context
+      if (tenantId) {
+        localStorage.setItem('selectedTenantId', tenantId);
+      }
+      
+      // Full page reload to ensure fresh request with new session
+      if (view === 'admin') {
+        window.location.href = '/admin/matches';
+      } else if (view === 'player') {
+        window.location.href = '/player/dashboard';
+      }
+    } catch (error) {
+      console.error('Error switching view:', error);
+      setSwitching(false);
     }
   };
 

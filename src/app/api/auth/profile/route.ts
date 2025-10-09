@@ -50,7 +50,9 @@ export async function GET(request: NextRequest) {
           isSuperadmin: true,
           adminRole: 'superadmin',
           displayName: superadminProfile.display_name,
-          tenantId: superadminProfile.tenant_id, // Can be null (platform view)
+          // Priority 1: Check app_metadata (for tenant switching)
+          // Priority 2: Fall back to superadmin_profiles.tenant_id
+          tenantId: user.app_metadata?.tenant_id || superadminProfile.tenant_id || null,
           linkedPlayerId: superadminProfile.player_id,
           canSwitchRoles: false, // Superadmin uses 3-way view selector instead
         },

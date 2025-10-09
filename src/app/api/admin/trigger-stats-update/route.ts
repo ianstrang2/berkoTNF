@@ -4,7 +4,7 @@ import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring background jobs include tenant context
-import { getTenantFromRequest, getCurrentTenantId } from '@/lib/tenantContext';
+import { withTenantContext, getCurrentTenantId } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // Define the list of Edge Functions to call and their associated cache tags
@@ -289,9 +289,9 @@ export async function GET() {
 
 // POST handler for manual admin triggers
 export async function POST(request: NextRequest) {
-  console.log('👤 Manual stats update triggered');
-  // Multi-tenant: Manual triggers also use tenant context
-  const tenantId = await getTenantFromRequest(request);
-  console.log(`👤 Manual stats update triggered for tenant: ${tenantId}`);
-  return triggerStatsUpdate();
+  return withTenantContext(request, async (tenantId) => {
+    console.log('👤 Manual stats update triggered');
+    console.log(`👤 Manual stats update triggered for tenant: ${tenantId}`);
+    return triggerStatsUpdate();
+  }).catch(handleTenantError);
 }

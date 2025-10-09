@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // Prevent static generation for this route
@@ -10,13 +10,9 @@ export const dynamic = 'force-dynamic';
 
 // Fetch player profile by ID from the aggregated table AND power ratings
 export async function GET(request: NextRequest) {
-  try {
+  return withTenantContext(request, async (tenantId) => {
     console.log("Fetching player profile from aggregated table...");
-
-    // Get tenant from authenticated user session or fall back to default
-    const tenantId = await getTenantFromRequest(request);
     console.log('Using tenant ID:', tenantId);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -329,8 +325,5 @@ export async function GET(request: NextRequest) {
       success: true, 
       data: responseData 
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

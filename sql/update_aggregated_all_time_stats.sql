@@ -22,6 +22,9 @@ DECLARE
     min_games_for_hof INT := get_config_value('games_required_for_hof', '0')::int;
     inserted_count INT := 0;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     RAISE NOTICE 'Starting update_aggregated_all_time_stats...';
     RAISE NOTICE 'Using config: match_duration=% min, min_games_for_hof=%',
                  match_duration, min_games_for_hof;

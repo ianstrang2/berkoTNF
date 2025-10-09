@@ -6,6 +6,9 @@ DECLARE
     hof_limit INT;
     inserted_count INT := 0;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     RAISE NOTICE 'Starting update_aggregated_hall_of_fame...';
 
     -- Fetch config from app_config using helper (tenant-scoped)

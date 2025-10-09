@@ -12,6 +12,9 @@ DECLARE
     result JSONB;
     player_last_match_date DATE;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     -- Get player's last match date for action logic (tenant-scoped)
     SELECT MAX(m.match_date) INTO player_last_match_date
     FROM player_matches pm 

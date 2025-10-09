@@ -1,15 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring current season is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // GET /api/seasons/current - Get current season based on today's date
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant: Get tenant context for scoped queries
-    const tenantId = await getTenantFromRequest(request);
-    
+  return withTenantContext(request, async (tenantId) => {
     const currentSeason = await prisma.$queryRaw`
       SELECT 
         id,
@@ -63,7 +60,5 @@ export async function GET(request: NextRequest) {
         'Vary': 'Cookie'
       }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }

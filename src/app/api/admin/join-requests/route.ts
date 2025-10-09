@@ -8,23 +8,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantContext } from '@/lib/tenantContext';
 
 export async function GET(request: NextRequest) {
-  try {
-    const { tenantId } = await requireAdminRole(request);
-    
-    if (!tenantId) {
-      return NextResponse.json(
-        { success: false, error: 'No tenant context' },
-        { status: 400 }
-      );
-    }
-    
-    const requests = await prisma.player_join_requests.findMany({
-      where: {
-        tenant_id: tenantId,
-        status: 'pending',
-      },
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      // Verify admin access
+      await requireAdminRole(request);
+      
+      const requests = await prisma.player_join_requests.findMany({
+        where: {
+          tenant_id: tenantId,
+          status: 'pending',
+        },
       orderBy: {
         created_at: 'desc',
       },
@@ -36,12 +32,13 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: requests,
-    });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+      return NextResponse.json({
+        success: true,
+        data: requests,
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
 }
 

@@ -1,16 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team template operations are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch team size templates
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure template operations are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const templateId = searchParams.get('templateId');
@@ -99,18 +95,12 @@ export async function GET(request: NextRequest) {
       success: true,
       data: templates
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // POST: Create a new team template
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure template creation is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     
     // Validate required fields
@@ -143,18 +133,12 @@ export async function POST(request: NextRequest) {
       success: true,
       data: newTemplate
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // PUT: Update an existing team template
 export async function PUT(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure template updates are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     
     // Validate required fields
@@ -203,18 +187,12 @@ export async function PUT(request: NextRequest) {
       success: true,
       data: updatedTemplate
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // DELETE: Delete a team template
 export async function DELETE(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure template deletion is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const { searchParams } = new URL(request.url);
     const templateId = searchParams.get('templateId');
     
@@ -240,7 +218,5 @@ export async function DELETE(request: NextRequest) {
       success: true,
       data: { templateId: parseInt(templateId) }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

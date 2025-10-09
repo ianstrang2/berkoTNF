@@ -13,6 +13,9 @@ RETURNS JSONB LANGUAGE plpgsql AS $$
 DECLARE
     result JSONB;
 BEGIN
+    -- Phase 2: Set RLS context for this function (required for prisma_app role)
+    PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
     SELECT jsonb_build_object(
         'league_context', jsonb_build_object(
             'total_games', (SELECT COUNT(*) FROM matches WHERE tenant_id = target_tenant_id),

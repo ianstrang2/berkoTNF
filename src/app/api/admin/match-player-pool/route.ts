@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match pool operations are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch player pool for a match
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure player pool operations are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('match_id');
     const activeOnly = searchParams.get('active') === 'true';
@@ -91,18 +87,12 @@ export async function GET(request: NextRequest) {
       success: true, 
       data: formattedPlayers 
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // POST: Add a player to the match pool
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure player pool operations are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const { match_id, player_id } = await request.json();
     if (!match_id || !player_id) {
       return NextResponse.json({ success: false, error: 'Match ID and Player ID are required' }, { status: 400 });
@@ -119,18 +109,12 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: newPlayer });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // DELETE: Remove a player from the match pool
 export async function DELETE(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure player removal is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('match_id');
     const playerId = searchParams.get('player_id');
@@ -148,9 +132,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // Helper function to handle DELETE with request body - REMOVED as logic is consolidated

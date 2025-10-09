@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team confirmation is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 /**
@@ -12,11 +12,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    // Multi-tenant setup - ensure team confirmation is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const matchId = parseInt(params.id, 10);
     const { state_version } = await request.json();
 
@@ -119,5 +115,5 @@ export async function PATCH(
     }
     console.error('Error confirming teams:', error);
     return NextResponse.json({ success: false, error: 'An unexpected error occurred.' }, { status: 500 });
-  }
+  });
 } 

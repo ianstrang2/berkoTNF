@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { PlayerProfile } from '@/types/player.types';
 import { toPlayerProfile } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring team generation is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 type PlayerWithSlot = PlayerProfile & { slot_number?: number };
@@ -132,11 +132,7 @@ const shuffleArray = <T>(array: T[]): T[] => {
 };
 
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure team generation is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     // Get current slot assignments and create any missing slots
     const currentSlots = await prisma.team_slots.findMany({
       include: { players: true },
@@ -294,11 +290,11 @@ export async function POST(request: NextRequest) {
       success: true,
       data: finalSlots
     });
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error generating teams:', error);
     return NextResponse.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Internal server error' 
     });
-  }
+  });
 } 

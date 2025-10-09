@@ -1,16 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring app config is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch all app configuration settings
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure config operations are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     // First, check if the app_config table exists and is accessible
     try {
       const testConfig = await prisma.app_config.findFirst({
@@ -76,18 +72,12 @@ export async function GET(request: NextRequest) {
         'Vary': 'Cookie', // Cache varies by session cookie
       }
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // PUT: Update app configuration settings
 export async function PUT(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure config updates are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
 
     if (!body.configs || !Array.isArray(body.configs)) {
@@ -113,18 +103,12 @@ export async function PUT(request: NextRequest) {
       success: true,
       data: updateResults
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // POST: Reset configuration group to defaults
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure reset is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
 
     if (!body.group) {
@@ -195,7 +179,5 @@ export async function POST(request: NextRequest) {
       success: true,
       data: updateResults
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

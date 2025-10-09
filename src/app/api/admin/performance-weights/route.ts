@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring performance weights are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // GET - Fetch current performance weights
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure performance weights are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     // Fetch performance weights from app_config table
     const configs = await prisma.app_config.findMany({
       where: {
@@ -44,19 +40,12 @@ export async function GET(request: NextRequest) {
       success: true,
       data: result
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // PUT - Update performance weights
 export async function PUT(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure performance weights updates are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     const { power_weight, goal_weight } = body;
 
@@ -134,19 +123,12 @@ export async function PUT(request: NextRequest) {
       success: true,
       message: 'Performance weights updated successfully'
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // DELETE - Reset to defaults
 export async function DELETE(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure reset is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     // Delete custom configs to fall back to defaults (0.5 each)
     await prisma.app_config.deleteMany({
       where: {
@@ -161,8 +143,5 @@ export async function DELETE(request: NextRequest) {
       success: true,
       message: 'Performance weights reset to defaults'
     });
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

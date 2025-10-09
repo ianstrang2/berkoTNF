@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match player operations are tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 // GET: Fetch players for an upcoming match
 export async function GET(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure match player operations are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
     const upcomingMatchId = searchParams.get('upcoming_match_id');
@@ -103,16 +99,12 @@ export async function GET(request: NextRequest) {
       success: false, 
       error: error.message 
     }, { status: 500 });
-  }
+  });
 }
 
 // POST: Add a player to an upcoming match
 export async function POST(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure player assignment is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     // Accept either match_id or upcoming_match_id for backward compatibility
     let { player_id, match_id, upcoming_match_id, team, position, slot_number } = body;
@@ -273,12 +265,12 @@ export async function POST(request: NextRequest) {
       success: false, 
       error: error.message 
     }, { status: 500 });
-  }
+  });
 }
 
 // PUT: Update a player's assignment in an upcoming match
 export async function PUT(request: NextRequest) {
-  try {
+  return withTenantContext(request, async (tenantId) => {
     const body = await request.json();
     const { upcoming_match_id, player_id, team, slot_number } = body;
     
@@ -291,10 +283,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Multi-tenant setup - ensure player assignment updates are tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
-    
     // Find the specific upcoming_match_player record
     const assignment = await prisma.upcoming_match_players.findFirst({
       where: {
@@ -340,15 +328,12 @@ export async function PUT(request: NextRequest) {
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
     );
-  }
+  });
 }
 
 // DELETE: Remove a player from an upcoming match
 export async function DELETE(request: NextRequest) {
-  try {
-    // Multi-tenant setup - ensure player removal is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+  return withTenantContext(request, async (tenantId) => {
     const searchParams = request.nextUrl.searchParams;
     const playerId = searchParams.get('player_id');
     const matchId = searchParams.get('matchId');
@@ -362,7 +347,7 @@ export async function DELETE(request: NextRequest) {
         const body = await request.json();
         if (body && (body.player_id || body.upcoming_match_id || body.match_id)) {
           // Handle DELETE with JSON body
-          return await handleDeleteWithBody(body, request);
+          return await handleDeleteWithBody(body, tenantId);
         }
       } catch (parseError) {
         // If parsing fails, likely not a JSON body, continue with query params
@@ -458,10 +443,7 @@ export async function DELETE(request: NextRequest) {
 }
 
 // Helper function to handle DELETE with request body
-async function handleDeleteWithBody(body: any, request: NextRequest) {
-  // Multi-tenant setup - ensure deletion is tenant-scoped
-  const tenantId = await getTenantFromRequest(request);
-  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, false)`;
+async function handleDeleteWithBody(body: any, tenantId: string) {
   let { player_id, match_id, upcoming_match_id } = body;
   
   // Convert numeric parameters to integers
@@ -545,4 +527,5 @@ async function handleDeleteWithBody(body: any, request: NextRequest) {
     success: true,
     message: 'Player removed from match'
   });
+  }).catch(handleTenantError);
 } 

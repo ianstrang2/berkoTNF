@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match undo is tenant-scoped
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 
@@ -9,10 +9,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    // Multi-tenant setup - ensure match undo is tenant-scoped
-    const tenantId = await getTenantFromRequest(request);
-    
+  return withTenantContext(request, async (tenantId) => {
     const upcomingMatchId = parseInt(params.id, 10);
     const { state_version } = await request.json();
 
@@ -78,5 +75,5 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
     return NextResponse.json({ success: false, error: error.message || 'An unexpected error occurred.' }, { status: 500 });
-  }
+  });
 } 

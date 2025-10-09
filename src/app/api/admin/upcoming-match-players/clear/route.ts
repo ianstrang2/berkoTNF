@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
-  try {
+  return withTenantContext(request, async (tenantId) => {
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
     const upcomingMatchId = searchParams.get('upcoming_match_id');
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Find the active match if no match ID is provided
       const activeMatch = await prisma.upcoming_matches.findFirst({
-        where: { is_active: true },
+        where: { is_active: true, tenant_id: tenantId },
         select: { upcoming_match_id: true }
       });
       
@@ -52,7 +53,5 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'All players cleared from match'
     });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 } 

@@ -272,10 +272,21 @@ export default function SystemHealthPage() {
     setError(null);
     
     try {
-      await triggerStatsUpdate('admin');
+      // Superadmin triggers stats for ALL tenants via dedicated endpoint
+      const response = await fetch('/api/superadmin/trigger-all-stats', {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to trigger stats update');
+      }
+
+      const result = await response.json();
+      console.log('Stats update result:', result);
       
       setUpdateSuccess(true);
-      setTimeout(() => setUpdateSuccess(false), 2000);
+      setTimeout(() => setUpdateSuccess(false), 3000);
       
       await Promise.all([
         fetchJobStatus(),

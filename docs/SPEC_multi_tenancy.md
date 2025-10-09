@@ -1480,7 +1480,76 @@ After each phase:
 
 ---
 
-## O. Appendix
+## O. Phase 2 Implementation (October 2025)
+
+### Automatic RLS Context via Prisma Middleware
+
+**Status:** ✅ COMPLETE (October 2025)
+
+Phase 2 enhanced the multi-tenancy implementation by adding automatic RLS context setting through Prisma middleware and AsyncLocalStorage.
+
+### Architecture
+
+**Components:**
+1. **AsyncLocalStorage** - Stores tenant context through async call stack
+2. **Prisma Middleware** - Automatically sets RLS before every query
+3. **withTenantContext Wrapper** - API route wrapper that sets context
+
+**Flow:**
+```
+API Request → withTenantContext → AsyncLocalStorage → Prisma Middleware → RLS Set → Query
+```
+
+### API Route Pattern (MANDATORY)
+
+**Correct Pattern:**
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { withTenantContext } from '@/lib/tenantContext';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
+import { prisma } from '@/lib/prisma';
+import { handleTenantError } from '@/lib/api-helpers';
+
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      await requireAdminRole(request);  // Verify access
+      
+      const data = await prisma.players.findMany({
+        where: { 
+          tenant_id: tenantId  // ⚠️ MANDATORY - defense-in-depth
+        }
+      });
+      
+      return NextResponse.json({ success: true, data });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
+}
+```
+
+### Benefits
+
+- ✅ **Automatic RLS:** Middleware sets context transparently
+- ✅ **Defense-in-Depth:** Two layers (explicit filtering + RLS)
+- ✅ **Cleaner Code:** No manual `$executeRaw` calls
+- ✅ **Monitoring:** Middleware logs all tenant context usage
+- ✅ **Background Jobs:** Easy tenant context propagation
+
+### Files
+
+**Implementation:**
+- `src/lib/prisma.ts` - Prisma middleware + AsyncLocalStorage
+- `src/lib/tenantContext.ts` - Wrapper functions
+
+**See Also:**
+- `src/lib/tenantContext.ts` lines 138-231 - Tenant resolution with superadmin cookie support
+- `.cursor/rules/code-generation.mdc` - Phase 2 pattern in code generation rules
+
+---
+
+## P. Appendix
 
 ### SQL Migration Scripts
 

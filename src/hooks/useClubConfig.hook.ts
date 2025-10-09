@@ -8,7 +8,7 @@ interface ClubConfig {
 }
 
 export const useClubConfig = (): ClubConfig => {
-  const [clubName, setClubName] = useState('BerkoTNF'); // Default fallback
+  const [clubName, setClubName] = useState('Capo'); // Default for superadmin/platform view
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,9 +18,21 @@ export const useClubConfig = (): ClubConfig => {
         setIsLoading(true);
         setError(null);
         
+        // Skip API call if on superadmin platform pages (no tenant context)
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/superadmin')) {
+          console.log('Superadmin platform view - using default name');
+          setIsLoading(false);
+          return;
+        }
+        
         const response = await fetch('/api/admin/app-config?groups=match_settings');
         
         if (!response.ok) {
+          // If 403/401, user might be in special context - silently use fallback
+          if (response.status === 403 || response.status === 401) {
+            setIsLoading(false);
+            return;
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         

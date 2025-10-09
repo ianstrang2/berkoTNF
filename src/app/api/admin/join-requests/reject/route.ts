@@ -8,11 +8,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantContext } from '@/lib/tenantContext';
 
 export async function POST(request: NextRequest) {
-  try {
-    const { user, tenantId } = await requireAdminRole(request);
-    const { requestId } = await request.json();
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      const { user } = await requireAdminRole(request);
+      const { requestId } = await request.json();
 
     if (!requestId) {
       return NextResponse.json(
@@ -43,12 +45,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Join request rejected',
-    });
-  } catch (error) {
-    return handleTenantError(error);
-  }
+      return NextResponse.json({
+        success: true,
+        message: 'Join request rejected',
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
 }
 

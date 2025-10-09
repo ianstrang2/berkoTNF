@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 // Multi-tenant imports - ensuring background jobs include tenant context
-import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 
 interface StatsUpdateJobPayload {
@@ -28,12 +28,9 @@ interface EnqueueResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  console.log('📥 Stats job enqueue request received');
+  return withTenantContext(request, async (tenantId) => {
+    console.log('📥 Stats job enqueue request received');
 
-  try {
-    // Multi-tenant setup - ensure background jobs include tenant context
-    const tenantId = await getTenantFromRequest(request);
-    
     // Parse request body
     const payload: StatsUpdateJobPayload = await request.json();
     
@@ -142,10 +139,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       jobId,
       message: `Stats update job successfully enqueued for ${payload.triggeredBy} trigger`
     } as EnqueueResponse);
-
-  } catch (error) {
-    return handleTenantError(error);
-  }
+  }).catch(handleTenantError);
 }
 
 // Health check endpoint
