@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui-kit/Button.component';
 import FireIcon from '@/components/icons/FireIcon.component';
@@ -8,6 +8,10 @@ import { LeaderData, formatLeaderText } from '@/utils/timeline.util';
 import { PlayerProfile } from '@/types/player.types';
 import { FeatBreakingItem, generateFeatContent } from '@/types/feat-breaking.types';
 import { getFeatIcon } from '@/components/icons/FeatIcons.component';
+import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
+import { usePlayers } from '@/hooks/queries/usePlayers.hook';
+import { usePersonalBests } from '@/hooks/queries/usePersonalBests.hook';
+import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
 
 interface PersonalBestsData {
   broken_pbs_data: {
@@ -19,16 +23,6 @@ interface PersonalBestsData {
       }[];
     };
   };
-}
-
-interface MatchInfo {
-  match_date: string;
-  team_a_score: number;
-  team_b_score: number;
-  team_a_players: string[];
-  team_b_players: string[];
-  team_a_scorers?: string;
-  team_b_scorers?: string;
 }
 
 interface Milestone {
@@ -51,24 +45,6 @@ interface GoalStreak {
   goals_in_streak: number;
 }
 
-interface FullMatchReportData {
-  matchInfo: MatchInfo;
-  gamesMilestones?: Milestone[];
-  goalsMilestones?: Milestone[];
-  streaks?: Streak[];
-  goalStreaks?: GoalStreak[];
-  halfSeasonGoalLeaders?: LeaderData[];
-  halfSeasonFantasyLeaders?: LeaderData[];
-  seasonGoalLeaders?: LeaderData[];
-  seasonFantasyLeaders?: LeaderData[];
-}
-
-interface FullMatchReportDataWithSpecialPlayers extends FullMatchReportData {
-  on_fire_player_id?: string | null;
-  grim_reaper_player_id?: string | null;
-  featBreakingData?: FeatBreakingItem[];
-}
-
 const PB_METRIC_DETAILS_FOR_COPY: { [key: string]: { name: string; unit: string } } = {
   'most_goals_in_game': { name: 'Most Goals in Game', unit: 'goals' },
   'longest_win_streak': { name: 'Longest Win Streak', unit: 'games' },
@@ -79,16 +55,38 @@ const PB_METRIC_DETAILS_FOR_COPY: { [key: string]: { name: string; unit: string 
 };
 
 const LatestMatch: React.FC = () => {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [matchData, setMatchData] = useState<FullMatchReportDataWithSpecialPlayers | null>(null);
-  const [personalBestsData, setPersonalBestsData] = useState<PersonalBestsData | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [teamAName, setTeamAName] = useState<string>('Team A');
-  const [teamBName, setTeamBName] = useState<string>('Team B');
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
-  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
-  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
-  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
+  
+  // React Query hooks - automatic caching and deduplication!
+  const { data: matchData, isLoading: matchLoading, error: matchError } = useMatchReport();
+  const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
+  const { data: personalBestsData, isLoading: pbLoading } = usePersonalBests();
+  const { data: configData = [], isLoading: configLoading } = useAppConfig('match_settings');
+
+  // Extract config values
+  const teamAName = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'team_a_name');
+    return config?.config_value || 'Team A';
+  }, [configData]);
+
+  const teamBName = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'team_b_name');
+    return config?.config_value || 'Team B';
+  }, [configData]);
+
+  const showOnFireConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_on_fire');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  const showGrimReaperConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_grim_reaper');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  // Combined loading state
+  const loading = matchLoading || playersLoading || pbLoading || configLoading;
+  const error = matchError;
 
   const formatDateSafely = (dateString: string | undefined | null): string => {
     if (!dateString) return '';
@@ -127,72 +125,6 @@ const LatestMatch: React.FC = () => {
     return num + "th";
   };
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const [matchResponse, playersResponse, configResponse, personalBestsResponse] = await Promise.all([
-        fetch('/api/matchReport'),
-        fetch('/api/players'),
-        fetch('/api/admin/app-config?group=match_settings'),
-        fetch('/api/personal-bests')
-      ]);
-      
-      if (!matchResponse.ok) {
-        console.warn(`Match API returned ${matchResponse.status} - no match data available`);
-        setMatchData(null); // Set null data for new tenants
-      } else {
-        const matchResult = await matchResponse.json();
-        if (matchResult.success) {
-          setMatchData(matchResult.data); // Can be null for new tenants
-        }
-      }
-
-      if (playersResponse.ok) {
-        const playersData = await playersResponse.json();
-        setAllPlayers(playersData.data || []);
-      }
-
-      if (configResponse.ok) {
-        const configData = await configResponse.json();
-        if (configData.success) {
-          const teamAConfig = configData.data.find((config: any) => config.config_key === 'team_a_name');
-          const teamBConfig = configData.data.find((config: any) => config.config_key === 'team_b_name');
-          const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
-          const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
-          
-          if (teamAConfig?.config_value) setTeamAName(teamAConfig.config_value);
-          if (teamBConfig?.config_value) setTeamBName(teamBConfig.config_value);
-          setShowOnFireConfig(showOnFire?.config_value !== 'false');
-          setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
-        }
-      }
-
-      if (personalBestsResponse.ok) {
-        const pbResult = await personalBestsResponse.json();
-        if (pbResult.success) {
-          setPersonalBestsData(pbResult.data);
-        } else {
-          console.warn('Failed to fetch personal bests for match report copy:', pbResult.error);
-          setPersonalBestsData(null);
-        }
-      } else {
-        console.warn(`Personal Bests API error: ${personalBestsResponse.status}`);
-        setPersonalBestsData(null);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setError(error instanceof Error ? error : new Error('Failed to fetch data'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const getPlayerByName = (name: string) => {
     return allPlayers.find(p => p.name === name);
   };
@@ -213,7 +145,6 @@ const LatestMatch: React.FC = () => {
       ? (leaderData.new_leader_goals || leaderData.value || 0) 
       : (leaderData.new_leader_points || leaderData.value || 0);
     
-    // Create a clear description of what they lead
     const metricLabel = metric === 'goals' ? 'goals' : 'points';
     const leadText = period.includes('goals') || period.includes('points') ? period : `${period} ${metricLabel}`;
           
@@ -236,7 +167,7 @@ const LatestMatch: React.FC = () => {
   };
 
   const formatMatchReportForCopy = (
-    data: FullMatchReportDataWithSpecialPlayers | null, 
+    data: typeof matchData, 
     pbsData: PersonalBestsData | null,
     showOnFireUi: boolean, 
     showGrimReaperUi: boolean
@@ -277,12 +208,11 @@ const LatestMatch: React.FC = () => {
       report += `Scorers: ${matchInfo.team_b_scorers}\n`;
     }
 
-    // Personal Bests will be included in Records & Achievements section below (only for players who played)
+    // Personal Bests
     let personalBestsContent = '';
     if (pbsData && pbsData.broken_pbs_data && Object.keys(pbsData.broken_pbs_data).length > 0) {
       const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
       
-      // Filter personal bests to only include players who played in this match
       const filteredPbsData = Object.values(pbsData.broken_pbs_data).filter((playerPbData: { name: string; pbs: { metric_type: string; value: number }[] }) => 
         matchPlayers.includes(playerPbData.name)
       );
@@ -303,7 +233,7 @@ const LatestMatch: React.FC = () => {
       }
     }
 
-    // CURRENT STANDINGS SECTION (Leaderboards only)
+    // CURRENT STANDINGS SECTION
     let hasStandingsData = false;
     let standingsSection = '';
 
@@ -314,10 +244,8 @@ const LatestMatch: React.FC = () => {
           hasStandingsData = true;
         }
         
-        // Group leaders by their value to handle ties properly
         const valueGroups: { [key: number]: any[] } = {};
         items.forEach(item => {
-          // Extract the value based on the title to determine if it's goals or points
           const isGoals = title.toLowerCase().includes('goal');
           const value = isGoals 
             ? (item.new_leader_goals || item.value || 0)
@@ -329,13 +257,10 @@ const LatestMatch: React.FC = () => {
           valueGroups[value].push(item);
         });
         
-        // Process each value group
         Object.values(valueGroups).forEach(group => {
           if (group.length === 1) {
-            // Single leader - use existing formatter
             standingsSection += `- ${formatter(group[0])}\n`;
           } else {
-            // Multiple tied leaders - create combined message
             const firstItem = group[0];
             const isGoals = title.toLowerCase().includes('goal');
             const value = isGoals 
@@ -359,7 +284,6 @@ const LatestMatch: React.FC = () => {
     formatStandingsList('Half-Season Goal Leaders', data.halfSeasonGoalLeaders, item => formatLeaderText(item, 'goals', 'Half-Season'));
     formatStandingsList('Half-Season Fantasy Leaders', data.halfSeasonFantasyLeaders, item => formatLeaderText(item, 'points', 'Half-Season'));
     
-    // Only show season leaders in the second half of the year (Jul-Dec)
     const currentDate = matchInfo.match_date ? new Date(matchInfo.match_date) : new Date();
     const isSecondHalf = currentDate.getMonth() >= 6;
     
@@ -372,29 +296,24 @@ const LatestMatch: React.FC = () => {
       report += standingsSection;
     }
 
-
-
-    // Reorganize remaining sections to match dashboard structure
-    
-    // CURRENT FORM SECTION (Streaks + Reaper/On Fire status)
+    // CURRENT FORM SECTION
     let hasCurrentFormData = false;
     let currentFormSection = '';
     
-    // Add Reaper/On Fire status
     if (data.grim_reaper_player_id || data.on_fire_player_id) {
       if (!hasCurrentFormData) {
         currentFormSection += `\n--- CURRENT FORM ---\n`;
         hasCurrentFormData = true;
       }
       
-      if (showGrimReaperConfig && data.grim_reaper_player_id && allPlayers.length > 0) {
+      if (showGrimReaperUi && data.grim_reaper_player_id && allPlayers.length > 0) {
         const reaperPlayer = allPlayers.find(p => p.id === data.grim_reaper_player_id);
         if (reaperPlayer) {
           currentFormSection += `- ${reaperPlayer.name} is The Grim Reaper 💀\n`;
         }
       }
       
-      if (showOnFireConfig && data.on_fire_player_id && allPlayers.length > 0) {
+      if (showOnFireUi && data.on_fire_player_id && allPlayers.length > 0) {
         const onFirePlayer = allPlayers.find(p => p.id === data.on_fire_player_id);
         if (onFirePlayer) {
           currentFormSection += `- ${onFirePlayer.name} is On Fire! 🔥\n`;
@@ -402,7 +321,6 @@ const LatestMatch: React.FC = () => {
       }
     }
     
-    // Add form streaks (only for players who played in this match)
     if (data.streaks && data.streaks.length > 0) {
       const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
       const filteredStreaks = data.streaks.filter(streak => matchPlayers.includes(streak.name));
@@ -423,7 +341,6 @@ const LatestMatch: React.FC = () => {
       }
     }
 
-    // Add goal streaks (only for players who played in this match)
     if (data.goalStreaks && data.goalStreaks.length > 0) {
       const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
       const filteredGoalStreaks = data.goalStreaks.filter(streak => matchPlayers.includes(streak.name));
@@ -443,23 +360,20 @@ const LatestMatch: React.FC = () => {
       report += currentFormSection;
     }
 
-    // RECORDS & ACHIEVEMENTS SECTION (Personal Bests + Milestones + Feat-Breaking)
+    // RECORDS & ACHIEVEMENTS SECTION
     let hasRecordsData = false;
     let recordsSection = '';
     
-    // Add personal bests to records section
     if (personalBestsContent) {
       recordsSection += `\n--- RECORDS & ACHIEVEMENTS ---\n`;
       recordsSection += personalBestsContent;
       hasRecordsData = true;
     }
     
-    // Add milestones to records section (combine game and goal milestones) - only for players who played
     if ((data.gamesMilestones && data.gamesMilestones.length > 0) || 
         (data.goalsMilestones && data.goalsMilestones.length > 0)) {
       const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
       
-      // Filter milestones to only include players who played in this match
       const filteredGameMilestones = data.gamesMilestones?.filter(m => matchPlayers.includes(m.name)) || [];
       const filteredGoalMilestones = data.goalsMilestones?.filter(m => matchPlayers.includes(m.name)) || [];
       
@@ -470,7 +384,6 @@ const LatestMatch: React.FC = () => {
         }
         recordsSection += `MILESTONES:\n`;
         
-        // Add game milestones
         if (filteredGameMilestones.length > 0) {
           filteredGameMilestones.forEach(m => {
             const gameCount = m.total_games || m.value || 0;
@@ -478,7 +391,6 @@ const LatestMatch: React.FC = () => {
           });
         }
         
-        // Add goal milestones
         if (filteredGoalMilestones.length > 0) {
           filteredGoalMilestones.forEach(m => {
             const goalCount = m.total_goals || m.value || 0;
@@ -489,7 +401,6 @@ const LatestMatch: React.FC = () => {
       }
     }
 
-    // Add feat-breaking records to records section - only for players who played
     if (data.featBreakingData && data.featBreakingData.length > 0) {
       const matchPlayers = [...(matchInfo.team_a_players || []), ...(matchInfo.team_b_players || [])];
       const filteredFeatBreakingData = data.featBreakingData.filter(feat => matchPlayers.includes(feat.player_name));
@@ -528,7 +439,6 @@ const LatestMatch: React.FC = () => {
   };
 
   const renderPlayerName = (playerName: string) => {
-    // Extract actual player name if it contains goal count, e.g., "Player Name (2)" -> "Player Name"
     const cleanPlayerName = playerName.replace(/\s*\(\d+\)$/, '').trim();
     const actualPlayer = getPlayerByName(cleanPlayerName);
     const actualPlayerId = actualPlayer?.id;
@@ -563,17 +473,13 @@ const LatestMatch: React.FC = () => {
     );
   };
 
-  // Helper function to parse goalscorers and add goal counts to player names
   const getPlayersWithGoals = (players: string[], scorers?: string) => {
     if (!scorers) return players;
     
-    // Parse scorers string to count goals per player
     const goalCounts: { [key: string]: number } = {};
     
-    // Split by commas and process each scorer entry
     const scorerEntries = scorers.split(',').map(s => s.trim());
     scorerEntries.forEach(entry => {
-      // Handle formats like "Player Name (2)" or just "Player Name"
       const match = entry.match(/^(.+?)(?:\s*\((\d+)\))?$/);
       if (match) {
         const playerName = match[1].trim();
@@ -582,16 +488,13 @@ const LatestMatch: React.FC = () => {
       }
     });
     
-    // Add goal counts to player names
     return players.map(player => {
       const goals = goalCounts[player];
       return goals ? `${player} (${goals})` : player;
     });
   };
 
-  // Helper function to split players into two columns more evenly
   const splitPlayersIntoColumns = (players: string[]) => {
-    // For better visual balance, left column gets the extra player for odd numbers
     const leftCount = Math.ceil(players.length / 2);
     return {
       leftColumn: players.slice(0, leftCount),
@@ -620,7 +523,7 @@ const LatestMatch: React.FC = () => {
         <div className="p-4">
           <div className="text-center text-red-500">
             <p>Error loading match data</p>
-            <p className="text-sm">{error.message}</p>
+            <p className="text-sm">{(error as Error).message}</p>
           </div>
         </div>
       </div>
@@ -644,11 +547,9 @@ const LatestMatch: React.FC = () => {
 
   const { matchInfo } = matchData;
   
-  // Get players with goal counts integrated
   const teamAPlayersWithGoals = getPlayersWithGoals(matchInfo.team_a_players, matchInfo.team_a_scorers);
   const teamBPlayersWithGoals = getPlayersWithGoals(matchInfo.team_b_players, matchInfo.team_b_scorers);
   
-  // Split into columns
   const teamAColumns = splitPlayersIntoColumns(teamAPlayersWithGoals);
   const teamBColumns = splitPlayersIntoColumns(teamBPlayersWithGoals);
   
@@ -662,9 +563,8 @@ const LatestMatch: React.FC = () => {
         </div>
       </div>
       
-      {/* Score section with team names positioned closer to score */}
+      {/* Score section */}
       <div className="flex items-center justify-center gap-8 sm:gap-12 lg:gap-16 mb-4 sm:mb-6">
-        {/* Team A - positioned closer to score */}
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
             <span className="text-lg sm:text-xl lg:text-2xl font-bold">A</span>
@@ -672,7 +572,6 @@ const LatestMatch: React.FC = () => {
           <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamAName}</h6>
         </div>
 
-        {/* Centered Score */}
         <div className="text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-slate-800">
             {matchInfo.team_a_score} - {matchInfo.team_b_score}
@@ -680,7 +579,6 @@ const LatestMatch: React.FC = () => {
           <p className="mt-0.5 text-xs sm:text-sm uppercase text-slate-400 font-semibold">FINAL SCORE</p>
         </div>
 
-        {/* Team B - positioned closer to score */}
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
             <span className="text-lg sm:text-xl lg:text-2xl font-bold">B</span>
@@ -689,9 +587,8 @@ const LatestMatch: React.FC = () => {
         </div>
       </div>
       
-      {/* Players in 2-column layout for each team - Inner Alignment */}
+      {/* Players */}
       <div className="grid grid-cols-2 gap-4 mt-5">
-        {/* Team A Players - Right-aligned (toward center) */}
         <div className="text-right pr-2">
           {[...teamAColumns.leftColumn, ...teamAColumns.rightColumn].map((player, index) => (
             <div key={index} className="text-sm sm:text-base text-slate-700 mb-2">
@@ -700,7 +597,6 @@ const LatestMatch: React.FC = () => {
           ))}
         </div>
         
-        {/* Team B Players - Left-aligned (toward center) */}
         <div className="text-left pl-2">
           {[...teamBColumns.leftColumn, ...teamBColumns.rightColumn].map((player, index) => (
             <div key={index} className="text-sm sm:text-base text-slate-700 mb-2">
@@ -709,8 +605,6 @@ const LatestMatch: React.FC = () => {
           ))}
         </div>
       </div>
-
-
 
       <div className="mt-4 sm:mt-6 lg:mt-8 flex justify-center">
         <Button
@@ -726,4 +620,4 @@ const LatestMatch: React.FC = () => {
   );
 };
 
-export default LatestMatch; 
+export default LatestMatch;

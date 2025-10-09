@@ -1,186 +1,70 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import FantasyPointsTooltip from '@/components/ui-kit/FantasyPointsTooltip.component';
 import { getSeasonTitles } from '@/utils/seasonTitles.util';
-import { PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
-
-interface FormData {
-  name: string;
-  last_5_games?: string;
-}
-
-interface StatsData {
-  seasonStats: PlayerWithStats[];
-  goalStats: PlayerWithGoalStats[];
-  formData: FormData[];
-}
+import { PlayerWithStats, PlayerWithGoalStats } from '@/types/player.types';
+import { useCurrentStats } from '@/hooks/queries/useCurrentStats.hook';
+import { useSeasons } from '@/hooks/queries/useSeasons.hook';
+import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
+import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
 
 interface OverallSeasonPerformanceProps {
   initialView?: 'points' | 'goals';
 }
 
 const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ initialView = 'points' }) => {
-  const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'stats' | 'goals'>(initialView === 'goals' ? 'goals' : 'stats');
-  const [stats, setStats] = useState<StatsData>({
-    seasonStats: [],
-    goalStats: [],
-    formData: []
-  });
   const [selectedYear, setSelectedYear] = useState<number>(2025);
-  const [seasons, setSeasons] = useState<any[]>([]);
-  const [selectedSeason, setSelectedSeason] = useState<any | null>(null);
-  const yearOptions: number[] = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011];
-  const isMounted = useRef(true); // Track component mount state
-  // Client-side only rendering for hydration safety
   const [isClient, setIsClient] = useState(false);
-
-  // NEW: State for special player IDs and config
-  const [onFirePlayerId, setOnFirePlayerId] = useState<string | null>(null);
-  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
-  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
-  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
+  const yearOptions: number[] = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011];
 
   // Fantasy Points Tooltip state
   const [isFantasyPointsTooltipOpen, setIsFantasyPointsTooltipOpen] = useState<boolean>(false);
 
-  // Fetch seasons data
-  useEffect(() => {
-    const fetchSeasons = async () => {
-      try {
-        const response = await fetch('/api/seasons');
-        const data = await response.json();
-        if (data.success && data.data) {
-          setSeasons(data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching seasons:', error);
-      }
-    };
-    
-    fetchSeasons();
-  }, []);
+  // React Query hooks - automatic caching and deduplication!
+  const { data: statsData, isLoading: statsLoading, error: statsError } = useCurrentStats(selectedYear);
+  const { data: seasons = [], isLoading: seasonsLoading } = useSeasons();
+  const { data: matchData, isLoading: matchLoading } = useMatchReport();
+  const { data: configData = [], isLoading: configLoading } = useAppConfig('match_settings');
 
-  // Update selected season when year or seasons change
-  useEffect(() => {
-    if (seasons.length > 0) {
-      const season = seasons.find(s => {
-        const year = new Date(s.startDate).getFullYear();
-        return year === selectedYear;
-      });
-      setSelectedSeason(season || null);
-    }
+  // Extract config values
+  const showOnFireConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_on_fire');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  const showGrimReaperConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_grim_reaper');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  // Extract player IDs from match data
+  const onFirePlayerId = matchData?.on_fire_player_id || null;
+  const grimReaperPlayerId = matchData?.grim_reaper_player_id || null;
+
+  // Find selected season
+  const selectedSeason = useMemo(() => {
+    if (seasons.length === 0) return null;
+    const season = seasons.find((s: any) => {
+      const year = new Date(s.startDate).getFullYear();
+      return year === selectedYear;
+    });
+    return season || null;
   }, [selectedYear, seasons]);
 
+  // Combined loading state
+  const loading = statsLoading || seasonsLoading || matchLoading || configLoading;
+
+  // Extract stats with defaults
+  const seasonStats = statsData?.seasonStats || [];
+  const goalStats = statsData?.goalStats || [];
+
   useEffect(() => {
-    // Set isMounted ref to true when component mounts
-    isMounted.current = true;
     setIsClient(true);
-    // Clean up function that runs when component unmounts
-    return () => {
-      isMounted.current = false;
-    };
   }, []);
-
-  useEffect(() => {
-    let isCancelled = false; // For preventing race conditions
-    
-    const fetchData = async () => {
-      try {
-        // Early return if component is unmounting
-        if (!isMounted.current) return;
-        
-        setLoading(true);
-        
-        // Fetch all data in parallel
-        const [statsResponse, reportResponse, configResponse] = await Promise.all([
-          fetch('/api/stats', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              startDate: `${selectedYear}-01-01`,
-              endDate: `${selectedYear}-12-31`
-            })
-          }),
-          fetch('/api/matchReport'),
-          fetch('/api/admin/app-config?group=match_settings')
-        ]);
-        
-        // Early return if component is unmounting or request was cancelled
-        if (!isMounted.current || isCancelled) return;
-        
-        const result = await statsResponse.json();
-        // API Response received (debug logs removed for production)
-        
-        if (result.data) {
-          // No longer need to transform API data. The API now returns canonical types.
-          if (isMounted.current && !isCancelled) {
-            setStats({
-              seasonStats: result.data.seasonStats || [],
-              goalStats: result.data.goalStats || [],
-              formData: result.data.formData || []
-            });
-          }
-        } else {
-          console.log('No data received from API');
-          if (isMounted.current && !isCancelled) {
-            setStats({
-              seasonStats: [],
-              goalStats: [],
-              formData: []
-            });
-          }
-        }
-
-        // Get On Fire and Grim Reaper IDs from match report
-        if (reportResponse.ok) {
-          const reportData = await reportResponse.json();
-          if (isMounted.current && !isCancelled) {
-            setOnFirePlayerId(reportData.data?.on_fire_player_id || null);
-            setGrimReaperPlayerId(reportData.data?.grim_reaper_player_id || null);
-          }
-        }
-
-        // Get config for visibility
-        if (configResponse.ok) {
-          const configData = await configResponse.json();
-          if (configData.success && isMounted.current && !isCancelled) {
-            const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
-            const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
-            setShowOnFireConfig(showOnFire?.config_value !== 'false');
-            setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
-          }
-        }
-        
-        if (isMounted.current && !isCancelled) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        if (isMounted.current && !isCancelled) {
-          setLoading(false);
-          setStats({
-            seasonStats: [],
-            goalStats: [],
-            formData: []
-          });
-        }
-      }
-    };
-
-    fetchData();
-    
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedYear]);
 
   // Update activeTab when initialView changes
   useEffect(() => {
@@ -230,7 +114,6 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
             )}
           </div>
         </div>
-        {/* Container for horizontal scrolling only */}
         <div className="overflow-x-auto">
           <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
             <thead className="align-bottom">
@@ -261,15 +144,13 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
             </thead>
             <tbody>
               {data.map((player: any, index: number) => {
-                 const losses = player.gamesPlayed - player.wins - player.draws; // Calculate losses if needed
+                 const losses = player.gamesPlayed - player.wins - player.draws;
                  return (
                   <tr key={index} className="hover:bg-gray-50">
-                    {/* Sticky Data */}
                     <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center w-8">
                        <span className="font-normal leading-normal text-sm">{index + 1}</span>
                     </td>
                     <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
-                      {/* Placeholder Icon */}
                       {player.club ? (
                         <img
                           src={`/club-logos-40px/${player.club.filename}`}
@@ -291,7 +172,6 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
                         </div>
                       </div>
                     </td>
-                    {/* Scrollable Data */}
                     {statsType === 'points' ? (
                       <>
                         <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
@@ -347,6 +227,30 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
     );
   };
 
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Update activeTab when initialView changes
+  useEffect(() => {
+    setActiveTab(initialView === 'goals' ? 'goals' : 'stats');
+  }, [initialView]);
+
+  if (statsError) {
+    return (
+      <div className="flex flex-wrap justify-start -mx-3">
+        <div className="w-full max-w-full px-3 flex-none">
+          <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+            <div className="text-center text-red-500">
+              <p>Error loading stats</p>
+              <p className="text-sm">{(statsError as Error).message}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading || !isClient) {
     return (
       <div className="flex flex-wrap justify-start -mx-3">
@@ -393,7 +297,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
         </div>
       </div>
       
-      {stats.seasonStats.length === 0 ? (
+      {seasonStats.length === 0 ? (
         <div className="w-full max-w-full px-3 flex-none">
           <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
             <div className="flex items-center justify-center p-5">
@@ -408,16 +312,12 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
           </div>
         </div>
       ) : (
-        <>
-          {/* Single table display controlled by tertiary navigation */}
-          <div className="w-full px-3">
-            {activeTab === 'stats' && renderTable(stats.seasonStats, `Points (${selectedSeason ? getSeasonTitles(selectedSeason.startDate, selectedSeason.halfDate, selectedSeason.endDate).wholeSeasonTitle : selectedYear})`, 'points')}
-            {activeTab === 'goals' && renderTable(stats.goalStats, `Goals (${selectedSeason ? getSeasonTitles(selectedSeason.startDate, selectedSeason.halfDate, selectedSeason.endDate).wholeSeasonTitle : selectedYear})`, 'goals')}
-          </div>
-        </>
+        <div className="w-full px-3">
+          {activeTab === 'stats' && renderTable(seasonStats, `Points (${selectedSeason ? getSeasonTitles(selectedSeason.startDate, selectedSeason.halfDate, selectedSeason.endDate).wholeSeasonTitle : selectedYear})`, 'points')}
+          {activeTab === 'goals' && renderTable(goalStats, `Goals (${selectedSeason ? getSeasonTitles(selectedSeason.startDate, selectedSeason.halfDate, selectedSeason.endDate).wholeSeasonTitle : selectedYear})`, 'goals')}
+        </div>
       )}
       
-      {/* Fantasy Points Tooltip Modal */}
       <FantasyPointsTooltip
         isOpen={isFantasyPointsTooltipOpen}
         onClose={() => setIsFantasyPointsTooltipOpen(false)}
@@ -426,4 +326,4 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
   );
 };
 
-export default OverallSeasonPerformance; 
+export default OverallSeasonPerformance;

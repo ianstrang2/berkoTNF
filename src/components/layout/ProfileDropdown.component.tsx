@@ -11,6 +11,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Tenant {
   tenant_id: string;
@@ -30,6 +31,7 @@ export const ProfileDropdown: React.FC = () => {
   const router = useRouter();
   const { profile } = useAuthContext();
   const supabase = createClientComponentClient();
+  const queryClient = useQueryClient();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -162,6 +164,11 @@ export const ProfileDropdown: React.FC = () => {
         // Small delay to ensure cookies fully propagate
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+      
+      // CRITICAL: Clear React Query cache before switching tenants
+      // This prevents showing stale data from the previous tenant
+      console.log('🗑️ Clearing React Query cache before tenant switch');
+      queryClient.clear();
       
       // Store selected tenant in localStorage for tenant context
       if (tenantId) {

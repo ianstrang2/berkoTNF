@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { ReactNode } from 'react';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ReactQueryProvider } from '@/providers/ReactQueryProvider';
 import { StatusBarConfig } from '@/components/native/StatusBarConfig.component';
 import { DeepLinkHandler } from '@/components/native/DeepLinkHandler.component';
 import Script from 'next/script';
@@ -41,11 +42,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="h-full bg-gray-50">
         <StatusBarConfig />
         <DeepLinkHandler />
-        <AuthProvider>
-          <NavigationProvider>
-            {children}
-          </NavigationProvider>
-        </AuthProvider>
+        <ReactQueryProvider>
+          <AuthProvider>
+            <NavigationProvider>
+              {children}
+            </NavigationProvider>
+          </AuthProvider>
+        </ReactQueryProvider>
 
         {/* This script helps avoid hydration errors by making client rendering match server exactly */}
         <Script

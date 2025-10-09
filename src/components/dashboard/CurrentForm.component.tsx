@@ -1,16 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { PlayerProfile } from '@/types/player.types';
-
-interface Milestone {
-  name: string;
-  games_played?: number;
-  total_games?: number;
-  total_goals?: number;
-  value?: number;
-}
+import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
+import { usePlayers } from '@/hooks/queries/usePlayers.hook';
+import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
 
 interface Streak {
   name: string;
@@ -24,54 +19,39 @@ interface GoalStreak {
   goals_in_streak: number;
 }
 
-interface LeaderData {
-  change_type: 'new_leader' | 'tied' | 'remains' | 'overtake';
-  new_leader: string;
-  previous_leader?: string;
-  new_leader_goals?: number;
-  new_leader_points?: number;
-  previous_leader_goals?: number;
-  previous_leader_points?: number;
-  value?: number;
-}
-
 interface TimelineItem {
-  type: 'game_milestone' | 'goal_milestone' | 'form_streak' | 'goal_streak' | 'leader_change';
+  type: 'form_streak' | 'goal_streak';
   player: string;
   playerId?: string;
   content: string;
   subtext?: string;
-  icon: 'trophy' | 'goal' | 'fire' | 'chart' | 'soccer' | 'crown';
+  icon: 'fire' | 'chart' | 'soccer';
   date?: string;
   color?: string;
 }
 
-interface MilestonesData {
-  matchInfo: {
-    match_date: string;
-    team_a_players?: string[];
-    team_b_players?: string[];
-  };
-  gamesMilestones?: Milestone[];
-  goalsMilestones?: Milestone[];
-  streaks?: Streak[];
-  goalStreaks?: GoalStreak[];
-  halfSeasonGoalLeaders?: LeaderData[];
-  halfSeasonFantasyLeaders?: LeaderData[];
-  seasonGoalLeaders?: LeaderData[];
-  seasonFantasyLeaders?: LeaderData[];
-  on_fire_player_id?: string | null;
-  grim_reaper_player_id?: string | null;
-}
-
 const CurrentForm: React.FC = () => {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [milestonesData, setMilestonesData] = useState<MilestonesData | null>(null);
-  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
-  const [error, setError] = useState<Error | null>(null);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
-  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
-  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
+
+  // React Query hooks - automatic caching and deduplication!
+  const { data: milestonesData, isLoading: milestonesLoading, error: milestonesError } = useMatchReport();
+  const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
+  const { data: configData = [], isLoading: configLoading } = useAppConfig('match_settings');
+
+  // Extract config values
+  const showOnFireConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_on_fire');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  const showGrimReaperConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_grim_reaper');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  // Combined loading/error states
+  const loading = milestonesLoading || playersLoading || configLoading;
+  const error = milestonesError;
 
   // Card animation variants
   const cardVariants = {
@@ -99,28 +79,6 @@ const CurrentForm: React.FC = () => {
     },
   };
 
-  // Helper function to get the correct ordinal suffix for numbers
-  const getOrdinalSuffix = (num: number): string => {
-    // Handle case where num is 0, which isn't a valid ordinal
-    if (num === 0) {
-      console.error('Invalid ordinal number: 0');
-      return "0th"; // Return something reasonable but log error
-    }
-    
-    const j = num % 10;
-    const k = num % 100;
-    if (j === 1 && k !== 11) {
-      return num + "st";
-    }
-    if (j === 2 && k !== 12) {
-      return num + "nd";
-    }
-    if (j === 3 && k !== 13) {
-      return num + "rd";
-    }
-    return num + "th";
-  };
-
   // Format date safely
   const formatDateSafely = (dateString: string | undefined | null): string => {
     if (!dateString) return '';
@@ -128,12 +86,10 @@ const CurrentForm: React.FC = () => {
     try {
       const date = new Date(dateString);
       
-      // Check if date is valid
       if (isNaN(date.getTime())) {
         return '';
       }
       
-      // Use toLocaleDateString with explicit locale for consistency
       return date.toLocaleDateString('en-GB', {
         year: 'numeric',
         month: 'long',
@@ -145,103 +101,7 @@ const CurrentForm: React.FC = () => {
     }
   };
 
-  // Helper function to format leader data text with improved handling
-  const formatLeaderText = (leaderData: LeaderData, metric: 'goals' | 'points', period: string): string => {
-    if (!leaderData || !leaderData.new_leader) {
-      console.error('Invalid leader data:', leaderData);
-      return `Unknown leader in ${metric}`;
-    }
-    
-    const { change_type, new_leader, previous_leader } = leaderData;
-    
-    const value = metric === 'goals' 
-      ? (leaderData.new_leader_goals || leaderData.value || 0) 
-      : (leaderData.new_leader_points || leaderData.value || 0);
-          
-    // If we don't have a change_type but do have a name and value, use concise format
-    // This case might not be strictly needed if data always has change_type from SQL
-    if (!change_type && new_leader) {
-      return `${new_leader} leads with ${value}`;
-    }
-    
-    switch (change_type) {
-      case 'new_leader':
-        return `${new_leader} now leads with ${value}`;
-      case 'tied':
-        // For UI, if we ever have a 'tied' type for a single leader item, this should be clear.
-        // However, 'tied' type from SQL usually means a new person tied a previous leader's score.
-        // If it's about current co-leaders, that's handled separately now.
-        return `${new_leader} tied with ${previous_leader} at ${value}`;
-      case 'remains':
-        return `${new_leader} leads with ${value}`;
-      case 'overtake':
-        return `${new_leader} overtook ${previous_leader} with ${value}`;
-      default:
-        return `${new_leader} leads with ${value}`;
-    }
-  };
-
-  const fetchMilestonesData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Fetch milestones, players, and config in parallel
-      const [milestonesResponse, playersResponse, configResponse] = await Promise.all([
-        fetch('/api/matchReport'), // This API seems to provide all milestone data
-        fetch('/api/players'),
-        fetch('/api/admin/app-config?group=match_settings')
-      ]);
-      
-      if (!milestonesResponse.ok) {
-        console.warn(`Milestones API returned ${milestonesResponse.status} - no match data available`);
-        // Don't throw error for new tenants - just set empty data
-        setMilestonesData(null);
-        setTimelineItems([]);
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json();
-          setAllPlayers(playersData.data || []);
-        }
-        setLoading(false); // Stop loading
-        return; // Exit early for new tenants
-      }
-      const milestonesResult = await milestonesResponse.json();
-      
-      if (playersResponse.ok) {
-        const playersData = await playersResponse.json();
-        // No transformation needed, API provides canonical PlayerProfile objects.
-        setAllPlayers(playersData.data || []);
-      } else {
-        // Non-critical, milestones can still be shown without player links
-        console.warn('Failed to fetch players for Milestones component');
-        setAllPlayers([]);
-      }
-
-      // Get config for visibility
-      if (configResponse.ok) {
-        const configData = await configResponse.json();
-        if (configData.success) {
-          const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
-          const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
-          setShowOnFireConfig(showOnFire?.config_value !== 'false');
-          setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
-        }
-      }
-      
-      if (milestonesResult.success) {
-        setMilestonesData(milestonesResult.data);
-        processTimelineItems(milestonesResult.data);
-      } else {
-        setError(new Error(milestonesResult.error || 'Failed to fetch milestones data'));
-      }
-    } catch (error) {
-      console.error('Error in fetchMilestonesData:', error);
-      setError(error instanceof Error ? error : new Error('Failed to fetch milestones data'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Don't use useCallback - inline function to avoid dependency issues
   const getPlayerIdByName = (name: string): string | undefined => {
     const player = allPlayers.find(p => p.name === name);
     return player?.id;
@@ -251,7 +111,6 @@ const CurrentForm: React.FC = () => {
   const renderContentWithLinks = (content: string): React.ReactNode => {
     if (!allPlayers.length) return content;
     
-    // Create a regex pattern that matches any player name
     const playerNames = allPlayers.map(p => p.name);
     const playerNamePattern = new RegExp(`\\b(${playerNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'g');
     
@@ -263,14 +122,12 @@ const CurrentForm: React.FC = () => {
       const playerId = getPlayerIdByName(part);
       
       if (playerId) {
-        // This part is a player name, make it a link
         result.push(
           <Link key={i} href={`/player/profiles/${playerId}`} className="hover:underline text-slate-700">
             {part}
           </Link>
         );
       } else {
-        // This part is regular text
         result.push(part);
       }
     }
@@ -278,10 +135,9 @@ const CurrentForm: React.FC = () => {
     return result;
   };
 
-  const processTimelineItems = (data: MilestonesData | null) => {
+  const processTimelineItems = (data: typeof milestonesData) => {
     const items: TimelineItem[] = [];
     
-    // Handle null data for new tenants
     if (!data || !data.matchInfo) {
       setTimelineItems([]);
       return;
@@ -295,12 +151,9 @@ const CurrentForm: React.FC = () => {
       ...(data.matchInfo?.team_b_players || [])
     ];
     
-    // REMOVED: Game and goal milestones - moved to Records & Achievements component
-    
-    // Add form streaks to timeline - ONLY for players who played in this match
+    // Add form streaks - ONLY for players who played in this match
     if (data.streaks && data.streaks.length > 0) {
       data.streaks.forEach(streak => {
-        // Only show streaks for players who actually played in this match
         if (!allMatchPlayers.includes(streak.name)) {
           return;
         }
@@ -310,7 +163,6 @@ const CurrentForm: React.FC = () => {
           streak.streak_type === 'loss' ? 'losing' :
           streak.streak_type === 'unbeaten' ? 'unbeaten' : 'winless';
         
-        // Assign appropriate colors based on streak type
         const streakColor = 
           streak.streak_type === 'win' || streak.streak_type === 'unbeaten' ? 'green' : 'red';
         
@@ -327,10 +179,9 @@ const CurrentForm: React.FC = () => {
       });
     }
     
-    // Add goal streaks to timeline - ONLY for players who played in this match
+    // Add goal streaks - ONLY for players who played in this match
     if (data.goalStreaks && data.goalStreaks.length > 0) {
       data.goalStreaks.forEach(streak => {
-        // Only show goal streaks for players who actually played in this match
         if (!allMatchPlayers.includes(streak.name)) {
           return;
         }
@@ -349,20 +200,14 @@ const CurrentForm: React.FC = () => {
       });
     }
     
-    // REMOVED: Leader changes - moved to Current Standings component
-    
     setTimelineItems(items);
   };
 
   useEffect(() => {
-    fetchMilestonesData();
-  }, []);
-
-  useEffect(() => {
-    if (milestonesData) {
+    if (milestonesData && !playersLoading) {
       processTimelineItems(milestonesData);
     }
-  }, [milestonesData, allPlayers]);
+  }, [milestonesData, allPlayers.length, playersLoading]); // Only depend on length, not array reference
 
   if (loading) {
     return (
@@ -385,7 +230,7 @@ const CurrentForm: React.FC = () => {
         <div className="p-4">
           <div className="text-center text-red-500">
             <p>Error loading milestones</p>
-            <p className="text-sm">{error.message}</p>
+            <p className="text-sm">{(error as Error).message}</p>
           </div>
         </div>
       </div>
@@ -484,16 +329,6 @@ const CurrentForm: React.FC = () => {
                 className="relative mb-4 last:mb-0"
               >
                 <span className="w-8 h-8 rounded-full text-base z-1 absolute left-4 inline-flex -translate-x-1/2 items-center justify-center bg-white text-center font-semibold">
-                  {item.icon === 'trophy' && (
-                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
-                  )}
-                  {item.icon === 'goal' && (
-                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  )}
                   {item.icon === 'fire' && (
                     <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
@@ -511,16 +346,11 @@ const CurrentForm: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
                     </svg>
                   )}
-                  {item.icon === 'crown' && (
-                    <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                    </svg>
-                  )}
                 </span>
 
                 <div className="ml-12 pt-1.4 max-w-120 relative -top-1.5 w-auto">
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700">
-                    {item.playerId && (item.type === 'game_milestone' || item.type === 'goal_milestone' || item.type === 'form_streak' || item.type === 'goal_streak') ? (
+                    {item.playerId ? (
                       <Link href={`/player/profiles/${item.playerId}`} className="hover:underline">
                         {item.player}
                       </Link>
@@ -534,13 +364,7 @@ const CurrentForm: React.FC = () => {
                     <p className="mb-2 leading-normal text-xs text-slate-500">{item.subtext}</p>
                   )}
                   
-                  {/* Colored badges with matching icon colors */}
-                  {item.type === 'game_milestone' && (
-                    <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Milestone</span>
-                  )}
-                  {item.type === 'goal_milestone' && (
-                    <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Milestone</span>
-                  )}
+                  {/* Colored badges */}
                   {item.type === 'form_streak' && item.color === 'green' && (
                     <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Streak</span>
                   )}
@@ -549,9 +373,6 @@ const CurrentForm: React.FC = () => {
                   )}
                   {item.type === 'goal_streak' && (
                     <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Scoring Streak</span>
-                  )}
-                  {item.type === 'leader_change' && (
-                    <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-amber-600 to-yellow-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Leaderboard</span>
                   )}
                 </div>
               </motion.div>
@@ -564,4 +385,4 @@ const CurrentForm: React.FC = () => {
   );
 };
 
-export default CurrentForm; 
+export default CurrentForm;

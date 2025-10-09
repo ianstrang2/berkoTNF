@@ -3,21 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 import { format, addWeeks, startOfWeek } from 'date-fns';
 import { useSeasonTitles } from '@/hooks/useSeasonTitles.hook';
-
-interface PlayerRaceData {
-  player_id: number;
-  name: string;
-  cumulative_data: Array<{
-    date: string;
-    points: number;
-  }>;
-}
-
-interface SeasonRaceData {
-  players: PlayerRaceData[];
-  lastUpdated: string | null;
-  periodType: string;
-}
+import { useSeasonRaceData } from '@/hooks/queries/useSeasonRaceData.hook';
 
 interface SeasonRaceGraphProps {
   period?: 'whole_season' | 'current_half';
@@ -35,7 +21,7 @@ const PLAYER_COLORS = [
 // Generate weekly ticks for the given date range
 const generateWeeklyTicks = (startDate: Date, endDate: Date): number[] => {
   const ticks: number[] = [];
-  let currentWeek = startOfWeek(startDate, { weekStartsOn: 1 }); // Start on Monday
+  let currentWeek = startOfWeek(startDate, { weekStartsOn: 1 });
   
   while (currentWeek <= endDate) {
     ticks.push(currentWeek.getTime());
@@ -50,12 +36,13 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
   showHalfSeasonLine = true 
 }) => {
   const { halfSeasonTitle, wholeSeasonTitle } = useSeasonTitles();
-  const [data, setData] = useState<SeasonRaceData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+
+  // React Query hook - automatic caching and deduplication!
+  const { data, isLoading: loading, error: queryError } = useSeasonRaceData(period);
+  const error = queryError ? (queryError as Error).message : null;
 
   useEffect(() => {
     setIsMounted(true);
@@ -70,41 +57,13 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch(`/api/season-race-data?period=${period}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch season race data');
-        }
-        
-        const result = await response.json();
-        if (!result.success) {
-          throw new Error(result.error || 'Unknown error');
-        }
-        
-        setData(result.data);
-      } catch (err) {
-        console.error('Error fetching season race data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [period]);
-
   // Transform data for time-based Recharts with weekly ticks
   const { chartData, sortedPlayers, xAxisDomain, weeklyTicks, mobileTicksFiltered } = React.useMemo(() => {
     if (!data || !data.players || data.players.length === 0) {
       return { chartData: [], sortedPlayers: [], xAxisDomain: [0, 1], weeklyTicks: [], mobileTicksFiltered: [] };
     }
 
-    // Sort players by their final points (current standings order)
+    // Sort players by their final points
     const playersWithFinalPoints = data.players.map(player => ({
       ...player,
       finalPoints: player.cumulative_data.length > 0 
@@ -113,35 +72,28 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
     }));
 
     const sortedPlayers = playersWithFinalPoints.sort((a, b) => b.finalPoints - a.finalPoints);
-    
-    // Final points validation (debug logs removed for production)
 
     // Calculate period dates
     const currentYear = new Date().getFullYear();
     let startDate: Date, endDate: Date;
     
     if (period === 'current_half') {
-      // Determine which half we're in
-      const isFirstHalf = new Date() <= new Date(currentYear, 5, 30); // June 30th
+      const isFirstHalf = new Date() <= new Date(currentYear, 5, 30);
       if (isFirstHalf) {
-        startDate = new Date(currentYear, 0, 1); // January 1st
-        endDate = new Date(currentYear, 5, 30); // June 30th
+        startDate = new Date(currentYear, 0, 1);
+        endDate = new Date(currentYear, 5, 30);
       } else {
-        startDate = new Date(currentYear, 6, 1); // July 1st
-        endDate = new Date(currentYear, 11, 31); // December 31st
+        startDate = new Date(currentYear, 6, 1);
+        endDate = new Date(currentYear, 11, 31);
       }
     } else {
-      startDate = new Date(currentYear, 0, 1); // January 1st
-      endDate = new Date(currentYear, 11, 31); // December 31st
+      startDate = new Date(currentYear, 0, 1);
+      endDate = new Date(currentYear, 11, 31);
     }
 
     const xAxisDomain = [startDate.getTime(), endDate.getTime()];
     const weeklyTicks = generateWeeklyTicks(startDate, endDate);
-    
-    // Create filtered ticks for mobile (every 4th tick)
     const mobileTicksFiltered = weeklyTicks.filter((_, index) => index % 4 === 0);
-
-    // Period and ticks calculation (debug logs removed for production)
 
     // Transform player data to include starting points and timestamps
     const transformedPlayers = sortedPlayers.map(player => {
@@ -151,12 +103,11 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
         points: point.points
       }));
 
-      // Add starting point at 0 if player doesn't have data from period start
+      // Add starting point at 0 if needed
       const periodStartStr = startDate.toISOString().split('T')[0];
       const hasStartingPoint = player.cumulative_data.some(point => point.date === periodStartStr);
       
       if (!hasStartingPoint && playerData.length > 0) {
-        // Add a 0-point starting entry
         playerData.unshift({
           date: startDate.getTime(),
           dateString: periodStartStr,
@@ -164,7 +115,6 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
         });
       }
 
-      // Sort by date to ensure chronological order
       playerData.sort((a, b) => a.date - b.date);
 
       return {
@@ -173,7 +123,7 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
       };
     });
 
-    // Get all unique timestamps from all players
+    // Get all unique timestamps
     const allTimestamps = new Set<number>();
     transformedPlayers.forEach(player => {
       player.transformedData.forEach(point => {
@@ -181,24 +131,18 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
       });
     });
     
-    // Sort timestamps chronologically
     const sortedTimestamps = Array.from(allTimestamps).sort();
-    
-    // Timestamps processing (debug logs removed for production)
 
-    // Create chart data using timestamps for time-based plotting
+    // Create chart data
     const chartData = sortedTimestamps.map(timestamp => {
       const dataPoint: any = { date: timestamp };
       
       transformedPlayers.forEach(player => {
-        // Find the exact cumulative total for this player at this timestamp
         const exactPoint = player.transformedData.find(point => point.date === timestamp);
         
         if (exactPoint) {
-          // Player has data at this exact timestamp
           dataPoint[player.name] = exactPoint.points;
         } else {
-          // Find the last known value before this timestamp
           let lastKnownPoints: number | null = null;
           for (let i = player.transformedData.length - 1; i >= 0; i--) {
             if (player.transformedData[i].date < timestamp) {
@@ -207,24 +151,18 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
             }
           }
           
-          // Only set a value if we have a known point before this timestamp
-          // This prevents forward-filling into the future
           if (lastKnownPoints !== null) {
             dataPoint[player.name] = lastKnownPoints;
           }
-          // If lastKnownPoints is null, we don't set a value, creating a gap in the line
         }
       });
 
       return dataPoint;
     });
 
-    // Debug: verify chart data accuracy
-    // Chart data verification (debug logs removed for production)
+    // Verify chart data accuracy
     if (chartData.length > 0) {
       const lastDataPoint = chartData[chartData.length - 1];
-      
-      // Compare with database final values
       transformedPlayers.forEach(player => {
         const chartFinal = lastDataPoint[player.name];
         const dbFinal = player.finalPoints;
@@ -240,13 +178,11 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
   // Calculate half-season date as timestamp
   const halfSeasonDate = React.useMemo(() => {
     const currentYear = new Date().getFullYear();
-    const date = new Date(currentYear, 5, 30); // June 30th
-    const timestamp = date.getTime();
-    // Half-season line calculation (debug logs removed for production)
-    return timestamp;
+    const date = new Date(currentYear, 5, 30);
+    return date.getTime();
   }, [showHalfSeasonLine, period]);
 
-  // Mobile tick formatter - shows week number instead of date
+  // Mobile tick formatter
   const mobileTickFormatter = (timestamp: number): string => {
     const date = new Date(timestamp);
     const currentYear = new Date().getFullYear();
@@ -308,7 +244,6 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
           </h5>
         </div>
         <div className="p-4">
-          {/* Horizontal scroll container for mobile */}
           <div className={`${isMounted && isMobile ? 'overflow-x-auto' : ''}`}>
             <div 
               className="h-[30rem] sm:h-96 lg:h-[32rem] xl:h-[36rem]"
@@ -348,7 +283,6 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
                   />
                   <Legend />
                   
-                  {/* Half-season reference line */}
                   {showHalfSeasonLine && period === 'whole_season' && (
                     <ReferenceLine 
                       x={halfSeasonDate} 
@@ -357,7 +291,6 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
                     />
                   )}
                   
-                  {/* Player lines */}
                   {sortedPlayers.map((player, index) => {
                     const playerColor = PLAYER_COLORS[index % PLAYER_COLORS.length];
                     return (
@@ -367,13 +300,13 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
                         dataKey={player.name}
                         stroke={playerColor}
                         strokeWidth={3}
-                        connectNulls={false} // Critical: Don't connect across gaps - prevents future lines
-                        isAnimationActive={false} // Disable animation for cleaner rendering
+                        connectNulls={false}
+                        isAnimationActive={false}
                         dot={{ 
                           fill: 'white', 
                           stroke: playerColor, 
                           strokeWidth: isMounted && isDesktop ? 1.5 : 1, 
-                          r: isMounted && isDesktop ? 2.5 : 1.5 // Bigger dots on desktop
+                          r: isMounted && isDesktop ? 2.5 : 1.5
                         }}
                         activeDot={{ r: isMounted && isDesktop ? 6 : 4 }}
                       />
@@ -389,4 +322,4 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
   );
 };
 
-export default SeasonRaceGraph; 
+export default SeasonRaceGraph;

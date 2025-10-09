@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { PlayerProfile } from '@/types/player.types';
+import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
+import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 
 interface Milestone {
   name: string;
@@ -46,26 +48,16 @@ interface TimelineItem {
   color?: string;
 }
 
-interface MilestonesData {
-  matchInfo: {
-    match_date: string;
-  };
-  gamesMilestones?: Milestone[];
-  goalsMilestones?: Milestone[];
-  streaks?: Streak[];
-  goalStreaks?: GoalStreak[];
-  halfSeasonGoalLeaders?: LeaderData[];
-  halfSeasonFantasyLeaders?: LeaderData[];
-  seasonGoalLeaders?: LeaderData[];
-  seasonFantasyLeaders?: LeaderData[];
-}
-
 const Milestones: React.FC = () => {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [milestonesData, setMilestonesData] = useState<MilestonesData | null>(null);
-  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
-  const [error, setError] = useState<Error | null>(null);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
+
+  // React Query hooks - automatic caching and deduplication!
+  const { data: milestonesData, isLoading: milestonesLoading, error: milestonesError } = useMatchReport();
+  const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
+
+  // Combined loading/error states
+  const loading = milestonesLoading || playersLoading;
+  const error = milestonesError;
 
   // Card animation variants
   const cardVariants = {
@@ -93,28 +85,6 @@ const Milestones: React.FC = () => {
     },
   };
 
-  // Helper function to get the correct ordinal suffix for numbers
-  const getOrdinalSuffix = (num: number): string => {
-    // Handle case where num is 0, which isn't a valid ordinal
-    if (num === 0) {
-      console.error('Invalid ordinal number: 0');
-      return "0th"; // Return something reasonable but log error
-    }
-    
-    const j = num % 10;
-    const k = num % 100;
-    if (j === 1 && k !== 11) {
-      return num + "st";
-    }
-    if (j === 2 && k !== 12) {
-      return num + "nd";
-    }
-    if (j === 3 && k !== 13) {
-      return num + "rd";
-    }
-    return num + "th";
-  };
-
   // Format date safely
   const formatDateSafely = (dateString: string | undefined | null): string => {
     if (!dateString) return '';
@@ -122,12 +92,10 @@ const Milestones: React.FC = () => {
     try {
       const date = new Date(dateString);
       
-      // Check if date is valid
       if (isNaN(date.getTime())) {
         return '';
       }
       
-      // Use toLocaleDateString with explicit locale for consistency
       return date.toLocaleDateString('en-GB', {
         year: 'numeric',
         month: 'long',
@@ -139,7 +107,7 @@ const Milestones: React.FC = () => {
     }
   };
 
-  // Helper function to format leader data text with improved handling
+  // Helper function to format leader data text
   const formatLeaderText = (leaderData: LeaderData, metric: 'goals' | 'points', period: string): string => {
     if (!leaderData || !leaderData.new_leader) {
       console.error('Invalid leader data:', leaderData);
@@ -152,8 +120,6 @@ const Milestones: React.FC = () => {
       ? (leaderData.new_leader_goals || leaderData.value || 0) 
       : (leaderData.new_leader_points || leaderData.value || 0);
           
-    // If we don't have a change_type but do have a name and value, use concise format
-    // This case might not be strictly needed if data always has change_type from SQL
     if (!change_type && new_leader) {
       return `${new_leader} leads with ${value}`;
     }
@@ -162,9 +128,6 @@ const Milestones: React.FC = () => {
       case 'new_leader':
         return `${new_leader} now leads with ${value}`;
       case 'tied':
-        // For UI, if we ever have a 'tied' type for a single leader item, this should be clear.
-        // However, 'tied' type from SQL usually means a new person tied a previous leader's score.
-        // If it's about current co-leaders, that's handled separately now.
         return `${new_leader} tied with ${previous_leader} at ${value}`;
       case 'remains':
         return `${new_leader} leads with ${value}`;
@@ -175,63 +138,11 @@ const Milestones: React.FC = () => {
     }
   };
 
-  const fetchMilestonesData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Fetch milestones and players in parallel
-      const [milestonesResponse, playersResponse] = await Promise.all([
-        fetch('/api/matchReport'), // This API seems to provide all milestone data
-        fetch('/api/players')
-      ]);
-      
-      if (!milestonesResponse.ok) {
-        console.warn(`Milestones API returned ${milestonesResponse.status} - no match data available`);
-        // Don't set error for new tenants - just set empty data
-        setMilestonesData(null);
-        setTimelineItems([]);
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json();
-          setAllPlayers(playersData.data || []);
-        }
-        setLoading(false); // Stop loading
-        return; // Exit early
-      }
-      const milestonesResult = await milestonesResponse.json();
-      
-      if (playersResponse.ok) {
-        const playersData = await playersResponse.json();
-        // No transformation needed, API provides canonical PlayerProfile objects.
-        setAllPlayers(playersData.data || []);
-      } else {
-        // Non-critical, milestones can still be shown without player links
-        console.warn('Failed to fetch players for Milestones component');
-        setAllPlayers([]);
-      }
-      
-      if (milestonesResult.success && milestonesResult.data) {
-        setMilestonesData(milestonesResult.data);
-        processTimelineItems(milestonesResult.data);
-      } else if (milestonesResult.success && !milestonesResult.data) {
-        // New tenant with no data yet
-        setMilestonesData(null);
-        setTimelineItems([]);
-      } else {
-        setError(new Error(milestonesResult.error || 'Failed to fetch milestones data'));
-      }
-    } catch (error) {
-      console.error('Error in fetchMilestonesData:', error);
-      setError(error instanceof Error ? error : new Error('Failed to fetch milestones data'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const getPlayerIdByName = useCallback((name: string): string | undefined => {
+  // Don't use useCallback - inline function to avoid dependency issues
+  const getPlayerIdByName = (name: string): string | undefined => {
     const player = allPlayers.find(p => p.name === name);
     return player?.id;
-  }, [allPlayers]);
+  };
 
   // Helper function to render section headers with appropriate links
   const renderSectionHeader = (sectionName: string): React.ReactNode => {
@@ -260,7 +171,6 @@ const Milestones: React.FC = () => {
   const renderContentWithLinks = (content: string): React.ReactNode => {
     if (!allPlayers.length) return content;
     
-    // Create a regex pattern that matches any player name
     const playerNames = allPlayers.map(p => p.name);
     const playerNamePattern = new RegExp(`\\b(${playerNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'g');
     
@@ -272,14 +182,12 @@ const Milestones: React.FC = () => {
       const playerId = getPlayerIdByName(part);
       
       if (playerId) {
-        // This part is a player name, make it a link
         result.push(
           <Link key={i} href={`/player/profiles/${playerId}`} className="hover:underline text-slate-700">
             {part}
           </Link>
         );
       } else {
-        // This part is regular text
         result.push(part);
       }
     }
@@ -287,10 +195,9 @@ const Milestones: React.FC = () => {
     return result;
   };
 
-  const processTimelineItems = useCallback((data: MilestonesData | null) => {
+  const processTimelineItems = (data: typeof milestonesData) => {
     const items: TimelineItem[] = [];
     
-    // Handle null data for new tenants
     if (!data || !data.matchInfo) {
       setTimelineItems([]);
       return;
@@ -298,17 +205,12 @@ const Milestones: React.FC = () => {
     
     const matchDate = data.matchInfo.match_date ? formatDateSafely(data.matchInfo.match_date) : '';
     
-    // REMOVED: Game and goal milestones - moved to Records & Achievements component
-    
-    // REMOVED: Form and goal streaks - moved to Current Form component
-    
-    // Add current leader changes with improved handling
+    // Add current leader changes
     if (data.halfSeasonGoalLeaders && data.halfSeasonGoalLeaders.length > 0) {
       const leaders = data.halfSeasonGoalLeaders;
       const firstLeader = leaders[0];
 
       if (leaders.length === 1) {
-        // Single leader
         const playerId = getPlayerIdByName(firstLeader.new_leader);
         items.push({
           type: 'leader_change',
@@ -320,14 +222,12 @@ const Milestones: React.FC = () => {
           playerId: playerId
         });
       } else {
-        // Co-leaders - create ONE entry for all tied leaders
         const leaderNames = leaders.length === 2 
           ? leaders.map(l => l.new_leader).join(' and ')
           : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
         const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
         const content = `${leaderNames} are tied for the lead with ${goals}.`;
         
-        // Create only ONE timeline entry for all tied leaders
         items.push({
           type: 'leader_change',
           player: 'Half-Season Goals',
@@ -335,7 +235,6 @@ const Milestones: React.FC = () => {
           icon: 'crown',
           date: matchDate,
           color: 'amber'
-          // No playerId since this represents multiple players
         });
       }
     }
@@ -345,7 +244,6 @@ const Milestones: React.FC = () => {
       const firstLeader = leaders[0];
 
       if (leaders.length === 1) {
-        // Single leader
         const playerId = getPlayerIdByName(firstLeader.new_leader);
         items.push({
           type: 'leader_change',
@@ -357,14 +255,12 @@ const Milestones: React.FC = () => {
           playerId: playerId
         });
       } else {
-        // Co-leaders - create ONE entry for all tied leaders
         const leaderNames = leaders.length === 2 
           ? leaders.map(l => l.new_leader).join(' and ')
           : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
         const points = firstLeader.new_leader_points || firstLeader.value || 0;
         const content = `${leaderNames} are tied for the lead with ${points}.`;
         
-        // Create only ONE timeline entry for all tied leaders
         items.push({
           type: 'leader_change',
           player: 'Half-Season Points',
@@ -372,21 +268,19 @@ const Milestones: React.FC = () => {
           icon: 'crown',
           date: matchDate,
           color: 'amber'
-          // No playerId since this represents multiple players
         });
       }
     }
     
-    // Only show season leaders in the second half of the year (Jul-Dec)
+    // Only show season leaders in the second half of the year
     const currentDate = data.matchInfo.match_date ? new Date(data.matchInfo.match_date) : new Date();
-    const isSecondHalf = currentDate.getMonth() >= 6; // getMonth() is 0-based, so 6 = July
+    const isSecondHalf = currentDate.getMonth() >= 6;
     
     if (isSecondHalf && data.seasonGoalLeaders && data.seasonGoalLeaders.length > 0) {
       const leaders = data.seasonGoalLeaders;
       const firstLeader = leaders[0];
 
       if (leaders.length === 1) {
-        // Single leader
         const playerId = getPlayerIdByName(firstLeader.new_leader);
         items.push({
           type: 'leader_change',
@@ -398,14 +292,12 @@ const Milestones: React.FC = () => {
           playerId: playerId
         });
       } else {
-        // Co-leaders - create ONE entry for all tied leaders
         const leaderNames = leaders.length === 2 
           ? leaders.map(l => l.new_leader).join(' and ')
           : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
         const goals = firstLeader.new_leader_goals || firstLeader.value || 0;
         const content = `${leaderNames} are tied for the lead with ${goals}.`;
         
-        // Create only ONE timeline entry for all tied leaders
         items.push({
           type: 'leader_change',
           player: 'Season Goals',
@@ -413,7 +305,6 @@ const Milestones: React.FC = () => {
           icon: 'crown',
           date: matchDate,
           color: 'amber'
-          // No playerId since this represents multiple players
         });
       }
     }
@@ -423,7 +314,6 @@ const Milestones: React.FC = () => {
       const firstLeader = leaders[0];
 
       if (leaders.length === 1) {
-        // Single leader
         const playerId = getPlayerIdByName(firstLeader.new_leader);
         items.push({
           type: 'leader_change',
@@ -435,14 +325,12 @@ const Milestones: React.FC = () => {
           playerId: playerId
         });
       } else {
-        // Co-leaders - create ONE entry for all tied leaders
         const leaderNames = leaders.length === 2 
           ? leaders.map(l => l.new_leader).join(' and ')
           : leaders.slice(0, -1).map(l => l.new_leader).join(', ') + ', and ' + leaders[leaders.length - 1].new_leader;
         const points = firstLeader.new_leader_points || firstLeader.value || 0;
         const content = `${leaderNames} are tied for the lead with ${points}.`;
         
-        // Create only ONE timeline entry for all tied leaders
         items.push({
           type: 'leader_change',
           player: 'Season Points',
@@ -450,23 +338,18 @@ const Milestones: React.FC = () => {
           icon: 'crown',
           date: matchDate,
           color: 'amber'
-          // No playerId since this represents multiple players
         });
       }
     }
     
     setTimelineItems(items);
-  }, [getPlayerIdByName]);
+  };
 
   useEffect(() => {
-    fetchMilestonesData();
-  }, [fetchMilestonesData]);
-
-  useEffect(() => {
-    if (milestonesData) {
+    if (milestonesData && !playersLoading) {
       processTimelineItems(milestonesData);
     }
-  }, [milestonesData, processTimelineItems]);
+  }, [milestonesData, allPlayers.length, playersLoading]); // Only depend on length, not array reference
 
   if (loading) {
     return (
@@ -489,7 +372,7 @@ const Milestones: React.FC = () => {
         <div className="p-4">
           <div className="text-center text-red-500">
             <p>Error loading milestones</p>
-            <p className="text-sm">{error.message}</p>
+            <p className="text-sm">{(error as Error).message}</p>
           </div>
         </div>
       </div>
@@ -532,33 +415,6 @@ const Milestones: React.FC = () => {
                 className="relative mb-4 last:mb-0"
               >
                 <span className="w-8 h-8 rounded-full text-base z-1 absolute left-4 inline-flex -translate-x-1/2 items-center justify-center bg-white text-center font-semibold">
-                  {item.icon === 'trophy' && (
-                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
-                  )}
-                  {item.icon === 'goal' && (
-                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  )}
-                  {item.icon === 'fire' && (
-                    <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
-                    </svg>
-                  )}
-                  {item.icon === 'chart' && (
-                    <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                    </svg>
-                  )}
-                  {item.icon === 'soccer' && (
-                    <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <circle cx="12" cy="12" r="10" strokeWidth="2" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
-                    </svg>
-                  )}
                   {item.icon === 'crown' && (
                     <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -570,7 +426,7 @@ const Milestones: React.FC = () => {
                   <h6 className="mb-0 font-semibold leading-normal text-sm text-slate-700">
                     {item.type === 'leader_change' ? (
                       renderSectionHeader(item.player)
-                    ) : item.playerId && (item.type === 'game_milestone' || item.type === 'goal_milestone' || item.type === 'form_streak' || item.type === 'goal_streak') ? (
+                    ) : item.playerId ? (
                       <Link href={`/player/profiles/${item.playerId}`} className="hover:underline">
                         {item.player}
                       </Link>
@@ -584,22 +440,6 @@ const Milestones: React.FC = () => {
                     <p className="mb-2 leading-normal text-xs text-slate-500">{item.subtext}</p>
                   )}
                   
-                  {/* Colored badges with matching icon colors */}
-                  {item.type === 'game_milestone' && (
-                    <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Milestone</span>
-                  )}
-                  {item.type === 'goal_milestone' && (
-                    <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Milestone</span>
-                  )}
-                  {item.type === 'form_streak' && item.color === 'green' && (
-                    <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Streak</span>
-                  )}
-                  {item.type === 'form_streak' && item.color === 'red' && (
-                    <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Streak</span>
-                  )}
-                  {item.type === 'goal_streak' && (
-                    <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Scoring Streak</span>
-                  )}
                   {item.type === 'leader_change' && (
                     <span className="py-1.5 px-3 text-xxs rounded-lg bg-gradient-to-tl from-amber-600 to-yellow-400 inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white">Leaderboard</span>
                   )}
@@ -613,4 +453,4 @@ const Milestones: React.FC = () => {
   );
 };
 
-export default Milestones; 
+export default Milestones;

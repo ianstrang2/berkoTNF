@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import FireIcon from '@/components/icons/FireIcon.component';
@@ -7,17 +7,9 @@ import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import FantasyPointsTooltip from '@/components/ui-kit/FantasyPointsTooltip.component';
 import { useSeasonTitles } from '@/hooks/useSeasonTitles.hook';
 import { PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
-
-interface FormData {
-  name: string;
-  last_5_games?: string;
-}
-
-interface StatsData {
-  seasonStats: PlayerWithStats[];
-  goalStats: PlayerWithGoalStats[];
-  formData: FormData[];
-}
+import { useHalfSeasonStats } from '@/hooks/queries/useHalfSeasonStats.hook';
+import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
+import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
 
 interface HalfSeasonPeriod {
   year: number;
@@ -33,40 +25,42 @@ interface CurrentHalfSeasonProps {
 
 const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'points' }) => {
   const { halfSeasonTitle, loading: seasonLoading } = useSeasonTitles();
-  const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'stats' | 'goals'>(initialView === 'goals' ? 'goals' : 'stats');
-  const [stats, setStats] = useState<StatsData>({
-    seasonStats: [],
-    goalStats: [],
-    formData: []
-  });
-  const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
-
-  // NEW: State for special player IDs and config
-  const [onFirePlayerId, setOnFirePlayerId] = useState<string | null>(null);
-  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
-  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
-  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
 
   // Fantasy Points Tooltip state
   const [isFantasyPointsTooltipOpen, setIsFantasyPointsTooltipOpen] = useState<boolean>(false);
 
-  // Track component mount state
-  const isMounted = useRef(true);
-  
-  // Set up isMounted ref cleanup
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
+  // React Query hooks - automatic caching and deduplication!
+  const { data: statsData, isLoading: statsLoading, error: statsError } = useHalfSeasonStats();
+  const { data: matchData, isLoading: matchLoading } = useMatchReport();
+  const { data: configData = [], isLoading: configLoading } = useAppConfig('match_settings');
+
+  // Extract config values
+  const showOnFireConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_on_fire');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  const showGrimReaperConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_grim_reaper');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  // Extract player IDs from match data
+  const onFirePlayerId = matchData?.on_fire_player_id || null;
+  const grimReaperPlayerId = matchData?.grim_reaper_player_id || null;
+
+  // Combined loading state
+  const loading = statsLoading || matchLoading || configLoading;
+
+  // Extract stats with defaults
+  const seasonStats = statsData?.seasonStats || [];
+  const goalStats = statsData?.goalStats || [];
+  const formData = statsData?.formData || [];
 
   const getCurrentHalf = (): HalfSeasonPeriod => {
-    // Server-safe implementation that doesn't depend on the browser's time
-    // This helps avoid hydration mismatches
     const serverDate = new Date();
     const year = serverDate.getFullYear();
     const month = serverDate.getMonth();
@@ -80,67 +74,6 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
       description: `${isFirstHalf ? 'First' : 'Second'} Half ${year}`
     };
   };
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch all data in parallel
-      const [statsResponse, reportResponse, configResponse] = await Promise.all([
-        fetch('/api/stats/half-season', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        }),
-        fetch('/api/matchReport'),
-        fetch('/api/admin/app-config?group=match_settings')
-      ]);
-
-      if (!statsResponse.ok) throw new Error('Failed to fetch stats');
-      const statsData = await statsResponse.json();
-
-      // No longer need to transform API data. The API now returns canonical types.
-      setStats({
-        seasonStats: statsData?.data?.seasonStats || [],
-        goalStats: statsData?.data?.goalStats || [],
-        formData: statsData?.data?.formData || []
-      });
-
-      // Get On Fire and Grim Reaper IDs from match report
-      if (reportResponse.ok) {
-        const reportData = await reportResponse.json();
-        setOnFirePlayerId(reportData.data?.on_fire_player_id || null);
-        setGrimReaperPlayerId(reportData.data?.grim_reaper_player_id || null);
-      }
-
-      // Get config for visibility
-      if (configResponse.ok) {
-        const configData = await configResponse.json();
-        if (configData.success) {
-          const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
-          const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
-          setShowOnFireConfig(showOnFire?.config_value !== 'false');
-          setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
-        }
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-      setError('Failed to load stats');
-      // Ensure we have valid empty state on error
-      setStats({
-        seasonStats: [],
-        goalStats: [],
-        formData: []
-      });
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   // Update activeTab when initialView changes
   useEffect(() => {
@@ -178,7 +111,6 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
           </button>
         </div>
       </div>
-      {/* Container for horizontal scrolling only */}
       <div className="overflow-x-auto">
         <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
           <thead className="align-bottom">
@@ -200,17 +132,15 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
             </tr>
           </thead>
           <tbody>
-            {stats.seasonStats.map((player, index) => {
-              const form = stats.formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
+            {seasonStats.map((player, index) => {
+              const form = formData.find(f => f.name === player.name)?.last_5_games?.split(', ') || [];
               const losses = player.gamesPlayed - player.wins - player.draws;
               return (
                 <tr key={index} className="hover:bg-gray-50">
-                  {/* Sticky Data */}
                   <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center w-8">
                     <span className="font-normal leading-normal text-sm">{index + 1}</span>
                   </td>
                   <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
-                    {/* Placeholder Icon */}
                     {player.club ? (
                       <img
                         src={`/club-logos-40px/${player.club.filename}`}
@@ -294,7 +224,6 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
       <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0">{`Goals (${halfSeasonTitle})`}</h5>
       </div>
-      {/* Container for horizontal scrolling only */}
       <div className="overflow-x-auto">
         <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500 relative">
           <thead className="align-bottom">
@@ -308,15 +237,12 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
             </tr>
           </thead>
           <tbody>
-            {stats.goalStats
-              .map((player, index) => (
+            {goalStats.map((player, index) => (
               <tr key={index} className="hover:bg-gray-50">
-                {/* Sticky Data */}
                 <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap text-center w-8">
                   <span className="font-normal leading-normal text-sm">{index + 1}</span>
                 </td>
                 <td className="sticky left-8 z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
-                  {/* Placeholder Icon */}
                   {player.club ? (
                     <img
                       src={`/club-logos-40px/${player.club.filename}`}
@@ -373,6 +299,19 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
     </div>
   );
 
+  if (statsError) {
+    return (
+      <div className="w-full max-w-full px-3 flex-none">
+        <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+          <div className="text-center text-red-500">
+            <p>Error loading stats</p>
+            <p className="text-sm">{(statsError as Error).message}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap justify-start -mx-3">
       {loading ? (
@@ -388,7 +327,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
         </div>
       ) : (
         <>
-          {stats.seasonStats.length === 0 ? (
+          {seasonStats.length === 0 ? (
             <div className="w-full max-w-full px-3 flex-none">
               <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
                 <div className="text-center py-4">
@@ -398,18 +337,14 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
               </div>
             </div>
           ) : (
-            <>
-              {/* Single table display controlled by tertiary navigation */}
-              <div className="w-full px-3">
-                {activeTab === 'stats' && renderMainStats()}
-                {activeTab === 'goals' && renderGoalStats()}
-              </div>
-            </>
+            <div className="w-full px-3">
+              {activeTab === 'stats' && renderMainStats()}
+              {activeTab === 'goals' && renderGoalStats()}
+            </div>
           )}
         </>
       )}
       
-      {/* Fantasy Points Tooltip Modal */}
       <FantasyPointsTooltip
         isOpen={isFantasyPointsTooltipOpen}
         onClose={() => setIsFantasyPointsTooltipOpen(false)}
@@ -418,4 +353,4 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   );
 };
 
-export default CurrentHalfSeason; 
+export default CurrentHalfSeason;
