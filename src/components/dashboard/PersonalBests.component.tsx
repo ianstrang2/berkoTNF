@@ -219,7 +219,7 @@ const RecordsAndAchievements: React.FC = () => {
     }
   }, [pbData, milestonesData, allPlayers.length, playersLoading]); // Only depend on length, not array reference
 
-  if (loading) {
+  if (loading && timelineItems.length === 0) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border dark:bg-gray-800">
         <div className="p-4">

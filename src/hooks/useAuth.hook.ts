@@ -2,12 +2,16 @@
  * Authentication Hook
  * 
  * Provides current user's authentication state and profile information
+ * Now uses React Query for caching and deduplication!
  */
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuthProfile } from './queries/useAuthProfile.hook';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 
 export interface UserProfile {
   isAuthenticated: boolean;
@@ -25,151 +29,80 @@ export interface UserProfile {
 }
 
 export function useAuth() {
-  const [profile, setProfile] = useState<UserProfile>({
-    isAuthenticated: false,
-    isAdmin: false,
-    isSuperadmin: false,
-    isPlayer: false,
-    userRole: null,
-    tenantId: null,
-    displayName: null,
-    linkedPlayerId: null,
-    canSwitchRoles: false,
-    userId: null,
-    email: null,
-    phone: null,
-  });
-  const [loading, setLoading] = useState(true);
-
   const supabase = createClientComponentClient();
-  const [hasFetched, setHasFetched] = useState(false);
+  const queryClient = useQueryClient();
+  
+  // Use React Query hook for profile fetching - automatic deduplication!
+  const { data: authData, isLoading, refetch } = useAuthProfile();
 
+  // Transform API response to UserProfile format
+  const profile = useMemo<UserProfile>(() => {
+    if (!authData) {
+      return {
+        isAuthenticated: false,
+        isAdmin: false,
+        isSuperadmin: false,
+        isPlayer: false,
+        userRole: null,
+        tenantId: null,
+        displayName: null,
+        linkedPlayerId: null,
+        canSwitchRoles: false,
+        userId: null,
+        email: null,
+        phone: null,
+      };
+    }
+
+    const userRole = authData.profile.isAdmin
+      ? authData.profile.adminRole
+      : authData.user.phone
+      ? 'player'
+      : null;
+
+    return {
+      isAuthenticated: true,
+      isAdmin: authData.profile.isAdmin,
+      isSuperadmin: authData.profile.adminRole === 'superadmin',
+      isPlayer: !authData.profile.isAdmin && !!authData.user.phone,
+      userRole,
+      tenantId: authData.profile.tenantId,
+      displayName: authData.profile.displayName,
+      linkedPlayerId: authData.profile.linkedPlayerId,
+      canSwitchRoles: authData.profile.canSwitchRoles,
+      userId: authData.user.id,
+      email: authData.user.email,
+      phone: authData.user.phone,
+    };
+  }, [authData]);
+
+  // Listen for auth changes
   useEffect(() => {
-    // Check for cached profile first
-    const cachedProfile = localStorage.getItem('userProfile');
-    if (cachedProfile) {
-      try {
-        const parsed = JSON.parse(cachedProfile);
-        setProfile(parsed);
-        setLoading(false);
-      } catch (e) {
-        // Invalid cache, ignore
-      }
-    }
-
-    // Only fetch if we haven't already
-    if (!hasFetched) {
-      fetchProfile();
-      setHasFetched(true);
-    }
-
-    // Listen for auth changes (login/logout only, not on every navigation)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      // Only refetch on actual auth events, not session refresh
+      // On auth events, invalidate and refetch
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-        fetchProfile();
+        queryClient.invalidateQueries({ queryKey: queryKeys.authProfile() });
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [hasFetched]);
-
-  const fetchProfile = useCallback(async () => {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        setProfile({
-          isAuthenticated: false,
-          isAdmin: false,
-          isSuperadmin: false,
-          isPlayer: false,
-          userRole: null,
-          tenantId: null,
-          displayName: null,
-          linkedPlayerId: null,
-          canSwitchRoles: false,
-          userId: null,
-          email: null,
-          phone: null,
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Fetch full profile from API (only once per session)
-      const response = await fetch('/api/auth/profile', {
-        cache: 'no-store', // Don't cache API calls
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile');
-      }
-
-      const data = await response.json();
-
-      const userRole = data.profile.isAdmin
-        ? data.profile.adminRole
-        : data.user.phone
-        ? 'player'
-        : null;
-
-      const newProfile = {
-        isAuthenticated: true,
-        isAdmin: data.profile.isAdmin,
-        isSuperadmin: data.profile.adminRole === 'superadmin',
-        isPlayer: !data.profile.isAdmin && !!data.user.phone,
-        userRole,
-        tenantId: data.profile.tenantId,
-        displayName: data.profile.displayName,
-        linkedPlayerId: data.profile.linkedPlayerId,
-        canSwitchRoles: data.profile.canSwitchRoles,
-        userId: data.user.id,
-        email: data.user.email,
-        phone: data.user.phone,
-      };
-      
-      setProfile(newProfile);
-      
-      // Cache profile to prevent flickering on navigation
-      localStorage.setItem('userProfile', JSON.stringify(newProfile));
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [supabase]);
+  }, [supabase, queryClient]);
 
   const logout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('adminAuth');
     localStorage.removeItem('userProfile');
-    setProfile({
-      isAuthenticated: false,
-      isAdmin: false,
-      isSuperadmin: false,
-      isPlayer: false,
-      userRole: null,
-      tenantId: null,
-      displayName: null,
-      linkedPlayerId: null,
-      canSwitchRoles: false,
-      userId: null,
-      email: null,
-      phone: null,
-    });
+    queryClient.clear(); // Clear all queries on logout
   };
 
   return {
     profile,
-    loading,
+    loading: isLoading,
     logout,
-    refetch: fetchProfile,
+    refetch: () => refetch(),
   };
 }

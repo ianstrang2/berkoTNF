@@ -16,9 +16,18 @@ interface RecentGame {
 
 // Note: Removed unstable_cache to prevent cross-tenant data leaks
 async function getFullSeasonStats(startDate: string, endDate: string, tenantId: string) {
-  console.log(`Fetching fresh data for ${startDate} to ${endDate}, tenant ${tenantId}`);
+  const startTime = Date.now();
+  console.log(`🔍 [FULL-SEASON] Fetching data for ${startDate} to ${endDate}, tenant ${tenantId}`);
 
     // Middleware automatically sets RLS context
+    const queryStart = Date.now();
+    console.log(`🔍 [FULL-SEASON] Querying with:`, {
+      tenant_id: tenantId,
+      season_start_date: new Date(startDate),
+      startDate,
+      endDate
+    });
+    
     const preAggregatedData = await prisma.aggregated_season_stats.findMany({
       where: {
         tenant_id: tenantId,
@@ -26,7 +35,23 @@ async function getFullSeasonStats(startDate: string, endDate: string, tenantId: 
         // Note: is_ringer filtering is handled by SQL function
       }
     });
+    console.log(`⏱️ [FULL-SEASON] aggregated_season_stats query: ${Date.now() - queryStart}ms (${preAggregatedData.length} rows)`);
     
+    if (preAggregatedData.length === 0) {
+      console.warn(`⚠️ [FULL-SEASON] No data found! Checking database...`);
+      // Check if data exists without tenant filter
+      const allData = await prisma.aggregated_season_stats.findMany({
+        where: { season_start_date: new Date(startDate) },
+        select: { tenant_id: true, player_id: true }
+      });
+      console.log(`🔍 [FULL-SEASON] Data exists in DB for ${startDate}:`, {
+        totalRows: allData.length,
+        tenantIds: [...new Set(allData.map(d => d.tenant_id))],
+        requestedTenantId: tenantId
+      });
+    }
+    
+    const perfStart = Date.now();
     const recentPerformance = await prisma.aggregated_recent_performance.findMany({
       where: { tenant_id: tenantId },
       include: {
@@ -35,7 +60,15 @@ async function getFullSeasonStats(startDate: string, endDate: string, tenantId: 
         }
       }
     });
+    console.log(`⏱️ [FULL-SEASON] aggregated_recent_performance query: ${Date.now() - perfStart}ms (${recentPerformance.length} rows)`);
 
+    const transformStart = Date.now();
+    
+    // FIX N+1: Create a Map for O(1) lookups instead of O(n) .find() in loops
+    const perfByName = new Map(
+      recentPerformance.map(perf => [(perf as any).players?.name || '', perf])
+    );
+    
     const seasonStats = preAggregatedData.map(stat => {
       // All data now comes directly from aggregated table - no JOIN needed
       const dbPlayer = {
@@ -57,26 +90,32 @@ async function getFullSeasonStats(startDate: string, endDate: string, tenantId: 
       };
       return toPlayerWithStats(dbPlayer);
     }).sort((a, b) => b.fantasyPoints - a.fantasyPoints);
+    console.log(`⏱️ [FULL-SEASON] Season stats transform: ${Date.now() - transformStart}ms`);
     
-    const goalStats = seasonStats.map(player => ({
-      id: player.id,
-      name: player.name,
-      club: player.club,
-      totalGoals: player.goals,
-      minutesPerGoal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
-      lastFiveGames: recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games 
-        ? (recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as unknown as RecentGame[])
-            .map(g => g.goals)
-            .reverse()
-            .join(',') 
-        : '0,0,0,0,0',
-      maxGoalsInGame: recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games 
-        ? Math.max(...(recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as unknown as RecentGame[] || [])
-            .map(g => g.goals)) 
-        : 0
-    })).filter(player => player.totalGoals > 0)
+    const goalStatsStart = Date.now();
+    const goalStats = seasonStats.map(player => {
+      // FIX N+1: Use Map for O(1) lookup instead of .find()
+      const playerPerf = perfByName.get(player.name);
+      const lastFiveGames = playerPerf?.last_5_games as unknown as RecentGame[] | undefined;
+      
+      return {
+        id: player.id,
+        name: player.name,
+        club: player.club,
+        totalGoals: player.goals,
+        minutesPerGoal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
+        lastFiveGames: lastFiveGames 
+          ? lastFiveGames.map(g => g.goals).reverse().join(',')
+          : '0,0,0,0,0',
+        maxGoalsInGame: lastFiveGames 
+          ? Math.max(...lastFiveGames.map(g => g.goals))
+          : 0
+      };
+    }).filter(player => player.totalGoals > 0)
       .sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
+    console.log(`⏱️ [FULL-SEASON] Goal stats transform: ${Date.now() - goalStatsStart}ms`);
 
+    const formDataStart = Date.now();
     const formData = recentPerformance.map(perf => ({
       name: (perf as any).players?.name || '',
       last_5_games: perf.last_5_games ? (perf.last_5_games as unknown as RecentGame[]).map(g => {
@@ -85,7 +124,16 @@ async function getFullSeasonStats(startDate: string, endDate: string, tenantId: 
         return g.result.toUpperCase().charAt(0);
       }).reverse().join(', ') : ''
     })).sort((a, b) => a.name.localeCompare(b.name));
+    console.log(`⏱️ [FULL-SEASON] Form data transform: ${Date.now() - formDataStart}ms`);
 
+    console.log(`⏱️ [FULL-SEASON] ✅ TOTAL TIME: ${Date.now() - startTime}ms`);
+    console.log(`🔍 [FULL-SEASON] FINAL DATA CHECK:`, {
+      seasonStatsLength: seasonStats.length,
+      goalStatsLength: goalStats.length,
+      formDataLength: formData.length,
+      firstSeasonStat: seasonStats[0]?.name || 'NONE',
+      firstGoalStat: goalStats[0]?.name || 'NONE'
+    });
     return { seasonStats, goalStats, formData };
   }
 

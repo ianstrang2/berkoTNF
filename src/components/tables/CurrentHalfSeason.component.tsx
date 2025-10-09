@@ -52,13 +52,23 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   const onFirePlayerId = matchData?.on_fire_player_id || null;
   const grimReaperPlayerId = matchData?.grim_reaper_player_id || null;
 
-  // Combined loading state
+  // Combined loading state - ONLY check initial load, not background refetch
+  // This allows stale-while-revalidate: show cached data while refetching in background
   const loading = statsLoading || matchLoading || configLoading;
 
   // Extract stats with defaults
   const seasonStats = statsData?.seasonStats || [];
   const goalStats = statsData?.goalStats || [];
   const formData = statsData?.formData || [];
+  
+  // DEBUG: Log when we have empty stats but not loading
+  if (!loading && seasonStats.length === 0 && statsData !== undefined) {
+    console.warn('🐛 [HALF-SEASON] Empty stats but not loading!', {
+      statsLoading,
+      hasStatsData: !!statsData,
+      seasonStatsLength: statsData?.seasonStats?.length
+    });
+  }
 
   const getCurrentHalf = (): HalfSeasonPeriod => {
     const serverDate = new Date();
@@ -314,7 +324,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
 
   return (
     <div className="flex flex-wrap justify-start -mx-3">
-      {loading ? (
+      {loading && seasonStats.length === 0 ? (
         <div className="w-full max-w-full px-3 flex-none">
           <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
             <div className="text-center">

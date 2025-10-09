@@ -8,6 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { PlayerWithStats, PlayerWithGoalStats } from '@/types/player.types';
+import { useAuth } from '@/hooks/useAuth.hook';
 
 interface FormData {
   name: string;
@@ -24,7 +25,12 @@ interface CurrentStatsResponse {
   data: CurrentStatsData;
 }
 
-async function fetchCurrentStats(year: number): Promise<CurrentStatsData> {
+async function fetchCurrentStats(year: number, tenantId: string | null): Promise<CurrentStatsData> {
+  // Gracefully handle missing tenantId - return empty data
+  if (!tenantId || !year) {
+    return { seasonStats: [], goalStats: [], formData: [] };
+  }
+  
   const response = await fetch('/api/stats', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -45,11 +51,14 @@ async function fetchCurrentStats(year: number): Promise<CurrentStatsData> {
 }
 
 export function useCurrentStats(year: number) {
+  const { profile } = useAuth();
+  const tenantId = profile.tenantId;
+  
   return useQuery({
-    queryKey: queryKeys.currentStats(year),
-    queryFn: () => fetchCurrentStats(year),
+    queryKey: queryKeys.currentStats(tenantId, year),
+    queryFn: () => fetchCurrentStats(year, tenantId),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!year, // Only fetch if year is provided
+    // NO enabled condition - queryFn handles missing tenantId gracefully
   });
 }
 

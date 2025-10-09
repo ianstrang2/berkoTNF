@@ -502,7 +502,7 @@ const LatestMatch: React.FC = () => {
     };
   };
 
-  if (loading) {
+  if (loading && !matchData) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
         <div className="p-4">

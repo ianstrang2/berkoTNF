@@ -55,12 +55,23 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
     return season || null;
   }, [selectedYear, seasons]);
 
-  // Combined loading state
+  // Combined loading state - ONLY check initial load, not background refetch
+  // This allows stale-while-revalidate: show cached data while refetching in background
   const loading = statsLoading || seasonsLoading || matchLoading || configLoading;
 
   // Extract stats with defaults
   const seasonStats = statsData?.seasonStats || [];
   const goalStats = statsData?.goalStats || [];
+  
+  // DEBUG: Log when we have empty stats but not loading
+  if (!loading && seasonStats.length === 0 && statsData !== undefined) {
+    console.warn('🐛 [WHOLE-SEASON] Empty stats but not loading!', {
+      statsLoading,
+      hasStatsData: !!statsData,
+      seasonStatsLength: statsData?.seasonStats?.length,
+      selectedYear
+    });
+  }
 
   useEffect(() => {
     setIsClient(true);
@@ -251,7 +262,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
     );
   }
 
-  if (loading || !isClient) {
+  if ((loading && seasonStats.length === 0) || !isClient) {
     return (
       <div className="flex flex-wrap justify-start -mx-3">
         <div className="w-full max-w-full px-3 flex-none">

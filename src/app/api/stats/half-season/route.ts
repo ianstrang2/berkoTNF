@@ -16,16 +16,20 @@ interface RecentGame {
 
 // Note: Removed unstable_cache to prevent cross-tenant data leaks
 async function getHalfSeasonStats(tenantId: string) {
-  console.log(`Fetching fresh half-season data for tenant ${tenantId}`);
+  const startTime = Date.now();
+  console.log(`🔍 [HALF-SEASON] Starting fetch for tenant ${tenantId}`);
 
     // Middleware automatically sets RLS context
+    const queryStart = Date.now();
     const preAggregatedData = await prisma.aggregated_half_season_stats.findMany({
       where: {
         tenant_id: tenantId
         // Note: is_ringer filtering will be handled by SQL function
       }
     });
+    console.log(`⏱️ [HALF-SEASON] aggregated_half_season_stats query: ${Date.now() - queryStart}ms (${preAggregatedData.length} rows)`);
     
+    const perfStart = Date.now();
     const recentPerformance = await prisma.aggregated_recent_performance.findMany({
       where: { tenant_id: tenantId },
       include: {
@@ -34,7 +38,15 @@ async function getHalfSeasonStats(tenantId: string) {
         }
       }
     });
+    console.log(`⏱️ [HALF-SEASON] aggregated_recent_performance query: ${Date.now() - perfStart}ms (${recentPerformance.length} rows)`);
 
+    const transformStart = Date.now();
+    
+    // FIX N+1: Create a Map for O(1) lookups instead of O(n) .find() in loops
+    const perfByName = new Map(
+      recentPerformance.map(perf => [(perf as any).players?.name || '', perf])
+    );
+    
     const seasonStats = preAggregatedData.map(stat => {
       // All data now comes directly from aggregated table - no JOIN needed
       const dbPlayer = {
@@ -56,26 +68,32 @@ async function getHalfSeasonStats(tenantId: string) {
       };
       return toPlayerWithStats(dbPlayer);
     }).sort((a, b) => b.fantasyPoints - a.fantasyPoints);
+    console.log(`⏱️ [HALF-SEASON] Season stats transform: ${Date.now() - transformStart}ms`);
     
-    const goalStats = seasonStats.map(player => ({
-      id: player.id,
-      name: player.name,
-      club: player.club,
-      totalGoals: player.goals,
-      minutesPerGoal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
-      lastFiveGames: recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games 
-        ? (recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as unknown as RecentGame[])
-            .map(g => g.goals)
-            .reverse()
-            .join(',') 
-        : '0,0,0,0,0',
-      maxGoalsInGame: recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games 
-        ? Math.max(...(recentPerformance.find(perf => (perf as any).players?.name === player.name)?.last_5_games as unknown as RecentGame[] || [])
-            .map(g => g.goals)) 
-        : 0
-    })).filter(player => player.totalGoals > 0)
+    const goalStatsStart = Date.now();
+    const goalStats = seasonStats.map(player => {
+      // FIX N+1: Use Map for O(1) lookup instead of .find()
+      const playerPerf = perfByName.get(player.name);
+      const lastFiveGames = playerPerf?.last_5_games as unknown as RecentGame[] | undefined;
+      
+      return {
+        id: player.id,
+        name: player.name,
+        club: player.club,
+        totalGoals: player.goals,
+        minutesPerGoal: Math.round((player.gamesPlayed * 60) / (player.goals || 1)),
+        lastFiveGames: lastFiveGames 
+          ? lastFiveGames.map(g => g.goals).reverse().join(',')
+          : '0,0,0,0,0',
+        maxGoalsInGame: lastFiveGames 
+          ? Math.max(...lastFiveGames.map(g => g.goals))
+          : 0
+      };
+    }).filter(player => player.totalGoals > 0)
       .sort((a, b) => b.totalGoals - a.totalGoals || a.minutesPerGoal - b.minutesPerGoal);
+    console.log(`⏱️ [HALF-SEASON] Goal stats transform: ${Date.now() - goalStatsStart}ms`);
 
+    const formDataStart = Date.now();
     const formData = recentPerformance.map(perf => ({
       name: (perf as any).players?.name || '',
       last_5_games: perf.last_5_games ? (perf.last_5_games as unknown as RecentGame[]).map(g => {
@@ -84,7 +102,9 @@ async function getHalfSeasonStats(tenantId: string) {
         return g.result.toUpperCase().charAt(0);
       }).reverse().join(', ') : ''
     })).sort((a, b) => a.name.localeCompare(b.name));
+    console.log(`⏱️ [HALF-SEASON] Form data transform: ${Date.now() - formDataStart}ms`);
 
+    console.log(`⏱️ [HALF-SEASON] ✅ TOTAL TIME: ${Date.now() - startTime}ms`);
     return { seasonStats, goalStats, formData };
   }
 

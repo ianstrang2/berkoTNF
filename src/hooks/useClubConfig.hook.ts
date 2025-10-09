@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import { useAppConfig } from './queries/useAppConfig.hook';
 
 interface ClubConfig {
   clubName: string;
@@ -8,64 +9,35 @@ interface ClubConfig {
 }
 
 export const useClubConfig = (): ClubConfig => {
-  const [clubName, setClubName] = useState('Capo'); // Default for superadmin/platform view
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchClubConfig = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Skip API call if on superadmin platform pages (no tenant context)
-        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/superadmin')) {
-          console.log('Superadmin platform view - using default name');
-          setIsLoading(false);
-          return;
-        }
-        
-        const response = await fetch('/api/admin/app-config?groups=match_settings');
-        
-        if (!response.ok) {
-          // If 403/401, user might be in special context - silently use fallback
-          if (response.status === 403 || response.status === 401) {
-            setIsLoading(false);
-            return;
-          }
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success && result.data) {
-          // Find the club_name config
-          const clubNameConfig = result.data.find((config: any) => 
-            config.config_key === 'club_name'
-          );
-          
-          if (clubNameConfig && clubNameConfig.config_value) {
-            // Trim whitespace and limit length for UI safety
-            const cleanName = clubNameConfig.config_value.trim();
-            if (cleanName.length > 0 && cleanName.length <= 50) {
-              setClubName(cleanName);
-            } else if (cleanName.length > 50) {
-              console.warn(`Club name too long (${cleanName.length} chars), using truncated version`);
-              setClubName(cleanName.substring(0, 50));
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching club config:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch club config');
-        // Keep default fallback value on error
-      } finally {
-        setIsLoading(false);
+  // Use React Query hook - automatic caching and deduplication!
+  const { data: configData = [], isLoading, error: queryError } = useAppConfig('match_settings');
+  
+  // Extract club name from config
+  const clubName = useMemo(() => {
+    // Skip if on superadmin platform pages (no tenant context)
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/superadmin')) {
+      return 'Capo';
+    }
+    
+    const clubNameConfig = configData.find(config => config.config_key === 'club_name');
+    
+    if (clubNameConfig && clubNameConfig.config_value) {
+      // Trim whitespace and limit length for UI safety
+      const cleanName = clubNameConfig.config_value.trim();
+      if (cleanName.length > 0 && cleanName.length <= 50) {
+        return cleanName;
+      } else if (cleanName.length > 50) {
+        console.warn(`Club name too long (${cleanName.length} chars), using truncated version`);
+        return cleanName.substring(0, 50);
       }
-    };
+    }
+    
+    return 'Capo'; // Default fallback
+  }, [configData]);
 
-    fetchClubConfig();
-  }, []);
-
-  return { clubName, isLoading, error };
+  return { 
+    clubName, 
+    isLoading, 
+    error: queryError ? (queryError as Error).message : null 
+  };
 };

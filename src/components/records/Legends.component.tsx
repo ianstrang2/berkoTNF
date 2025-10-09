@@ -2,149 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PlayerProfile } from '@/types/player.types';
-
-interface Runner {
-  name: string;
-  points?: number;
-  goals?: number;
-  selected_club?: {
-    name: string;
-    filename: string;
-  } | null;
-}
-
-interface SeasonWinner {
-  season_id: number;
-  season_name: string;
-  winners: {
-    winner: string;
-    winner_points: number;
-    selected_club?: {
-      name: string;
-      filename: string;
-    } | null;
-    runners_up?: Runner[];
-  };
-}
-
-interface TopScorer {
-  season_id: number;
-  season_name: string;
-  scorers: {
-    winner: string;
-    winner_goals: number;
-    selected_club?: {
-      name: string;
-      filename: string;
-    } | null;
-    runners_up?: Runner[];
-  };
-}
-
-interface StreakHolder {
-  name: string;
-  streak: number;
-  start_date: string;
-  end_date: string;
-}
-
-interface GoalRecord {
-  name: string;
-  goals: number;
-  date: string;
-}
-
-interface BiggestVictory {
-  date: string;
-  team_a_score: number;
-  team_b_score: number;
-  team_a_players: string;
-  team_b_players: string;
-  winning_team: 'A' | 'B';
-}
-
-interface Records {
-  most_goals_in_game?: GoalRecord[];
-  consecutive_goals?: {
-    holders: StreakHolder[];
-  };
-  biggest_victory?: BiggestVictory[];
-  streaks?: {
-    'Win Streak'?: {
-      holders: StreakHolder[];
-    };
-    'Loss Streak'?: {
-      holders: StreakHolder[];
-    };
-    'No Win Streak'?: {
-      holders: StreakHolder[];
-    };
-    'Undefeated Streak'?: {
-      holders: StreakHolder[];
-    };
-  };
-}
-
-interface LegendsData {
-  seasonWinners: SeasonWinner[];
-  topScorers: TopScorer[];
-}
+import { useHonourRoll } from '@/hooks/queries/useHonourRoll.hook';
+import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 
 interface LegendsProps {
   initialView?: 'winners' | 'scorers';
 }
 
 const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
-  const [loading, setLoading] = useState<boolean>(true);
+  const { data: honourRollData, isLoading: honourRollLoading } = useHonourRoll();
+  const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
+  const loading = honourRollLoading || playersLoading;
+  
   const [activeTab, setActiveTab] = useState<'winners' | 'scorers'>(initialView);
-  const [data, setData] = useState<LegendsData>({
-    seasonWinners: [],
-    topScorers: []
-  });
-  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
+
+  // Extract season winners and top scorers from honour roll data
+  const seasonWinners = honourRollData?.seasonWinners || [];
+  const topScorers = honourRollData?.topScorers || [];
 
   // Update activeTab when initialView changes
   useEffect(() => {
     setActiveTab(initialView);
   }, [initialView]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch honourroll and players in parallel
-        const [honourRollResponse, playersResponse] = await Promise.all([
-          fetch('/api/honourroll'),
-          fetch('/api/players')
-        ]);
-
-        const result = await honourRollResponse.json();
-        
-        if (result.data) {
-          const modifiedData = {
-            seasonWinners: result.data.seasonWinners,
-            topScorers: result.data.topScorers
-          };
-          setData(modifiedData);
-        }
-
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json();
-          // The API now returns full PlayerProfile objects, so no transformation is needed.
-          setAllPlayers(playersData.data || []);
-        } else {
-          console.warn('Failed to fetch players for Legends component');
-          setAllPlayers([]);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching legends:', error);
-        setLoading(false);
-      }
-    };
-  
-    fetchData();
-  }, []);
 
   // Added getPlayerIdByName (copied from other components)
   const getPlayerIdByName = (name: string): string | undefined => {
@@ -191,7 +70,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
             </tr>
           </thead>
           <tbody>
-            {data.seasonWinners.map((season) => (
+            {seasonWinners.map((season) => (
               <tr key={season.season_id} className="hover:bg-gray-50">
                 {/* Sticky Data */}
                 <td className="sticky left-0 z-20 p-2 text-center align-middle bg-white border-b whitespace-nowrap w-8">
@@ -271,7 +150,7 @@ const Legends: React.FC<LegendsProps> = ({ initialView = 'winners' }) => {
             </tr>
           </thead>
           <tbody>
-            {data.topScorers.map((season) => (
+            {topScorers.map((season) => (
               <tr key={season.season_name} className="hover:bg-gray-50">
                 {/* Sticky Data */}
                 <td className="sticky left-0 z-20 p-2 text-center align-middle bg-white border-b whitespace-nowrap w-8">

@@ -8,12 +8,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { PlayerProfile } from '@/types/player.types';
+import { useAuth } from '@/hooks/useAuth.hook';
 
 interface PlayersResponse {
   data: PlayerProfile[];
 }
 
-async function fetchPlayers(): Promise<PlayerProfile[]> {
+async function fetchPlayers(tenantId: string | null): Promise<PlayerProfile[]> {
+  // Gracefully handle missing tenantId
+  if (!tenantId) {
+    return [];
+  }
+  
   const response = await fetch('/api/players', {
     credentials: 'include', // Important: include cookies for auth
   });
@@ -28,10 +34,14 @@ async function fetchPlayers(): Promise<PlayerProfile[]> {
 }
 
 export function usePlayers() {
+  const { profile } = useAuth();
+  const tenantId = profile.tenantId;
+  
   return useQuery({
-    queryKey: queryKeys.players(),
-    queryFn: fetchPlayers,
+    queryKey: queryKeys.players(tenantId),
+    queryFn: () => fetchPlayers(tenantId),
     staleTime: 10 * 60 * 1000, // 10 minutes - players don't change often
+    // NO enabled condition - queryFn handles missing tenantId gracefully
   });
 }
 

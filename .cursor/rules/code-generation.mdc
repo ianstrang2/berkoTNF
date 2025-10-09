@@ -110,6 +110,76 @@ export async function GET(request: NextRequest) {
 - Use `as any` for Prisma selects with newer schema fields not yet in generated types
 - Follow existing working API patterns (see `src/app/api/playerprofile/route.ts`)
 
+## React Query - Multi-Tenant Cache Isolation (MANDATORY)
+
+### 🚨 CRITICAL: All Query Keys MUST Include tenant_id
+
+**React Query caches data globally** - without tenant_id in keys, Tenant A's data can be served to Tenant B!
+
+**✅ CORRECT PATTERN:**
+```typescript
+import { useAuth } from '@/hooks/useAuth.hook';
+import { queryKeys } from '@/lib/queryKeys';
+
+async function fetchPlayers(tenantId: string | null): Promise<PlayerProfile[]> {
+  // Gracefully handle missing tenantId - return empty data
+  if (!tenantId) return [];
+  
+  const response = await fetch('/api/players', { credentials: 'include' });
+  if (!response.ok) throw new Error(`API returned ${response.status}`);
+  const result = await response.json();
+  return result.data || [];
+}
+
+export function usePlayers() {
+  const { profile } = useAuth();
+  const tenantId = profile.tenantId;
+  
+  return useQuery({
+    queryKey: queryKeys.players(tenantId),  // ✅ Includes tenant_id
+    queryFn: () => fetchPlayers(tenantId),  // ✅ Pass tenantId to fetch
+    staleTime: 10 * 60 * 1000,
+    // ✅ NO enabled condition - queryFn handles missing tenantId gracefully
+  });
+}
+```
+
+**❌ BROKEN PATTERNS - CAUSES DATA LEAKS:**
+```typescript
+// Pattern 1: No tenant_id in query key
+export function usePlayers() {
+  return useQuery({
+    queryKey: queryKeys.players(),  // ❌ No tenant_id - cache shared across ALL tenants!
+    queryFn: fetchPlayers,
+  });
+}
+
+// Pattern 2: Using enabled condition (causes race condition)
+export function usePlayers() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.players(profile.tenantId),
+    queryFn: fetchPlayers,
+    enabled: !!profile.tenantId,  // ❌ Query stays disabled if checked before auth loads!
+  });
+}
+```
+
+**Why this matters:**
+- ✅ Isolates cached data per tenant
+- ✅ Prevents showing Tenant A's data to Tenant B
+- ✅ Fixes "No Data Available" issues during tenant switching
+- ✅ Prevents race conditions (query always runs when tenantId becomes available)
+- ✅ Security: Prevents cross-tenant data leaks in browser cache
+
+**Key Points:**
+1. **Include `tenantId` in query key** - Isolates cache per tenant
+2. **Pass `tenantId` to fetchFn** - Allows graceful handling of missing auth
+3. **NO `enabled` condition** - Avoids permanent disable race condition
+4. **Early return in fetchFn** - Returns empty data if `tenantId` is null
+
+**Exception:** `authProfile()` query key does NOT need tenant_id (auth is global)
+
 ## App Router Flow
 - Pages in `/app` should be minimal - just import and render components
 - Business logic and UI should live in `/components`

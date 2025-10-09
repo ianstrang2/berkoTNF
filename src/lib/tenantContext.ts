@@ -233,6 +233,7 @@ export async function getTenantFromRequest(
   request?: any, 
   options: { allowUnauthenticated?: boolean; throwOnMissing?: boolean } = {}
 ): Promise<string> {
+  const startTime = Date.now();
   try {
     const { createRouteHandlerClient } = await import('@supabase/auth-helpers-nextjs');
     const { createClient } = await import('@supabase/supabase-js');
@@ -240,7 +241,10 @@ export async function getTenantFromRequest(
     
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies });
+    
+    const sessionStart = Date.now();
     const { data: { session } } = await supabase.auth.getSession();
+    console.log(`⏱️ [TENANT] getSession took ${Date.now() - sessionStart}ms`);
     
     if (!session) {
       console.warn(`[TENANT_CONTEXT] No session found`);
@@ -275,15 +279,17 @@ export async function getTenantFromRequest(
     // This bypasses JWT refresh timing issues - cookie is immediately available
     const cookieTenant = cookieStore.get('superadmin_selected_tenant');
     if (cookieTenant?.value) {
+      const cookieCheckStart = Date.now();
       // Verify this is actually a superadmin user
       const { data: superadminProfile } = await supabaseAdmin
         .from('admin_profiles')
         .select('user_role')
         .eq('user_id', session.user.id)
         .maybeSingle();
+      console.log(`⏱️ [TENANT] Cookie verification query took ${Date.now() - cookieCheckStart}ms`);
       
       if (superadminProfile?.user_role === 'superadmin') {
-        console.log(`[TENANT_CONTEXT] ✅ Resolved from superadmin cookie: ${cookieTenant.value}`);
+        console.log(`[TENANT_CONTEXT] ✅ Resolved from superadmin cookie: ${cookieTenant.value} (total: ${Date.now() - startTime}ms)`);
         return cookieTenant.value;
       } else {
         // Not a superadmin - clear the cookie (security measure)
@@ -299,26 +305,30 @@ export async function getTenantFromRequest(
     }
     
     // Priority 2: Check admin_profiles table (use service role)
+    const adminCheckStart = Date.now();
     const { data: adminProfile } = await supabaseAdmin
       .from('admin_profiles')
       .select('tenant_id')
       .eq('user_id', session.user.id)
       .maybeSingle();
+    console.log(`⏱️ [TENANT] Admin profile query took ${Date.now() - adminCheckStart}ms`);
     
     if (adminProfile?.tenant_id) {
-      console.log(`[TENANT_CONTEXT] Resolved from admin_profiles: ${adminProfile.tenant_id}`);
+      console.log(`[TENANT_CONTEXT] Resolved from admin_profiles: ${adminProfile.tenant_id} (total: ${Date.now() - startTime}ms)`);
       return adminProfile.tenant_id;
     }
     
     // Priority 3: Check players table (phone auth users) - use service role
+    const playerCheckStart = Date.now();
     const { data: playerProfile } = await supabaseAdmin
       .from('players')
       .select('tenant_id, name, player_id')
       .eq('auth_user_id', session.user.id)
       .maybeSingle();
+    console.log(`⏱️ [TENANT] Player profile query took ${Date.now() - playerCheckStart}ms`);
     
     if (playerProfile?.tenant_id) {
-      console.log(`[TENANT_CONTEXT] ✅ Resolved from players:`, {
+      console.log(`[TENANT_CONTEXT] ✅ Resolved from players (total: ${Date.now() - startTime}ms):`, {
         tenant_id: playerProfile.tenant_id,
         player_name: playerProfile.name,
         player_id: playerProfile.player_id,

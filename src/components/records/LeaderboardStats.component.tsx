@@ -1,7 +1,9 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { PlayerWithStats, PlayerProfile, Club } from '@/types/player.types';
+import { useAllTimeStats } from '@/hooks/queries/useAllTimeStats.hook';
+import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 
 interface SortConfig {
   key: keyof PlayerWithStats;
@@ -9,46 +11,18 @@ interface SortConfig {
 }
 
 const LeaderboardStats: React.FC = () => {
-  const [stats, setStats] = useState<PlayerWithStats[]>([]);
-  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { data: stats = [], isLoading: statsLoading } = useAllTimeStats();
+  const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
+  const loading = statsLoading || playersLoading;
+  
+  const [sortedStats, setSortedStats] = useState<PlayerWithStats[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: 'fantasyPoints',
     direction: 'desc'
   });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsResponse, playersResponse] = await Promise.all([
-          fetch('/api/allTimeStats'),
-          fetch('/api/players')
-        ]);
-
-        const result = await statsResponse.json();
-        if (result.data) {
-          // No transformation needed, API provides canonical PlayerWithStats
-          setStats(result.data);
-        }
-
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json();
-          // No transformation needed, API provides canonical PlayerProfile
-          setAllPlayers(playersData.data || []);
-        } else {
-          console.warn('Failed to fetch players for LeaderboardStats component');
-          setAllPlayers([]);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        setLoading(false);
-      }
-    };
-  
-    fetchData();
-  }, []);
+  // Use stats from query, sorted if needed
+  const displayStats = sortedStats.length > 0 ? sortedStats : stats;
 
   const sortData = (key: keyof PlayerWithStats) => {
     let direction: 'asc' | 'desc' = 'desc';
@@ -57,7 +31,7 @@ const LeaderboardStats: React.FC = () => {
     }
     setSortConfig({ key, direction });
 
-    const sortedData = [...stats].sort((a, b) => {
+    const sortedData = [...displayStats].sort((a, b) => {
       if (a[key] === null || a[key] === undefined) return 1;
       if (b[key] === null || b[key] === undefined) return -1;
 
@@ -90,7 +64,7 @@ const LeaderboardStats: React.FC = () => {
       return (a[key] as any) < (b[key] as any) ? 1 : (a[key] as any) > (b[key] as any) ? -1 : 0;
     });
     
-    setStats(sortedData);
+    setSortedStats(sortedData);
   };
 
   const getSortIndicator = (key: keyof PlayerWithStats) => {
@@ -237,7 +211,7 @@ const LeaderboardStats: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {stats.map((player, index) => {
+            {displayStats.map((player, index) => {
               const isRetired = player.isRetired;
               const actualPlayer = getPlayerByName(player.name);
               const isRinger = actualPlayer?.isRinger;

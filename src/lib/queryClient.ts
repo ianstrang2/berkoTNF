@@ -21,11 +21,12 @@ export const queryClient = new QueryClient({
       // Don't refetch on window focus (reduces unnecessary requests)
       refetchOnWindowFocus: false,
       
-      // Don't refetch on reconnect unless data is stale
+      // Refetch on reconnect to ensure fresh data
       refetchOnReconnect: 'always',
       
-      // Don't refetch on mount if data is fresh
-      refetchOnMount: false,
+      // Refetch on mount to ensure components have fresh data
+      // This uses stale-while-revalidate: shows cached data immediately, then updates
+      refetchOnMount: true,
     },
     mutations: {
       // Retry mutations once on failure

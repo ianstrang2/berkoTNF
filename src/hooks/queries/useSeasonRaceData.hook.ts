@@ -7,6 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
+import { useAuth } from '@/hooks/useAuth.hook';
 
 interface PlayerRaceData {
   player_id: number;
@@ -29,7 +30,12 @@ interface SeasonRaceDataResponse {
   error?: string;
 }
 
-async function fetchSeasonRaceData(period: 'whole_season' | 'current_half'): Promise<SeasonRaceData> {
+async function fetchSeasonRaceData(tenantId: string | null, period: 'whole_season' | 'current_half'): Promise<SeasonRaceData> {
+  // Gracefully handle missing tenantId
+  if (!tenantId) {
+    return { players: [], lastUpdated: null, periodType: period };
+  }
+  
   const response = await fetch(`/api/season-race-data?period=${period}`, {
     credentials: 'include',
   });
@@ -48,10 +54,14 @@ async function fetchSeasonRaceData(period: 'whole_season' | 'current_half'): Pro
 }
 
 export function useSeasonRaceData(period: 'whole_season' | 'current_half' = 'whole_season') {
+  const { profile } = useAuth();
+  const tenantId = profile.tenantId;
+  
   return useQuery({
-    queryKey: queryKeys.seasonRaceData(period),
-    queryFn: () => fetchSeasonRaceData(period),
+    queryKey: queryKeys.seasonRaceData(tenantId, period),
+    queryFn: () => fetchSeasonRaceData(tenantId, period),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    // NO enabled condition - queryFn handles missing tenantId gracefully
   });
 }
 

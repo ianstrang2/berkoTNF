@@ -7,6 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
+import { useAuth } from '@/hooks/useAuth.hook';
 
 interface MatchInfo {
   match_date: string;
@@ -79,7 +80,12 @@ interface MatchReportResponse {
   error?: string;
 }
 
-async function fetchMatchReport(): Promise<MatchReportData | null> {
+async function fetchMatchReport(tenantId: string | null): Promise<MatchReportData | null> {
+  // Gracefully handle missing tenantId
+  if (!tenantId) {
+    return null;
+  }
+  
   const response = await fetch('/api/matchReport');
   
   if (!response.ok) {
@@ -100,10 +106,14 @@ async function fetchMatchReport(): Promise<MatchReportData | null> {
 }
 
 export function useMatchReport() {
+  const { profile } = useAuth();
+  const tenantId = profile.tenantId;
+  
   return useQuery({
-    queryKey: queryKeys.matchReport(),
-    queryFn: fetchMatchReport,
+    queryKey: queryKeys.matchReport(tenantId),
+    queryFn: () => fetchMatchReport(tenantId),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    // NO enabled condition - queryFn handles missing tenantId gracefully
   });
 }
 

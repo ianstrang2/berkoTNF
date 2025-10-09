@@ -1,118 +1,29 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { PlayerProfile } from '@/types/player.types';
-
-interface StreakHolder {
-  name: string;
-  streak: number;
-  start_date: string;
-  end_date: string;
-  selected_club?: {
-    name: string;
-    filename: string;
-  } | null;
-}
-
-interface GoalRecord {
-  name: string;
-  goals: number;
-  date: string;
-  selected_club?: {
-    name: string;
-    filename: string;
-  } | null;
-}
-
-interface BiggestVictory {
-  date: string;
-  team_a_score: number;
-  team_b_score: number;
-  team_a_players: string;
-  team_b_players: string;
-  winning_team: 'A' | 'B';
-}
-
-interface Records {
-  most_goals_in_game?: GoalRecord[];
-  consecutive_goals_streak?: StreakHolder[];
-  attendance_streak?: StreakHolder[];
-  biggest_victory?: BiggestVictory[];
-  streaks?: {
-    'Win Streak'?: {
-      holders: StreakHolder[];
-    };
-    'Losing Streak'?: {
-      holders: StreakHolder[];
-    };
-    'Winless Streak'?: {
-      holders: StreakHolder[];
-    };
-    'Undefeated Streak'?: {
-      holders: StreakHolder[];
-    };
-  };
-}
-
-interface FeatsData {
-  records: Records | null;
-}
+import { useHonourRoll, type Records } from '@/hooks/queries/useHonourRoll.hook';
+import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 
 const Feats: React.FC = () => {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [data, setData] = useState<FeatsData>({
-    records: null
-  });
-  const [allPlayers, setAllPlayers] = useState<PlayerProfile[]>([]);
-  const [playerClubMap, setPlayerClubMap] = useState<Map<string, any>>(new Map());
+  const { data: honourRollData, isLoading: honourRollLoading } = useHonourRoll();
+  const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
+  const loading = honourRollLoading || playersLoading;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [response, playersResponse] = await Promise.all([
-          fetch('/api/honourroll'),
-          fetch('/api/players')
-        ]);
-        const result = await response.json();
-        
-        if (result.data) {
-          const recordsData = result.data.records[0]?.records;
-          
-          const modifiedData = {
-            records: {
-              consecutive_goals_streak: recordsData?.consecutive_goals_streak,
-              most_goals_in_game: recordsData?.most_goals_in_game,
-              attendance_streak: recordsData?.attendance_streak,
-              biggest_victory: recordsData?.biggest_victory,
-              streaks: {
-                'Win Streak': recordsData?.streaks?.['Win Streak'],
-                'Losing Streak': recordsData?.streaks?.['Losing Streak'],
-                'Winless Streak': recordsData?.streaks?.['Winless Streak'],
-                'Undefeated Streak': recordsData?.streaks?.['Undefeated Streak']
-              }
-            }
-          };
-          setData(modifiedData);
-        }
-
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json();
-          // No transformation needed, API provides canonical PlayerProfile objects.
-          setAllPlayers(playersData.data || []);
-        } else {
-          console.warn('Failed to fetch players for Feats component');
-          setAllPlayers([]); // Ensure it's an empty array on failure
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching feats:', error);
-        setLoading(false);
-      }
-    };
-  
-    fetchData();
-  }, []);
+  // Extract records from honour roll data
+  const recordsData = honourRollData?.records?.[0]?.records;
+  const records: Records | null = recordsData ? {
+    consecutive_goals_streak: recordsData.consecutive_goals_streak,
+    most_goals_in_game: recordsData.most_goals_in_game,
+    attendance_streak: recordsData.attendance_streak,
+    biggest_victory: recordsData.biggest_victory,
+    streaks: {
+      'Win Streak': recordsData.streaks?.['Win Streak'],
+      'Losing Streak': recordsData.streaks?.['Losing Streak'],
+      'Winless Streak': recordsData.streaks?.['Winless Streak'],
+      'Undefeated Streak': recordsData.streaks?.['Undefeated Streak']
+    }
+  } : null;
 
   const getPlayerIdByName = (name: string): string | undefined => {
     if (!name) return undefined;
@@ -204,18 +115,18 @@ const Feats: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.records && (
+              {records && (
                 <>
-                  {data.records.most_goals_in_game && (
+                  {records.most_goals_in_game && (
                     <tr className="hover:bg-gray-50">
                       <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                         <span className="font-semibold leading-normal text-sm text-slate-700">Goals in a Game</span>
                       </td>
                       <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
-                        {data.records.most_goals_in_game[0]?.selected_club ? (
+                        {records.most_goals_in_game[0]?.selected_club ? (
                           <img
-                            src={`/club-logos-40px/${data.records.most_goals_in_game[0].selected_club.filename}`}
-                            alt={data.records.most_goals_in_game[0].selected_club.name}
+                            src={`/club-logos-40px/${records.most_goals_in_game[0].selected_club.filename}`}
+                            alt={records.most_goals_in_game[0].selected_club.name}
                             className="w-8 h-8"
                           />
                         ) : (
@@ -228,18 +139,18 @@ const Feats: React.FC = () => {
                         <div className="px-2 py-1">
                           <div className="flex flex-col justify-center">
                             <h6 className="mb-0 leading-normal text-sm font-semibold break-words">
-                              {renderLinkedPlayerNames(data.records.most_goals_in_game)}
+                              {renderLinkedPlayerNames(records.most_goals_in_game)}
                             </h6>
                           </div>
                         </div>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         <span className="font-normal leading-normal text-sm">
-                          {getRecordValue(data.records.most_goals_in_game, 'goals')} goals
+                          {getRecordValue(records.most_goals_in_game, 'goals')} goals
                         </span>
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        {data.records.most_goals_in_game.map((record, index) => (
+                        {records.most_goals_in_game.map((record, index) => (
                           <div key={`game-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
                             {renderSinglePlayerLink(record.name)}: {new Date(record.date).toLocaleDateString()}
                           </div>
@@ -248,7 +159,7 @@ const Feats: React.FC = () => {
                     </tr>
                   )}
 
-                  {data.records.streaks && Object.entries(data.records.streaks).map(([streakType, streakData], streakIndex) => 
+                  {records.streaks && Object.entries(records.streaks).map(([streakType, streakData], streakIndex) => 
                     streakData && streakData.holders && streakData.holders.length > 0 && (
                       <tr key={streakType} className="hover:bg-gray-50">
                         <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
@@ -295,16 +206,16 @@ const Feats: React.FC = () => {
                     )
                   )}
 
-                  {data.records.consecutive_goals_streak && data.records.consecutive_goals_streak.length > 0 && (
+                  {records.consecutive_goals_streak && records.consecutive_goals_streak.length > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                         <span className="font-semibold leading-normal text-sm text-slate-700">Games Scoring</span>
                       </td>
                       <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
-                        {data.records.consecutive_goals_streak[0]?.selected_club ? (
+                        {records.consecutive_goals_streak[0]?.selected_club ? (
                           <img
-                            src={`/club-logos-40px/${data.records.consecutive_goals_streak[0].selected_club.filename}`}
-                            alt={data.records.consecutive_goals_streak[0].selected_club.name}
+                            src={`/club-logos-40px/${records.consecutive_goals_streak[0].selected_club.filename}`}
+                            alt={records.consecutive_goals_streak[0].selected_club.name}
                             className="w-8 h-8"
                           />
                         ) : (
@@ -317,18 +228,18 @@ const Feats: React.FC = () => {
                         <div className="px-2 py-1">
                           <div className="flex flex-col justify-center">
                             <h6 className="mb-0 leading-normal text-sm font-semibold break-words">
-                              {renderLinkedPlayerNames(data.records.consecutive_goals_streak)}
+                              {renderLinkedPlayerNames(records.consecutive_goals_streak)}
                             </h6>
                           </div>
                         </div>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         <span className="font-normal leading-normal text-sm">
-                          {getRecordValue(data.records.consecutive_goals_streak, 'streak')} games
+                          {getRecordValue(records.consecutive_goals_streak, 'streak')} games
                         </span>
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        {data.records.consecutive_goals_streak.map((holder, index) => (
+                        {records.consecutive_goals_streak.map((holder, index) => (
                           <div key={`consecutive-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
                             {renderSinglePlayerLink(holder.name)}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
                             {new Date(holder.end_date).toLocaleDateString()}
@@ -338,16 +249,16 @@ const Feats: React.FC = () => {
                     </tr>
                   )}
 
-                  {data.records.attendance_streak && data.records.attendance_streak.length > 0 && (
+                  {records.attendance_streak && records.attendance_streak.length > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                         <span className="font-semibold leading-normal text-sm text-slate-700">Attendance Streak</span>
                       </td>
                       <td className="sticky left-[120px] z-20 p-2 align-middle bg-white border-b whitespace-nowrap w-10">
-                        {data.records.attendance_streak[0]?.selected_club ? (
+                        {records.attendance_streak[0]?.selected_club ? (
                           <img
-                            src={`/club-logos-40px/${data.records.attendance_streak[0].selected_club.filename}`}
-                            alt={data.records.attendance_streak[0].selected_club.name}
+                            src={`/club-logos-40px/${records.attendance_streak[0].selected_club.filename}`}
+                            alt={records.attendance_streak[0].selected_club.name}
                             className="w-8 h-8"
                           />
                         ) : (
@@ -360,18 +271,18 @@ const Feats: React.FC = () => {
                         <div className="px-2 py-1">
                           <div className="flex flex-col justify-center">
                             <h6 className="mb-0 leading-normal text-sm font-semibold break-words">
-                              {renderLinkedPlayerNames(data.records.attendance_streak)}
+                              {renderLinkedPlayerNames(records.attendance_streak)}
                             </h6>
                           </div>
                         </div>
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         <span className="font-normal leading-normal text-sm">
-                          {getRecordValue(data.records.attendance_streak, 'streak')} games
+                          {getRecordValue(records.attendance_streak, 'streak')} games
                         </span>
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
-                        {data.records.attendance_streak.map((holder, index) => (
+                        {records.attendance_streak.map((holder, index) => (
                           <div key={`attendance-${index}`} className="mb-1 text-sm" suppressHydrationWarning>
                             {renderSinglePlayerLink(holder.name)}: {new Date(holder.start_date).toLocaleDateString()} - {' '}
                             {new Date(holder.end_date).toLocaleDateString()}
@@ -381,7 +292,7 @@ const Feats: React.FC = () => {
                     </tr>
                   )}
 
-                  {data.records.biggest_victory && data.records.biggest_victory.length > 0 && (
+                  {records.biggest_victory && records.biggest_victory.length > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="sticky left-0 z-20 p-2 align-middle bg-white border-b whitespace-nowrap min-w-[120px]">
                         <span className="font-semibold leading-normal text-sm text-slate-700">Biggest Victory</span>
@@ -393,22 +304,22 @@ const Feats: React.FC = () => {
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b min-w-[200px] max-w-[300px] break-words">
                         <div className="px-2 py-1">
-                          {data.records.biggest_victory[0].winning_team === 'A' ? (
+                          {records.biggest_victory[0].winning_team === 'A' ? (
                             <>
                               <div className="mb-1 text-sm break-words">
-                                Team A ({data.records.biggest_victory[0].team_a_score}): {renderLinkedPlayerNames(data.records.biggest_victory[0].team_a_players)}
+                                Team A ({records.biggest_victory[0].team_a_score}): {renderLinkedPlayerNames(records.biggest_victory[0].team_a_players)}
                               </div>
                               <div className="mb-0 text-sm break-words">
-                                Team B ({data.records.biggest_victory[0].team_b_score}): {renderLinkedPlayerNames(data.records.biggest_victory[0].team_b_players)}
+                                Team B ({records.biggest_victory[0].team_b_score}): {renderLinkedPlayerNames(records.biggest_victory[0].team_b_players)}
                               </div>
                             </>
                           ) : (
                             <>
                               <div className="mb-1 text-sm break-words">
-                                Team B ({data.records.biggest_victory[0].team_b_score}): {renderLinkedPlayerNames(data.records.biggest_victory[0].team_b_players)}
+                                Team B ({records.biggest_victory[0].team_b_score}): {renderLinkedPlayerNames(records.biggest_victory[0].team_b_players)}
                               </div>
                               <div className="mb-0 text-sm break-words">
-                                Team A ({data.records.biggest_victory[0].team_a_score}): {renderLinkedPlayerNames(data.records.biggest_victory[0].team_a_players)}
+                                Team A ({records.biggest_victory[0].team_a_score}): {renderLinkedPlayerNames(records.biggest_victory[0].team_a_players)}
                               </div>
                             </>
                           )}
@@ -416,12 +327,12 @@ const Feats: React.FC = () => {
                       </td>
                       <td className="p-2 text-center align-middle bg-transparent border-b whitespace-nowrap">
                         <span className="font-normal leading-normal text-sm">
-                          {data.records.biggest_victory[0].team_a_score}-{data.records.biggest_victory[0].team_b_score}
+                          {records.biggest_victory[0].team_a_score}-{records.biggest_victory[0].team_b_score}
                         </span>
                       </td>
                       <td className="p-2 align-middle bg-transparent border-b whitespace-nowrap">
                         <span className="text-sm text-slate-400" suppressHydrationWarning>
-                          {new Date(data.records.biggest_victory[0].date).toLocaleDateString()}
+                          {new Date(records.biggest_victory[0].date).toLocaleDateString()}
                         </span>
                       </td>
                     </tr>

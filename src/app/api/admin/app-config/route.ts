@@ -7,24 +7,11 @@ import { handleTenantError } from '@/lib/api-helpers';
 // GET: Fetch all app configuration settings
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
-    // First, check if the app_config table exists and is accessible
-    try {
-      const testConfig = await prisma.app_config.findFirst({
-        where: { tenant_id: tenantId }
-      });
-      if (!testConfig) {
-        console.log('Warning: app_config table seems empty but accessible');
-      }
-    } catch (tableError) {
-      console.error('Error accessing app_config table:', tableError);
-      return NextResponse.json({ 
-        error: 'Database error: Cannot access app_config table. Please check database configuration.' 
-      }, { status: 500 });
-    }
-
-    // Get query parameters
+    const startTime = Date.now();
+    
+    // Get query parameters - support both 'group' and 'groups' for backward compatibility
     const { searchParams } = new URL(request.url);
-    const groupsQueryParam = searchParams.get('groups');
+    const groupsQueryParam = searchParams.get('groups') || searchParams.get('group');
 
     let configs;
     const orderByClause = [
@@ -35,34 +22,50 @@ export async function GET(request: NextRequest) {
       { config_key: 'asc' }
     ];
 
-    if (groupsQueryParam) {
-      const groupArray = groupsQueryParam.split(',').map(g => g.trim()).filter(g => g);
-      if (groupArray.length > 0) {
-        // Multi-tenant: Query scoped to current tenant only
-        configs = await prisma.app_config.findMany({
-          where: {
-            tenant_id: tenantId,
-            config_group: {
-              in: groupArray
-            }
-          },
-          orderBy: orderByClause
-        });
+    try {
+      if (groupsQueryParam) {
+        const groupArray = groupsQueryParam.split(',').map(g => g.trim()).filter(g => g);
+        if (groupArray.length > 0) {
+          // Multi-tenant: Query scoped to current tenant only
+          console.log(`🔍 [APP-CONFIG] Querying groups:`, groupArray);
+          const queryStart = Date.now();
+          configs = await prisma.app_config.findMany({
+            where: {
+              tenant_id: tenantId,
+              config_group: {
+                in: groupArray
+              }
+            },
+            orderBy: orderByClause
+          });
+          console.log(`⏱️ [APP-CONFIG] Query took ${Date.now() - queryStart}ms (${configs.length} rows)`);
+        } else {
+          // Multi-tenant: Query scoped to current tenant only
+          configs = await prisma.app_config.findMany({
+            where: { tenant_id: tenantId },
+            orderBy: orderByClause
+          });
+        }
       } else {
         // Multi-tenant: Query scoped to current tenant only
+        console.log(`🔍 [APP-CONFIG] Fetching all configs (no group filter)`);
+        const queryStart = Date.now();
         configs = await prisma.app_config.findMany({
           where: { tenant_id: tenantId },
           orderBy: orderByClause
         });
+        console.log(`⏱️ [APP-CONFIG] Query took ${Date.now() - queryStart}ms (${configs.length} rows)`);
       }
-    } else {
-      // Multi-tenant: Query scoped to current tenant only
-      configs = await prisma.app_config.findMany({
-        where: { tenant_id: tenantId },
-        orderBy: orderByClause
-      });
+    } catch (error) {
+      console.error('Error fetching app_config:', error);
+      return NextResponse.json({ 
+        error: 'Failed to fetch configuration',
+        success: false
+      }, { status: 500 });
     }
 
+    console.log(`⏱️ [APP-CONFIG] ✅ TOTAL TIME: ${Date.now() - startTime}ms`);
+    
     return NextResponse.json({
       success: true,
       data: configs

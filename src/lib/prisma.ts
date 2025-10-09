@@ -27,7 +27,7 @@ type CustomPrismaClient = PrismaClient & {
 const prismaClientSingleton = () => {
   const client = new PrismaClient({
     log: process.env.NODE_ENV === 'development' 
-      ? ['query', 'info', 'warn', 'error'] 
+      ? ['warn', 'error'] // Reduced logging - 'query' and 'info' add significant overhead
       : ['error'],
   });
   
@@ -39,7 +39,7 @@ const prismaClientSingleton = () => {
    * IMPORTANT: This is a BACKUP layer. Explicit where: { tenant_id } filters
    * are still required for defense-in-depth security.
    * 
-   * FIXED: Prevents infinite recursion by skipping middleware for the set_config query itself
+   * OPTIMIZED: Only sets context once per request using context flag
    */
   let isSettingContext = false; // Flag to prevent recursion
   
@@ -52,36 +52,36 @@ const prismaClientSingleton = () => {
     const context = tenantContext.getStore();
     
     if (context?.tenantId) {
-      try {
-        // Set flag to prevent recursion
-        isSettingContext = true;
-        
-        // Set RLS context for this query session
-        // Using 'false' for session-local (persists for entire request)
-        // Changed from 'true' because transaction-local was clearing too early
-        await client.$executeRawUnsafe(
-          `SELECT set_config('app.tenant_id', '${context.tenantId}', false)`
-        );
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[PRISMA_MIDDLEWARE] Set RLS context: ${context.tenantId}`);
+      // OPTIMIZATION: Only set context once per request
+      // Check if we've already set it for this AsyncLocalStorage context
+      if (!(context as any)._rlsContextSet) {
+        try {
+          // Set flag to prevent recursion
+          isSettingContext = true;
+          
+          const setConfigStart = Date.now();
+          // Set RLS context for this query session
+          // Using 'false' for session-local (persists for entire request)
+          await client.$executeRawUnsafe(
+            `SELECT set_config('app.tenant_id', '${context.tenantId}', false)`
+          );
+          
+          // Mark this context as already set
+          (context as any)._rlsContextSet = true;
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[PRISMA_MIDDLEWARE] Set RLS context once: ${context.tenantId} (${Date.now() - setConfigStart}ms)`);
+          }
+        } catch (error) {
+          console.error('[PRISMA_MIDDLEWARE] Failed to set RLS context:', error);
+          // Don't fail the query - explicit filtering is still enforced
+        } finally {
+          // Always reset flag after setting context
+          isSettingContext = false;
         }
-      } catch (error) {
-        console.error('[PRISMA_MIDDLEWARE] Failed to set RLS context:', error);
-        // Don't fail the query - explicit filtering is still enforced
-      } finally {
-        // Always reset flag after setting context
-        isSettingContext = false;
       }
     } else {
-      // No tenant context available
-      // This is expected for:
-      // 1. Cross-tenant auth lookups (using service role)
-      // 2. Public routes (no authentication required)
-      // 3. Background jobs (should set context explicitly)
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[PRISMA_MIDDLEWARE] No tenant context - RLS may block query');
-      }
+      // No tenant context available - skip verbose logging to reduce noise
     }
     
     return next(params);

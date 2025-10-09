@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
 // Fetch player profile by ID from the aggregated table AND power ratings
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
-    console.log("Fetching player profile from aggregated table...");
-    console.log('Using tenant ID:', tenantId);
+    const startTime = Date.now();
+    console.log(`🔍 [PROFILE] Fetching player profile for tenant ${tenantId}`);
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -28,10 +28,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid ID provided' }, { status: 400 });
     }
     
-    console.log('Fetching aggregated profile for ID:', numericId);
+    console.log(`🔍 [PROFILE] Fetching aggregated profile for player ID: ${numericId}`);
 
     // Fetch profile data and power ratings in parallel
     // Multi-tenant: All queries scoped to current tenant
+    const parallelStart = Date.now();
     const [profile, teammateStats, playerData, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
       // Existing profile query
       prisma.aggregated_player_profile_stats.findUnique({
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
           0 as placeholder1, 0 as placeholder2, 0 as placeholder3
         FROM aggregated_player_profile_stats
         WHERE tenant_id = ${tenantId}::uuid
-      `,
+      ` as any[],
        
       // Current streaks from latest match report
       // Multi-tenant: Query scoped to current tenant only
@@ -145,6 +146,16 @@ export async function GET(request: NextRequest) {
         }
       })
     ]);
+    console.log(`⏱️ [PROFILE] All parallel queries completed: ${Date.now() - parallelStart}ms`);
+    console.log(`⏱️ [PROFILE] Query results:`, {
+      hasProfile: !!profile,
+      hasTeammateStats: !!teammateStats,
+      hasPlayerData: !!playerData,
+      hasPerformanceRatings: !!performanceRatings,
+      leagueStatsRows: (leagueStats as any[]).length,
+      hasCurrentStreaks: !!currentStreaks,
+      recordsCount: (records as any[]).length
+    });
 
     if (!profile) {
       console.warn('No aggregated profile found for ID:', numericId);
@@ -321,6 +332,8 @@ export async function GET(request: NextRequest) {
         is_retired: playerData?.is_retired || false
     };
 
+    console.log(`⏱️ [PROFILE] ✅ TOTAL TIME: ${Date.now() - startTime}ms`);
+    
     return NextResponse.json({ 
       success: true, 
       data: responseData 

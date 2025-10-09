@@ -41,7 +41,8 @@ const SeasonRaceGraph: React.FC<SeasonRaceGraphProps> = ({
   const [isMounted, setIsMounted] = useState(false);
 
   // React Query hook - automatic caching and deduplication!
-  const { data, isLoading: loading, error: queryError } = useSeasonRaceData(period);
+  const { data, isLoading, error: queryError } = useSeasonRaceData(period);
+  const loading = isLoading;
   const error = queryError ? (queryError as Error).message : null;
 
   useEffect(() => {
