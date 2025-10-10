@@ -15,6 +15,10 @@ import {
   normalizeStreaks, 
   decimalToNumber 
 } from '@/utils/powerRatingNormalization.util';
+// React Query hooks for automatic deduplication and caching
+import { usePlayerProfile } from '@/hooks/queries/usePlayerProfile.hook';
+import { useLeagueAverages } from '@/hooks/queries/useLeagueAverages.hook';
+import { usePlayerTrends } from '@/hooks/queries/usePlayerTrends.hook';
 
 interface ClubInfo {
   id: string;
@@ -131,15 +135,19 @@ const calculatePercentile = (value: number, min: number, max: number): number =>
 };
 
 const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<ProfileData | null>(null);
+  // React Query hooks - automatic deduplication and caching!
+  const { data: profileData, isLoading: loading, error: profileError } = usePlayerProfile(id);
+  const { data: leagueAverages = [] } = useLeagueAverages();
+  const { data: trendData = null, isLoading: trendLoading } = usePlayerTrends(id);
+  
+  // Local state for UI only
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedStat, setSelectedStat] = useState<string>('PPG');
-  const [leagueAverages, setLeagueAverages] = useState<any[]>([]);
-  const [trendData, setTrendData] = useState<TrendData | null>(null);
-  const [trendLoading, setTrendLoading] = useState<boolean>(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState<boolean>(false);
+  
+  // Transform profile data
+  const profile = profileData?.success && profileData?.data ? profileData.data : null;
+  const error = profileError ? (profileError as Error).message : null;
 
   // Helper function to truncate profile text
   const truncateProfileText = (text: string, maxChars: number = 150): { truncated: string; needsTruncation: boolean } => {
@@ -166,89 +174,12 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
     };
   };
 
+  // Set initial selected year when profile loads
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!id) {
-        setProfile(null);
-        setLoading(false);
-        setError("No player ID provided.");
-        return;
-      }
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`/api/playerprofile?id=${id}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch profile: ${response.statusText} for player ID ${id}`);
-        }
-        const data = await response.json();
-        if (data && data.success && data.data) {
-          const profileData: ProfileData = {
-            ...data.data,
-            yearly_stats: data.data.yearly_stats || [],
-          };
-          setProfile(profileData);
-          if (profileData.yearly_stats.length > 0) {
-            setSelectedYear(profileData.yearly_stats[0].year);
-          }
-        } else {
-          setProfile(null);
-          throw new Error('Invalid data structure: profile not found in response');
-        }
-      } catch (err) {
-        setError((err as Error).message);
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [id]);
-
-  // Fetch league averages for reference lines
-  useEffect(() => {
-    const fetchLeagueAverages = async () => {
-      try {
-        const response = await fetch('/api/stats/league-averages');
-        if (response.ok) {
-          const data = await response.json();
-          setLeagueAverages(data.averages || []);
-        }
-      } catch (err) {
-        // League averages fetch failed - not critical
-        setLeagueAverages([]);
-      }
-    };
-
-    fetchLeagueAverages();
-  }, []);
-
-  // Fetch trend data for 6-month block analysis
-  useEffect(() => {
-    const fetchTrendData = async () => {
-      if (!id) {
-        return;
-      }
-      
-      setTrendLoading(true);
-      try {
-        const response = await fetch(`/api/player/trends/${id}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setTrendData(data.data);
-          }
-        }
-      } catch (err) {
-        // Fail silently for trends - not critical for profile display
-      } finally {
-        setTrendLoading(false);
-      }
-    };
-
-    fetchTrendData();
-  }, [id]);
+    if (profile?.yearly_stats && profile.yearly_stats.length > 0 && !selectedYear) {
+      setSelectedYear(profile.yearly_stats[0].year);
+    }
+  }, [profile, selectedYear]);
 
   const statOptions: string[] = [
     'Games',

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { format, nextThursday } from 'date-fns';
@@ -7,6 +7,9 @@ import { Trash2 } from 'lucide-react';
 import MatchModal from '@/components/team/modals/MatchModal.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import Button from '@/components/ui-kit/Button.component';
+// React Query hooks for automatic deduplication
+import { useUpcomingMatchesList, useCreateMatch, useDeleteMatch } from '@/hooks/queries/useUpcomingMatchesList.hook';
+import { useMatchHistory } from '@/hooks/queries/useMatchHistory.hook';
 
 interface ActiveMatch {
   upcoming_match_id: number;
@@ -30,19 +33,23 @@ const MatchListPageContent = () => {
   const view = searchParams.get('view') || 'active';
   const router = useRouter();
 
-  const [active, setActive] = useState<ActiveMatch[]>([]);
-  const [history, setHistory] = useState<HistoricalMatch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // React Query hooks - automatic deduplication and caching!
+  const { data: active = [], isLoading: activeLoading, error: activeError } = useUpcomingMatchesList();
+  const { data: history = [], isLoading: historyLoading, error: historyError } = useMatchHistory();
+  const createMatchMutation = useCreateMatch();
+  const deleteMatchMutation = useDeleteMatch();
+  
+  // Derive loading and error state
+  const isLoading = activeLoading || historyLoading;
+  const error = activeError ? (activeError as Error).message : 
+                historyError ? (historyError as Error).message : null;
 
   // New match modal state
   const [isNewMatchModalOpen, setIsNewMatchModalOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
   // Delete modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [matchToDelete, setMatchToDelete] = useState<ActiveMatch | HistoricalMatch | null>(null);
 
   // New match data state
@@ -110,132 +117,50 @@ const MatchListPageContent = () => {
 
   const handleDeleteConfirm = async () => {
     if (!matchToDelete) return;
-
-    setIsDeleting(true);
     
     try {
-      const endpoint = getDeleteEndpoint(matchToDelete);
-      const response = await fetch(endpoint, { method: 'DELETE' });
-      const result = await response.json();
+      const isHistorical = !('_count' in matchToDelete);
+      const matchId = isHistorical 
+        ? (matchToDelete as HistoricalMatch).match_id 
+        : (matchToDelete as ActiveMatch).upcoming_match_id;
       
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete match');
-      }
-
-      // Refresh the matches list
-      const fetchData = async () => {
-        try {
-          const [activeRes, historyRes] = await Promise.all([
-            fetch('/api/admin/upcoming-matches', { cache: 'no-store' }),
-            fetch('/api/matches/history', { cache: 'no-store' })
-          ]);
-
-          if (activeRes.ok && historyRes.ok) {
-            const activeData = await activeRes.json();
-            const historyData = await historyRes.json();
-            setActive(activeData.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || []);
-            setHistory(historyData.data || []);
-          }
-        } catch (err) {
-          console.error('Failed to refresh matches:', err);
-        }
-      };
-      await fetchData();
+      await deleteMatchMutation.mutateAsync({ 
+        matchId, 
+        isHistorical 
+      });
       
-      // Close modal
+      // Close modal on success (mutation automatically refetches lists)
       setIsDeleteModalOpen(false);
       setMatchToDelete(null);
       
     } catch (err: any) {
       console.error('Delete failed:', err);
-      // You could add a toast notification here for the error
-    } finally {
-      setIsDeleting(false);
+      // Error is handled by the mutation
     }
   };
 
-  // Create match handler - stays on matches list instead of redirecting
+  // Create match handler - uses React Query mutation
   const handleCreateMatch = async () => {
-    setIsCreating(true);
     setCreateError(null);
     
     try {
-      const response = await fetch('/api/admin/upcoming-matches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          match_date: newMatchData.date,
-          team_size: newMatchData.team_size
-        })
+      await createMatchMutation.mutateAsync({
+        match_date: newMatchData.date,
+        team_size: newMatchData.team_size
       });
 
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to create match');
-      }
-
-      // Close modal and refresh the matches list
+      // Close modal and reset form on success (mutation automatically refetches list)
       setIsNewMatchModalOpen(false);
-      
-      // Reset form data for next use
       setNewMatchData({
         date: format(nextThursday(new Date()), 'yyyy-MM-dd'),
         team_size: 9,
         match_date: format(nextThursday(new Date()), 'yyyy-MM-dd')
       });
       
-      // Refresh the matches list
-      const fetchData = async () => {
-        try {
-          const activeRes = await fetch('/api/admin/upcoming-matches', { cache: 'no-store' });
-          if (activeRes.ok) {
-            const activeData = await activeRes.json();
-            // Show all non-completed matches regardless of date
-            setActive(activeData.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || []);
-          }
-        } catch (err) {
-          console.error('Failed to refresh matches:', err);
-        }
-      };
-      fetchData();
-      
     } catch (err: any) {
       setCreateError(err.message);
-    } finally {
-      setIsCreating(false);
     }
   };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const [activeRes, historyRes] = await Promise.all([
-          fetch('/api/admin/upcoming-matches', { cache: 'no-store' }),
-          fetch('/api/matches/history', { cache: 'no-store' })
-        ]);
-
-        if (!activeRes.ok || !historyRes.ok) {
-          throw new Error('Failed to fetch match data');
-        }
-
-        const activeData = await activeRes.json();
-        const historyData = await historyRes.json();
-
-        // Show all non-completed matches regardless of date
-        setActive(activeData.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || []);
-        setHistory(historyData.data || []);
-
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
 
   const renderActiveList = () => (
     <div className="space-y-4 max-w-3xl">
@@ -342,7 +267,7 @@ const MatchListPageContent = () => {
         data={newMatchData}
         onChange={(field, value) => setNewMatchData(prev => ({ ...prev, [field]: value }))}
         onSubmit={handleCreateMatch}
-        isLoading={isCreating}
+        isLoading={createMatchMutation.isPending}
         error={createError}
         isEditing={false}
       />
@@ -357,9 +282,9 @@ const MatchListPageContent = () => {
         }}
         title="Delete Match"
         message={matchToDelete ? getDeleteMessage(matchToDelete) : ''}
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Match'}
+        confirmText={deleteMatchMutation.isPending ? 'Deleting...' : 'Delete Match'}
         cancelText="Cancel"
-        isConfirming={isDeleting}
+        isConfirming={deleteMatchMutation.isPending}
         icon="warning"
       />
     </div>

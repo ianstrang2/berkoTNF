@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { usePlayerMatches } from '@/hooks/queries/usePlayerMatches.hook';
 
 interface Match {
   date: string;
@@ -23,38 +24,9 @@ interface MatchPerformanceProps {
 }
 
 const MatchPerformance: React.FC<MatchPerformanceProps> = ({ playerId, availableYears }) => {
-  const [allMatchData, setAllMatchData] = useState<Match[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!playerId) {
-      setAllMatchData([]);
-      return;
-    }
-
-    const fetchAllMatchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(`/api/player/${playerId}/allmatches`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch all match data: ${response.statusText}`);
-        }
-        const data = await response.json();
-        setAllMatchData(data.matches || []);
-      } catch (err: any) {
-        console.error('Error fetching all match data:', err);
-        setError(err.message || 'An unknown error occurred');
-        setAllMatchData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAllMatchData();
-  }, [playerId]);
+  // Use React Query hook - automatic deduplication and caching!
+  const { data: allMatchData = [], isLoading: loading, error: queryError } = usePlayerMatches(playerId);
+  const error = queryError ? (queryError as Error).message : null;
 
   const getHalf = (dateString: string): 'H1' | 'H2' => {
     const month = new Date(dateString).getMonth(); // 0 (Jan) to 11 (Dec)

@@ -232,6 +232,99 @@ export async function GET(request: NextRequest) {
 
 **Exception:** Auth profile can use short cache (1 min max)
 
+## Multi-Tenant Security: Aggregated Tables (MANDATORY - October 2025)
+
+### 🚨 CRITICAL: RLS Disabled on Aggregated Tables
+
+**Aggregated tables have RLS DISABLED** - they are read-only tables populated by background jobs.
+
+**ALL queries to aggregated tables MUST use `withTenantFilter()` helper:**
+
+**✅ CORRECT PATTERN:**
+```typescript
+import { withTenantFilter } from '@/lib/tenantFilter';
+
+// Single filter
+const data = await prisma.aggregated_season_stats.findMany({
+  where: withTenantFilter(tenantId)
+});
+
+// With additional filters
+const data = await prisma.aggregated_season_stats.findMany({
+  where: withTenantFilter(tenantId, {
+    season_start_date: startDate
+  })
+});
+
+// With composite keys (findUnique)
+const data = await prisma.aggregated_player_profile_stats.findUnique({
+  where: { ...withTenantFilter(tenantId), player_id: playerId }
+});
+```
+
+**❌ FORBIDDEN PATTERNS:**
+```typescript
+// Missing tenant filter - SECURITY RISK!
+const data = await prisma.aggregated_season_stats.findMany({
+  where: { season_start_date: startDate }  // ❌ No tenant_id!
+});
+
+// Manual tenant_id - use helper instead
+const data = await prisma.aggregated_season_stats.findMany({
+  where: { tenant_id: tenantId }  // ❌ Use withTenantFilter() instead
+});
+```
+
+### 🚨 CRITICAL: Never Use `include` from Aggregated Tables to RLS-Enabled Tables
+
+**Connection pooling + RLS causes the `include` to fail!**
+
+**❌ BROKEN PATTERN:**
+```typescript
+// This WILL cause 500 errors!
+const data = await prisma.aggregated_personal_bests.findFirst({
+  where: withTenantFilter(tenantId),
+  include: {
+    matches: { select: { match_date: true } }  // ❌ matches has RLS enabled
+  }
+});
+// Error: "Field matches is required to return data, got `null` instead"
+```
+
+**✅ CORRECT PATTERN:**
+```typescript
+// Fetch aggregated data first
+const personalBest = await prisma.aggregated_personal_bests.findFirst({
+  where: withTenantFilter(tenantId)
+});
+
+if (!personalBest) return null;
+
+// Fetch related data separately with explicit tenant filter
+const match = await prisma.matches.findUnique({
+  where: { 
+    match_id: personalBest.match_id,
+    tenant_id: tenantId  // Explicit filter for RLS
+  },
+  select: { match_date: true }
+});
+```
+
+**Why this matters:**
+- Aggregated tables: RLS disabled
+- Core tables (matches, players, teams): RLS enabled
+- `include` may use different connection from pool without RLS context
+- Separate queries ensure each gets proper tenant context
+
+**Which Tables are Affected:**
+
+**Aggregated Tables (RLS Disabled - Use `withTenantFilter()`):**
+- All tables starting with `aggregated_*`
+
+**Core Tables (RLS Enabled - Use explicit `tenant_id` filter):**
+- `matches`, `players`, `teams`, `admin_profiles`, `seasons`
+- Any table written by users directly
+
 ## App Router Flow
 - Pages in `/app` should be minimal - just import and render components
 - Business logic and UI should live in `/components`

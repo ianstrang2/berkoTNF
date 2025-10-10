@@ -45,14 +45,24 @@ export const queryKeys = {
   // Latest Player Status API
   latestPlayerStatus: (tenantId: string | null) => ['latestPlayerStatus', tenantId] as const,
   
-  // Player Profile API - parameterized by player ID
-  playerProfile: (tenantId: string | null, playerId: string) => ['playerProfile', tenantId, playerId] as const,
+  // Player Profile APIs - parameterized by player ID
+  playerProfile: (tenantId: string | null, playerId: number | null | undefined) => 
+    ['playerProfile', tenantId, playerId] as const,
+  playerTrends: (tenantId: string | null, playerId: number | null | undefined) => 
+    ['playerTrends', tenantId, playerId] as const,
+  playerMatches: (tenantId: string | null, playerId: number | null | undefined) => 
+    ['playerMatches', tenantId, playerId] as const,
+  leagueAverages: (tenantId: string | null) => ['leagueAverages', tenantId] as const,
   
   // Cache Metadata API
   cacheMetadata: (tenantId: string | null) => ['cacheMetadata', tenantId] as const,
   
   // Auth APIs - NO tenant_id (auth is global)
   authProfile: () => ['authProfile'] as const,
+  
+  // Admin Match Management APIs
+  upcomingMatchesList: (tenantId: string | null) => ['upcomingMatchesList', tenantId] as const,
+  matchHistory: (tenantId: string | null) => ['matchHistory', tenantId] as const,
   
   // Table/Season Stats APIs
   halfSeasonStats: (tenantId: string | null) => ['halfSeasonStats', tenantId] as const,
