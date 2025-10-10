@@ -2449,3 +2449,59 @@ This document serves as the **definitive implementation record** for BerkoTNF's 
 
 This multi-tenancy implementation provides a **rock-solid foundation** for all future BerkoTNF features, ensuring data isolation, security, and scalability from day one.
 
+---
+
+## Q. RLS Architecture Decision (October 2025)
+
+### Problem: RLS + Connection Pooling
+
+**Issue:** Row-Level Security (RLS) + Prisma connection pooling causes intermittent 0-row query results.
+
+**Mechanism:**
+1. Middleware sets RLS context via `SET LOCAL app.tenant_id = '...'` on Connection A
+2. Query executes on Connection B from pool (no RLS context set)
+3. RLS policy blocks all rows → Query returns 0 rows even with explicit `WHERE tenant_id = ...`
+
+**Impact:**
+- "No Data Available" screens despite data existing
+- Tenant switching failures requiring hard refresh
+- Intermittent behavior (race condition)
+
+### Solution: Application-Level Filtering
+
+**Decision:** Disable RLS on operational tables, enforce security via type-safe `withTenantFilter()` helper.
+
+**Tables with RLS Enabled (Auth/Security Critical):**
+- `auth.*` - Supabase auth system tables
+- `tenants` - Superadmin-only access
+- `admin_profiles` - Role/permission data
+
+**Tables with RLS Disabled (Operational):**
+- All `aggregated_*` tables (15 tables)
+- Core entities: `players`, `matches`, `player_matches`, `seasons`
+- Match management: `upcoming_matches`, `upcoming_match_players`, `match_player_pool`, `team_slots`
+- Configuration: `app_config`, `team_size_templates`, `team_balance_weights`
+- Onboarding: `player_join_requests`, `club_invite_tokens`
+
+**Security Model:**
+```typescript
+import { withTenantFilter } from '@/lib/tenantFilter';
+
+// Type-safe helper enforces tenant isolation
+const data = await prisma.players.findMany({
+  where: withTenantFilter(tenantId, { is_retired: false })
+});
+
+// Throws error if tenantId is null
+// Impossible to forget tenant filtering at compile time
+```
+
+**Benefits:**
+- ✅ Eliminates connection pooling race conditions
+- ✅ Type-safe at compile time (RLS is runtime only)
+- ✅ Explicit and auditable in code
+- ✅ Consistent pattern across all routes
+- ✅ No performance impact (queries already filtered)
+
+**Implementation:** See `.cursor/rules/code-generation.mdc` for mandatory patterns.
+
