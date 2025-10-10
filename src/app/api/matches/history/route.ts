@@ -5,6 +5,7 @@ import { ALL_MATCH_RELATED_TAGS } from '@/lib/cache/constants';
 // Multi-tenant imports - ensuring match history is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 async function revalidateMatchCaches() {
   console.log('Revalidating all match-related cache tags...');
@@ -18,7 +19,7 @@ async function revalidateMatchCaches() {
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     const matches = await prisma.matches.findMany({
-      where: {
+      where: withTenantFilter(tenantId, {
         OR: [
           // Legacy matches (no upcoming_match_id)
           { upcoming_match_id: null },
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
             }
           }
         ]
-      },
+      }),
       orderBy: {
         match_date: 'desc',
       },

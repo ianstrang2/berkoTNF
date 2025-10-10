@@ -22,7 +22,9 @@ interface ActiveMatch {
 async function fetchUpcomingMatches(
   tenantId: string | null
 ): Promise<ActiveMatch[]> {
-  if (!tenantId) return [];
+  if (!tenantId) {
+    return [];
+  }
 
   const response = await fetch('/api/admin/upcoming-matches', {
     credentials: 'include',
@@ -33,8 +35,11 @@ async function fetchUpcomingMatches(
   }
 
   const result = await response.json();
+  
   // Filter out completed matches
-  return result.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || [];
+  const filtered = result.data?.filter((m: ActiveMatch) => m.state !== 'Completed') || [];
+  
+  return filtered;
 }
 
 export function useUpcomingMatchesList() {

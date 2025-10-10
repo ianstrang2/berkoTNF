@@ -64,6 +64,20 @@ export const queryKeys = {
   upcomingMatchesList: (tenantId: string | null) => ['upcomingMatchesList', tenantId] as const,
   matchHistory: (tenantId: string | null) => ['matchHistory', tenantId] as const,
   
+  // Admin Player Management APIs
+  playersAdmin: (tenantId: string | null, includeMatchCounts: boolean, showRetired: boolean) => 
+    ['playersAdmin', tenantId, includeMatchCounts, showRetired] as const,
+  
+  // Admin Configuration APIs
+  balanceAlgorithm: (tenantId: string | null) => ['balanceAlgorithm', tenantId] as const,
+  performanceWeights: (tenantId: string | null) => ['performanceWeights', tenantId] as const,
+  teamTemplate: (tenantId: string | null, teamSize: number | undefined) => 
+    ['teamTemplate', tenantId, teamSize] as const,
+  
+  // Admin System APIs
+  joinRequests: (tenantId: string | null) => ['joinRequests', tenantId] as const,
+  orphanedMatches: (tenantId: string | null) => ['orphanedMatches', tenantId] as const,
+  
   // Table/Season Stats APIs
   halfSeasonStats: (tenantId: string | null) => ['halfSeasonStats', tenantId] as const,
   currentStats: (tenantId: string | null, year: number) => ['currentStats', tenantId, year] as const,

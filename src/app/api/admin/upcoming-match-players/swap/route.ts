@@ -7,42 +7,43 @@ import { handleTenantError } from '@/lib/api-helpers';
 // POST: Swap two players atomically in a single transaction
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
-    const body = await request.json();
-    const { upcoming_match_id, playerA, playerB, state_version } = body;
+    try {
+      const body = await request.json();
+      const { upcoming_match_id, playerA, playerB, state_version } = body;
 
-    console.log('Swap request received:', {
-      upcoming_match_id,
-      playerA,
-      playerB,
-      state_version
-    });
+      console.log('Swap request received:', {
+        upcoming_match_id,
+        playerA,
+        playerB,
+        state_version
+      });
 
-    // Additional validation
-    if (!playerA.player_id || !playerB.player_id) {
-      console.error('Invalid player IDs:', { playerA, playerB });
-      return NextResponse.json(
-        { success: false, error: 'Invalid player IDs provided' },
-        { status: 400 }
-      );
-    }
+      // Additional validation
+      if (!playerA.player_id || !playerB.player_id) {
+        console.error('Invalid player IDs:', { playerA, playerB });
+        return NextResponse.json(
+          { success: false, error: 'Invalid player IDs provided' },
+          { status: 400 }
+        );
+      }
 
-    // Validate required fields
-    if (!upcoming_match_id || !playerA || !playerB) {
-      return NextResponse.json(
-        { success: false, error: 'Match ID and both players are required' },
-        { status: 400 }
-      );
-    }
+      // Validate required fields
+      if (!upcoming_match_id || !playerA || !playerB) {
+        return NextResponse.json(
+          { success: false, error: 'Match ID and both players are required' },
+          { status: 400 }
+        );
+      }
 
-    // Validate player objects
-    if (!playerA.player_id || !playerB.player_id) {
-      return NextResponse.json(
-        { success: false, error: 'Both players must have player_id' },
-        { status: 400 }
-      );
-    }
+      // Validate player objects
+      if (!playerA.player_id || !playerB.player_id) {
+        return NextResponse.json(
+          { success: false, error: 'Both players must have player_id' },
+          { status: 400 }
+        );
+      }
 
-    const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
       // Optional: Lock the match for concurrent swap protection
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${upcoming_match_id})`;
 
@@ -120,37 +121,38 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return { 
-        playerA: { ...playerARecord, team: playerA.team, slot_number: playerA.slot_number },
-        playerB: { ...playerBRecord, team: playerB.team, slot_number: playerB.slot_number }
-      };
-    });
+        return { 
+          playerA: { ...playerARecord, team: playerA.team, slot_number: playerA.slot_number },
+          playerB: { ...playerBRecord, team: playerB.team, slot_number: playerB.slot_number }
+        };
+      });
 
-    return NextResponse.json({ 
-      success: true, 
-      data: result,
-      message: 'Players swapped successfully'
-    });
+      return NextResponse.json({ 
+        success: true, 
+        data: result,
+        message: 'Players swapped successfully'
+      });
 
-  } catch (error: any) {
-    console.error('Error swapping players:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-      stack: error.stack
-    });
-    
-    if (error.message === 'CONCURRENCY_CONFLICT') {
+    } catch (error: any) {
+      console.error('Error swapping players:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack
+      });
+      
+      if (error.message === 'CONCURRENCY_CONFLICT') {
+        return NextResponse.json(
+          { success: false, error: 'Match was modified by another user. Please refresh and try again.' },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
-        { success: false, error: 'Match was modified by another user. Please refresh and try again.' },
-        { status: 409 }
+        { success: false, error: error.message || 'Internal server error' },
+        { status: 500 }
       );
     }
-
-    return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
-  });
+  }).catch(handleTenantError);
 }

@@ -55,12 +55,13 @@ src/
 
 ### API Routes - Phase 2 Pattern (MANDATORY - October 2025)
 
-**ALWAYS use `withTenantContext` wrapper** for all tenant-scoped API routes.
+**ALWAYS use `withTenantContext` wrapper + `withTenantFilter()` helper** for all tenant-scoped API routes.
 
 **✅ CORRECT PATTERN (Phase 2):**
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
 import { withTenantContext } from '@/lib/tenantContext';
+import { withTenantFilter } from '@/lib/tenantFilter';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
@@ -71,9 +72,7 @@ export async function GET(request: NextRequest) {
       await requireAdminRole(request);  // Verify admin access
       
       const data = await prisma.players.findMany({
-        where: { 
-          tenant_id: tenantId  // ⚠️ MANDATORY - defense-in-depth
-        }
+        where: withTenantFilter(tenantId)  // ⚠️ MANDATORY - type-safe tenant isolation
       });
       
       return NextResponse.json({ success: true, data });
@@ -86,21 +85,21 @@ export async function GET(request: NextRequest) {
 
 **❌ DEPRECATED PATTERN - DO NOT USE:**
 ```typescript
-// This pattern is from PRE-Phase 2 (missing RLS context)
+// This pattern is from PRE-Phase 2 (missing tenant context wrapper)
 export async function GET(request: NextRequest) {
   const { tenantId } = await requireAdminRole(request);  // ❌ Old pattern
   const data = await prisma.players.findMany({
-    where: { tenant_id: tenantId }  // ✅ Filtered but ❌ no RLS context
+    where: { tenant_id: tenantId }  // ❌ Manual filtering
   });
   return NextResponse.json({ data });
 }
 ```
 
-**Why withTenantContext is required:**
-- ✅ Sets RLS context via AsyncLocalStorage (Prisma middleware can monitor)
-- ✅ Enables consistent logging: `[WITH_TENANT_CONTEXT] Setting tenant context`
-- ✅ Provides defense-in-depth (RLS + manual filtering)
-- ✅ Future-proof for strict RLS enforcement
+**Why withTenantContext + withTenantFilter are required:**
+- ✅ Sets tenant context via AsyncLocalStorage (enables consistent logging)
+- ✅ Type-safe tenant filtering (impossible to forget tenant_id)
+- ✅ Consistent error handling via `handleTenantError()`
+- ✅ Defense-in-depth security model
 
 **Edge Functions** - Use Supabase Client
 - Supabase Edge Functions in `supabase/functions/` should use Supabase client
@@ -232,98 +231,145 @@ export async function GET(request: NextRequest) {
 
 **Exception:** Auth profile can use short cache (1 min max)
 
-## Multi-Tenant Security: Aggregated Tables (MANDATORY - October 2025)
+## Multi-Tenant Security: RLS Strategy (MANDATORY - October 2025)
 
-### 🚨 CRITICAL: RLS Disabled on Aggregated Tables
+### 🚨 CRITICAL: RLS Architecture Decision
 
-**Aggregated tables have RLS DISABLED** - they are read-only tables populated by background jobs.
+**Background:** Row-Level Security (RLS) + connection pooling causes intermittent 0-row query results. 
+When middleware sets RLS context on Connection A, but query executes on Connection B without context, 
+queries return 0 rows even with explicit `WHERE tenant_id = ...` filters.
 
-**ALL queries to aggregated tables MUST use `withTenantFilter()` helper:**
+**Solution:** Disable RLS on operational tables, enforce security via application-level `withTenantFilter()` helper.
+
+### Database Security Model
+
+**Tables with RLS ENABLED (Auth & Security Critical):**
+- `auth.*` - Supabase auth system tables
+- `tenants` - Superadmin-only access, requires RLS
+- `admin_profiles` - Role/permission data, requires RLS
+
+**Tables with RLS DISABLED (Operational - Use `withTenantFilter()`):**
+- **Aggregated tables:** All tables starting with `aggregated_*` (read-only, populated by background jobs)
+- **Core entities:** `players`, `matches`, `player_matches`, `seasons`
+- **Match management:** `upcoming_matches`, `upcoming_match_players`, `match_player_pool`, `team_slots`
+- **Configuration:** `app_config`, `balance_config`, `team_templates`
+- **Player onboarding:** `player_join_requests`
+
+### MANDATORY: Use `withTenantFilter()` Helper
+
+**ALL queries to tables with RLS disabled MUST use `withTenantFilter()` helper:**
 
 **✅ CORRECT PATTERN:**
 ```typescript
 import { withTenantFilter } from '@/lib/tenantFilter';
 
-// Single filter
-const data = await prisma.aggregated_season_stats.findMany({
+// Simple query
+const players = await prisma.players.findMany({
   where: withTenantFilter(tenantId)
 });
 
 // With additional filters
-const data = await prisma.aggregated_season_stats.findMany({
+const activePlayers = await prisma.players.findMany({
   where: withTenantFilter(tenantId, {
-    season_start_date: startDate
+    is_retired: false,
+    is_active: true
+  })
+});
+
+// With complex filters (OR/AND)
+const matches = await prisma.matches.findMany({
+  where: withTenantFilter(tenantId, {
+    OR: [
+      { upcoming_match_id: null },
+      { upcoming_matches: { state: 'Completed' } }
+    ]
   })
 });
 
 // With composite keys (findUnique)
-const data = await prisma.aggregated_player_profile_stats.findUnique({
-  where: { ...withTenantFilter(tenantId), player_id: playerId }
+const stats = await prisma.aggregated_player_profile_stats.findUnique({
+  where: { 
+    ...withTenantFilter(tenantId), 
+    player_id: playerId 
+  }
 });
 ```
 
 **❌ FORBIDDEN PATTERNS:**
 ```typescript
-// Missing tenant filter - SECURITY RISK!
-const data = await prisma.aggregated_season_stats.findMany({
-  where: { season_start_date: startDate }  // ❌ No tenant_id!
+// Pattern 1: Missing tenant filter - SECURITY RISK!
+const players = await prisma.players.findMany({
+  where: { is_retired: false }  // ❌ No tenant_id! DATA LEAK!
 });
 
-// Manual tenant_id - use helper instead
-const data = await prisma.aggregated_season_stats.findMany({
-  where: { tenant_id: tenantId }  // ❌ Use withTenantFilter() instead
-});
-```
-
-### 🚨 CRITICAL: Never Use `include` from Aggregated Tables to RLS-Enabled Tables
-
-**Connection pooling + RLS causes the `include` to fail!**
-
-**❌ BROKEN PATTERN:**
-```typescript
-// This WILL cause 500 errors!
-const data = await prisma.aggregated_personal_bests.findFirst({
-  where: withTenantFilter(tenantId),
-  include: {
-    matches: { select: { match_date: true } }  // ❌ matches has RLS enabled
+// Pattern 2: Manual tenant_id - Less safe, no type checking
+const players = await prisma.players.findMany({
+  where: { 
+    tenant_id: tenantId,  // ❌ Use withTenantFilter() instead
+    is_retired: false 
   }
 });
-// Error: "Field matches is required to return data, got `null` instead"
-```
 
-**✅ CORRECT PATTERN:**
-```typescript
-// Fetch aggregated data first
-const personalBest = await prisma.aggregated_personal_bests.findFirst({
-  where: withTenantFilter(tenantId)
-});
-
-if (!personalBest) return null;
-
-// Fetch related data separately with explicit tenant filter
-const match = await prisma.matches.findUnique({
+// Pattern 3: Spreading tenant_id manually
+const players = await prisma.players.findMany({
   where: { 
-    match_id: personalBest.match_id,
-    tenant_id: tenantId  // Explicit filter for RLS
-  },
-  select: { match_date: true }
+    ...{ tenant_id: tenantId },  // ❌ Use withTenantFilter() instead
+    is_retired: false 
+  }
 });
 ```
 
-**Why this matters:**
-- Aggregated tables: RLS disabled
-- Core tables (matches, players, teams): RLS enabled
-- `include` may use different connection from pool without RLS context
-- Separate queries ensure each gets proper tenant context
+**Why `withTenantFilter()` is mandatory:**
+- ✅ Type-safe (throws error if tenantId is null/undefined)
+- ✅ Compile-time enforcement (impossible to forget tenant filtering)
+- ✅ Consistent pattern across entire codebase
+- ✅ Development logging helps debugging
+- ✅ Single source of truth for tenant filtering logic
 
-**Which Tables are Affected:**
+### Special Cases
 
-**Aggregated Tables (RLS Disabled - Use `withTenantFilter()`):**
-- All tables starting with `aggregated_*`
+**Raw SQL Queries:**
+When using `prisma.$queryRaw`, always include explicit tenant filtering:
+```typescript
+const seasons = await prisma.$queryRaw`
+  SELECT * FROM seasons
+  WHERE tenant_id = ${tenantId}::uuid
+  ORDER BY start_date DESC
+`;
+```
 
-**Core Tables (RLS Enabled - Use explicit `tenant_id` filter):**
-- `matches`, `players`, `teams`, `admin_profiles`, `seasons`
-- Any table written by users directly
+**Nested Relations:**
+Apply `withTenantFilter()` to all nested `where` clauses:
+```typescript
+const match = await prisma.upcoming_matches.findFirst({
+  where: withTenantFilter(tenantId, { is_active: true }),
+  include: {
+    upcoming_match_players: {
+      where: withTenantFilter(tenantId),  // ✅ Filter nested relation
+      include: { players: true }
+    }
+  }
+});
+```
+
+### Migration Guide: Converting Manual Filters
+
+**Before (Manual filtering):**
+```typescript
+const data = await prisma.players.findMany({
+  where: { tenant_id: tenantId, is_retired: false }
+});
+```
+
+**After (Using withTenantFilter):**
+```typescript
+const data = await prisma.players.findMany({
+  where: withTenantFilter(tenantId, { is_retired: false })
+});
+```
+
+**Remaining Work:** 51 instances of manual `tenant_id: tenantId` filtering exist across 29 files. 
+Gradually migrate these to use `withTenantFilter()` as files are edited for other reasons.
 
 ## App Router Flow
 - Pages in `/app` should be minimal - just import and render components

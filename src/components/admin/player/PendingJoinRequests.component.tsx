@@ -8,6 +8,9 @@
 
 import React, { useState, useEffect } from 'react';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+// React Query hooks for automatic deduplication
+import { useJoinRequests, useApproveJoinRequest, useRejectJoinRequest } from '@/hooks/queries/useJoinRequests.hook';
+import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 
 interface JoinRequest {
   id: string;
@@ -17,27 +20,13 @@ interface JoinRequest {
 }
 
 export const PendingJoinRequests: React.FC = () => {
-  const [requests, setRequests] = useState<JoinRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  // React Query hooks - automatic deduplication and caching!
+  const { data: requests = [], isLoading: loading } = useJoinRequests();
+  const { data: allPlayers = [] } = usePlayers();
+  const approveMutation = useApproveJoinRequest();
+  const rejectMutation = useRejectJoinRequest();
+  
   const [processing, setProcessing] = useState<string | null>(null);
-
-  const fetchRequests = async () => {
-    try {
-      const response = await fetch('/api/admin/join-requests');
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data.data || []);
-      }
-    } catch (err) {
-      console.error('Error fetching join requests:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRequests();
-  }, []);
 
   const [approvingRequest, setApprovingRequest] = useState<JoinRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<JoinRequest | null>(null);
@@ -48,26 +37,18 @@ export const PendingJoinRequests: React.FC = () => {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
 
-  const startApproval = async (request: JoinRequest) => {
+  const startApproval = (request: JoinRequest) => {
     setApprovingRequest(request);
     setNewPlayerName(request.display_name || '');
     setSelectedExistingPlayer('');
     setApprovalMode('new');
     setShowApprovalModal(true);
 
-    // Fetch unclaimed players
-    try {
-      const response = await fetch('/api/players');
-      if (response.ok) {
-        const data = await response.json();
-        const unclaimed = data.data?.filter((p: any) => 
-          !p.authUserId  // Show all unclaimed (includes ringers and retired for promotion/comeback scenarios)
-        ) || [];
-        setUnclaimedPlayers(unclaimed);
-      }
-    } catch (err) {
-      console.error('Error fetching players:', err);
-    }
+    // Use players from React Query (already fetched and cached!)
+    const unclaimed = allPlayers.filter((p: any) => 
+      !p.authUserId  // Show all unclaimed (includes ringers and retired)
+    );
+    setUnclaimedPlayers(unclaimed);
   };
 
   const handleApprove = async () => {
@@ -86,29 +67,18 @@ export const PendingJoinRequests: React.FC = () => {
     setProcessing(approvingRequest.id);
     
     try {
-      const response = await fetch('/api/admin/join-requests/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestId: approvingRequest.id,
-          playerName: approvalMode === 'new' ? newPlayerName : undefined,
-          existingPlayerId: approvalMode === 'existing' ? selectedExistingPlayer : undefined,
-        }),
+      await approveMutation.mutateAsync({
+        requestId: Number(approvingRequest.id),
+        clubOverride: approvalMode === 'new' ? { playerName: newPlayerName } : { existingPlayerId: selectedExistingPlayer }
       });
 
-      if (response.ok) {
-        // Remove from list
-        setRequests(prev => prev.filter(r => r.id !== approvingRequest.id));
-        setShowApprovalModal(false);
-        setApprovingRequest(null);
-        alert('Player approved successfully!');
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
-      }
-    } catch (err) {
+      // Success - mutation automatically refetches lists
+      setShowApprovalModal(false);
+      setApprovingRequest(null);
+      alert('Player approved successfully!');
+    } catch (err: any) {
       console.error('Error approving request:', err);
-      alert('Failed to approve request');
+      alert(`Error: ${err.message}`);
     } finally {
       setProcessing(null);
     }
@@ -125,23 +95,14 @@ export const PendingJoinRequests: React.FC = () => {
     setProcessing(rejectingRequest.id);
     
     try {
-      const response = await fetch('/api/admin/join-requests/reject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: rejectingRequest.id }),
-      });
+      await rejectMutation.mutateAsync(Number(rejectingRequest.id));
 
-      if (response.ok) {
-        setRequests(prev => prev.filter(r => r.id !== rejectingRequest.id));
-        setShowRejectModal(false);
-        setRejectingRequest(null);
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
-      }
-    } catch (err) {
+      // Success - mutation automatically refetches list
+      setShowRejectModal(false);
+      setRejectingRequest(null);
+    } catch (err: any) {
       console.error('Error rejecting request:', err);
-      alert('Failed to reject request');
+      alert(`Error: ${err.message}`);
     } finally {
       setProcessing(null);
     }

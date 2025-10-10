@@ -6,55 +6,59 @@ import SeasonDeleteModal from './SeasonDeleteModal.component';
 import OrphanedMatchesTable from './OrphanedMatchesTable.component';
 import { shouldUseBackgroundJobs } from '@/config/feature-flags';
 import { Season, SeasonFormData, SeasonsListResponse, CurrentSeasonResponse } from '@/types/season.types';
+// React Query hooks for automatic deduplication
+import { useSeasons } from '@/hooks/queries/useSeasons.hook';
+import { useCurrentSeason } from '@/hooks/queries/useCurrentSeason.hook';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
+import { useAuth } from '@/hooks/useAuth.hook';
 
 const SeasonManager: React.FC = () => {
-  const [seasons, setSeasons] = useState<Season[]>([]);
-  const [currentSeason, setCurrentSeason] = useState<Season | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  // ALL HOOKS MUST BE AT THE TOP (React rules!)
+  const { profile } = useAuth();
+  const { data: seasons = [], isLoading: seasonsLoading, error: seasonsError, refetch: refetchSeasons } = useSeasons();
+  const { data: currentSeason = null, isLoading: currentLoading, refetch: refetchCurrent } = useCurrentSeason();
+  const queryClient = useQueryClient();
+  
+  // UI state hooks - must be BEFORE any conditional returns
   const [showSeasonModal, setShowSeasonModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState<Season | null>(null);
   const [seasonToDelete, setSeasonToDelete] = useState<Season | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
+  
+  // Force refetch when tenantId becomes available (fixes cache race condition)
   useEffect(() => {
-    fetchSeasons();
-    fetchCurrentSeason();
-  }, []);
-
-  const fetchSeasons = async () => {
-    try {
-      const response = await fetch('/api/seasons');
-      const data: SeasonsListResponse = await response.json();
-      
-      if (data.success && data.data) {
-        setSeasons(data.data);
-      } else {
-        setError(data.error || 'Failed to fetch seasons');
-      }
-    } catch (err) {
-      setError('Failed to fetch seasons');
-      console.error('Error fetching seasons:', err);
+    if (profile.tenantId) {
+      console.log('[SeasonManager] TenantId available, invalidating stale cache:', profile.tenantId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.seasons(profile.tenantId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentSeason(profile.tenantId) });
     }
-  };
-
-  const fetchCurrentSeason = async () => {
-    try {
-      const response = await fetch('/api/seasons/current');
-      const data: CurrentSeasonResponse = await response.json();
-      
-      if (data.success && data.data) {
-        setCurrentSeason(data.data);
-      }
-      // Note: It's OK if there's no current season
-    } catch (err) {
-      console.error('Error fetching current season:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [profile.tenantId, queryClient]);
+  
+  // Derive state after all hooks
+  const tenantId = profile.tenantId;
+  const loading = seasonsLoading || currentLoading;
+  const error = seasonsError ? (seasonsError as Error).message : '';
+  
+  // NOW we can have conditional returns (after ALL hooks)
+  if (loading || !profile.tenantId) {
+    return (
+      <div className="flex flex-wrap -mx-3">
+        <div className="w-full max-w-full px-3 flex-none">
+          <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
+            <div className="text-center">
+              <h6 className="mb-2 text-lg">Loading seasons...</h6>
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmitSeason = async (formData: SeasonFormData) => {
     setIsSubmitting(true);
@@ -77,8 +81,11 @@ const SeasonManager: React.FC = () => {
       if (data.success) {
         setShowSeasonModal(false);
         setSelectedSeason(null);
-        await fetchSeasons();
-        await fetchCurrentSeason();
+        
+        // React Query refetch - automatic cache invalidation
+        await refetchSeasons();
+        await refetchCurrent();
+        queryClient.invalidateQueries({ queryKey: queryKeys.orphanedMatches(tenantId) });
         
         // Trigger orphaned matches refresh since season dates changed
         window.dispatchEvent(new CustomEvent('refreshOrphanedMatches'));
@@ -123,8 +130,11 @@ const SeasonManager: React.FC = () => {
       if (data.success) {
         setShowDeleteModal(false);
         setSeasonToDelete(null);
-        await fetchSeasons();
-        await fetchCurrentSeason();
+        
+        // React Query refetch - automatic cache invalidation
+        await refetchSeasons();
+        await refetchCurrent();
+        queryClient.invalidateQueries({ queryKey: queryKeys.orphanedMatches(tenantId) });
         
         // Trigger orphaned matches refresh since season was deleted
         window.dispatchEvent(new CustomEvent('refreshOrphanedMatches'));
@@ -208,23 +218,6 @@ const SeasonManager: React.FC = () => {
       console.log(`✅ Edge functions triggered for season change`);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex flex-wrap -mx-3">
-        <div className="w-full max-w-full px-3 flex-none">
-          <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border p-4">
-            <div className="text-center">
-              <h6 className="mb-2 text-lg">Loading seasons...</h6>
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
-                <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full px-4">

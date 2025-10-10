@@ -56,58 +56,55 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
       const loadHistoricalData = async () => {
         setIsLoadingHistoricalData(true);
         try {
-          // Fetch historical match data to get actual goals
-          const response = await fetch(`/api/matches/history`);
-          const historyData = await response.json();
+          // Fetch historical match data for this specific match (optimized endpoint)
+          const response = await fetch(`/api/admin/upcoming-matches/${matchId}/historical-data`);
           
-          if (historyData.data) {
-            // Find the match by looking for the one with matching upcoming_match_id
-            const historicalMatch = historyData.data.find((match: any) => 
-              match.upcoming_match_id?.toString() === matchId.toString()
-            );
-            
-            if (historicalMatch) {
-              // Create a map of player goals from historical data
-              const goalMap = new Map<string, number>();
-              
-              // Load player goals directly from historical player_matches data
-              // (Don't try to match with current team assignments - use historical data as-is)
-              historicalMatch.player_matches.forEach((pm: any) => {
-                goalMap.set(pm.player_id.toString(), pm.goals || 0);
-              });
-              
-              // Load actual own goals from database
-              const actualOwnGoalsA = historicalMatch.team_a_own_goals || 0;
-              const actualOwnGoalsB = historicalMatch.team_b_own_goals || 0;
-              
-              // Update state with historical data
-              setPlayerGoals(goalMap);
-              setOwnGoalsA(actualOwnGoalsA);
-              setOwnGoalsB(actualOwnGoalsB);
-              setHasLoadedHistoricalData(true);
-              
-              console.log('Successfully loaded historical data:', {
-                playerGoals: Object.fromEntries(goalMap),
-                ownGoalsA: actualOwnGoalsA,
-                ownGoalsB: actualOwnGoalsB,
-                matchId: historicalMatch.match_id
-              });
-            } else {
-              if (isCompleted) {
-                console.warn('No historical match found for completed match:', matchId);
-              } else {
-                console.log('No historical data found (normal for new match):', matchId);
-              }
-              setHasLoadedHistoricalData(true); // Prevent repeated attempts
-            }
-          } else {
-            console.log('No history data received');
-            setHasLoadedHistoricalData(true); // Prevent repeated attempts
+          // 404 is expected for new matches (no historical data yet)
+          if (response.status === 404) {
+            console.log('No historical data found (normal for new match):', matchId);
+            setHasLoadedHistoricalData(true);
+            setIsLoadingHistoricalData(false);
+            return;
           }
-        } catch (err) {
+          
+          const result = await response.json();
+          
+          if (result.success && result.data) {
+            const historicalMatch = result.data;
+            
+            // Create a map of player goals from historical data
+            const goalMap = new Map<string, number>();
+            
+            // Load player goals directly from historical player_matches data
+            // (Don't try to match with current team assignments - use historical data as-is)
+            historicalMatch.player_matches.forEach((pm: any) => {
+              goalMap.set(pm.player_id.toString(), pm.goals || 0);
+            });
+            
+            // Load actual own goals from database
+            const actualOwnGoalsA = historicalMatch.team_a_own_goals || 0;
+            const actualOwnGoalsB = historicalMatch.team_b_own_goals || 0;
+            
+            // Update state with historical data
+            setPlayerGoals(goalMap);
+            setOwnGoalsA(actualOwnGoalsA);
+            setOwnGoalsB(actualOwnGoalsB);
+            setHasLoadedHistoricalData(true);
+            
+            console.log('Successfully loaded historical data:', {
+              playerGoals: Object.fromEntries(goalMap),
+              ownGoalsA: actualOwnGoalsA,
+              ownGoalsB: actualOwnGoalsB,
+              matchId: historicalMatch.match_id
+            });
+          } else {
+            console.log('No history data in response');
+            setHasLoadedHistoricalData(true);
+          }
+        } catch (err: any) {
           console.error('Failed to load historical match data:', err);
           setError('Failed to load match results. Please refresh the page.');
-          setHasLoadedHistoricalData(true); // Prevent repeated attempts even on error
+          setHasLoadedHistoricalData(true);
         } finally {
           setIsLoadingHistoricalData(false);
         }

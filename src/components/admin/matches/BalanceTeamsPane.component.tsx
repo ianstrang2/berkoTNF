@@ -11,6 +11,11 @@ import TornadoChart from '@/components/team/TornadoChart.component';
 import PerformanceTornadoChart from '@/components/team/PerformanceTornadoChart.component';
 import { calculateTeamStatsFromPlayers, calculatePerformanceTeamStats } from '@/utils/teamStatsCalculation.util';
 import { deriveTemplate, formationToTemplate } from '@/utils/teamFormation.util';
+// React Query hooks for automatic deduplication
+import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
+import { useLatestPlayerStatus } from '@/hooks/queries/useLatestPlayerStatus.hook';
+import { useTeamTemplate } from '@/hooks/queries/useTeamTemplates.hook';
+import { useBalanceAlgorithm, usePerformanceWeights } from '@/hooks/queries/useBalanceWeights.hook';
 
 // Fallback templates based on database values
 function getFallbackTemplate(teamSize: number) {
@@ -200,171 +205,78 @@ const BalanceTeamsPane = ({
   onShowToast, 
   markAsUnbalanced 
 }: BalanceTeamsPaneProps) => {
+  // React Query hooks - automatic deduplication and caching!
+  const { data: teamTemplate = null } = useTeamTemplate(teamSize);
+  const { data: configData = [] } = useAppConfig('match_settings');
+  const { data: playerStatus = null } = useLatestPlayerStatus();
+  const { data: balanceWeights = null } = useBalanceAlgorithm();
+  const { data: performanceWeightsState = null } = usePerformanceWeights();
+  
+  // Local state
   const [players, setPlayers] = useState(initialPlayers);
   const [isBalancing, setIsBalancing] = useState(false);
-  const [teamTemplate, setTeamTemplate] = useState<TeamTemplate | null>(null);
   const [teamTemplateA, setTeamTemplateA] = useState<TeamTemplate | null>(null);
   const [teamTemplateB, setTeamTemplateB] = useState<TeamTemplate | null>(null);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
-  
-  // New state for TornadoChart integration
-  const [balanceWeights, setBalanceWeights] = useState<any>(null);
-  const [performanceWeightsState, setPerformanceWeightsState] = useState<any>(null);
   const [balanceMethod, setBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(null);
   const [isTeamsModified, setIsTeamsModified] = useState<boolean>(false);
 
   // Copy functionality states
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
-  const [teamAName, setTeamAName] = useState<string>('Team A');
-  const [teamBName, setTeamBName] = useState<string>('Team B');
-  const [onFirePlayerId, setOnFirePlayerId] = useState<string | null>(null);
-  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
-  const [showOnFireConfig, setShowOnFireConfig] = useState<boolean>(true);
-  const [showGrimReaperConfig, setShowGrimReaperConfig] = useState<boolean>(true);
+  
+  // Extract config values from React Query hook
+  const teamAName = useMemo(() => {
+    const config = configData.find((c: any) => c.config_key === 'team_a_name');
+    return config?.config_value || 'Team A';
+  }, [configData]);
+  
+  const teamBName = useMemo(() => {
+    const config = configData.find((c: any) => c.config_key === 'team_b_name');
+    return config?.config_value || 'Team B';
+  }, [configData]);
+  
+  const showOnFireConfig = useMemo(() => {
+    const config = configData.find((c: any) => c.config_key === 'show_on_fire');
+    return config?.config_value !== 'false';
+  }, [configData]);
+  
+  const showGrimReaperConfig = useMemo(() => {
+    const config = configData.find((c: any) => c.config_key === 'show_grim_reaper');
+    return config?.config_value !== 'false';
+  }, [configData]);
+  
+  // Extract player status from React Query hook
+  const onFirePlayerId = playerStatus?.on_fire_player_id || null;
+  const grimReaperPlayerId = playerStatus?.grim_reaper_player_id || null;
 
+  // Sync local players state when initialPlayers changes
   useEffect(() => {
     setPlayers(initialPlayers);
   }, [initialPlayers]);
 
+  // Handle uneven team templates (React Query provides base template)
   useEffect(() => {
-    const fetchTemplate = async () => {
-        // Check if we have uneven teams
-        const isUneven = actualSizeA && actualSizeB && actualSizeA !== actualSizeB;
-        const isSimplified = actualSizeA === 4 && actualSizeB === 4;
-        
-
-        
-
-        
-        if (isUneven || isSimplified) {
-            // Use derived templates for uneven teams
-            const sizeA = actualSizeA || teamSize;
-            const sizeB = actualSizeB || teamSize;
-            
-            // Only use simplified (all midfielders) for true 4v4 matches
-            const formationA = deriveTemplate(sizeA, isSimplified);
-            const formationB = deriveTemplate(sizeB, isSimplified);
-            
-            setTeamTemplateA(formationToTemplate(formationA));
-            setTeamTemplateB(formationToTemplate(formationB));
-            
-            // For legacy compatibility, set teamTemplate to team A
-            setTeamTemplate(formationToTemplate(formationA));
-        } else {
-            // Use database template for even teams (original behavior)
-            try {
-                // For even teams, use individual team size (actualSizeA or actualSizeB)
-                const individualTeamSize = actualSizeA || teamSize;
-                const response = await fetch(`/api/admin/team-templates?teamSize=${individualTeamSize}`);
-                const result = await response.json();
-
-                
-
-                
-                if (result.success && result.data.length > 0) {
-                    const template = result.data[0];
-                    setTeamTemplate(template);
-                    setTeamTemplateA(template);
-                    setTeamTemplateB(template);
-                } else {
-                    // Use appropriate fallback based on team size
-                    const fallback = getFallbackTemplate(teamSize);
-                    setTeamTemplate(fallback);
-                    setTeamTemplateA(fallback);
-                    setTeamTemplateB(fallback);
-                }
-            } catch (error) { 
-                const fallback = getFallbackTemplate(teamSize);
-                setTeamTemplate(fallback);
-                setTeamTemplateA(fallback);
-                setTeamTemplateB(fallback);
-            }
-        }
-    };
-    fetchTemplate();
-  }, [teamSize, actualSizeA, actualSizeB]);
-
-  // Fetch team names and special player data
-  useEffect(() => {
-    const fetchConfigData = async () => {
-      try {
-        const [configResponse, statusResponse] = await Promise.all([
-          fetch('/api/admin/app-config?group=match_settings'),
-          fetch('/api/latest-player-status')
-        ]);
-
-        if (configResponse.ok) {
-          const configData = await configResponse.json();
-          if (configData.success) {
-            const teamAConfig = configData.data.find((config: any) => config.config_key === 'team_a_name');
-            const teamBConfig = configData.data.find((config: any) => config.config_key === 'team_b_name');
-            const showOnFire = configData.data.find((config: any) => config.config_key === 'show_on_fire');
-            const showGrimReaper = configData.data.find((config: any) => config.config_key === 'show_grim_reaper');
-            
-            if (teamAConfig?.config_value) setTeamAName(teamAConfig.config_value);
-            if (teamBConfig?.config_value) setTeamBName(teamBConfig.config_value);
-            setShowOnFireConfig(showOnFire?.config_value !== 'false');
-            setShowGrimReaperConfig(showGrimReaper?.config_value !== 'false');
-          }
-        }
-
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          // API returns data directly, not wrapped in success/data structure
-          setOnFirePlayerId(statusData.on_fire_player_id ? String(statusData.on_fire_player_id) : null);
-          setGrimReaperPlayerId(statusData.grim_reaper_player_id ? String(statusData.grim_reaper_player_id) : null);
-        }
-      } catch (error) {
-        console.error('Error fetching config data:', error);
-      }
-    };
-
-    fetchConfigData();
-  }, []);
-
-  // Fetch balance weights for TornadoChart
-  useEffect(() => {
-    const fetchWeights = async () => {
-      try {
-        // Fetch rating algorithm weights
-        const balanceResponse = await fetch('/api/admin/balance-algorithm');
-        const balanceResult = await balanceResponse.json();
-        
-        if (balanceResult.success && balanceResult.data) {
-          // Transform to TornadoChart format
-          const formattedWeights = {
-            defense: {},
-            midfield: {},
-            attack: {}
-          };
-          
-          balanceResult.data.forEach((weight: any) => {
-            const group = weight.description;     // ✅ Use 'description' field
-            const attribute = weight.name;        // ✅ Use 'name' field
-            if (group && attribute && formattedWeights[group as keyof typeof formattedWeights]) {
-              formattedWeights[group as keyof typeof formattedWeights][attribute] = weight.weight;
-            }
-          });
-          
-          setBalanceWeights(formattedWeights);
-        }
-
-        // Fetch performance algorithm weights
-        const performanceResponse = await fetch('/api/admin/performance-weights');
-        const performanceResult = await performanceResponse.json();
-        
-        if (performanceResult.success && performanceResult.data) {
-          setPerformanceWeightsState(performanceResult.data);
-        }
-        
-      } catch (error) {
-        console.error('Error fetching algorithm weights:', error);
-      }
-    };
+    const isUneven = actualSizeA && actualSizeB && actualSizeA !== actualSizeB;
+    const isSimplified = actualSizeA === 4 && actualSizeB === 4;
     
-    fetchWeights();
-  }, []);
+    if (isUneven || isSimplified) {
+      // Use derived templates for uneven teams
+      const sizeA = actualSizeA || teamSize;
+      const sizeB = actualSizeB || teamSize;
+      
+      const formationA = deriveTemplate(sizeA, isSimplified);
+      const formationB = deriveTemplate(sizeB, isSimplified);
+      
+      setTeamTemplateA(formationToTemplate(formationA));
+      setTeamTemplateB(formationToTemplate(formationB));
+    } else {
+      // Even teams - use template from React Query or fallback
+      const template = teamTemplate || getFallbackTemplate(teamSize);
+      setTeamTemplateA(template);
+      setTeamTemplateB(template);
+    }
+  }, [teamSize, actualSizeA, actualSizeB, teamTemplate]);
 
   const { handleDragStart, handleDragOver, handleDrop } = useTeamDragAndDrop(
     setPlayers,

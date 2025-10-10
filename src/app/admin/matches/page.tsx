@@ -10,6 +10,10 @@ import Button from '@/components/ui-kit/Button.component';
 // React Query hooks for automatic deduplication
 import { useUpcomingMatchesList, useCreateMatch, useDeleteMatch } from '@/hooks/queries/useUpcomingMatchesList.hook';
 import { useMatchHistory } from '@/hooks/queries/useMatchHistory.hook';
+import { useAuth } from '@/hooks/useAuth.hook';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
+import { useEffect } from 'react';
 
 interface ActiveMatch {
   upcoming_match_id: number;
@@ -29,35 +33,47 @@ interface HistoricalMatch {
 }
 
 const MatchListPageContent = () => {
+  // ALL HOOKS MUST BE AT THE TOP (React rules!)
   const searchParams = useSearchParams() || new URLSearchParams();
   const view = searchParams.get('view') || 'active';
   const router = useRouter();
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
 
-  // React Query hooks - automatic deduplication and caching!
-  const { data: active = [], isLoading: activeLoading, error: activeError } = useUpcomingMatchesList();
-  const { data: history = [], isLoading: historyLoading, error: historyError } = useMatchHistory();
+  // React Query hooks
+  const { data: active = [], isLoading: activeLoading, error: activeError, refetch: refetchActive } = useUpcomingMatchesList();
+  const { data: history = [], isLoading: historyLoading, error: historyError, refetch: refetchHistory } = useMatchHistory();
   const createMatchMutation = useCreateMatch();
   const deleteMatchMutation = useDeleteMatch();
   
-  // Derive loading and error state
-  const isLoading = activeLoading || historyLoading;
-  const error = activeError ? (activeError as Error).message : 
-                historyError ? (historyError as Error).message : null;
-
-  // New match modal state
+  // All useState hooks BEFORE any conditional returns
   const [isNewMatchModalOpen, setIsNewMatchModalOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-
-  // Delete modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [matchToDelete, setMatchToDelete] = useState<ActiveMatch | HistoricalMatch | null>(null);
-
-  // New match data state
   const [newMatchData, setNewMatchData] = useState({
     date: format(nextThursday(new Date()), 'yyyy-MM-dd'),
     team_size: 9,
     match_date: format(nextThursday(new Date()), 'yyyy-MM-dd')
   });
+  
+  // Force refetch when tenantId becomes available (fixes cache race condition)
+  useEffect(() => {
+    if (profile.tenantId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.upcomingMatchesList(profile.tenantId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.matchHistory(profile.tenantId) });
+    }
+  }, [profile.tenantId, queryClient]);
+  
+  // Derive state after all hooks
+  const isLoading = activeLoading || historyLoading;
+  const error = activeError ? (activeError as Error).message : 
+                historyError ? (historyError as Error).message : null;
+  
+  // NOW we can have conditional returns (after ALL hooks)
+  if (!profile.tenantId && profile.isAuthenticated) {
+    return <div className="p-4 text-center">Loading tenant context...</div>;
+  }
 
   // Helper function to format state display text
   const formatStateDisplay = (state: string) => {

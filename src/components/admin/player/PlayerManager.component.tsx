@@ -5,6 +5,11 @@ import { PendingJoinRequests } from './PendingJoinRequests.component';
 import { ClubInviteLinkButton } from './ClubInviteLinkButton.component';
 
 import { Club, PlayerProfile } from '@/types/player.types';
+// React Query hook for automatic deduplication
+import { usePlayersAdmin } from '@/hooks/queries/usePlayersAdmin.hook';
+import { useAuth } from '@/hooks/useAuth.hook';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 
 
 // Extend PlayerProfile to include matches_played for this component's context
@@ -39,23 +44,32 @@ const getRatingColor = (value: number): string => {
 };
 
 const PlayerManager: React.FC = () => {
-  const [players, setPlayers] = useState<PlayerWithMatchCount[]>([]);
+  // ALL HOOKS MUST BE AT THE TOP (React rules!)
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const [showRetired, setShowRetired] = useState<boolean>(false);
+  const { data: playersData = [], isLoading, error: queryError, refetch } = usePlayersAdmin(true, showRetired);
+  
+  // All useState hooks BEFORE any conditional returns
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: 'status',
     direction: 'asc'
   });
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
   const [showPlayerModal, setShowPlayerModal] = useState<boolean>(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithMatchCount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  
-  // Mobile view toggle
   const [mobileView, setMobileView] = useState<'overview' | 'stats'>('overview');
   const [isMobile, setIsMobile] = useState<boolean>(false);
-
+  
+  // Force refetch when tenantId becomes available (fixes cache race condition)
+  useEffect(() => {
+    if (profile.tenantId) {
+      console.log('[PlayerManager] TenantId available, invalidating stale cache:', profile.tenantId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.playersAdmin(profile.tenantId, true, showRetired) });
+    }
+  }, [profile.tenantId, showRetired, queryClient]);
+  
   // Detect mobile viewport
   useEffect(() => {
     const checkMobile = () => {
@@ -66,31 +80,18 @@ const PlayerManager: React.FC = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-
-  const fetchPlayers = useCallback(async (): Promise<void> => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(`/api/admin/players?include_match_counts=true&show_retired=${showRetired}`);
-      const data = await response.json();
-      if (data.data) {
-        // The transform should handle this, but as a fallback, ensure IDs are strings
-        const transformedData = data.data.map((p: any) => ({
-          ...p,
-          id: String(p.id || p.player_id),
-        }));
-        setPlayers(transformedData);
-      }
-    } catch (error) {
-      setError('Failed to fetch players');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [showRetired]);
-
-  useEffect(() => {
-    fetchPlayers();
-  }, [fetchPlayers]); // Refetch when fetchPlayers changes
+  
+  // Derive state after all hooks
+  const error = queryError ? (queryError as Error).message : '';
+  const players: PlayerWithMatchCount[] = playersData.map((p: any) => ({
+    ...p,
+    id: String(p.id || p.player_id),
+  }));
+  
+  // NOW we can have conditional returns (after ALL hooks)
+  if (!profile.tenantId && profile.isAuthenticated) {
+    return <div className="p-4 text-center">Loading tenant context...</div>;
+  }
 
   const handleToggleAdmin = async (playerId: string, makeAdmin: boolean) => {
     if (!confirm(`Are you sure you want to ${makeAdmin ? 'promote this player to admin' : 'demote this admin to player'}?`)) {
@@ -113,8 +114,8 @@ const PlayerManager: React.FC = () => {
         throw new Error(data.error || 'Failed to update admin status');
       }
 
-      // Refresh player list
-      fetchPlayers();
+      // Refresh player list - React Query automatically refetches
+      refetch();
       alert(data.message);
     } catch (err: any) {
       console.error('Error toggling admin:', err);
@@ -158,7 +159,7 @@ const PlayerManager: React.FC = () => {
 
       setShowPlayerModal(false);
       setSelectedPlayer(null);
-      fetchPlayers();
+      refetch(); // React Query refetch
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

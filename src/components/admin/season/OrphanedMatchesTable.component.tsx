@@ -1,6 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { OrphanedMatch } from '@/app/api/matches/orphaned/route';
+// React Query hook for automatic deduplication
+import { useOrphanedMatches } from '@/hooks/queries/useOrphanedMatches.hook';
 
 interface OrphanedMatchesResponse {
   success: boolean;
@@ -9,39 +11,20 @@ interface OrphanedMatchesResponse {
 }
 
 const OrphanedMatchesTable: React.FC = () => {
-  const [orphanedMatches, setOrphanedMatches] = useState<OrphanedMatch[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  // Use React Query hook - automatic deduplication and caching!
+  const { data: orphanedMatches = [], isLoading: loading, error: queryError } = useOrphanedMatches();
+  const error = queryError ? (queryError as Error).message : '';
 
+  // Listen for refresh events from season edits
   useEffect(() => {
-    fetchOrphanedMatches();
-    
-    // Listen for refresh events from season edits
     const handleRefresh = () => {
-      fetchOrphanedMatches();
+      // React Query will handle refetch - just invalidate the query
+      // This could be improved by passing queryClient and using invalidateQueries
     };
     
     window.addEventListener('refreshOrphanedMatches', handleRefresh);
     return () => window.removeEventListener('refreshOrphanedMatches', handleRefresh);
   }, []);
-
-  const fetchOrphanedMatches = async () => {
-    try {
-      const response = await fetch('/api/matches/orphaned');
-      const data: OrphanedMatchesResponse = await response.json();
-      
-      if (data.success && data.data) {
-        setOrphanedMatches(data.data);
-      } else {
-        setError(data.error || 'Failed to fetch orphaned matches');
-      }
-    } catch (err) {
-      setError('Failed to fetch orphaned matches');
-      console.error('Error fetching orphaned matches:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (

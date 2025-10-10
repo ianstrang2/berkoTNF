@@ -9,6 +9,7 @@ import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
@@ -17,10 +18,9 @@ export async function GET(request: NextRequest) {
       await requireAdminRole(request);
       
       const requests = await prisma.player_join_requests.findMany({
-        where: {
-          tenant_id: tenantId,
+        where: withTenantFilter(tenantId, {
           status: 'pending',
-        },
+        }),
       orderBy: {
         created_at: 'desc',
       },

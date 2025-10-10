@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match pool operations are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // GET: Fetch player pool for a match
 export async function GET(request: NextRequest) {
@@ -18,9 +19,9 @@ export async function GET(request: NextRequest) {
       whereClause.upcoming_match_id = parseInt(matchId);
     } else if (activeOnly) {
       // Get player pool for the active match
-      // Multi-tenant: Query scoped to current tenant only
+      // Multi-tenant: Using withTenantFilter() helper for type-safe tenant isolation
       const activeMatch = await prisma.upcoming_matches.findFirst({
-        where: { is_active: true, tenant_id: tenantId },
+        where: withTenantFilter(tenantId, { is_active: true }),
         select: { upcoming_match_id: true }
       });
       
@@ -41,9 +42,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get player pool with player details
-    // Multi-tenant: Query scoped to current tenant only
+    // Multi-tenant: Using withTenantFilter() helper for type-safe tenant isolation
     const playerPool = await prisma.match_player_pool.findMany({
-      where: { ...whereClause, tenant_id: tenantId },
+      where: withTenantFilter(tenantId, whereClause),
       include: {
         players: {
           select: {

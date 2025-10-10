@@ -5,6 +5,7 @@ import { toPlayerInPool } from '@/lib/transform/player.transform';
 import { withTenantContext } from '@/lib/tenantContext';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // GET: Fetch upcoming matches
 export async function GET(request: NextRequest) {
@@ -36,10 +37,10 @@ export async function GET(request: NextRequest) {
       // Multi-tenant: Query scoped to current tenant only
       console.log('Fetching active match...');
       const activeMatch = await prisma.upcoming_matches.findFirst({
-        where: { is_active: true, tenant_id: tenantId },
+        where: withTenantFilter(tenantId, { is_active: true }),
         include: {
           upcoming_match_players: {
-            where: { tenant_id: tenantId },
+            where: withTenantFilter(tenantId),
             include: {
               players: true
             },
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
       // Multi-tenant: Query scoped to current tenant only
       console.log(`[UPCOMING_MATCHES] Fetching match ${matchId} for tenant ${tenantId}`);
       
-      // TEMPORARY: Use raw Prisma with explicit tenant filtering to test
+      // Use withTenantFilter for type-safe tenant isolation
       const match = await prisma.upcoming_matches.findUnique({
         where: { 
           upcoming_match_id: parseInt(matchId),
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
         },
         include: {
           upcoming_match_players: {
-            where: { tenant_id: tenantId },
+            where: withTenantFilter(tenantId),
             include: {
               players: true
             },
@@ -155,10 +156,11 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // Fetch all upcoming matches
-      // Multi-tenant: Query scoped to current tenant only
-      // TEMPORARY: Use raw Prisma with explicit tenant filtering to test
+      // Multi-tenant: Using withTenantFilter for defense-in-depth
+      console.log(`[UPCOMING_MATCHES] Fetching all matches for tenant ${tenantId}`);
+      
       const matches = await prisma.upcoming_matches.findMany({
-        where: { tenant_id: tenantId },
+        where: withTenantFilter(tenantId),
         orderBy: {
           match_date: 'asc'
         },
@@ -168,6 +170,8 @@ export async function GET(request: NextRequest) {
           }
         }
       });
+      
+      console.log(`[UPCOMING_MATCHES] Found ${matches.length} total matches`);
 
       return NextResponse.json({ success: true, data: matches }, {
         headers: {
@@ -201,7 +205,7 @@ export async function POST(request: NextRequest) {
     // Multi-tenant: Only deactivate matches within the same tenant
     if (body.is_active === true) {
       await prisma.upcoming_matches.updateMany({
-        where: { is_active: true, tenant_id: tenantId },
+        where: withTenantFilter(tenantId, { is_active: true }),
         data: { is_active: false }
       });
     }

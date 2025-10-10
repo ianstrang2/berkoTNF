@@ -3,12 +3,13 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team slots operations are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // Get all slots with their assigned players
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     const slots = await prisma.team_slots.findMany({
-      where: { tenant_id: tenantId },
+      where: withTenantFilter(tenantId),
       orderBy: {
         slot_number: 'asc'
       },

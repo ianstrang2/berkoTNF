@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { PlayerInPool } from '@/types/player.types';
-import { PlayerFormData } from '@/types/team-algorithm.types';
+import { PlayerFormData } from '@/types/player.types';
 import PlayerPool from '@/components/team/PlayerPool.component';
 import PlayerFormModal from '@/components/admin/player/PlayerFormModal.component';
 import Button from '@/components/ui-kit/Button.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+// React Query hook for automatic deduplication
+import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 
 interface PlayerPoolPaneProps {
   matchId: string;
@@ -16,36 +18,17 @@ interface PlayerPoolPaneProps {
 }
 
 const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }: PlayerPoolPaneProps) => {
-  const [allPlayers, setAllPlayers] = useState<PlayerInPool[]>([]);
+  // Use React Query hook - automatic deduplication and caching!
+  const { data: allPlayers = [], isLoading, error: queryError } = usePlayers();
+  const error = queryError ? (queryError as Error).message : null;
+  
   const [selectedPlayers, setSelectedPlayers] = useState<PlayerInPool[]>([]);
   const [pendingPlayerToggles, setPendingPlayerToggles] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   
   // Add Player Modal states
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const fetchAllPlayers = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/players');
-        const result = await response.json();
-        if (result.data) {
-          setAllPlayers(result.data);
-        } else {
-          throw new Error('No player data returned from API.');
-        }
-      } catch (err) {
-        setError("Failed to fetch the list of available players.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchAllPlayers();
-  }, []);
 
   useEffect(() => {
     setSelectedPlayers(initialPlayers);

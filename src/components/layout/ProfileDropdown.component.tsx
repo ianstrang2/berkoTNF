@@ -165,21 +165,27 @@ export const ProfileDropdown: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // CRITICAL: Clear React Query cache before switching tenants
-      // This prevents showing stale data from the previous tenant
-      console.log('🗑️ Clearing React Query cache before tenant switch');
-      queryClient.clear();
+      // CRITICAL: Clear React Query cache before redirect
+      console.log('🗑️ Clearing React Query cache after tenant switch');
       
-      // Store selected tenant in localStorage for tenant context
+      // Store selected tenant in localStorage FIRST
       if (tenantId) {
         localStorage.setItem('selectedTenantId', tenantId);
       }
       
-      // Full page reload to ensure fresh request with new session
+      // Clear cache and WAIT for it to complete
+      await queryClient.invalidateQueries(); // Invalidate all queries
+      queryClient.clear(); // Then clear the cache
+      
+      // Longer delay to ensure cache clear fully settles (150-200ms recommended)
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Force hard reload to ensure completely clean state
+      console.log('🔄 Redirecting to new view...');
       if (view === 'admin') {
-        window.location.href = '/admin/matches';
+        window.location.replace('/admin/matches');
       } else if (view === 'player') {
-        window.location.href = '/player/dashboard';
+        window.location.replace('/player/dashboard');
       }
     } catch (error) {
       console.error('Error switching view:', error);

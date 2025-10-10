@@ -14,8 +14,6 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 export const StatusBarConfig = () => {
   useEffect(() => {
     const configureStatusBar = async () => {
-      console.log("Platform detected:", Capacitor.getPlatform());
-      
       // Detect if running on native platform
       const isNative = Capacitor.isNativePlatform();
       

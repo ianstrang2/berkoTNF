@@ -4,6 +4,7 @@ import { toPlayerProfile } from '@/lib/transform/player.transform';
 // Phase 2: Using withTenantContext for automatic RLS setup
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 const serializeData = (data) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
@@ -58,10 +59,10 @@ export async function GET(request: Request) {
       }
     } else {
       // Just fetch players without match counts - conditionally include retired players
-      // Multi-tenant: Using tenant-scoped query for data isolation
-      const whereClause = showRetired ? { tenant_id: tenantId } : { tenant_id: tenantId, is_retired: false };
+      // Multi-tenant: Using withTenantFilter() helper for type-safe tenant isolation
+      const additionalFilters = showRetired ? {} : { is_retired: false };
       players = await prisma.players.findMany({
-        where: whereClause,
+        where: withTenantFilter(tenantId, additionalFilters),
         orderBy: {
           name: 'asc',
         },
