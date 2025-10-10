@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     console.log('Fetching league averages...');
 
-    // Get all player profile stats with yearly_stats JSON
+    // RLS disabled on aggregated tables - using explicit tenant filter
     const playerStats = await prisma.aggregated_player_profile_stats.findMany({
-      where: { tenant_id: tenantId },
+      where: withTenantFilter(tenantId),
       select: {
         yearly_stats: true
       }
@@ -80,7 +81,8 @@ export async function GET(request: NextRequest) {
       yearsWithData: leagueAverages.length
     }, {
       headers: {
-        'Cache-Control': 'private, max-age=300',
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
         'Vary': 'Cookie'
       }
     });

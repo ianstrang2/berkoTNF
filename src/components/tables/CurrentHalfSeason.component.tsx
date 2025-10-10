@@ -60,15 +60,6 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   const seasonStats = statsData?.seasonStats || [];
   const goalStats = statsData?.goalStats || [];
   const formData = statsData?.formData || [];
-  
-  // DEBUG: Log when we have empty stats but not loading
-  if (!loading && seasonStats.length === 0 && statsData !== undefined) {
-    console.warn('🐛 [HALF-SEASON] Empty stats but not loading!', {
-      statsLoading,
-      hasStatsData: !!statsData,
-      seasonStatsLength: statsData?.seasonStats?.length
-    });
-  }
 
   const getCurrentHalf = (): HalfSeasonPeriod => {
     const serverDate = new Date();

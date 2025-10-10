@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // Prevent static generation for this route
 export const dynamic = 'force-dynamic';
@@ -31,23 +32,23 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 [PROFILE] Fetching aggregated profile for player ID: ${numericId}`);
 
     // Fetch profile data and power ratings in parallel
-    // Multi-tenant: All queries scoped to current tenant
+    // Multi-tenant: All queries scoped to current tenant (RLS disabled on aggregated tables)
     const parallelStart = Date.now();
     const [profile, teammateStats, playerData, performanceRatings, leagueStats, currentStreaks, records] = await Promise.all([
-      // Existing profile query
+      // Existing profile query - RLS disabled, using explicit tenant filter
       prisma.aggregated_player_profile_stats.findUnique({
-        where: { player_id: numericId, tenant_id: tenantId },
+        where: { ...withTenantFilter(tenantId), player_id: numericId },
       }),
       
-      // NEW: Fetch teammate stats from separate table
+      // NEW: Fetch teammate stats from separate table - RLS disabled
       prisma.aggregated_player_teammate_stats.findUnique({
-        where: { player_id: numericId, tenant_id: tenantId },
+        where: { ...withTenantFilter(tenantId), player_id: numericId },
         select: {
           teammate_chemistry_all: true
         }
       }),
       
-      // NEW: Fetch player data including profile_text
+      // NEW: Fetch player data including profile_text (core table - RLS enabled)
       prisma.players.findUnique({
         where: { player_id: numericId, tenant_id: tenantId },
         select: {
@@ -58,9 +59,9 @@ export async function GET(request: NextRequest) {
         }
       }),
       
-      // UPDATED: New EWMA performance ratings query
+      // UPDATED: New EWMA performance ratings query - RLS disabled
       prisma.aggregated_performance_ratings.findUnique({
-        where: { player_id: numericId, tenant_id: tenantId },
+        where: { ...withTenantFilter(tenantId), player_id: numericId },
         select: {
           power_rating: true,
           goal_threat: true,
@@ -123,10 +124,10 @@ export async function GET(request: NextRequest) {
         WHERE tenant_id = ${tenantId}::uuid
       ` as any[],
        
-      // Current streaks from latest match report
-      // Multi-tenant: Query scoped to current tenant only
+      // Current streaks from latest match report - RLS disabled
+      // Multi-tenant: Query scoped to current tenant using explicit filter
       prisma.aggregated_match_report.findFirst({
-        where: { tenant_id: tenantId },
+        where: withTenantFilter(tenantId),
         select: {
           streaks: true,
           goal_streaks: true,
@@ -137,10 +138,10 @@ export async function GET(request: NextRequest) {
         }
       }),
 
-      // Fetch aggregated_records for max values
-      // Multi-tenant: Query scoped to current tenant only
+      // Fetch aggregated_records for max values - RLS disabled
+      // Multi-tenant: Query scoped to current tenant using explicit filter
       prisma.aggregated_records.findFirst({
-        where: { tenant_id: tenantId },
+        where: withTenantFilter(tenantId),
         select: {
           records: true
         }

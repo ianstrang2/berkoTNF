@@ -6,6 +6,7 @@ import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring half-season stats are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 interface RecentGame {
   goals: number;
@@ -19,19 +20,17 @@ async function getHalfSeasonStats(tenantId: string) {
   const startTime = Date.now();
   console.log(`🔍 [HALF-SEASON] Starting fetch for tenant ${tenantId}`);
 
-    // Middleware automatically sets RLS context
+    // RLS disabled on aggregated tables - using explicit tenant filter
     const queryStart = Date.now();
     const preAggregatedData = await prisma.aggregated_half_season_stats.findMany({
-      where: {
-        tenant_id: tenantId
-        // Note: is_ringer filtering will be handled by SQL function
-      }
+      where: withTenantFilter(tenantId)
+      // Note: is_ringer filtering is handled by SQL function
     });
     console.log(`⏱️ [HALF-SEASON] aggregated_half_season_stats query: ${Date.now() - queryStart}ms (${preAggregatedData.length} rows)`);
     
     const perfStart = Date.now();
     const recentPerformance = await prisma.aggregated_recent_performance.findMany({
-      where: { tenant_id: tenantId },
+      where: withTenantFilter(tenantId),
       include: {
         players: {
           select: { name: true, selected_club: true, player_id: true }
@@ -111,6 +110,12 @@ async function getHalfSeasonStats(tenantId: string) {
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     const responseData = await getHalfSeasonStats(tenantId);
-    return NextResponse.json({ data: responseData });
+    return NextResponse.json({ data: responseData }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      }
+    });
   }).catch(handleTenantError);
 }

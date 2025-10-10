@@ -17,7 +17,6 @@ const DashboardComponent = dynamic(() => import('@/components/dashboard/Dashboar
 
 export default function HomePage() {
   return (
-    // Keep MainLayout here for root page since it's not in a layout group
     <MainLayout>
       <Head>
         <title>Dashboard - Capo</title>

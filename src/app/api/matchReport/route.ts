@@ -5,6 +5,7 @@ import { FeatBreakingItem } from '@/types/feat-breaking.types';
 // Phase 2: Using withTenantContext for automatic RLS setup
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // Add dynamic configuration to prevent static generation
 export const dynamic = 'force-dynamic';
@@ -393,10 +394,9 @@ async function getMatchReportData(tenantId: string) {
     try {
       console.log('Fetching match report from DB...');
       
+      // RLS disabled on aggregated tables - using explicit tenant filter
       const rawMatchReport = await prisma.aggregated_match_report.findFirst({
-        where: {
-          tenant_id: tenantId
-        },
+        where: withTenantFilter(tenantId),
         orderBy: {
           match_date: 'desc'
         }
@@ -506,8 +506,6 @@ async function getMatchReportData(tenantId: string) {
         const streaksData = rawData.streaks || [];
         const goalStreaksData = rawData.goal_streaks || [];
 
-
-
         // Convert streaks to the format expected by the frontend
         const formattedStreaks = streaksData.map((streak: any) => ({
           name: streak.name,
@@ -574,7 +572,8 @@ export async function GET(request: NextRequest) {
       }, {
         status: 200,
         headers: {
-          'Cache-Control': 'private, max-age=300',
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
           'Vary': 'Cookie'
         }
       });
@@ -591,7 +590,8 @@ export async function GET(request: NextRequest) {
       }
     }, {
       headers: {
-        'Cache-Control': 'private, max-age=300',
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
         'Vary': 'Cookie',
       }
     });

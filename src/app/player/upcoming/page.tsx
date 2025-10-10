@@ -1,45 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import UpcomingMatchCard from '@/components/upcoming/UpcomingMatchCard.component';
-
-interface UpcomingMatch {
-  upcoming_match_id: number;
-  match_date: string;
-  state: string;
-  _count: {
-    players: number;
-  };
-  team_size: number;
-  actual_size_a?: number;
-  actual_size_b?: number;
-}
+import { useUpcomingMatches } from '@/hooks/queries/useUpcomingMatches.hook';
 
 export default function UpcomingPage() {
-  const [matches, setMatches] = useState<UpcomingMatch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchUpcomingMatches = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/upcoming', { cache: 'no-store' });
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to fetch upcoming matches');
-        }
-        
-        setMatches(result.data || []);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUpcomingMatches();
-  }, []);
+  // React Query hook - automatic caching and deduplication!
+  const { data: matches = [], isLoading, error } = useUpcomingMatches();
 
   const renderContent = () => {
     if (isLoading) {
@@ -56,7 +22,7 @@ export default function UpcomingPage() {
     if (error) {
       return (
         <div className="text-center py-8">
-          <p className="text-red-500">Error: {error}</p>
+          <p className="text-red-500">Error: {error instanceof Error ? error.message : 'Unknown error'}</p>
         </div>
       );
     }

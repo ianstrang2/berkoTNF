@@ -6,6 +6,7 @@ import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring stats are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 interface RecentGame {
   goals: number;
@@ -17,23 +18,14 @@ interface RecentGame {
 // Note: Removed unstable_cache to prevent cross-tenant data leaks
 async function getFullSeasonStats(startDate: string, endDate: string, tenantId: string) {
   const startTime = Date.now();
-  console.log(`🔍 [FULL-SEASON] Fetching data for ${startDate} to ${endDate}, tenant ${tenantId}`);
 
-    // Middleware automatically sets RLS context
+    // RLS disabled on aggregated tables - using explicit tenant filter
     const queryStart = Date.now();
-    console.log(`🔍 [FULL-SEASON] Querying with:`, {
-      tenant_id: tenantId,
-      season_start_date: new Date(startDate),
-      startDate,
-      endDate
-    });
-    
     const preAggregatedData = await prisma.aggregated_season_stats.findMany({
-      where: {
-        tenant_id: tenantId,
+      where: withTenantFilter(tenantId, {
         season_start_date: new Date(startDate)
         // Note: is_ringer filtering is handled by SQL function
-      }
+      })
     });
     console.log(`⏱️ [FULL-SEASON] aggregated_season_stats query: ${Date.now() - queryStart}ms (${preAggregatedData.length} rows)`);
     
@@ -53,7 +45,7 @@ async function getFullSeasonStats(startDate: string, endDate: string, tenantId: 
     
     const perfStart = Date.now();
     const recentPerformance = await prisma.aggregated_recent_performance.findMany({
-      where: { tenant_id: tenantId },
+      where: withTenantFilter(tenantId),
       include: {
         players: {
           select: { name: true, selected_club: true, player_id: true }
@@ -127,13 +119,6 @@ async function getFullSeasonStats(startDate: string, endDate: string, tenantId: 
     console.log(`⏱️ [FULL-SEASON] Form data transform: ${Date.now() - formDataStart}ms`);
 
     console.log(`⏱️ [FULL-SEASON] ✅ TOTAL TIME: ${Date.now() - startTime}ms`);
-    console.log(`🔍 [FULL-SEASON] FINAL DATA CHECK:`, {
-      seasonStatsLength: seasonStats.length,
-      goalStatsLength: goalStats.length,
-      formDataLength: formData.length,
-      firstSeasonStat: seasonStats[0]?.name || 'NONE',
-      firstGoalStat: goalStats[0]?.name || 'NONE'
-    });
     return { seasonStats, goalStats, formData };
   }
 
@@ -145,6 +130,12 @@ export async function POST(request: NextRequest) {
     }
     
     const responseData = await getFullSeasonStats(startDate, endDate, tenantId);
-    return NextResponse.json({ data: responseData });
+    return NextResponse.json({ data: responseData }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      }
+    });
   }).catch(handleTenantError);
 }

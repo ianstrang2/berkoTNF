@@ -62,16 +62,6 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
   // Extract stats with defaults
   const seasonStats = statsData?.seasonStats || [];
   const goalStats = statsData?.goalStats || [];
-  
-  // DEBUG: Log when we have empty stats but not loading
-  if (!loading && seasonStats.length === 0 && statsData !== undefined) {
-    console.warn('🐛 [WHOLE-SEASON] Empty stats but not loading!', {
-      statsLoading,
-      hasStatsData: !!statsData,
-      seasonStatsLength: statsData?.seasonStats?.length,
-      selectedYear
-    });
-  }
 
   useEffect(() => {
     setIsClient(true);

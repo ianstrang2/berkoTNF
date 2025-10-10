@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match report health is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 export async function GET(request: NextRequest) {
   // Simple auth check for admin access
@@ -21,10 +22,10 @@ export async function GET(request: NextRequest) {
       data_sources: {}
     };
 
-    // Check aggregated_match_report table
+    // Check aggregated_match_report table - RLS disabled, using explicit tenant filter
     try {
       const latestReport = await prisma.aggregated_match_report.findFirst({
-        where: { tenant_id: tenantId },
+        where: withTenantFilter(tenantId),
         orderBy: { match_date: 'desc' },
         select: {
           match_id: true,

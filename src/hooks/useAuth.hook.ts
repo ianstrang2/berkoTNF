@@ -92,17 +92,19 @@ export function useAuth() {
     };
   }, [supabase, queryClient]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('adminAuth');
     localStorage.removeItem('userProfile');
     queryClient.clear(); // Clear all queries on logout
-  };
+  }, [supabase, queryClient]);
 
-  return {
+  const handleRefetch = useCallback(() => refetch(), [refetch]);
+
+  return useMemo(() => ({
     profile,
     loading: isLoading,
     logout,
-    refetch: () => refetch(),
-  };
+    refetch: handleRefetch,
+  }), [profile, isLoading, logout, handleRefetch]);
 }

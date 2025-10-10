@@ -207,17 +207,22 @@ const CurrentForm: React.FC = () => {
     if (milestonesData && !playersLoading) {
       processTimelineItems(milestonesData);
     }
-  }, [milestonesData, allPlayers.length, playersLoading]); // Only depend on length, not array reference
+  }, [milestonesData, allPlayers.length, playersLoading]);
 
+  // AFTER all hooks - check loading/error states
+  // Only show loading spinner if we have NO data yet (stale-while-revalidate)
   if (loading && timelineItems.length === 0) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+        <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+          <h5 className="mb-0">Current Form</h5>
+        </div>
         <div className="p-4">
           <div className="text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
               <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
             </div>
-            <p className="mt-2 text-sm text-slate-500">Loading milestones...</p>
+            <p className="mt-2 text-sm text-slate-500">Loading form data...</p>
           </div>
         </div>
       </div>
@@ -227,9 +232,12 @@ const CurrentForm: React.FC = () => {
   if (error) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
+        <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+          <h5 className="mb-0">Current Form</h5>
+        </div>
         <div className="p-4">
           <div className="text-center text-red-500">
-            <p>Error loading milestones</p>
+            <p>Error loading form data</p>
             <p className="text-sm">{(error as Error).message}</p>
           </div>
         </div>

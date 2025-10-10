@@ -71,8 +71,9 @@ export async function GET(request: NextRequest) {
       data: configs
     }, {
       headers: {
-        'Cache-Control': 'private, max-age=300', // Private cache, 5 min per tenant
-        'Vary': 'Cookie', // Cache varies by session cookie
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
       }
     });
   }).catch(handleTenantError);

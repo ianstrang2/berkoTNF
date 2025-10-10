@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // Get player rating data for admin debugging - EWMA only
 export async function GET(request: Request) {
@@ -23,12 +24,12 @@ export async function GET(request: Request) {
 
       // Fetch EWMA data and config
       const [ewmaRatings, appConfig] = await Promise.all([
-        // EWMA performance ratings - MULTI-TENANT: Scoped to tenant
+        // EWMA performance ratings - RLS disabled, using explicit tenant filter
         // Note: Using findFirst because primary key is only player_id, not composite
         prisma.aggregated_performance_ratings.findFirst({
           where: { 
-            player_id: numericId,
-            tenant_id: tenantId
+            ...withTenantFilter(tenantId),
+            player_id: numericId
           },
         select: {
           power_rating: true,

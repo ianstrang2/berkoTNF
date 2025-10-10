@@ -180,6 +180,58 @@ export function usePlayers() {
 
 **Exception:** `authProfile()` query key does NOT need tenant_id (auth is global)
 
+## API Response Headers - HTTP Cache (MANDATORY)
+
+### 🚨 CRITICAL: Disable HTTP Caching for Tenant-Scoped Data
+
+**NEVER use HTTP caching for tenant-scoped data** - browser cache persists stale data across page reloads and tenant switches!
+
+**✅ CORRECT PATTERN (All tenant-scoped APIs):**
+```typescript
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    const data = await prisma.players.findMany({
+      where: { tenant_id: tenantId }
+    });
+    
+    return NextResponse.json({ data }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',  // ✅ No HTTP cache
+        'Pragma': 'no-cache',  // ✅ Legacy browser support
+        'Vary': 'Cookie',  // ✅ Tenant context varies by cookie
+      }
+    });
+  });
+}
+```
+
+**❌ BROKEN PATTERN - CAUSES STALE DATA:**
+```typescript
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    const data = await prisma.players.findMany({
+      where: { tenant_id: tenantId }
+    });
+    
+    return NextResponse.json({ data }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300',  // ❌ Browser caches for 5 min!
+        'Vary': 'Cookie',
+      }
+    });
+  });
+}
+```
+
+**Why this matters:**
+- ❌ HTTP cache persists across page reloads (stale data bug)
+- ❌ Tenant A's cached data can appear briefly for Tenant B
+- ❌ Database changes don't reflect until cache expires (5 min lag)
+- ✅ React Query handles caching correctly (in-memory, tenant-aware)
+- ✅ Disabling HTTP cache doesn't hurt performance (React Query deduplicates)
+
+**Exception:** Auth profile can use short cache (1 min max)
+
 ## App Router Flow
 - Pages in `/app` should be minimal - just import and render components
 - Business logic and UI should live in `/components`

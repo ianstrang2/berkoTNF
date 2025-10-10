@@ -147,7 +147,8 @@ export async function GET(request: NextRequest) {
     const data = await getHonourRollData(tenantId);
     return NextResponse.json({ data }, {
       headers: {
-        'Cache-Control': 'private, max-age=300',
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
         'Vary': 'Cookie'
       }
     });

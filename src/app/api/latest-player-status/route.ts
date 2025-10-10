@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
 import { prisma } from '@/lib/prisma'; // Assuming prisma client is at @/lib/prisma
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // Ensure this route is revalidated on every request
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // RLS disabled on aggregated tables - using explicit tenant filter
     const latestStatus = await prisma.aggregated_match_report.findFirst({
-      where: {
-        tenant_id: tenantId
-      },
+      where: withTenantFilter(tenantId),
       orderBy: {
         // Assuming 'match_date' or a similar timestamp column exists to determine the latest record.
         // If your table uses an auto-incrementing ID as primary key for ordering, you might use:
@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
         grim_reaper_player_id: null,
       }, {
         headers: {
-          'Cache-Control': 'private, max-age=300',
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
           'Vary': 'Cookie'
         }
       });
@@ -43,7 +44,8 @@ export async function GET(request: NextRequest) {
       grim_reaper_player_id: latestStatus.grim_reaper_player_id ? String(latestStatus.grim_reaper_player_id) : null,
     }, {
       headers: {
-        'Cache-Control': 'private, max-age=300',
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
         'Vary': 'Cookie'
       }
     });

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring season race data is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 export async function GET(request: Request) {
   return withTenantContext(request, async (tenantId) => {
@@ -37,12 +38,12 @@ export async function GET(request: Request) {
 
     seasonYear = currentSeason[0].start_date.getFullYear();
     
+    // RLS disabled on aggregated tables - using explicit tenant filter
     const raceData = await prisma.aggregated_season_race_data.findFirst({
-      where: { 
-        tenant_id: tenantId,
+      where: withTenantFilter(tenantId, {
         season_year: seasonYear,
         period_type: period 
-      },
+      }),
       select: { player_data: true, last_updated: true, period_type: true }
     });
 

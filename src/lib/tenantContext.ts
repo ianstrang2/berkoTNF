@@ -278,6 +278,7 @@ export async function getTenantFromRequest(
     // Priority 0: Check superadmin_selected_tenant cookie (for tenant switching)
     // This bypasses JWT refresh timing issues - cookie is immediately available
     const cookieTenant = cookieStore.get('superadmin_selected_tenant');
+    
     if (cookieTenant?.value) {
       const cookieCheckStart = Date.now();
       // Verify this is actually a superadmin user

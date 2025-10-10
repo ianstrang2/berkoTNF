@@ -39,6 +39,8 @@ export const queryKeys = {
   
   // Upcoming Matches API
   upcoming: (tenantId: string | null) => ['upcoming', tenantId] as const,
+  upcomingMatchDetails: (tenantId: string | null, matchId: number | null) => 
+    ['upcomingMatchDetails', tenantId, matchId] as const,
   
   // Latest Player Status API
   latestPlayerStatus: (tenantId: string | null) => ['latestPlayerStatus', tenantId] as const,

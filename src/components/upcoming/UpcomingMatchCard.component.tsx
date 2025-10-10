@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { PlayerInPool } from '@/types/player.types';
 import { deriveTemplate } from '@/utils/teamFormation.util';
+import { useUpcomingMatchDetails } from '@/hooks/queries/useUpcomingMatchDetails.hook';
+import { useLatestPlayerStatus } from '@/hooks/queries/useLatestPlayerStatus.hook';
+import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
 
 interface UpcomingMatch {
   upcoming_match_id: number;
@@ -18,34 +21,34 @@ interface UpcomingMatch {
   actual_size_b?: number;
 }
 
-interface UpcomingMatchWithPlayers {
-  upcoming_match_id: number;
-  match_date: string;
-  state: string;
-  team_size: number;
-  actual_size_a?: number;
-  actual_size_b?: number;
-  players: PlayerInPool[];
-}
-
 interface UpcomingMatchCardProps {
   match: UpcomingMatch;
 }
 
-interface TeamTemplate {
-  defenders: number;
-  midfielders: number;
-  attackers: number;
-}
-
 const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [expandedMatch, setExpandedMatch] = useState<UpcomingMatchWithPlayers | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [onFirePlayerId, setOnFirePlayerId] = useState<string | null>(null);
-  const [grimReaperPlayerId, setGrimReaperPlayerId] = useState<string | null>(null);
-  const [teamAName, setTeamAName] = useState<string>('Orange');
-  const [teamBName, setTeamBName] = useState<string>('Green');
+
+  // React Query hooks - automatic caching and deduplication!
+  // Only fetch match details when expanded
+  const { data: expandedMatch, isLoading: matchLoading } = useUpcomingMatchDetails(
+    isExpanded ? match.upcoming_match_id : null
+  );
+  const { data: playerStatus } = useLatestPlayerStatus();
+  const { data: configData = [] } = useAppConfig('match_settings');
+
+  // Extract config values
+  const teamAName = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'team_a_name');
+    return config?.config_value || 'Orange';
+  }, [configData]);
+
+  const teamBName = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'team_b_name');
+    return config?.config_value || 'Green';
+  }, [configData]);
+
+  const onFirePlayerId = playerStatus?.on_fire_player_id || null;
+  const grimReaperPlayerId = playerStatus?.grim_reaper_player_id || null;
 
   // Helper function to format state display text
   const formatStateDisplay = (state: string) => {
@@ -61,55 +64,7 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
     }
   };
 
-  // Fetch special player status and team names
-  useEffect(() => {
-    const fetchConfigData = async () => {
-      try {
-        const [configResponse, statusResponse] = await Promise.all([
-          fetch('/api/admin/app-config?group=match_settings'),
-          fetch('/api/latest-player-status')
-        ]);
-
-        if (configResponse.ok) {
-          const configData = await configResponse.json();
-          if (configData.success) {
-            const teamAConfig = configData.data.find((config: any) => config.config_key === 'team_a_name');
-            const teamBConfig = configData.data.find((config: any) => config.config_key === 'team_b_name');
-            
-            if (teamAConfig?.config_value) setTeamAName(teamAConfig.config_value);
-            if (teamBConfig?.config_value) setTeamBName(teamBConfig.config_value);
-          }
-        }
-
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          setOnFirePlayerId(statusData.on_fire_player_id ? String(statusData.on_fire_player_id) : null);
-          setGrimReaperPlayerId(statusData.grim_reaper_player_id ? String(statusData.grim_reaper_player_id) : null);
-        }
-      } catch (error) {
-        console.error('Error fetching config data:', error);
-      }
-    };
-
-    fetchConfigData();
-  }, []);
-
-  const handleToggleExpand = async () => {
-    if (!isExpanded) {
-      // Expanding - fetch detailed match data
-      setIsLoading(true);
-      try {
-        const response = await fetch(`/api/upcoming?matchId=${match.upcoming_match_id}`);
-        const result = await response.json();
-        if (result.success) {
-          setExpandedMatch(result.data);
-        }
-      } catch (error) {
-        console.error('Error fetching match details:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  const handleToggleExpand = () => {
     setIsExpanded(!isExpanded);
   };
 
@@ -208,7 +163,7 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
   };
 
   const renderExpandedContent = () => {
-    if (isLoading) {
+    if (matchLoading) {
       return (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <div className="text-center text-slate-500">Loading match details...</div>

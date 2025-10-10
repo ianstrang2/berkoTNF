@@ -32,14 +32,16 @@ const prismaClientSingleton = () => {
   });
   
   /**
-   * Phase 2 RLS Middleware
-   * Automatically sets app.tenant_id before each query if tenant context is available
-   * This provides transparent RLS enforcement for all Prisma queries
+   * Phase 2 RLS Middleware - Simple and Reliable
    * 
-   * IMPORTANT: This is a BACKUP layer. Explicit where: { tenant_id } filters
-   * are still required for defense-in-depth security.
+   * Sets app.tenant_id for ALL queries. Tables with RLS enabled will use it,
+   * tables with RLS disabled will ignore it.
    * 
-   * OPTIMIZED: Only sets context once per request using context flag
+   * This is SAFE because:
+   * 1. All queries have explicit `where: { tenant_id }` filtering (defense-in-depth)
+   * 2. Middleware is backup layer for core tables that have RLS enabled
+   * 3. Aggregated tables (RLS disabled) ignore the setting - no harm done
+   * 4. Only sets once per AsyncLocalStorage context (optimized)
    */
   let isSettingContext = false; // Flag to prevent recursion
   
@@ -60,8 +62,9 @@ const prismaClientSingleton = () => {
           isSettingContext = true;
           
           const setConfigStart = Date.now();
-          // Set RLS context for this query session
-          // Using 'false' for session-local (persists for entire request)
+          // Set RLS context for this session (persists across queries in this request)
+          // Using 'false' for session-local
+          // Tables with RLS enabled will use it, tables with RLS disabled will ignore it
           await client.$executeRawUnsafe(
             `SELECT set_config('app.tenant_id', '${context.tenantId}', false)`
           );
@@ -70,7 +73,7 @@ const prismaClientSingleton = () => {
           (context as any)._rlsContextSet = true;
           
           if (process.env.NODE_ENV === 'development') {
-            console.log(`[PRISMA_MIDDLEWARE] Set RLS context once: ${context.tenantId} (${Date.now() - setConfigStart}ms)`);
+            console.log(`[PRISMA_MIDDLEWARE] Set session-scoped RLS: ${context.tenantId} (${Date.now() - setConfigStart}ms)`);
           }
         } catch (error) {
           console.error('[PRISMA_MIDDLEWARE] Failed to set RLS context:', error);
@@ -80,8 +83,6 @@ const prismaClientSingleton = () => {
           isSettingContext = false;
         }
       }
-    } else {
-      // No tenant context available - skip verbose logging to reduce noise
     }
     
     return next(params);

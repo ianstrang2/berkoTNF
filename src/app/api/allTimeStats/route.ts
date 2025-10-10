@@ -4,15 +4,15 @@ import { toPlayerWithStats } from '@/lib/transform/player.transform';
 // Phase 2: Using withTenantContext for automatic RLS setup
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // Phase 2: Helper function no longer needs manual RLS setup
 async function getAllTimeStats(tenantId: string) {
   console.log(`Fetching fresh all-time stats data from DB for tenant ${tenantId}`);
     
-    // Middleware automatically sets RLS context
-    
+    // RLS disabled on aggregated tables - using explicit tenant filter
     const preAggregatedData = await prisma.aggregated_all_time_stats.findMany({
-      where: { tenant_id: tenantId },
+      where: withTenantFilter(tenantId),
       orderBy: {
         fantasy_points: 'desc',
       },
@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
     const data = await getAllTimeStats(tenantId);
     return NextResponse.json({ data }, {
       headers: {
-        'Cache-Control': 'private, max-age=300',
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
         'Vary': 'Cookie'
       }
     });

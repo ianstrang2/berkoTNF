@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
       data: transformedPlayers
     }, {
       headers: {
-        'Cache-Control': 'private, max-age=300',
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
         'Vary': 'Cookie',
       }
     });

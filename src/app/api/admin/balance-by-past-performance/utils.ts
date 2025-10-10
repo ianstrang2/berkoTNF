@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { withTenantFilter } from '@/lib/tenantFilter';
 
 // Player rating interface for new EWMA data
 interface PlayerRating {
@@ -67,18 +68,16 @@ export async function balanceByPastPerformance(
     weights = weights || { power_weight: 0.5, goal_weight: 0.5 };
   }
 
-  // UPDATED: Use new EWMA performance ratings table
-  const whereClause: any = {
-    player_id: { in: playerIds }
-  };
-  
-  // Add tenant filter if provided (recommended for multi-tenancy)
-  if (tenantId) {
-    whereClause.tenant_id = tenantId;
+  // UPDATED: Use new EWMA performance ratings table - RLS disabled, using explicit tenant filter
+  // Tenant ID is required for security
+  if (!tenantId) {
+    throw new Error('[SECURITY] Tenant ID is required for balance algorithm');
   }
   
   const fetchedRatings = await prisma.aggregated_performance_ratings.findMany({
-    where: whereClause,
+    where: withTenantFilter(tenantId, {
+      player_id: { in: playerIds }
+    }),
     select: {
       player_id: true,
       power_rating: true,    // Direct field (no trend_rating)
