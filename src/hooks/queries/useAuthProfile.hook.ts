@@ -8,7 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 
-interface AuthProfileData {
+export interface AuthProfileData {
   user: {
     id: string;
     email: string | null;

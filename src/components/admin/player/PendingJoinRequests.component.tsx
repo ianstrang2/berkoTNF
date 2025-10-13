@@ -9,15 +9,8 @@
 import React, { useState, useEffect } from 'react';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 // React Query hooks for automatic deduplication
-import { useJoinRequests, useApproveJoinRequest, useRejectJoinRequest } from '@/hooks/queries/useJoinRequests.hook';
+import { useJoinRequests, useApproveJoinRequest, useRejectJoinRequest, type JoinRequest } from '@/hooks/queries/useJoinRequests.hook';
 import { usePlayers } from '@/hooks/queries/usePlayers.hook';
-
-interface JoinRequest {
-  id: string;
-  phone_number: string;
-  display_name: string | null;
-  created_at: string;
-}
 
 export const PendingJoinRequests: React.FC = () => {
   // React Query hooks - automatic deduplication and caching!
@@ -26,7 +19,7 @@ export const PendingJoinRequests: React.FC = () => {
   const approveMutation = useApproveJoinRequest();
   const rejectMutation = useRejectJoinRequest();
   
-  const [processing, setProcessing] = useState<string | null>(null);
+  const [processing, setProcessing] = useState<number | null>(null);
 
   const [approvingRequest, setApprovingRequest] = useState<JoinRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<JoinRequest | null>(null);
@@ -39,7 +32,7 @@ export const PendingJoinRequests: React.FC = () => {
 
   const startApproval = (request: JoinRequest) => {
     setApprovingRequest(request);
-    setNewPlayerName(request.display_name || '');
+    setNewPlayerName(request.name || '');
     setSelectedExistingPlayer('');
     setApprovalMode('new');
     setShowApprovalModal(true);
@@ -138,12 +131,12 @@ export const PendingJoinRequests: React.FC = () => {
               <tr key={request.id}>
                 <td className="p-4 align-middle bg-transparent border-b">
                   <span className="text-sm font-normal" style={{ color: 'rgb(103, 116, 142)' }}>
-                    {request.display_name || <span className="italic">Not provided</span>}
+                    {request.name || <span className="italic">Not provided</span>}
                   </span>
                 </td>
                 <td className="p-4 align-middle bg-transparent border-b">
                   <span className="text-sm font-normal" style={{ color: 'rgb(103, 116, 142)' }}>
-                    {request.phone_number}
+                    {request.phone}
                   </span>
                 </td>
                 <td className="p-4 align-middle bg-transparent border-b">

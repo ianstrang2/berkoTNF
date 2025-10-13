@@ -122,7 +122,7 @@ export interface NewMatchData {
 // Form-related types
 export interface PlayerFormData {
   name: string;
-  phone?: string | null;
+  phone?: string;
   authUserId?: string | null;
   isAdmin?: boolean;
   isRinger: boolean;

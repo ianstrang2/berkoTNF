@@ -87,7 +87,7 @@ async function getFullSeasonStats(startDate: string, endDate: string, tenantId: 
     const goalStatsStart = Date.now();
     const goalStats = seasonStats.map(player => {
       // FIX N+1: Use Map for O(1) lookup instead of .find()
-      const playerPerf = perfByName.get(player.name);
+      const playerPerf = perfByName.get(player.name) as any;
       const lastFiveGames = playerPerf?.last_5_games as unknown as RecentGame[] | undefined;
       
       return {

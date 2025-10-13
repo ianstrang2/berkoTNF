@@ -39,3 +39,5 @@ WHERE schemaname = 'public'
 ORDER BY tablename;
 -- Expected: All should show rls_enabled = false
 
+
+

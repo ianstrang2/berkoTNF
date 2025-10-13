@@ -27,6 +27,7 @@ const SeasonManager: React.FC = () => {
   const [seasonToDelete, setSeasonToDelete] = useState<Season | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [formError, setFormError] = useState<string>('');
   
   // Force refetch when tenantId becomes available (fixes cache race condition)
   useEffect(() => {
@@ -62,7 +63,7 @@ const SeasonManager: React.FC = () => {
 
   const handleSubmitSeason = async (formData: SeasonFormData) => {
     setIsSubmitting(true);
-    setError('');
+    setFormError('');
 
     try {
       const url = selectedSeason ? `/api/seasons/${selectedSeason.id}` : '/api/seasons';
@@ -99,10 +100,10 @@ const SeasonManager: React.FC = () => {
           // Don't show error to user - stats refresh is secondary to season edit
         }
       } else {
-        setError(data.error || 'Failed to save season');
+        setFormError(data.error || 'Failed to save season');
       }
     } catch (err) {
-      setError('Failed to save season');
+      setFormError('Failed to save season');
       console.error('Error saving season:', err);
     } finally {
       setIsSubmitting(false);
@@ -118,7 +119,7 @@ const SeasonManager: React.FC = () => {
     if (!seasonToDelete) return;
 
     setIsDeleting(true);
-    setError('');
+    setFormError('');
 
     try {
       const response = await fetch(`/api/seasons/${seasonToDelete.id}`, {
@@ -147,10 +148,10 @@ const SeasonManager: React.FC = () => {
           console.warn('⚠️ Failed to trigger stats update after season deletion:', statsError);
         }
       } else {
-        setError(data.error || 'Failed to delete season');
+        setFormError(data.error || 'Failed to delete season');
       }
     } catch (err) {
-      setError('Failed to delete season');
+      setFormError('Failed to delete season');
       console.error('Error deleting season:', err);
     } finally {
       setIsDeleting(false);
@@ -361,7 +362,7 @@ const SeasonManager: React.FC = () => {
         onClose={() => {
           setShowSeasonModal(false);
           setSelectedSeason(null);
-          setError('');
+          setFormError('');
         }}
         onSubmit={handleSubmitSeason}
         isProcessing={isSubmitting}
@@ -376,7 +377,7 @@ const SeasonManager: React.FC = () => {
         onClose={() => {
           setShowDeleteModal(false);
           setSeasonToDelete(null);
-          setError('');
+          setFormError('');
         }}
         onConfirm={confirmDeleteSeason}
         isProcessing={isDeleting}

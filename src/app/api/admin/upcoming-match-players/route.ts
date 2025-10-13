@@ -531,5 +531,4 @@ async function handleDeleteWithBody(body: any, tenantId: string) {
     success: true,
     message: 'Player removed from match'
   });
-  }).catch(handleTenantError);
 } 

@@ -21,3 +21,5 @@ FROM pg_tables
 WHERE tablename IN ('upcoming_matches', 'upcoming_match_players');
 -- Expected: Both should show rowsecurity = false
 
+
+

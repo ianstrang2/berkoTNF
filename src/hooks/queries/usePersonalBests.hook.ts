@@ -42,7 +42,7 @@ export function usePersonalBests() {
   
   return useQuery({
     queryKey: queryKeys.personalBests(tenantId),
-    queryFn: () => fetchPersonalBests(tenantId),
+    queryFn: fetchPersonalBests,
     staleTime: 5 * 60 * 1000, // 5 minutes
     // NO enabled condition - queryFn handles missing tenantId gracefully
   });

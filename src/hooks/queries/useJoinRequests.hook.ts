@@ -10,10 +10,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
 
-interface JoinRequest {
+export interface JoinRequest {
   id: number;
   phone: string;
+  phone_number: string; // Alias for component compatibility
   name: string;
+  display_name: string; // Alias for component compatibility
   selected_club: any;
   created_at: string;
 }
@@ -30,7 +32,14 @@ async function fetchJoinRequests(tenantId: string | null): Promise<JoinRequest[]
   }
 
   const result = await response.json();
-  return result.data || [];
+  const requests = result.data || [];
+  
+  // Map API response to include aliases for component compatibility
+  return requests.map((req: any) => ({
+    ...req,
+    phone_number: req.phone,
+    display_name: req.name
+  }));
 }
 
 export function useJoinRequests() {
@@ -105,4 +114,6 @@ export function useRejectJoinRequest() {
     },
   });
 }
+
+
 

@@ -168,7 +168,7 @@ const LatestMatch: React.FC = () => {
 
   const formatMatchReportForCopy = (
     data: typeof matchData, 
-    pbsData: PersonalBestsData | null,
+    pbsData: PersonalBestsData | null | undefined,
     showOnFireUi: boolean, 
     showGrimReaperUi: boolean
   ): string => {
@@ -412,7 +412,7 @@ const LatestMatch: React.FC = () => {
         }
         recordsSection += `RECORD-BREAKING FEATS:\n`;
         filteredFeatBreakingData.forEach(feat => {
-          const content = generateFeatContent(feat);
+          const content = generateFeatContent(feat as FeatBreakingItem);
           recordsSection += `- ${feat.player_name}: ${content}\n`;
         });
       }

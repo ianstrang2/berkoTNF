@@ -59,6 +59,7 @@ const PlayerManager: React.FC = () => {
   const [showPlayerModal, setShowPlayerModal] = useState<boolean>(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithMatchCount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string>('');
   const [mobileView, setMobileView] = useState<'overview' | 'stats'>('overview');
   const [isMobile, setIsMobile] = useState<boolean>(false);
   
@@ -119,13 +120,13 @@ const PlayerManager: React.FC = () => {
       alert(data.message);
     } catch (err: any) {
       console.error('Error toggling admin:', err);
-      setError(err.message || 'Failed to update admin status');
+      setFormError(err.message || 'Failed to update admin status');
     }
   };
 
   const handleSubmitPlayer = async (formData: any): Promise<void> => {
     setIsSubmitting(true);
-    setError('');
+    setFormError('');
 
     try {
       const isEditing = !!selectedPlayer;
@@ -164,7 +165,7 @@ const PlayerManager: React.FC = () => {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (!errorMessage.includes('That name already exists')) {
-          setError(errorMessage);
+          setFormError(errorMessage);
       }
       throw error;
     } finally {
@@ -561,13 +562,13 @@ const PlayerManager: React.FC = () => {
         onClose={() => {
           setShowPlayerModal(false);
           setSelectedPlayer(null); // Clear selected player when closing modal
-          setError(''); // Clear any general errors when modal is closed by user
+          setFormError(''); // Clear any general errors when modal is closed by user
         }}
         onSubmit={handleSubmitPlayer}
         isProcessing={isSubmitting}
         initialData={selectedPlayer ? {
           name: selectedPlayer.name,
-          phone: selectedPlayer.phone,
+          phone: selectedPlayer.phone ?? undefined,
           isAdmin: selectedPlayer.isAdmin,
           authUserId: selectedPlayer.authUserId,
           isRinger: selectedPlayer.isRinger,
@@ -578,7 +579,7 @@ const PlayerManager: React.FC = () => {
           control: selectedPlayer.control,
           teamwork: selectedPlayer.teamwork,
           resilience: selectedPlayer.resilience,
-          club: selectedPlayer.club,
+          club: selectedPlayer.club ?? undefined,
         } : undefined}
         title={selectedPlayer ? "Edit Player" : "Add New Player"}
         submitButtonText={selectedPlayer ? "Save Changes" : "Create Player"}

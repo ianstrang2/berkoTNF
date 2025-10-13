@@ -25,17 +25,8 @@ export const queryKeys = {
   // Stats API - used by various components
   stats: (tenantId: string | null) => ['stats', tenantId] as const,
   
-  // All-Time Stats API
-  allTimeStats: (tenantId: string | null) => ['allTimeStats', tenantId] as const,
-  
   // Seasons API
   seasons: (tenantId: string | null) => ['seasons', tenantId] as const,
-  
-  // Season Race Data API
-  seasonRaceData: (tenantId: string | null) => ['seasonRaceData', tenantId] as const,
-  
-  // Honour Roll API
-  honourRoll: (tenantId: string | null) => ['honourRoll', tenantId] as const,
   
   // Upcoming Matches API
   upcoming: (tenantId: string | null) => ['upcoming', tenantId] as const,
@@ -84,7 +75,7 @@ export const queryKeys = {
   currentSeason: (tenantId: string | null) => ['currentSeason', tenantId] as const,
   seasonRaceData: (tenantId: string | null, period: 'whole_season' | 'current_half') => ['seasonRaceData', tenantId, period] as const,
   
-  // Records Screen APIs
+  // Records Screen APIs (All-Time Stats & Honour Roll)
   allTimeStats: (tenantId: string | null) => ['allTimeStats', tenantId] as const,
   honourRoll: (tenantId: string | null) => ['honourRoll', tenantId] as const,
 } as const;

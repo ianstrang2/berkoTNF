@@ -146,7 +146,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   const [isProfileExpanded, setIsProfileExpanded] = useState<boolean>(false);
   
   // Transform profile data
-  const profile = profileData?.success && profileData?.data ? profileData.data : null;
+  const profile = profileData || null;
   const error = profileError ? (profileError as Error).message : null;
 
   // Helper function to truncate profile text

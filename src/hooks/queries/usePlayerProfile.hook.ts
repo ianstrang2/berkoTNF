@@ -32,9 +32,11 @@ interface PlayerProfileData {
   undefeated_streak_dates: string;
   winless_streak: number;
   winless_streak_dates: string;
+  attendance_streak: number;
   selected_club: any;
   yearly_stats: any[];
   teammate_chemistry: any[];
+  teammate_chemistry_all: any[];
   current_streaks: any;
   league_normalization: any;
   streak_records: any;
@@ -75,4 +77,6 @@ export function usePlayerProfile(playerId: number | null | undefined) {
     gcTime: 10 * 60 * 1000, // 10 minutes in cache
   });
 }
+
+
 

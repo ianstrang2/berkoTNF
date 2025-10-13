@@ -8,20 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
-
-interface Season {
-  season_id: number;
-  year: number;
-  startDate: string;
-  endDate: string;
-  description?: string;
-}
-
-interface SeasonsResponse {
-  success: boolean;
-  data: Season[];
-  error?: string;
-}
+import { Season, SeasonsListResponse } from '@/types/season.types';
 
 async function fetchSeasons(tenantId: string | null): Promise<Season[]> {
   // Gracefully handle missing tenantId
@@ -37,7 +24,7 @@ async function fetchSeasons(tenantId: string | null): Promise<Season[]> {
     throw new Error(`Seasons API returned ${response.status}`);
   }
   
-  const result: SeasonsResponse = await response.json();
+  const result: SeasonsListResponse = await response.json();
   
   if (!result.success) {
     throw new Error(result.error || 'Failed to fetch seasons');

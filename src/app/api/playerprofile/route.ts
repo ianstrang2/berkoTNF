@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
           0 as placeholder1, 0 as placeholder2, 0 as placeholder3
         FROM aggregated_player_profile_stats
         WHERE tenant_id = ${tenantId}::uuid
-      ` as any[],
+      `,
        
       // Current streaks from latest match report - RLS disabled
       // Multi-tenant: Query scoped to current tenant using explicit filter
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
       hasPerformanceRatings: !!performanceRatings,
       leagueStatsRows: (leagueStats as any[]).length,
       hasCurrentStreaks: !!currentStreaks,
-      recordsCount: (records as any[]).length
+      recordsCount: records?.records ? (Array.isArray(records.records) ? records.records.length : 0) : 0
     });
 
     if (!profile) {

@@ -7,6 +7,9 @@ import PlayerPool from '@/components/team/PlayerPool.component';
 import PlayerFormModal from '@/components/admin/player/PlayerFormModal.component';
 import Button from '@/components/ui-kit/Button.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth.hook';
+import { queryKeys } from '@/lib/queryKeys';
 // React Query hook for automatic deduplication
 import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 
@@ -20,11 +23,14 @@ interface PlayerPoolPaneProps {
 const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }: PlayerPoolPaneProps) => {
   // Use React Query hook - automatic deduplication and caching!
   const { data: allPlayers = [], isLoading, error: queryError } = usePlayers();
-  const error = queryError ? (queryError as Error).message : null;
+  const queryErrorMessage = queryError ? (queryError as Error).message : null;
+  const queryClient = useQueryClient();
+  const { profile } = useAuth();
   
   const [selectedPlayers, setSelectedPlayers] = useState<PlayerInPool[]>([]);
   const [pendingPlayerToggles, setPendingPlayerToggles] = useState<Set<string>>(new Set());
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Add Player Modal states
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
@@ -127,13 +133,14 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
         body: JSON.stringify({ match_id: matchId, player_id: newPlayer.id })
       });
 
-      // 3. Update local states
+      // 3. Update local states and invalidate cache
       const newPlayerInPool: PlayerInPool = {
         ...newPlayer,
         responseStatus: 'IN' as const
       };
       
-      setAllPlayers(prev => [...prev, newPlayerInPool]);
+      // Invalidate players query to refetch with new player
+      queryClient.invalidateQueries({ queryKey: queryKeys.players(profile.tenantId) });
       setSelectedPlayers(prev => [...prev, newPlayerInPool]);
       
       setIsPlayerModalOpen(false);
@@ -147,7 +154,7 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
     }
   };
 
-  if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
+  if (queryErrorMessage) return <div className="p-4 text-center text-red-500">{queryErrorMessage}</div>;
   if (isLoading && allPlayers.length === 0) return <div className="p-4 text-center">Loading players...</div>;
 
   const maxAllowedPlayers = teamSize * 2;

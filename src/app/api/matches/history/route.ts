@@ -27,11 +27,13 @@ export async function GET(request: NextRequest) {
           {
             upcoming_match_id: { not: null },
             upcoming_matches: {
-              state: 'Completed'
+              is: {
+                state: 'Completed' as const
+              }
             }
           }
         ]
-      }),
+      }) as any,
       orderBy: {
         match_date: 'desc',
       },
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
       team_a_own_goals: (match as any).team_a_own_goals || 0,  // Include own goals for proper editing
       team_b_own_goals: (match as any).team_b_own_goals || 0,  // Include own goals for proper editing
       created_at: match.created_at!.toISOString(),  // Convert timestamp to ISO format
-      player_matches: match.player_matches.map(pm => ({
+      player_matches: (match as any).player_matches.map((pm: any) => ({
         player_match_id: pm.player_match_id,
         player_id: pm.player_id,
         match_id: pm.match_id,

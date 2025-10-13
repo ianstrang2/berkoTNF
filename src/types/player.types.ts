@@ -87,4 +87,21 @@ export interface PlayerWithTrend extends PlayerProfile {
   power_rating_percentile: number | null;
   goal_threat_percentile: number | null;
   participation_percentile: number | null;
+}
+
+/**
+ * Form data structure for creating/editing players
+ */
+export interface PlayerFormData {
+  name?: string;
+  phone?: string;
+  isRinger: boolean;
+  isRetired?: boolean;
+  goalscoring: number;
+  defending: number;
+  staminaPace: number;
+  control: number;
+  teamwork: number;
+  resilience: number;
+  club?: Club | null;
 } 
