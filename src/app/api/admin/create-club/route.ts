@@ -10,12 +10,13 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { normalizeToE164 } from '@/utils/phone.util';
-import { handleTenantError } from '@/lib/api-helpers';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
+  // NOTE: This route DOES NOT use withTenantContext because we're CREATING a new tenant
+  // There's no tenant_id to set in context yet (chicken-and-egg problem)
   try {
     const supabase = createRouteHandlerClient({ cookies });
     
@@ -177,16 +178,22 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Verify the auth user exists before creating player
-      console.log('[CREATE_CLUB] Creating player with auth_user_id:', session.user.id);
+      // Auto-create invite token for the new club (permanent link for sharing)
+      const inviteCode = crypto.randomUUID().replace(/-/g, '').substring(0, 32);
+      await tx.club_invite_tokens.create({
+        data: {
+          tenant_id: tenant.tenant_id,
+          invite_code: inviteCode,
+          created_by: session.user.id,
+          is_active: true,
+          expires_at: null, // Permanent invite link
+        },
+      });
       
-      // Check if user exists in auth.users (debug)
-      const authUserExists = await prisma.$queryRaw`
-        SELECT id FROM auth.users WHERE id = ${session.user.id}::uuid LIMIT 1
-      `;
-      console.log('[CREATE_CLUB] Auth user exists check:', authUserExists);
-      
+      console.log('[CREATE_CLUB] Created invite token:', inviteCode);
+
       // Create first player (admin)
+      console.log('[CREATE_CLUB] Creating player with auth_user_id:', session.user.id);
       const player = await tx.players.create({
         data: {
           tenant_id: tenant.tenant_id,
@@ -244,6 +251,13 @@ export async function POST(request: NextRequest) {
       code: error.code,
       name: error.name
     });
-    return handleTenantError(error);
+    
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error.message || 'Internal server error'
+      },
+      { status: 500 }
+    );
   }
 }

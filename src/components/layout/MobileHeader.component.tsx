@@ -11,18 +11,22 @@ import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 
 export const MobileHeader: React.FC = () => {
   const pathname = usePathname() || '';
   const { profile } = useAuthContext();
   const [showMenu, setShowMenu] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const supabase = createClientComponentClient();
 
   const isInAdminView = pathname.startsWith('/admin');
   const isInPlayerView = !isInAdminView && !pathname.startsWith('/superadmin');
 
-  const handleLogout = async () => {
-    if (confirm('Are you sure you want to logout?')) {
+  const confirmLogout = async () => {
+    setLoggingOut(true);
+    try {
       // Clear server-side cookies first
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -36,6 +40,8 @@ export const MobileHeader: React.FC = () => {
       localStorage.removeItem('adminAuth');
       localStorage.removeItem('userProfile');
       window.location.href = '/auth/login';
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -111,7 +117,10 @@ export const MobileHeader: React.FC = () => {
 
                 {/* Logout - available for everyone */}
                 <button
-                  onClick={handleLogout}
+                  onClick={() => {
+                    setShowLogoutModal(true);
+                    setShowMenu(false);
+                  }}
                   className="w-full text-left px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors flex items-center gap-3"
                 >
                   <div className="w-8 h-8 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -138,6 +147,19 @@ export const MobileHeader: React.FC = () => {
           </a>
         )}
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <SoftUIConfirmationModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+        title="Logout?"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        isConfirming={loggingOut}
+        icon="question"
+      />
     </header>
   );
 };

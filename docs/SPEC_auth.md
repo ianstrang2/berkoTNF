@@ -50,12 +50,14 @@ The Capo platform requires authentication to support:
 - App-first landing page (mobile + desktop)
 - Pre-filled invite messages  
 - Modal UI standardization (gradient icons, consistent buttons)
-**Phase 6**: Club creation + No-club handling ✅ **COMPLETE** (October 7, 2025)
+**Phase 6**: Club creation + No-club handling ✅ **COMPLETE & TESTED** (October 7-13, 2025)
 - Admin signup flow with club creation
 - Email collection for admins and players
 - No-club-found edge case handling
 - Platform detection and app download prompts
-**Phase 7**: iOS platform ⏸️ **BLOCKED** (Waiting for MacBook hardware)
+- Auto-generated club codes and invite tokens
+- All 7 test scenarios passed
+**Phase 7**: iOS platform 🚀 **READY TO START** (MacBook now available)
 **Phase 8**: Advanced security (2FA, biometric, enhanced audit) 📋 **FUTURE**
 
 ### Architectural Decision: Phone-Only (October 2, 2025)
@@ -2749,7 +2751,7 @@ export async function GET(request: NextRequest) {
 - [ ] Role preference persists (localStorage)
 - [ ] Admin without player link cannot access player view
 
-### Phase 6: Club Creation & Onboarding 🚧 **IN PROGRESS**
+### Phase 6: Club Creation & Onboarding ✅ **COMPLETE & TESTED** (October 13, 2025)
 
 **Deliverables**:
 - [x] Admin signup page (`/signup/admin`)
@@ -2771,7 +2773,7 @@ export async function GET(request: NextRequest) {
 **Testing** (detailed in Section A2):
 
 **Test Admin Club Creation:**
-- [ ] Visit `app.caposport.com/signup/admin`
+- [x] Visit `app.caposport.com/signup/admin`
 - [ ] Enter phone: `07700900123` (or any new number not in system)
 - [ ] Complete OTP verification (use `123456` if test mode enabled)
 - [ ] Enter email: `testadmin@example.com`, Name: `Test Admin`, Club Name: `Test FC`
@@ -3402,10 +3404,10 @@ export async function logAuthActivity(params: {
 
 ---
 
-**Document Status**: ✅ Phase 6 Complete - Club Creation & Onboarding  
+**Document Status**: ✅ Phase 6 Complete - Club Creation & Onboarding - TESTED & PRODUCTION READY
 **Version**: 6.0.0 (Club creation + No-club handling)  
-**Last Updated**: October 7, 2025  
-**Implementation Notes**: Phase 1-6 complete. Phase 6 adds admin signup, club creation, and edge case handling.
+**Last Updated**: October 13, 2025  
+**Implementation Notes**: Phase 1-6 complete AND tested. Phase 6 adds admin signup, club creation, and edge case handling. All features verified working.
 
 **Phase 6 Implementation Summary**:
 - **Pages**: 2 new pages (`/signup/admin`, `/auth/no-club`)

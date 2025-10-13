@@ -1,6 +1,7 @@
 'use client';
 import { useMemo } from 'react';
-import { useAppConfig } from './queries/useAppConfig.hook';
+import { useAuth } from './useAuth.hook';
+import { usePathname } from 'next/navigation';
 
 interface ClubConfig {
   clubName: string;
@@ -9,21 +10,20 @@ interface ClubConfig {
 }
 
 export const useClubConfig = (): ClubConfig => {
-  // Use React Query hook - automatic caching and deduplication!
-  const { data: configData = [], isLoading, error: queryError } = useAppConfig('match_settings');
+  // Get tenant name directly from auth profile (includes tenant data)
+  const { profile, isLoading } = useAuth();
+  const pathname = usePathname();
   
-  // Extract club name from config
+  // Extract club name from profile
   const clubName = useMemo(() => {
     // Skip if on superadmin platform pages (no tenant context)
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/superadmin')) {
+    if (pathname?.startsWith('/superadmin')) {
       return 'Capo';
     }
     
-    const clubNameConfig = configData.find(config => config.config_key === 'club_name');
-    
-    if (clubNameConfig && clubNameConfig.config_value) {
-      // Trim whitespace and limit length for UI safety
-      const cleanName = clubNameConfig.config_value.trim();
+    // Use tenant name from profile (populated via join with tenants table)
+    if (profile.tenantName) {
+      const cleanName = profile.tenantName.trim();
       if (cleanName.length > 0 && cleanName.length <= 50) {
         return cleanName;
       } else if (cleanName.length > 50) {
@@ -33,11 +33,11 @@ export const useClubConfig = (): ClubConfig => {
     }
     
     return 'Capo'; // Default fallback
-  }, [configData]);
+  }, [profile.tenantName, pathname]);
 
   return { 
     clubName, 
     isLoading, 
-    error: queryError ? (queryError as Error).message : null 
+    error: null
   };
 };

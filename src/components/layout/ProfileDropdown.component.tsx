@@ -12,6 +12,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useQueryClient } from '@tanstack/react-query';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 
 interface Tenant {
   tenant_id: string;
@@ -23,9 +24,11 @@ export const ProfileDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [showTenantSelector, setShowTenantSelector] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [targetView, setTargetView] = useState<'admin' | 'player' | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname() || '';
   const router = useRouter();
@@ -47,8 +50,9 @@ export const ProfileDropdown: React.FC = () => {
     }
   }, [isOpen]);
 
-  const handleLogout = async () => {
-    if (confirm('Are you sure you want to logout?')) {
+  const confirmLogout = async () => {
+    setLoggingOut(true);
+    try {
       // Clear server-side cookies first
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -62,6 +66,8 @@ export const ProfileDropdown: React.FC = () => {
       localStorage.removeItem('adminAuth');
       localStorage.removeItem('userProfile');
       window.location.href = '/auth/login';
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -337,7 +343,10 @@ export const ProfileDropdown: React.FC = () => {
 
           {/* Logout */}
           <button
-            onClick={handleLogout}
+            onClick={() => {
+              setShowLogoutModal(true);
+              setIsOpen(false);
+            }}
             className="w-full text-left px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors flex items-center gap-3"
           >
             <div className="w-8 h-8 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -349,6 +358,19 @@ export const ProfileDropdown: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Logout Confirmation Modal */}
+      <SoftUIConfirmationModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+        title="Logout?"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        isConfirming={loggingOut}
+        icon="question"
+      />
 
       {/* Tenant Selector Modal */}
       {showTenantSelector && (

@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     // Check for player profile (phone auth - club level)
     const { data: playerProfile } = await supabaseAdmin
       .from('players')
-      .select('player_id, name, tenant_id, is_admin')
+      .select('player_id, name, tenant_id, is_admin, tenants(name, club_code)')
       .eq('auth_user_id', user.id)
       .maybeSingle();
 
@@ -110,6 +110,8 @@ export async function GET(request: NextRequest) {
         adminRole: playerProfile.is_admin ? 'admin' : null,
         displayName: playerProfile.name,
         tenantId: playerProfile.tenant_id,
+        tenantName: (playerProfile as any).tenants?.name || null,
+        clubCode: (playerProfile as any).tenants?.club_code || null,
         linkedPlayerId: playerProfile.player_id,
         canSwitchRoles: playerProfile.is_admin || false, // Admins can switch to player view
       },

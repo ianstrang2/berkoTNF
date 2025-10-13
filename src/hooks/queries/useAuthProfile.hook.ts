@@ -21,6 +21,8 @@ export interface AuthProfileData {
     adminRole: 'superadmin' | 'admin' | null;
     displayName: string | null;
     tenantId: string | null;
+    tenantName: string | null;
+    clubCode: string | null;
     linkedPlayerId: number | null;
     canSwitchRoles: boolean;
   };

@@ -62,6 +62,7 @@ const PlayerManager: React.FC = () => {
   const [formError, setFormError] = useState<string>('');
   const [mobileView, setMobileView] = useState<'overview' | 'stats'>('overview');
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [codeCopied, setCodeCopied] = useState<boolean>(false);
   
   // Force refetch when tenantId becomes available (fixes cache race condition)
   useEffect(() => {
@@ -270,10 +271,45 @@ const PlayerManager: React.FC = () => {
       <PendingJoinRequests />
       
       <div className="bg-white rounded-2xl shadow-soft-xl p-6 lg:w-fit max-w-7xl">
+        {/* Club Code Display - Compact single line */}
+        {profile.clubCode && (
+          <div className="mb-4 p-3 rounded-lg border border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-700">Your Club Code:</span>
+                <span className="text-xl font-bold text-slate-700 tracking-widest font-mono">
+                  {profile.clubCode}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(profile.clubCode!);
+                      setCodeCopied(true);
+                      setTimeout(() => setCodeCopied(false), 2000);
+                    } catch (err) {
+                      console.error('Failed to copy:', err);
+                    }
+                  }}
+                  className={`inline-block px-3 py-1.5 text-xs font-medium text-center uppercase align-middle transition-all rounded-lg cursor-pointer leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 ${
+                    codeCopied
+                      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md border-0'
+                      : 'text-slate-500 bg-white border border-slate-200 hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs shadow-none'
+                  }`}
+                  disabled={codeCopied}
+                >
+                  {codeCopied ? '✓ Copied!' : 'Copy Code'}
+                </button>
+                <ClubInviteLinkButton />
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="flex justify-between items-center mb-6">
           <h5 className="font-bold text-slate-700">Player Manager</h5>
           <div className="flex gap-2">
-            <ClubInviteLinkButton />
             <button 
               onClick={() => setShowPlayerModal(true)}
               className="inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 hover:scale-102 active:opacity-85"

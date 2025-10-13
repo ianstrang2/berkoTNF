@@ -32,9 +32,20 @@ export async function GET(request: NextRequest) {
       },
     });
 
+      // Transform to match frontend expectations (add aliases)
+      const transformedRequests = requests.map(req => ({
+        id: req.id,
+        phone: req.phone_number,
+        phone_number: req.phone_number,
+        name: req.display_name,
+        display_name: req.display_name,
+        selected_club: null,
+        created_at: req.created_at,
+      }));
+
       return NextResponse.json({
         success: true,
-        data: requests,
+        data: transformedRequests,
       });
     } catch (error) {
       return handleTenantError(error);

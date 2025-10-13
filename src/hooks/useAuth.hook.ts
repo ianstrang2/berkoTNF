@@ -20,6 +20,8 @@ export interface UserProfile {
   isPlayer: boolean;
   userRole: 'superadmin' | 'admin' | 'player' | null;
   tenantId: string | null;
+  tenantName: string | null;
+  clubCode: string | null;
   displayName: string | null;
   linkedPlayerId: number | null;
   canSwitchRoles: boolean;
@@ -45,6 +47,8 @@ export function useAuth() {
         isPlayer: false,
         userRole: null,
         tenantId: null,
+        tenantName: null,
+        clubCode: null,
         displayName: null,
         linkedPlayerId: null,
         canSwitchRoles: false,
@@ -67,6 +71,8 @@ export function useAuth() {
       isPlayer: !authData.profile.isAdmin && !!authData.user.phone,
       userRole,
       tenantId: authData.profile.tenantId,
+      tenantName: authData.profile.tenantName,
+      clubCode: authData.profile.clubCode,
       displayName: authData.profile.displayName,
       linkedPlayerId: authData.profile.linkedPlayerId,
       canSwitchRoles: authData.profile.canSwitchRoles,
