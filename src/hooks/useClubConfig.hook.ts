@@ -11,7 +11,7 @@ interface ClubConfig {
 
 export const useClubConfig = (): ClubConfig => {
   // Get tenant name directly from auth profile (includes tenant data)
-  const { profile, isLoading } = useAuth();
+  const { profile, loading } = useAuth();
   const pathname = usePathname();
   
   // Extract club name from profile
@@ -37,7 +37,7 @@ export const useClubConfig = (): ClubConfig => {
 
   return { 
     clubName, 
-    isLoading, 
+    isLoading: loading, 
     error: null
   };
 };
