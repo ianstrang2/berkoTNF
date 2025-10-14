@@ -5,6 +5,20 @@ const nextConfig = {
     // Removed appDir option which is now enabled by default
     // Other experimental features as needed
   },
+  
+  // ===================================================================
+  // CAPACITOR MOBILE BUILD CONFIGURATION
+  // ===================================================================
+  // Enable static export for Capacitor builds (exports to out/ directory)
+  // For production mobile builds, run: npm run build:mobile
+  // ===================================================================
+  output: process.env.CAPACITOR_BUILD === 'true' ? 'export' : undefined,
+  
+  // Disable image optimization for static export (Capacitor compatibility)
+  images: {
+    unoptimized: process.env.CAPACITOR_BUILD === 'true' ? true : false,
+  },
+  
   // Add this to help with module resolution
   webpack: (config, { isServer }) => {
     // Fixes npm packages that depend on `fs` module

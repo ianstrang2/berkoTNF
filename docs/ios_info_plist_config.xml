@@ -1,0 +1,64 @@
+<!--
+iOS Info.plist Deep Link Configuration
+Add these entries to: ios/App/App/Info.plist
+
+After running `npx cap add ios`, open the Info.plist file and add these entries
+inside the main <dict> element (before the closing </dict> tag).
+-->
+
+<!-- ============================================ -->
+<!-- CUSTOM URL SCHEME (capo://) -->
+<!-- ============================================ -->
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLName</key>
+    <string>com.caposport.capo</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>capo</string>
+    </array>
+  </dict>
+</array>
+
+<!-- ============================================ -->
+<!-- UNIVERSAL LINKS (https://capo.app/join/*) -->
+<!-- ============================================ -->
+<!-- Requires Apple App Site Association file at:
+     https://capo.app/.well-known/apple-app-site-association
+     (see docs/ios_universal_links.json for the file contents)
+-->
+<key>com.apple.developer.associated-domains</key>
+<array>
+  <string>applinks:capo.app</string>
+  <string>applinks:www.capo.app</string>
+</array>
+
+<!-- ============================================ -->
+<!-- APP TRANSPORT SECURITY (for dev server) -->
+<!-- ============================================ -->
+<!-- Only needed if you use npm run ios:dev (live reload).
+     Allows loading dev server over HTTP.
+     REMOVE THIS for App Store submission! -->
+<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoads</key>
+  <true/>
+  <!-- More secure alternative: whitelist specific dev IPs -->
+  <!--
+  <key>NSExceptionDomains</key>
+  <dict>
+    <key>192.168.1.100</key>
+    <dict>
+      <key>NSExceptionAllowsInsecureHTTPLoads</key>
+      <true/>
+    </dict>
+    <key>localhost</key>
+    <dict>
+      <key>NSExceptionAllowsInsecureHTTPLoads</key>
+      <true/>
+    </dict>
+  </dict>
+  -->
+</dict>
+

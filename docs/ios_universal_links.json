@@ -1,0 +1,40 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.com.caposport.capo",
+        "paths": ["/join/*"]
+      }
+    ]
+  }
+}
+
+// ============================================
+// DEPLOYMENT INSTRUCTIONS
+// ============================================
+// 
+// 1. Replace TEAMID with your Apple Developer Team ID
+//    - Find it in Xcode: Project → Signing & Capabilities → Team
+//    - Or at: https://developer.apple.com/account (Membership section)
+//    - Format: 10 alphanumeric characters (e.g., "A1B2C3D4E5")
+// 
+// 2. Deploy this file to your domain:
+//    URL: https://capo.app/.well-known/apple-app-site-association
+//    - Must be served with Content-Type: application/json
+//    - Must be accessible via HTTPS (not HTTP)
+//    - Must not redirect (200 OK response required)
+// 
+// 3. Verify deployment:
+//    curl https://capo.app/.well-known/apple-app-site-association
+//    - Should return this exact JSON content
+//    - Should have Content-Type: application/json header
+// 
+// 4. Test on device:
+//    - Universal links only work on real devices (not simulator)
+//    - Send a test link via Messages/Mail/Safari
+//    - Long-press link → should show "Open in Capo" option
+// 
+// Note: Apple caches this file. Changes can take up to 24 hours to propagate.
+// To force refresh during testing, delete and reinstall the app.
+
