@@ -299,15 +299,35 @@ npx cap run ios --livereload --external --host=192.168.1.100
 
 ---
 
-### API Calls Fail in App
+### API Architecture Explanation
 
-**Symptom:** API requests return 404 or timeout
+**How API calls work in mobile vs web:**
 
-**Cause:** Next.js API routes don't work in static export mode
+| Environment | UI Source | API Source | How It Works |
+|-------------|-----------|------------|--------------|
+| **Web Dev** | `localhost:3000` | `localhost:3000/api` | Same origin, relative paths |
+| **Web Prod** | Vercel | Vercel `/api` | Same origin, relative paths |
+| **Mobile Dev** | Dev server (live reload) | `localhost:3000/api` | Connected via WiFi IP |
+| **Mobile Prod** | Bundled in app (`out/`) | `https://app.caposport.com/api` | HTTPS to production |
 
-**Solution:** Your app already uses Supabase for backend (not Next.js API routes), so this shouldn't be an issue. If you have any Next.js API routes, they need to be:
-1. Moved to Supabase Edge Functions
-2. Or accessed via absolute URL (e.g., `https://app.caposport.com/api/...`)
+**Key Point:** Mobile production builds call your deployed API, not embedded routes.
+
+**Implementation:** Use `src/lib/apiConfig.ts` helper in all API calls:
+
+```typescript
+import { apiFetch } from '@/lib/apiConfig';
+
+// ✅ Automatically uses correct URL for environment
+const response = await apiFetch('/players');
+
+// ❌ Don't hardcode (won't work in mobile)
+const response = await fetch('/api/players');
+```
+
+**The helper automatically returns:**
+- **Mobile app:** `https://app.caposport.com/api/players`
+- **Web app:** `/api/players`
+- **Local dev:** `http://localhost:3000/api/players`
 
 ---
 

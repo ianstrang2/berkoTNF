@@ -10,7 +10,8 @@ const nextConfig = {
   // CAPACITOR MOBILE BUILD CONFIGURATION
   // ===================================================================
   // Enable static export for Capacitor builds (exports to out/ directory)
-  // For production mobile builds, run: npm run build:mobile
+  // API routes are NOT included in static export - mobile app calls them
+  // via HTTPS to production server (https://app.caposport.com/api/*)
   // ===================================================================
   output: process.env.CAPACITOR_BUILD === 'true' ? 'export' : undefined,
   
@@ -31,8 +32,10 @@ const nextConfig = {
     
     return config;
   },
+  
   // Increase timeout for builds
   staticPageGenerationTimeout: 180,
+  
   // Add any rewrites or redirects here as needed
 };
 

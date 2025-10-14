@@ -11,9 +11,23 @@
 - [x] Updated `capacitor.config.ts` for proper dev/prod modes
 - [x] Configured `next.config.mjs` for static export
 - [x] Added npm scripts for iOS build workflow
+- [x] Created `src/lib/apiConfig.ts` helper for mobile API calls
 - [x] Created comprehensive build workflow documentation
 - [x] Prepared iOS Info.plist configuration
 - [x] Prepared universal links configuration
+
+## 🏗️ Architecture Overview
+
+**Your app uses a hybrid architecture (industry standard):**
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| **UI (React/Next.js)** | Bundled in app (`out/`) | Static files, instant load, works offline |
+| **API Routes** | Deployed to Vercel | `https://app.caposport.com/api/*` |
+| **Database (Supabase)** | Cloud | Accessed only by API routes |
+| **Auth (Supabase)** | Cloud | Cookies work cross-origin via `apiConfig.ts` |
+
+**This is how Netflix, Notion, Airbnb mobile apps work!**
 
 ---
 
@@ -67,8 +81,21 @@ Copy the entire content from: `docs/ios_info_plist_config.xml`
 
 ### Step 4: First Build Test
 
+**⚠️ IMPORTANT: Production builds require deployed API**
+
+Production mobile builds call `https://app.caposport.com/api/*` (not local API).
+
+**Options:**
+
+**Option A: Test with Live Reload (Recommended for development)**
 ```bash
-# Build static export and open Xcode
+# This connects to local dev server (API routes work)
+npm run ios:dev
+```
+
+**Option B: Test Production Build (Requires deployed API)**
+```bash
+# This builds static export and opens Xcode
 npm run ios:build
 ```
 
@@ -78,7 +105,10 @@ npm run ios:build
 3. Wait for build to complete
 4. App should launch in simulator
 
-**Expected result:** App loads successfully, shows home page
+**Expected result:** 
+- ✅ App loads successfully, shows home page
+- ✅ **With live reload:** Full functionality (local API)
+- ⚠️ **Production build:** UI works, but API calls require deployed production API
 
 ---
 
