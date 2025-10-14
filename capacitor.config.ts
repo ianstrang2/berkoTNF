@@ -9,10 +9,10 @@ const config: CapacitorConfig = {
   // SERVER CONFIGURATION FOR DEVELOPMENT
   // ===================================================================
   // For live reload during development, use:
-  //   npx cap run ios --livereload --external
-  //   npx cap run android --livereload --external
+  //   npm run ios:dev      (or: npx cap run ios --dev)
+  //   npm run android:dev  (or: npx cap run android --dev)
   // 
-  // This will automatically inject the server config with your machine's IP.
+  // Capacitor 7 automatically detects your dev server and injects the URL.
   // DO NOT hardcode server config here - it breaks production builds.
   // ===================================================================
   

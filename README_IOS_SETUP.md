@@ -95,14 +95,16 @@ docs/ios_info_plist_config.xml
 ### Step 4: Test!
 
 ```bash
-# Start dev server (PC or Mac)
+# Terminal 1: Start dev server
 npm run dev
 
-# On Mac, launch iOS with live reload
+# Terminal 2: Launch iOS with live reload
 npm run ios:dev
 ```
 
 **App opens in simulator!** Changes appear instantly.
+
+**Capacitor 7 Note:** The `--dev` flag automatically detects your dev server at `localhost:3000`. No manual IP configuration needed!
 
 ---
 

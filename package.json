@@ -11,9 +11,9 @@
     "generate:main": "npx prisma generate --schema=prisma/schema.prisma",
     "generate:edge": "cd supabase/functions/update-recent-performance && npx prisma generate",
     "build:mobile": "CAPACITOR_BUILD=true npm run build && npx cap sync",
-    "ios:dev": "npx cap run ios --livereload --external",
+    "ios:dev": "npx cap run ios --dev",
     "ios:build": "npm run build:mobile && npx cap open ios",
-    "android:dev": "npx cap run android --livereload --external",
+    "android:dev": "npx cap run android --dev",
     "android:build": "npm run build:mobile && npx cap open android"
   },
   "dependencies": {

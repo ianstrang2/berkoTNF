@@ -35,11 +35,13 @@ npm run android:dev
 # Opens Android emulator/device with live reload enabled
 ```
 
-**What happens:**
-1. Starts Next.js dev server (`npm run dev`)
-2. Detects your machine's IP address (e.g., `192.168.1.100`)
-3. Launches app with server config injected automatically
-4. Enables hot module reload (HMR) for instant updates
+**What happens (Capacitor 7):**
+1. Capacitor automatically detects running dev server on `localhost:3000`
+2. Launches simulator/emulator connected to your dev server
+3. Enables hot module reload (HMR) for instant updates
+4. Auto-discovers your machine's IP for device connections
+
+**Note:** Ensure `npm run dev` is running before launching with `--dev` flag, or Capacitor will wait for the server to start.
 
 **Requirements:**
 - iOS: MacBook must be on the same WiFi network as dev machine
@@ -290,11 +292,14 @@ npm run build:mobile
 # Kill any stale processes
 lsof -ti:3000 | xargs kill -9
 
-# Restart dev server
+# Start dev server FIRST
 npm run dev
 
-# Re-run with explicit IP (if auto-detect fails)
-npx cap run ios --livereload --external --host=192.168.1.100
+# Then launch mobile app (in new terminal)
+npm run ios:dev
+
+# Capacitor 7 automatically detects the dev server
+# No manual IP configuration needed!
 ```
 
 ---

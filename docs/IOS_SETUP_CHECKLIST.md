@@ -89,8 +89,13 @@ Production mobile builds call `https://app.caposport.com/api/*` (not local API).
 
 **Option A: Test with Live Reload (Recommended for development)**
 ```bash
-# This connects to local dev server (API routes work)
+# Ensure dev server is running first
+npm run dev
+
+# Then in another terminal, launch iOS with live reload
 npm run ios:dev
+
+# Capacitor 7 automatically detects dev server at localhost:3000
 ```
 
 **Option B: Test Production Build (Requires deployed API)**
@@ -180,19 +185,20 @@ npm run ios:build
 ### Scenario 3: Live Reload Development
 
 ```bash
-# On Mac, get your IP address
-ifconfig | grep "inet " | grep -v 127.0.0.1
-
-# Start dev server on PC (or Mac)
+# Start dev server first
 npm run dev
 
-# On Mac, run with live reload
+# In another terminal, launch with live reload
 npm run ios:dev
+
+# Capacitor 7 auto-detects dev server - no IP config needed!
 ```
 
 ✅ **Pass:** Simulator connects to dev server  
 ✅ **Pass:** Changes to code appear instantly in simulator  
 ✅ **Pass:** No rebuild required for code changes
+
+**Note:** Capacitor 7 automatically discovers `localhost:3000`. For physical devices on the same network, it will use your machine's local IP automatically.
 
 ---
 
