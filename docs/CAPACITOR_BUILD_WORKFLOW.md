@@ -41,7 +41,7 @@ npm run android:dev
 3. Enables hot module reload (HMR) for instant updates
 4. Auto-discovers your machine's IP for device connections
 
-**Note:** Ensure `npm run dev` is running before launching with `--dev` flag, or Capacitor will wait for the server to start.
+**Note:** Ensure `npm run dev` is running before launching with `--live-reload` flag, or Capacitor will wait for the server to start.
 
 **Requirements:**
 - iOS: MacBook must be on the same WiFi network as dev machine

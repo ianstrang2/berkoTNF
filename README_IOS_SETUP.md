@@ -104,7 +104,7 @@ npm run ios:dev
 
 **App opens in simulator!** Changes appear instantly.
 
-**Capacitor 7 Note:** The `--dev` flag automatically detects your dev server at `localhost:3000`. No manual IP configuration needed!
+**Capacitor 7 Note:** The `--live-reload` flag automatically detects your dev server at `localhost:3000`. No manual IP configuration needed!
 
 ---
 

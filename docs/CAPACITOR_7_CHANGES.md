@@ -13,25 +13,24 @@ npx cap run android --livereload --external
 ```
 
 **Issues:**
-- Required two separate flags
-- `--external` was needed for physical devices
+- Required two separate flags (`--livereload` and `--external`)
 - Sometimes failed to auto-detect IP
 - Manual `--host` override often needed
 
 ---
 
-### Capacitor 7 (New)
+### Capacitor 7 (Current - v7.4.3)
 ```bash
-npx cap run ios --dev
-npx cap run android --dev
+npx cap run ios --live-reload
+npx cap run android --live-reload
 ```
 
 **Improvements:**
-- ✅ Single `--dev` flag replaces both `--livereload` and `--external`
+- ✅ Single `--live-reload` flag (note: hyphen between words)
+- ✅ `--external` no longer needed (behavior is automatic)
 - ✅ Automatically detects dev server at `localhost:3000`
 - ✅ Automatically uses machine's local IP for physical devices
 - ✅ More reliable IP detection
-- ✅ Simpler, cleaner syntax
 
 ---
 
@@ -51,11 +50,13 @@ npx cap run android --dev
 ```json
 {
   "scripts": {
-    "ios:dev": "npx cap run ios --dev",
-    "android:dev": "npx cap run android --dev"
+    "ios:dev": "npx cap run ios --live-reload",
+    "android:dev": "npx cap run android --live-reload"
   }
 }
 ```
+
+**Key change:** `--livereload` → `--live-reload` (added hyphen), removed `--external` (now automatic)
 
 ---
 
@@ -77,12 +78,14 @@ npm run android:dev
 ```
 
 **What happens:**
-1. Capacitor detects dev server running on port 3000
+1. Capacitor detects dev server running on `localhost:3000`
 2. Automatically determines the correct URL:
    - **Simulator/Emulator:** `http://localhost:3000`
    - **Physical device:** `http://192.168.1.x:3000` (your machine's IP)
 3. Launches app connected to dev server
 4. Enables hot module reload (HMR)
+
+**Note:** The `--live-reload` flag (with hyphen) replaces the old `--livereload --external` combination.
 
 ---
 
@@ -169,22 +172,22 @@ npx cap run ios --dev --target="Ian's iPhone"
 
 | Feature | Capacitor 6 | Capacitor 7 |
 |---------|-------------|-------------|
-| **Live reload flag** | `--livereload --external` | `--dev` |
+| **Live reload flag** | `--livereload --external` | `--live-reload` |
 | **Server detection** | Manual or env var | Automatic |
 | **IP detection** | Often required `--host` | Automatic |
-| **Emulator vs device** | Same config | Smart routing |
+| **External flag** | Required for devices | Automatic (removed) |
 | **Error messages** | Generic | Helpful |
-| **Port scanning** | Port 3000 only | Multiple ports |
+| **Available flags** | --livereload, --external, --host, --port | --live-reload, --host, --port |
 
 ---
 
 ## ⚠️ Breaking Changes
 
-### Removed Flags (No longer work in Capacitor 7)
-- `--livereload` ❌ (use `--dev` instead)
-- `--external` ❌ (included in `--dev`)
-- `--host` ⚠️ (usually not needed, but still available as override)
-- `--port` ⚠️ (auto-detected, but still available as override)
+### Changed/Removed Flags in Capacitor 7
+- `--livereload` → `--live-reload` ✅ (added hyphen)
+- `--external` ❌ (removed, behavior is now automatic)
+- `--host` ✅ (still available for manual IP override if needed)
+- `--port` ✅ (still available for custom port override)
 
 ### Behavior Changes
 1. **Dev server must be running first**
