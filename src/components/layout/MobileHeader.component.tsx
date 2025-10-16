@@ -47,8 +47,8 @@ export const MobileHeader: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
-      {/* Purple header extends into notch area */}
-      <div className="relative" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: '12px' }}>
+      {/* Purple header extends into notch area with proper height */}
+      <div className="relative" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', minHeight: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}>
         
         {/* Superadmin message (centered) */}
         {profile.isSuperadmin ? (
@@ -61,8 +61,8 @@ export const MobileHeader: React.FC = () => {
           <>
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="absolute right-4 w-9 h-9 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 active:scale-95 transition-all flex items-center justify-center"
-              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}
+              className="absolute right-4 w-10 h-10 rounded-full bg-white/25 backdrop-blur-md hover:bg-white/35 active:scale-95 transition-all flex items-center justify-center shadow-lg"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
               aria-label="Menu"
             >
               {/* Simple hamburger/profile icon */}
@@ -74,7 +74,7 @@ export const MobileHeader: React.FC = () => {
             {/* Context-aware dropdown menu - positioned below icon */}
             {showMenu && (
               <div className="absolute right-4 w-56 bg-white rounded-xl shadow-soft-xl border border-gray-200 py-2 z-50" 
-                   style={{ top: 'calc(env(safe-area-inset-top, 0px) + 48px)' }}>
+                   style={{ top: 'calc(env(safe-area-inset-top, 0px) + 54px)' }}>
                 {/* Admin-Player: Show view switching */}
                 {profile.isAdmin && profile.linkedPlayerId && (
                   <>
