@@ -47,7 +47,9 @@ export const MobileHeader: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
-      <div className="flex items-center justify-center px-4 py-3 min-h-[56px]">
+      {/* Add safe area padding for iOS notch/Dynamic Island */}
+      <div className="pt-[env(safe-area-inset-top,0px)]">
+        <div className="flex items-center justify-center px-4 py-3 min-h-[56px]">
         {/* Superadmin: Not supported on mobile */}
         {profile.isSuperadmin ? (
           <div className="text-white text-sm text-center">
@@ -146,6 +148,7 @@ export const MobileHeader: React.FC = () => {
             <span className="text-white font-semibold text-lg ml-3">Capo</span>
           </a>
         )}
+        </div>
       </div>
 
       {/* Logout Confirmation Modal */}
