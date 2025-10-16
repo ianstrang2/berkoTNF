@@ -47,48 +47,34 @@ export const MobileHeader: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
-      {/* Add safe area padding for iOS notch/Dynamic Island */}
-      <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="flex items-center justify-center px-4 py-3 min-h-[56px]">
-        {/* Superadmin: Not supported on mobile */}
+      {/* Purple header extends into notch area */}
+      <div className="relative" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: '12px' }}>
+        
+        {/* Superadmin message (centered) */}
         {profile.isSuperadmin ? (
-          <div className="text-white text-sm text-center">
+          <div className="text-white text-sm text-center py-3">
             <p>Superadmin features are web-only</p>
             <p className="text-xs opacity-80">Please use desktop browser</p>
           </div>
         ) : profile.isAuthenticated ? (
-          // All authenticated users get contextual menu (centered)
-          <div className="relative">
+          // Profile switcher icon - top right, below notch
+          <>
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2"
-              style={{ 
-                marginTop: '8px',
-                backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                border: '2px solid white'
-              }}
+              className="absolute right-4 w-9 h-9 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 active:scale-95 transition-all flex items-center justify-center"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}
+              aria-label="Menu"
             >
-              {/* Icon changes based on context */}
-              {isInAdminView ? (
-                <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                  <span className="text-sm font-semibold">Menu</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span className="text-sm font-semibold">Menu</span>
-                </>
-              )}
+              {/* Simple hamburger/profile icon */}
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
 
-            {/* Context-aware dropdown menu */}
+            {/* Context-aware dropdown menu - positioned below icon */}
             {showMenu && (
-              <div className="absolute left-1/2 transform -translate-x-1/2 top-14 w-56 bg-white rounded-xl shadow-soft-xl border border-gray-200 py-2 z-50">
+              <div className="absolute right-4 w-56 bg-white rounded-xl shadow-soft-xl border border-gray-200 py-2 z-50" 
+                   style={{ top: 'calc(env(safe-area-inset-top, 0px) + 48px)' }}>
                 {/* Admin-Player: Show view switching */}
                 {profile.isAdmin && profile.linkedPlayerId && (
                   <>
@@ -139,10 +125,10 @@ export const MobileHeader: React.FC = () => {
                 </button>
               </div>
             )}
-          </div>
+          </>
         ) : (
-          // Unauthenticated - show logo with login link
-          <a href="/auth/login" className="flex items-center">
+          // Unauthenticated - show centered logo with login link
+          <a href="/auth/login" className="flex items-center justify-center py-3">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
               <img 
                 src="/img/logo.png" 
@@ -153,7 +139,6 @@ export const MobileHeader: React.FC = () => {
             <span className="text-white font-semibold text-lg ml-3">Capo</span>
           </a>
         )}
-        </div>
       </div>
 
       {/* Logout Confirmation Modal */}
