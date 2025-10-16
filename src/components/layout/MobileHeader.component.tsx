@@ -48,7 +48,7 @@ export const MobileHeader: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
       {/* Add safe area padding for iOS notch/Dynamic Island */}
-      <div className="pt-[env(safe-area-inset-top,0px)]">
+      <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="flex items-center justify-center px-4 py-3 min-h-[56px]">
         {/* Superadmin: Not supported on mobile */}
         {profile.isSuperadmin ? (
@@ -61,7 +61,12 @@ export const MobileHeader: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2"
+              style={{ 
+                marginTop: '8px',
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                border: '2px solid white'
+              }}
             >
               {/* Icon changes based on context */}
               {isInAdminView ? (
