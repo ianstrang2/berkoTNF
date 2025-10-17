@@ -284,17 +284,24 @@ npx cap open ios
 
 ## 📱 App Store Submission Prep
 
-### Before Submitting
+### ⚠️ CRITICAL: Pre-Production Checklist
 
+**Before submitting to App Store, complete ALL items in:**
+
+📄 **[docs/IOS_PRE_PRODUCTION_CHECKLIST.md](./IOS_PRE_PRODUCTION_CHECKLIST.md)**
+
+**Key items (App Store WILL reject if missing):**
+
+- [ ] **Remove `NSAppTransportSecurity` from Info.plist** (allows insecure HTTP - dev only!)
+- [ ] Remove debug logging (search for `console.log` in production builds)
+- [ ] Add app icons (all required sizes in Assets.xcassets)
+- [ ] Add privacy policy URL (live and accessible)
 - [ ] Test on multiple iOS versions (iOS 15, 16, 17+)
 - [ ] Test on multiple device sizes (iPhone SE, iPhone 15 Pro Max, iPad)
-- [ ] Remove debug logging (search for `console.log` in production builds)
-- [ ] Remove `NSAllowsArbitraryLoads` from Info.plist (App Store rejects this)
-- [ ] Add app icons (all required sizes in Assets.xcassets)
-- [ ] Add splash screens
-- [ ] Configure privacy settings (Info.plist → Privacy descriptions)
+- [ ] Test deep links on physical device (universal links don't work in simulator)
 - [ ] Test offline mode (airplane mode)
-- [ ] Test memory usage (Xcode → Debug → Memory Report)
+
+**See full checklist for 18 detailed pre-production steps.**
 
 ---
 
