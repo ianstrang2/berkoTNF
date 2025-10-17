@@ -57,24 +57,24 @@ export const MobileHeader: React.FC = () => {
             <p className="text-xs opacity-80">Please use desktop browser</p>
           </div>
         ) : profile.isAuthenticated ? (
-          // Profile switcher icon - top right, below notch
+          // Profile switcher icon - top right, inside safe content area
           <>
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="absolute right-4 w-10 h-10 rounded-full bg-white/25 backdrop-blur-md hover:bg-white/35 active:scale-95 transition-all flex items-center justify-center shadow-lg"
-              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
-              aria-label="Menu"
-            >
+            <div className="flex justify-end items-center px-4 py-3">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="w-10 h-10 rounded-full bg-white/25 backdrop-blur-md hover:bg-white/35 active:scale-95 transition-all flex items-center justify-center shadow-lg"
+                aria-label="Menu"
+              >
               {/* Simple hamburger/profile icon */}
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-            </button>
+              </button>
+            </div>
 
-            {/* Context-aware dropdown menu - positioned below icon */}
+            {/* Context-aware dropdown menu - positioned below header */}
             {showMenu && (
-              <div className="absolute right-4 w-56 bg-white rounded-xl shadow-soft-xl border border-gray-200 py-2 z-50" 
-                   style={{ top: 'calc(env(safe-area-inset-top, 0px) + 54px)' }}>
+              <div className="absolute right-4 top-full mt-1 w-56 bg-white rounded-xl shadow-soft-xl border border-gray-200 py-2 z-50">
                 {/* Admin-Player: Show view switching */}
                 {profile.isAdmin && profile.linkedPlayerId && (
                   <>
