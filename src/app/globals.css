@@ -5,14 +5,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Safe area insets for native apps (Capacitor) */
-/* This prevents content from overlapping the system status bar on mobile */
-@supports (padding-top: env(safe-area-inset-top)) {
-  /* Apply safe area padding only in Capacitor native environment */
-  /* Capacitor adds the 'capacitor' class to <html> element */
-  html.capacitor body {
-    padding-top: env(safe-area-inset-top, 0);
+/* ---- Safe area utilities ---- */
+:root {
+  /* Prefer env() but keep a hard 0px fallback */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Older iOS WebKit fallback (optional, harmless elsewhere) */
+@supports (padding: constant(safe-area-inset-top)) {
+  :root {
+    --safe-top: constant(safe-area-inset-top);
+    --safe-bottom: constant(safe-area-inset-bottom);
   }
+}
+
+/* Use these classes instead of inline styles */
+.pt-safe { padding-top: var(--safe-top) !important; }
+.pb-safe { padding-bottom: var(--safe-bottom) !important; }
+
+/* Android-specific: Add fixed padding since Android doesn't provide safe-area-inset-top */
+/* Standard Android status bar is 24px (varies by device, but 24px is safe default) */
+html.platform-android.capacitor .pt-safe {
+  padding-top: 24px !important;
 }
 
 /* Additional styles for Soft UI */

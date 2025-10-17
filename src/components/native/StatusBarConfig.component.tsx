@@ -28,13 +28,22 @@ export const StatusBarConfig = () => {
       }
 
       try {
-        // Set status bar background to match header gradient top color (purple-700)
-        await StatusBar.setBackgroundColor({ color: '#7e22ce' });
-
-        // Use light icons (white) so they're visible on dark purple background
+        const platform = Capacitor.getPlatform();
+        
+        // Both platforms: Transparent status bar overlaying content
         await StatusBar.setStyle({ style: Style.Light });
-
-        // Show the status bar (don't hide it)
+        await StatusBar.setOverlaysWebView({ overlay: true });
+        
+        if (platform === 'android') {
+          // Android: Make status bar transparent (gradient shows through)
+          await StatusBar.setBackgroundColor({ color: '#00000000' });
+          // Add 'android' class to html for platform-specific CSS
+          document.documentElement.classList.add('platform-android');
+        } else if (platform === 'ios') {
+          // iOS already provides safe-area-inset-top automatically
+          document.documentElement.classList.add('platform-ios');
+        }
+        
         await StatusBar.show();
       } catch (error) {
         console.error('Error configuring status bar:', error);

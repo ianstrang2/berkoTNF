@@ -22,7 +22,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { isMobile, isAdminMode, sidebarCollapsed, setIsAdminAuthenticated, setIsSuperadmin } = useNavigation();
   const { profile, loading: authLoading } = useAuthContext();
   const [isClient, setIsClient] = useState(false);
-  const [isNativeApp, setIsNativeApp] = useState(false);
+  // Detect Capacitor immediately to prevent flash of wrong header
+  const [isNativeApp, setIsNativeApp] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return Capacitor.isNativePlatform();
+    }
+    return false;
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -53,29 +59,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
     return (
       <ResponsiveNavigation>
         <div className={`min-h-screen transition-all duration-200 bg-gray-50 dark:bg-slate-950 m-0 font-sans text-base antialiased font-normal text-left leading-default text-slate-500 dark:text-white`}>
-          {/* Use mobile header on Capacitor, web header otherwise */}
-          {isNativeApp ? (
-            <MobileHeader />
-          ) : (
-            <header className="sticky top-0 z-40 bg-gradient-to-tl from-purple-700 to-pink-500 border-b border-purple-700">
-              <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3 p-1">
-                  <img 
-                    src="/img/logo.png" 
-                    alt="Capo Logo" 
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <span className="text-white font-semibold text-lg">Capo</span>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* Profile Dropdown - context-aware menu (Mobile Web only, NOT Capacitor) */}
-                {profile.isAuthenticated && <ProfileDropdown />}
-              </div>
-            </div>
-          </header>
-          )}
+          {/* Always use MobileHeader on mobile (handles both native and web) */}
+          <MobileHeader />
           
           <NavigationTabs />
           <NavigationSubTabs />
