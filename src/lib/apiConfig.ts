@@ -13,7 +13,18 @@ import { Capacitor } from '@capacitor/core';
  * Returns the base URL for API calls
  */
 export function getApiBaseUrl(): string {
-  // In Capacitor (iOS/Android app), always use production API
+  // Check if we're in Capacitor live reload dev mode
+  // When using npm run ios:dev, app loads from dev server (localhost or LAN IP)
+  const isCapacitorDevMode = Capacitor.isNativePlatform() && 
+    typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname.match(/192\.168\./));
+
+  // In Capacitor dev mode (live reload), use relative URLs (same server as UI)
+  if (isCapacitorDevMode) {
+    return '/api';
+  }
+
+  // In Capacitor production (bundled app), use production API
   if (Capacitor.isNativePlatform()) {
     return 'https://app.caposport.com/api';
   }
