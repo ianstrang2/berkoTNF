@@ -5,6 +5,7 @@ import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
 import { Plus, Minus } from 'lucide-react';
 import { PlayerInPool } from '@/types/player.types';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface PlayerGoalStat {
   player_id: number;
@@ -57,7 +58,7 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
         setIsLoadingHistoricalData(true);
         try {
           // Fetch historical match data for this specific match (optimized endpoint)
-          const response = await fetch(`/api/admin/upcoming-matches/${matchId}/historical-data`);
+          const response = await apiFetch(`/admin/upcoming-matches/${matchId}/historical-data`);
           
           // 404 is expected for new matches (no historical data yet)
           if (response.status === 404) {

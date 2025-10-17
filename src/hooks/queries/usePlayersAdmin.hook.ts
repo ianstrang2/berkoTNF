@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
 import { PlayerProfile } from '@/types/player.types';
+import { apiFetch } from '@/lib/apiConfig';
 
 async function fetchPlayersAdmin(
   tenantId: string | null,
@@ -23,9 +24,7 @@ async function fetchPlayersAdmin(
   if (includeMatchCounts) params.append('include_match_counts', 'true');
   if (showRetired) params.append('show_retired', 'true');
 
-  const response = await fetch(`/api/admin/players?${params.toString()}`, {
-    credentials: 'include',
-  });
+  const response = await apiFetch(`/admin/players?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch players: ${response.statusText}`);

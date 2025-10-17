@@ -9,6 +9,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 export interface JoinRequest {
   id: number;
@@ -23,9 +24,7 @@ export interface JoinRequest {
 async function fetchJoinRequests(tenantId: string | null): Promise<JoinRequest[]> {
   if (!tenantId) return [];
 
-  const response = await fetch('/api/admin/join-requests', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/admin/join-requests');
 
   if (!response.ok) {
     throw new Error(`Failed to fetch join requests: ${response.statusText}`);
@@ -62,11 +61,9 @@ export function useApproveJoinRequest() {
 
   return useMutation({
     mutationFn: async (data: { requestId: number; clubOverride?: any }) => {
-      const response = await fetch('/api/admin/join-requests/approve', {
+      const response = await apiFetch('/admin/join-requests/approve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -94,11 +91,9 @@ export function useRejectJoinRequest() {
 
   return useMutation({
     mutationFn: async (requestId: number) => {
-      const response = await fetch('/api/admin/join-requests/reject', {
+      const response = await apiFetch('/admin/join-requests/reject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId }),
-        credentials: 'include',
       });
 
       if (!response.ok) {

@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { apiFetch } from '@/lib/apiConfig';
 
 export const ClubInviteLinkButton: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
@@ -17,7 +18,7 @@ export const ClubInviteLinkButton: React.FC = () => {
   const fetchInviteLink = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/club-invite');
+      const response = await apiFetch('/admin/club-invite');
       const data = await response.json();
       
       if (data.success) {

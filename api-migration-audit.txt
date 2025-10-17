@@ -1,0 +1,5 @@
+=== API Migration Audit ===
+
+=== Pattern 1: Standard fetch('/api/...) ===
+
+=== Pattern 2: Template literals fetch(\/api/\\) ===

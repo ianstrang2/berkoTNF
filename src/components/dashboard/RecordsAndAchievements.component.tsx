@@ -5,6 +5,7 @@ import { FeatBreakingItem, RecordsTimelineItem, generateFeatContent } from '@/ty
 import { getFeatIcon } from '@/components/icons/FeatIcons.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface PersonalBestsData {
   broken_pbs_data: {
@@ -125,8 +126,8 @@ const RecordsAndAchievements: React.FC = () => {
       setError(null);
       
       const [matchResponse, pbResponse] = await Promise.all([
-        fetch('/api/matchReport'),
-        fetch('/api/personal-bests')
+        apiFetch('/matchReport'),
+        apiFetch('/personal-bests')
       ]);
       
       let allTimelineItems: RecordsTimelineItem[] = [];

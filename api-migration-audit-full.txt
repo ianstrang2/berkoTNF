@@ -1,0 +1,193 @@
+
+src\app\admin\info\page.tsx:118:      const response = await fetch(`/api/cache-metadata?${cacheBuster}`);
+src\app\admin\info\page.tsx:140:      const response = await fetch('/api/admin/info-data');
+src\app\admin\info\page.tsx:164:      const res = await fetch('/api/admin/players');
+src\app\admin\info\page.tsx:193:      const res = await fetch(`/api/admin/rating-data?id=${playerId}`);
+src\app\admin\info\page.tsx:211:      const response = await fetch('/api/admin/player-profile-metadata');
+src\app\admin\info\page.tsx:229:      const response = await fetch('/api/admin/trigger-player-profiles', {
+src\app\admin\info\page.tsx:274:      const response = await fetch('/api/admin/reset-player-profiles', {
+src\app\admin\info\page.tsx:312:      const response = await fetch('/api/admin/background-jobs');
+src\app\admin\info\page.tsx:338:      const response = await fetch('/api/admin/enqueue-stats-job', {
+src\app\admin\info\page.tsx:534:      const response = await fetch('/api/admin/system-health');
+src\app\admin\info\page.tsx:605:      const response = await fetch('/api/admin/trigger-stats-update', {
+src\app\admin\info\page.tsx:1197:    const response = await fetch('/api/admin/enqueue-stats-job', {
+src\app\admin\info\page.tsx:1214:    const response = await fetch('/api/admin/trigger-stats-update', { 
+src\app\admin\matches\[id]\page.tsx:89:      const response = await fetch('/api/admin/upcoming-matches', {
+src\app\api\admin\balance-by-past-performance\utils.ts:57:      const weightsResponse = await fetch('/api/admin/performance-weights');
+src\app\api\admin\balance-teams\route.ts:74:      const randomResponse = await fetch(randomUrl, {
+src\app\api\admin\debug-revalidation\route.ts:89:        const testResponse = await fetch(urlConstructionTest.finalUrl, {
+src\app\api\admin\system-health\route.ts:122:    const response = await fetch(`${baseUrl}/api/internal/cache/invalidate`, {
+src\app\api\admin\system-health\route.ts:284:    const response = await fetch(`${baseUrl}${endpoint}`, {
+src\app\api\admin\trigger-stats-update\route.ts:260:      const response = await fetch(`${baseUrl}/api/admin/enqueue-stats-job`, {
+src\app\api\admin\upcoming-matches\[id]\complete\route.ts:207:      fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
+src\app\api\admin\upcoming-matches\route.ts:397:      fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
+src\app\api\matches\history\route.ts:359:    fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
+src\app\auth\login\page.tsx:90:          const linkResponse = await fetch('/api/auth/link-by-phone', {
+src\app\auth\no-club\page.tsx:42:      const response = await fetch('/api/join/by-code', {
+src\app\auth\pending-approval\page.tsx:23:        const response = await fetch('/api/auth/profile');
+src\app\auth\superadmin-login\page.tsx:38:        const response = await fetch('/api/auth/profile');
+src\app\join\[tenant]\[token]\page.tsx:52:        const response = await fetch(`/api/join/validate-token?tenant=${tenant}&token=${token}`);
+src\app\join\[tenant]\[token]\page.tsx:153:      const linkResponse = await fetch('/api/join/link-player', {
+src\app\signup\admin\page.tsx:46:          const response = await fetch('/api/auth/profile');
+src\app\signup\admin\page.tsx:191:      const response = await fetch('/api/admin/create-club', {
+src\app\superadmin\info\page.tsx:123:      const response = await fetch(`/api/superadmin/cache-metadata?${cacheBuster}`);
+src\app\superadmin\info\page.tsx:145:      const response = await fetch('/api/admin/info-data');
+src\app\superadmin\info\page.tsx:168:      const res = await fetch('/api/admin/players');
+src\app\superadmin\info\page.tsx:195:      const res = await fetch(`/api/admin/rating-data?id=${playerId}`);
+src\app\superadmin\info\page.tsx:212:      const response = await fetch('/api/admin/player-profile-metadata');
+src\app\superadmin\info\page.tsx:230:      const response = await fetch('/api/admin/trigger-player-profiles', {
+src\app\superadmin\info\page.tsx:273:      const response = await fetch('/api/admin/reset-player-profiles', {
+src\app\superadmin\info\page.tsx:308:      const response = await fetch('/api/superadmin/background-jobs');
+src\app\superadmin\info\page.tsx:332:      const response = await fetch('/api/admin/enqueue-stats-job', {
+src\app\superadmin\info\page.tsx:519:      const response = await fetch('/api/superadmin/system-health');
+src\app\superadmin\info\page.tsx:1161:    const response = await fetch('/api/admin/enqueue-stats-job', {
+src\app\superadmin\info\page.tsx:1177:    const response = await fetch('/api/admin/trigger-stats-update', { 
+src\app\superadmin\system-health\page.tsx:98:      const response = await fetch('/api/superadmin/system-health');
+src\app\superadmin\system-health\page.tsx:118:      const response = await fetch('/api/superadmin/background-jobs');
+src\app\superadmin\system-health\page.tsx:142:      const response = await fetch('/api/admin/enqueue-stats-job', {
+src\app\superadmin\system-health\page.tsx:276:      const response = await fetch('/api/superadmin/trigger-all-stats', {
+src\app\superadmin\system-health\page.tsx:695:    const response = await fetch('/api/admin/enqueue-stats-job', {
+src\app\superadmin\system-health\page.tsx:706:    const response = await fetch('/api/admin/trigger-stats-update', { 
+src\app\superadmin\tenant-metrics\page.tsx:82:      const response = await fetch('/api/superadmin/tenants');
+src\app\superadmin\tenant-metrics\page.tsx:103:      const response = await fetch(`/api/superadmin/tenant-metrics?tenantId=${tenantId}`);
+src\app\superadmin\tenant-metrics\page.tsx:125:      const response = await fetch(`/api/admin/rating-data?id=${playerId}`);
+src\app\superadmin\tenant-metrics\page.tsx:154:      const response = await fetch('/api/admin/trigger-player-profiles', {
+src\app\superadmin\tenant-metrics\page.tsx:184:      const response = await fetch('/api/admin/reset-player-profiles', {
+src\app\superadmin\tenants\page.tsx:42:      const response = await fetch('/api/superadmin/tenants');
+src\components\admin\AppSetup\FantasyPointsSetup.component.tsx:42:      const response = await fetch('/api/admin/settings/fantasy-points');
+src\components\admin\AppSetup\FantasyPointsSetup.component.tsx:91:      const response = await fetch('/api/admin/app-config', {
+src\components\admin\AppSetup\FantasyPointsSetup.component.tsx:122:      const response = await fetch('/api/admin/app-config', {
+src\components\admin\AppSetup\MatchReportSetup.component.tsx:49:      const response = await fetch('/api/admin/match-report-settings');
+src\components\admin\AppSetup\MatchReportSetup.component.tsx:79:      const response = await fetch('/api/admin/match-report-settings', {
+src\components\admin\AppSetup\MatchReportSetup.component.tsx:111:      const response = await fetch('/api/admin/match-report-settings/reset', {
+src\components\admin\AppSetup\MatchSettingsSetup.component.tsx:47:      const response = await fetch('/api/admin/app-config?group=match_settings');
+src\components\admin\AppSetup\MatchSettingsSetup.component.tsx:98:      const response = await fetch('/api/admin/app-config', {
+src\components\admin\AppSetup\MatchSettingsSetup.component.tsx:133:      const response = await fetch('/api/admin/app-config/reset', { // Changed endpoint
+src\components\admin\config\AppConfig.component.tsx:114:        const response = await fetch(`/api/admin/app-config?groups=${encodeURIComponent(groupsQueryParam)}`);
+src\components\admin\config\AppConfig.component.tsx:201:      const response = await fetch('/api/admin/app-config', {
+src\components\admin\config\AppConfig.component.tsx:268:      const response = await fetch('/api/admin/app-config/reset', {
+src\components\admin\config\AppConfig.component.tsx:285:      const refetchResponse = await fetch(`/api/admin/app-config?groups=${encodeURIComponent(groupsQueryParam)}`);
+src\components\admin\config\BalanceAlgorithmSetup.component.tsx:56:      const response = await fetch('/api/admin/balance-algorithm');
+src\components\admin\config\BalanceAlgorithmSetup.component.tsx:233:      const response = await fetch('/api/admin/balance-algorithm', {
+src\components\admin\config\BalanceAlgorithmSetup.component.tsx:290:      const response = await fetch('/api/admin/balance-algorithm/reset', {
+src\components\admin\config\PerformanceBalanceSetup.component.tsx:32:      const response = await fetch('/api/admin/app-config?groups=performance');
+src\components\admin\config\PerformanceBalanceSetup.component.tsx:86:      const response = await fetch('/api/admin/app-config', {
+src\components\admin\config\PerformanceBalanceSetup.component.tsx:124:      const response = await fetch('/api/admin/app-config', {
+src\components\admin\matches\BalanceTeamsPane.component.tsx:130:        const response = await fetch('/api/admin/upcoming-match-players/swap', {
+src\components\admin\matches\BalanceTeamsPane.component.tsx:153:        const response = await fetch('/api/admin/upcoming-match-players', {
+src\components\admin\matches\CompleteMatchForm.component.tsx:60:          const response = await fetch(`/api/admin/upcoming-matches/${matchId}/historical-data`);
+src\components\admin\matches\PlayerPoolPane.component.tsx:59:        await fetch(`/api/admin/match-player-pool?match_id=${matchId}&player_id=${player.id}`, { method: 'DELETE' });
+src\components\admin\matches\PlayerPoolPane.component.tsx:61:        await fetch('/api/admin/match-player-pool', {
+src\components\admin\matches\PlayerPoolPane.component.tsx:88:          fetch(`/api/admin/match-player-pool?match_id=${matchId}&player_id=${player.id}`, { 
+src\components\admin\matches\PlayerPoolPane.component.tsx:107:      const response = await fetch('/api/admin/players', {
+src\components\admin\matches\PlayerPoolPane.component.tsx:130:      await fetch('/api/admin/match-player-pool', {
+src\components\admin\player\ClubInviteLinkButton.component.tsx:20:      const response = await fetch('/api/admin/club-invite');
+src\components\admin\player\PlayerManager.component.tsx:104:      const response = await fetch('/api/admin/players/promote', {
+src\components\admin\player\PlayerManager.component.tsx:120:      refetch();
+src\components\admin\player\PlayerManager.component.tsx:148:      const response = await fetch(url, {
+src\components\admin\player\PlayerManager.component.tsx:164:      refetch(); // React Query refetch
+src\components\admin\season\SeasonManager.component.tsx:72:      const response = await fetch(url, {
+src\components\admin\season\SeasonManager.component.tsx:125:      const response = await fetch(`/api/seasons/${seasonToDelete.id}`, {
+src\components\admin\season\SeasonManager.component.tsx:188:      const response = await fetch('/api/admin/enqueue-stats-job', {
+src\components\admin\season\SeasonManager.component.tsx:205:      const response = await fetch('/api/admin/trigger-stats-update', { 
+src\components\admin\team\TeamTemplates.component.tsx:43:      const response = await fetch('/api/admin/app-config?group=match_settings');
+src\components\admin\team\TeamTemplates.component.tsx:65:      const response = await fetch('/api/admin/team-templates');
+src\components\admin\team\TeamTemplates.component.tsx:139:      const response = await fetch('/api/admin/team-templates', {
+src\components\admin\team\TeamTemplates.component.tsx:215:      const response = await fetch(`/api/admin/team-templates/reset?templateId=${templateId}`, {
+src\components\dashboard\CurrentFormAndStandings.component.tsx:105:        fetch('/api/matchReport'),
+src\components\dashboard\CurrentFormAndStandings.component.tsx:106:        fetch('/api/players'),
+src\components\dashboard\CurrentFormAndStandings.component.tsx:107:        fetch('/api/admin/app-config?group=match_settings')
+src\components\dashboard\RecordsAndAchievements.component.tsx:128:        fetch('/api/matchReport'),
+src\components\dashboard\RecordsAndAchievements.component.tsx:129:        fetch('/api/personal-bests')
+src\components\layout\MobileHeader.component.tsx:40:        await fetch('/api/auth/logout', { method: 'POST' });
+src\components\layout\ProfileDropdown.component.tsx:58:        await fetch('/api/auth/logout', { method: 'POST' });
+src\components\layout\ProfileDropdown.component.tsx:84:      const response = await fetch('/api/superadmin/tenants');
+src\components\layout\ProfileDropdown.component.tsx:127:        const response = await fetch('/api/auth/superadmin/switch-tenant', {
+src\components\navigation\SuperadminHeader.component.tsx:41:      const response = await fetch('/api/superadmin/tenants');
+src\components\navigation\SuperadminHeader.component.tsx:58:      const response = await fetch('/api/auth/superadmin/switch-tenant', {
+src\components\navigation\SuperadminHeader.component.tsx:85:      const response = await fetch('/api/auth/superadmin/switch-tenant', {
+src\components\navigation\SuperadminHeader.component.tsx:137:        const response = await fetch('/api/auth/superadmin/switch-tenant', {
+src\components\navigation\SuperadminHeader.component.tsx:147:        const response = await fetch('/api/auth/superadmin/switch-tenant', {
+src\components\team\TeamSection.component.tsx:29:        const response = await fetch('/api/admin/app-config?group=match_settings');
+src\components\ui-kit\FantasyPointsTooltip.component.tsx:25:      const response = await fetch('/api/admin/app-config?groups=fantasy_points');
+src\hooks\queries\useAllTimeStats.hook.ts:23:  const response = await fetch('/api/allTimeStats', {
+src\hooks\queries\useAppConfig.hook.ts:34:  const response = await fetch(url);
+src\hooks\queries\useAuthProfile.hook.ts:32:  const response = await fetch('/api/auth/profile', {
+src\hooks\queries\useBalanceWeights.hook.ts:35:  const response = await fetch('/api/admin/balance-algorithm', {
+src\hooks\queries\useBalanceWeights.hook.ts:72:  const response = await fetch('/api/admin/performance-weights', {
+src\hooks\queries\useCurrentSeason.hook.ts:34:  const response = await fetch('/api/seasons/current', {
+src\hooks\queries\useCurrentStats.hook.ts:34:  const response = await fetch('/api/stats', {
+src\hooks\queries\useHalfSeasonStats.hook.ts:34:  const response = await fetch('/api/stats/half-season', {
+src\hooks\queries\useHonourRoll.hook.ts:118:  const response = await fetch('/api/honourroll', {
+src\hooks\queries\useJoinRequests.hook.ts:26:  const response = await fetch('/api/admin/join-requests', {
+src\hooks\queries\useJoinRequests.hook.ts:65:      const response = await fetch('/api/admin/join-requests/approve', {
+src\hooks\queries\useJoinRequests.hook.ts:97:      const response = await fetch('/api/admin/join-requests/reject', {
+src\hooks\queries\useLatestPlayerStatus.hook.ts:19:  const response = await fetch('/api/latest-player-status', { 
+src\hooks\queries\useLeagueAverages.hook.ts:34:  const response = await fetch('/api/stats/league-averages', {
+src\hooks\queries\useMatchHistory.hook.ts:26:  const response = await fetch('/api/matches/history', {
+src\hooks\queries\useMatchReport.hook.ts:89:  const response = await fetch('/api/matchReport');
+src\hooks\queries\useOrphanedMatches.hook.ts:24:  const response = await fetch('/api/matches/orphaned', {
+src\hooks\queries\usePersonalBests.hook.ts:20:  const response = await fetch('/api/personal-bests');
+src\hooks\queries\usePlayerMatches.hook.ts:27:  const response = await fetch(`/api/player/${playerId}/allmatches`, {
+src\hooks\queries\usePlayerProfile.hook.ts:57:  const response = await fetch(`/api/playerprofile?id=${playerId}`, {
+src\hooks\queries\usePlayers.hook.ts:23:  const response = await fetch('/api/players', {
+src\hooks\queries\usePlayersAdmin.hook.ts:26:  const response = await fetch(`/api/admin/players?${params.toString()}`, {
+src\hooks\queries\usePlayerTrends.hook.ts:27:  const response = await fetch(`/api/player/trends/${playerId}`, {
+src\hooks\queries\useSeasonRaceData.hook.ts:39:  const response = await fetch(`/api/season-race-data?period=${period}`, {
+src\hooks\queries\useSeasons.hook.ts:19:  const response = await fetch('/api/seasons', {
+src\hooks\queries\useTeamTemplates.hook.ts:27:  const response = await fetch(`/api/admin/team-templates?teamSize=${teamSize}`, {
+src\hooks\queries\useUpcomingMatchDetails.hook.ts:23:  const response = await fetch(`/api/upcoming?matchId=${matchId}`, { 
+src\hooks\queries\useUpcomingMatches.hook.ts:21:  const response = await fetch('/api/upcoming', { 
+src\hooks\queries\useUpcomingMatchesList.hook.ts:29:  const response = await fetch('/api/admin/upcoming-matches', {
+src\hooks\queries\useUpcomingMatchesList.hook.ts:65:      const response = await fetch('/api/admin/upcoming-matches', {
+src\hooks\queries\useUpcomingMatchesList.hook.ts:98:      const response = await fetch(endpoint, {
+src\hooks\useAuth.hook.ts:108:  const handleRefetch = useCallback(() => refetch(), [refetch]);
+src\hooks\useBalanceWeights.hook.ts:29:        const response = await fetch('/api/admin/balance-algorithm');
+src\hooks\useDragAndDrop.hook.ts:74:      await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useDragAndDrop.hook.ts:89:        await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useDragAndDrop.hook.ts:103:        await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useDragAndDrop.hook.ts:195:          await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useDragAndDrop.hook.ts:206:          await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useDragAndDrop.hook.ts:218:          await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useDragAndDrop.hook.ts:231:          await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useMatchData.hook.ts:19:      const response = await fetch(`${API_ENDPOINTS.UPCOMING_MATCHES}?active=true`);
+src\hooks\useMatchData.hook.ts:92:      const response = await fetch(API_ENDPOINTS.CREATE_PLANNED_MATCH, {
+src\hooks\useMatchData.hook.ts:135:      const response = await fetch(API_ENDPOINTS.UPCOMING_MATCHES, {
+src\hooks\useMatchData.hook.ts:171:      const response = await fetch(API_ENDPOINTS.CLEAR_ACTIVE_MATCH, {
+src\hooks\useMatchData.hook.ts:199:        fetch(`${API_ENDPOINTS.RECENT_MATCHES}?limit=1`),
+src\hooks\useMatchData.hook.ts:200:        fetch(API_ENDPOINTS.SETTINGS)
+src\hooks\useMatchState.hook.ts:79:      const response = await fetch(`/api/admin/upcoming-matches?matchId=${matchId}`);
+src\hooks\useMatchState.hook.ts:124:        response = await fetch(`/api/admin/balance-teams`, {
+src\hooks\useMatchState.hook.ts:130:        response = await fetch(`/api/admin/random-balance-match?matchId=${matchId}`, { method: 'POST' });
+src\hooks\useMatchState.hook.ts:149:      const response = await fetch(url, {
+src\hooks\useMatchState.hook.ts:214:      await fetch(`/api/admin/upcoming-matches`, {
+src\hooks\useMatchState.hook.ts:235:      await fetch(`/api/admin/upcoming-match-players/clear?matchId=${matchId}`, {
+src\hooks\useMatchState.hook.ts:290:    const response = await fetch('/api/admin/enqueue-stats-job', {
+src\hooks\useMatchState.hook.ts:305:    const response = await fetch('/api/admin/trigger-stats-update', { 
+src\hooks\usePlayerData.hook.ts:18:      const response = await fetch(`${API_ENDPOINTS.PLAYERS}?t=${Date.now()}`);
+src\hooks\usePlayerData.hook.ts:47:      const response = await fetch(API_ENDPOINTS.ADD_RINGER, {
+src\hooks\useTeamSlots.hook.ts:101:        const response = await fetch(`${API_ENDPOINTS.MATCH_PLAYERS}?upcoming_match_id=${matchId}&player_id=${slot.player_id}&slot_number=${slotIndex}`, {
+src\hooks\useTeamSlots.hook.ts:151:        const response = await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useTeamSlots.hook.ts:179:      const response = await fetch(API_ENDPOINTS.MATCH_PLAYERS, {
+src\hooks\useTeamSlots.hook.ts:235:      const response = await fetch(`${API_ENDPOINTS.CLEAR_MATCH_PLAYERS}?matchId=${matchId}`, {
+src\lib\apiConfig.ts:41: * Drop-in replacement for fetch() that works in all environments
+src\lib\apiConfig.ts:43:export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+src\lib\apiConfig.ts:56:  return fetch(url, options);
+src\services\TeamAPI.service.ts:14:      const response = await fetch(`/api/admin/match-player-pool?match_id=${matchId}`);
+src\services\TeamAPI.service.ts:29:      const response = await fetch('/api/admin/match-player-pool', {
+src\services\TeamAPI.service.ts:47:      const response = await fetch(`/api/admin/match-player-pool?match_id=${matchId}&player_id=${playerId}`, {
+src\services\TeamAPI.service.ts:63:      const response = await fetch(`/api/admin/match-player-pool?match_id=${matchId}`, {
+src\services\TeamAPI.service.ts:85:      const response = await fetch(`/api/admin/upcoming-match-players?matchId=${matchId}`);
+src\services\TeamAPI.service.ts:109:      const response = await fetch('/api/admin/upcoming-match-players', {
+src\services\TeamAPI.service.ts:137:        const response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, {
+src\services\TeamAPI.service.ts:177:      const response = await fetch(`/api/admin/random-balance-match?matchId=${matchId}`, {
+src\services\TeamAPI.service.ts:199:      const response = await fetch(`/api/admin/balance-by-past-performance`, { // Updated endpoint
+src\services\TeamAPI.service.ts:226:      const matchResponse = await fetch(`/api/admin/upcoming-matches?id=${matchId}`);
+src\services\TeamAPI.service.ts:275:      await fetch(`/api/admin/upcoming-matches`, {
+src\services\TeamAPI.service.ts:306:      const response = await fetch(`/api/admin/upcoming-match-players/clear?matchId=${matchId}`, {
+src\services\TeamAPI.service.ts:323:      const response = await fetch('/api/admin/clear-active-match', {
+src\services\TeamAPI.service.ts:340:      const response = await fetch('/api/admin/create-planned-match', {
+src\services\TeamAPI.service.ts:362:      const response = await fetch('/api/admin/upcoming-matches', {
+src\services\TeamAPI.service.ts:385:      const response = await fetch('/api/admin/add-ringer', {
+src\services\TeamBalance.service.ts:15:    const response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, {
+

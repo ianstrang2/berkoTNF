@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth.hook';
 import { queryKeys } from '@/lib/queryKeys';
 // React Query hook for automatic deduplication
 import { usePlayers } from '@/hooks/queries/usePlayers.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface PlayerPoolPaneProps {
   matchId: string;
@@ -56,11 +57,10 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
 
     try {
       if (isSelected) {
-        await fetch(`/api/admin/match-player-pool?match_id=${matchId}&player_id=${player.id}`, { method: 'DELETE' });
+        await apiFetch(`/admin/match-player-pool?match_id=${matchId}&player_id=${player.id}`, { method: 'DELETE' });
       } else {
-        await fetch('/api/admin/match-player-pool', {
+        await apiFetch('/admin/match-player-pool', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ match_id: matchId, player_id: player.id })
         });
       }
@@ -85,7 +85,7 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
       // Remove all selected players from the pool
       await Promise.all(
         selectedPlayers.map(player => 
-          fetch(`/api/admin/match-player-pool?match_id=${matchId}&player_id=${player.id}`, { 
+          apiFetch(`/admin/match-player-pool?match_id=${matchId}&player_id=${player.id}`, { 
             method: 'DELETE' 
           })
         )
@@ -104,7 +104,7 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
 
     try {
       // 1. Create the new player
-      const response = await fetch('/api/admin/players', {
+      const response = await apiFetch('/admin/players', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,9 +127,8 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
       const newPlayer = result.data;
 
       // 2. Add player to current match pool
-      await fetch('/api/admin/match-player-pool', {
+      await apiFetch('/admin/match-player-pool', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ match_id: matchId, player_id: newPlayer.id })
       });
 

@@ -25,24 +25,24 @@
 **Start here based on your goal:**
 
 ### 🚀 "I want to test iOS NOW"
-1. Read: **`docs/IOS_SETUP_CHECKLIST.md`** (Mac setup steps)
+1. Read: **`SETUP_CHECKLIST.md`** (Mac setup steps)
 2. Run on Mac: `npx cap add ios` → `npm run ios:dev`
 3. Done! App runs in simulator with live reload
 
 ### 🏗️ "I want to understand the architecture"
-1. Read: **`docs/CAPACITOR_BUILD_WORKFLOW.md`** (complete guide)
+1. Read: **`../mobile/BUILD_WORKFLOW.md`** (complete guide)
 2. Understand dev vs prod modes
 3. Learn troubleshooting
 
 ### 💻 "I want to prepare for production"
-1. Read: **`docs/MOBILE_API_GUIDE.md`** (API migration + examples)
+1. Read: **`../mobile/API_GUIDE.md`** (API migration + examples)
 2. Update `fetch()` calls to `apiFetch()`
 3. Deploy and test
 
 ### 🍎 "I want to submit to App Store"
 1. Complete all above steps
-2. Read: **`docs/IOS_PRE_PRODUCTION_CHECKLIST.md`** ⚠️ **CRITICAL - READ BEFORE SUBMISSION**
-3. Read: **`docs/IOS_SETUP_CHECKLIST.md`** → App Store section
+2. Read: **`PRE_PRODUCTION_CHECKLIST.md`** ⚠️ **CRITICAL - READ BEFORE SUBMISSION**
+3. Read: **`SETUP_CHECKLIST.md`** → App Store section
 4. Archive and submit
 
 **⚠️ WARNING:** The Info.plist config includes `NSAppTransportSecurity` which **Apple will reject**. This must be removed before App Store submission! See pre-production checklist for details.
@@ -165,13 +165,13 @@ npm run ios:dev
 - `src/lib/apiConfig.ts` - ✅ API helper for mobile compatibility
 
 ### Documentation
-- `docs/IOS_SETUP_CHECKLIST.md` - Mac setup steps
-- `docs/IOS_PRE_PRODUCTION_CHECKLIST.md` - ⚠️ **Pre-submission requirements**
-- `docs/CAPACITOR_BUILD_WORKFLOW.md` - Complete workflow
-- `docs/MOBILE_API_GUIDE.md` - API migration guide + examples
-- `docs/CAPACITOR_7_CHANGES.md` - Capacitor 7 syntax reference
-- `docs/ios_info_plist_config.xml` - iOS configuration
-- `docs/ios_universal_links.json` - Domain verification
+- `SETUP_CHECKLIST.md` - Mac setup steps
+- `PRE_PRODUCTION_CHECKLIST.md` - ⚠️ **Pre-submission requirements**
+- `../mobile/BUILD_WORKFLOW.md` - Complete workflow
+- `../mobile/API_GUIDE.md` - API migration guide + examples
+- `../mobile/CAPACITOR_7_CHANGES.md` - Capacitor 7 syntax reference
+- `info_plist_config.xml` - iOS configuration
+- `universal_links.json` - Domain verification
 
 ---
 
@@ -289,10 +289,10 @@ apiFetch('/players')
 ## 📞 Need Help?
 
 ### Documentation
-- **Quick start:** This file
-- **Complete guide:** `docs/CAPACITOR_BUILD_WORKFLOW.md`
-- **Mac setup:** `docs/IOS_SETUP_CHECKLIST.md`
-- **Code updates:** `docs/MOBILE_API_MIGRATION.md`
+- **Quick start:** This file (`docs/ios/README.md`)
+- **Complete guide:** `../mobile/BUILD_WORKFLOW.md`
+- **Mac setup:** `SETUP_CHECKLIST.md`
+- **Code updates:** `../mobile/API_GUIDE.md`
 
 ### External Resources
 - Capacitor Docs: https://capacitorjs.com/docs/ios

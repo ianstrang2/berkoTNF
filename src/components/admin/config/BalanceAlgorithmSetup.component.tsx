@@ -4,6 +4,7 @@ import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import Swal from 'sweetalert2';
+import { apiFetch } from '@/lib/apiConfig';
 
 // Define types
 interface Weight {
@@ -53,7 +54,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
     setError(null);
     
     try {
-      const response = await fetch('/api/admin/balance-algorithm');
+      const response = await apiFetch('/admin/balance-algorithm');
       
       if (!response.ok) {
         throw new Error('Failed to fetch balance weights');
@@ -230,7 +231,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
     setError(null);
     
     try {
-      const response = await fetch('/api/admin/balance-algorithm', {
+      const response = await apiFetch('/admin/balance-algorithm', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -287,7 +288,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
     setError(null);
     
     try {
-      const response = await fetch('/api/admin/balance-algorithm/reset', {
+      const response = await apiFetch('/admin/balance-algorithm/reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

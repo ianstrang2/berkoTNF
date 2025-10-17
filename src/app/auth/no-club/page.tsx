@@ -10,6 +10,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { apiFetch } from '@/lib/apiConfig';
 
 function NoClubForm() {
   const router = useRouter();
@@ -39,9 +40,8 @@ function NoClubForm() {
       }
 
       // Look up club by code
-      const response = await fetch('/api/join/by-code', {
+      const response = await apiFetch('/join/by-code', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ club_code: normalizedCode }),
       });
 

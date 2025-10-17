@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
 import { PlayerInPool } from '@/types/player.types';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface UpcomingMatchWithPlayers {
   upcoming_match_id: number;
@@ -20,8 +21,7 @@ async function fetchUpcomingMatchDetails(
   // Gracefully handle missing tenantId or matchId
   if (!tenantId || !matchId) return null;
   
-  const response = await fetch(`/api/upcoming?matchId=${matchId}`, { 
-    credentials: 'include',
+  const response = await apiFetch(`/upcoming?matchId=${matchId}`, { 
     cache: 'no-store'
   });
   

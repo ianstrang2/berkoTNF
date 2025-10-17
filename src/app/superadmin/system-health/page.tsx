@@ -8,6 +8,7 @@ import Button from '@/components/ui-kit/Button.component';
 
 import { format } from 'date-fns';
 import { shouldUseBackgroundJobs } from '@/config/feature-flags';
+import { apiFetch } from '@/lib/apiConfig';
 
 
 interface BackgroundJobStatus {
@@ -95,7 +96,7 @@ export default function SystemHealthPage() {
   const fetchSystemHealth = useCallback(async () => {
     setIsLoadingHealth(true);
     try {
-      const response = await fetch('/api/superadmin/system-health');
+      const response = await apiFetch('/superadmin/system-health');
       const result = await response.json();
 
       if (result.success) {
@@ -115,7 +116,7 @@ export default function SystemHealthPage() {
     setIsLoadingJobs(true);
     setJobError(null);
     try {
-      const response = await fetch('/api/superadmin/background-jobs');
+      const response = await apiFetch('/superadmin/background-jobs');
       const result = await response.json();
 
       if (!result.success) {
@@ -139,7 +140,7 @@ export default function SystemHealthPage() {
           : job
       ));
 
-      const response = await fetch('/api/admin/enqueue-stats-job', {
+      const response = await apiFetch('/admin/enqueue-stats-job', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -273,7 +274,7 @@ export default function SystemHealthPage() {
     
     try {
       // Superadmin triggers stats for ALL tenants via dedicated endpoint
-      const response = await fetch('/api/superadmin/trigger-all-stats', {
+      const response = await apiFetch('/superadmin/trigger-all-stats', {
         method: 'POST'
       });
 
@@ -692,7 +693,7 @@ async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', match
       userId: 'admin'
     };
 
-    const response = await fetch('/api/admin/enqueue-stats-job', {
+    const response = await apiFetch('/admin/enqueue-stats-job', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -703,7 +704,7 @@ async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', match
       throw new Error(errorData.error || `Background job enqueue failed: ${response.statusText}`);
     }
   } else {
-    const response = await fetch('/api/admin/trigger-stats-update', { 
+    const response = await apiFetch('/admin/trigger-stats-update', { 
       method: 'POST' 
     });
 

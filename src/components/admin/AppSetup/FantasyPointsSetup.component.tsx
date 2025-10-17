@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
 import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface ConfigItem {
   config_key: string;
@@ -39,7 +40,7 @@ const FantasyPointsSetup: React.FC = () => {
   const fetchSettings = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/settings/fantasy-points');
+      const response = await apiFetch('/admin/settings/fantasy-points');
       
       if (!response.ok) throw new Error('Failed to fetch fantasy points settings');
       
@@ -88,7 +89,7 @@ const FantasyPointsSetup: React.FC = () => {
         config_value
       }));
       
-      const response = await fetch('/api/admin/app-config', {
+      const response = await apiFetch('/admin/app-config', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -119,7 +120,7 @@ const FantasyPointsSetup: React.FC = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch('/api/admin/app-config', {
+      const response = await apiFetch('/admin/app-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

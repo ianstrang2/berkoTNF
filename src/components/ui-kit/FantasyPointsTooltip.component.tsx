@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface FantasyPointsData {
   config_description: string;
@@ -22,7 +23,7 @@ const FantasyPointsTooltip: React.FC<FantasyPointsTooltipProps> = ({ isOpen, onC
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/admin/app-config?groups=fantasy_points');
+      const response = await apiFetch('/admin/app-config?groups=fantasy_points');
       
       if (!response.ok) {
         throw new Error('Failed to fetch fantasy points configuration');

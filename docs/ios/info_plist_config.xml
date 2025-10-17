@@ -44,7 +44,7 @@ inside the main <dict> element (before the closing </dict> tag).
      DEVELOPMENT: Required for npm run ios:dev (live reload)
      PRODUCTION: MUST BE REMOVED before App Store submission!
      
-     See: docs/IOS_PRE_PRODUCTION_CHECKLIST.md (Step 1)
+     See: docs/ios/PRE_PRODUCTION_CHECKLIST.md (Step 1)
      
      When to remove: Right before creating your App Store archive.
 -->

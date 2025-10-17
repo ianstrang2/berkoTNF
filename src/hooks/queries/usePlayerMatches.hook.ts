@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface Match {
   date: string;
@@ -24,9 +25,7 @@ async function fetchPlayerMatches(
     return [];
   }
 
-  const response = await fetch(`/api/player/${playerId}/allmatches`, {
-    credentials: 'include',
-  });
+  const response = await apiFetch(`/player/${playerId}/allmatches`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch match data: ${response.statusText}`);

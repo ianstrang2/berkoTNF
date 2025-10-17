@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface TeamTemplate {
   defenders: number;
@@ -24,9 +25,7 @@ async function fetchTeamTemplate(
     return null;
   }
 
-  const response = await fetch(`/api/admin/team-templates?teamSize=${teamSize}`, {
-    credentials: 'include',
-  });
+  const response = await apiFetch(`/admin/team-templates?teamSize=${teamSize}`);
 
   if (!response.ok) {
     console.warn('Team template not found, using fallback');

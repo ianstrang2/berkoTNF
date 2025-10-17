@@ -70,7 +70,7 @@ npx cap add ios
 
 **Add this content** (inside the main `<dict>` element):
 
-Copy the entire content from: `docs/ios_info_plist_config.xml`
+Copy the entire content from: `docs/ios/info_plist_config.xml`
 
 **What it configures:**
 - Custom scheme: `capo://`
@@ -288,7 +288,7 @@ npx cap open ios
 
 **Before submitting to App Store, complete ALL items in:**
 
-📄 **[docs/IOS_PRE_PRODUCTION_CHECKLIST.md](./IOS_PRE_PRODUCTION_CHECKLIST.md)**
+📄 **[docs/ios/PRE_PRODUCTION_CHECKLIST.md](./PRE_PRODUCTION_CHECKLIST.md)**
 
 **Key items (App Store WILL reject if missing):**
 
@@ -420,7 +420,7 @@ Apple's common rejection reasons:
 
 1. **Transfer project to MacBook**
 2. **Run:** `npx cap add ios`
-3. **Configure Info.plist** (copy from `docs/ios_info_plist_config.xml`)
+3. **Configure Info.plist** (copy from `docs/ios/info_plist_config.xml`)
 4. **Test build:** `npm run ios:build`
 5. **Test deep links** (see Step 5 above)
 6. **Install on device** (requires Apple Developer account)
@@ -428,5 +428,5 @@ Apple's common rejection reasons:
 
 ---
 
-**Questions?** Check `docs/CAPACITOR_BUILD_WORKFLOW.md` for detailed troubleshooting.
+**Questions?** Check `docs/mobile/BUILD_WORKFLOW.md` for detailed troubleshooting.
 

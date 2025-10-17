@@ -2,6 +2,7 @@
 // Service to handle team balancing logic
 
 import { PlayerProfile } from '@/types/player.types';
+import { apiFetch } from '@/lib/apiConfig';
 import { Slot } from '@/types/team-algorithm.types';
 
 export class TeamBalanceService {
@@ -12,7 +13,7 @@ export class TeamBalanceService {
    */
   public static async balanceTeams(matchId: string): Promise<boolean> {
     // Call the balance-planned-match endpoint
-    const response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, {
+    const response = await apiFetch(`/admin/balance-planned-match?matchId=${matchId}`, {
       method: 'POST'
     });
     

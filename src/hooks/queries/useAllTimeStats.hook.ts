@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { PlayerWithStats } from '@/types/player.types';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface AllTimeStatsResponse {
   data: PlayerWithStats[];
@@ -20,9 +21,7 @@ async function fetchAllTimeStats(tenantId: string | null): Promise<PlayerWithSta
     return [];
   }
   
-  const response = await fetch('/api/allTimeStats', {
-    credentials: 'include', // Important: include cookies for auth
-  });
+  const response = await apiFetch('/allTimeStats');
   
   if (!response.ok) {
     throw new Error(`All-time stats API returned ${response.status}`);

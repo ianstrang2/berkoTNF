@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface HistoricalMatch {
   match_id: number;
@@ -23,9 +24,7 @@ async function fetchMatchHistory(
 ): Promise<HistoricalMatch[]> {
   if (!tenantId) return [];
 
-  const response = await fetch('/api/matches/history', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/matches/history');
 
   if (!response.ok) {
     throw new Error(`Failed to fetch match history: ${response.statusText}`);

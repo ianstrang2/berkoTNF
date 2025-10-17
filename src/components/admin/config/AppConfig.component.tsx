@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Card from '@/components/ui-kit/Card.component';
 import Button from '@/components/ui-kit/Button.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 // Matches the structure of items from your app_config table
 // including the new fields
@@ -111,7 +112,7 @@ const AppConfig: React.FC<AppConfigProps> = ({
         // Assuming API can handle ?groups=group1,group2 or similar
         // Adjust if your API expects a different format for multiple groups
         const groupsQueryParam = targetConfigGroups.join(',');
-        const response = await fetch(`/api/admin/app-config?groups=${encodeURIComponent(groupsQueryParam)}`);
+        const response = await apiFetch(`/admin/app-config?groups=${encodeURIComponent(groupsQueryParam)}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch configuration settings');
@@ -198,7 +199,7 @@ const AppConfig: React.FC<AppConfigProps> = ({
     }
 
     try {
-      const response = await fetch('/api/admin/app-config', {
+      const response = await apiFetch('/admin/app-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ configs: modifiedConfigs }),
@@ -265,7 +266,7 @@ const AppConfig: React.FC<AppConfigProps> = ({
     closeResetConfDialog();
 
     try {
-      const response = await fetch('/api/admin/app-config/reset', {
+      const response = await apiFetch('/admin/app-config/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ group: associatedConfigGroup }), // API resets by main config_group
@@ -282,7 +283,7 @@ const AppConfig: React.FC<AppConfigProps> = ({
       // After reset, refetch all data for the current targetConfigGroups to get fresh values
       // This is simpler than trying to merge partial reset data.
       const groupsQueryParam = targetConfigGroups.join(',');
-      const refetchResponse = await fetch(`/api/admin/app-config?groups=${encodeURIComponent(groupsQueryParam)}`);
+      const refetchResponse = await apiFetch(`/admin/app-config?groups=${encodeURIComponent(groupsQueryParam)}`);
       const refetchResult = await refetchResponse.json();
       if (refetchResult.success && Array.isArray(refetchResult.data)) {
           setAllFetchedConfigs(refetchResult.data as AppConfigData[]);

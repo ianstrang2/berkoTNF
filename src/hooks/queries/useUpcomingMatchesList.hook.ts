@@ -9,6 +9,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface ActiveMatch {
   upcoming_match_id: number;
@@ -26,9 +27,7 @@ async function fetchUpcomingMatches(
     return [];
   }
 
-  const response = await fetch('/api/admin/upcoming-matches', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/admin/upcoming-matches');
 
   if (!response.ok) {
     throw new Error(`Failed to fetch upcoming matches: ${response.statusText}`);
@@ -62,11 +61,9 @@ export function useCreateMatch() {
 
   return useMutation({
     mutationFn: async (data: { match_date: string; team_size: number }) => {
-      const response = await fetch('/api/admin/upcoming-matches', {
+      const response = await apiFetch('/admin/upcoming-matches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -92,12 +89,11 @@ export function useDeleteMatch() {
   return useMutation({
     mutationFn: async ({ matchId, isHistorical }: { matchId: number; isHistorical: boolean }) => {
       const endpoint = isHistorical 
-        ? `/api/matches/history?matchId=${matchId}`
-        : `/api/admin/upcoming-matches?id=${matchId}`;
+        ? `/matches/history?matchId=${matchId}`
+        : `/admin/upcoming-matches?id=${matchId}`;
 
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(endpoint, {
         method: 'DELETE',
-        credentials: 'include',
       });
 
       if (!response.ok) {

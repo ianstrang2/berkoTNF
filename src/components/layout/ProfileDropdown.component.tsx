@@ -13,6 +13,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useQueryClient } from '@tanstack/react-query';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface Tenant {
   tenant_id: string;
@@ -55,7 +56,7 @@ export const ProfileDropdown: React.FC = () => {
     try {
       // Clear server-side cookies first
       try {
-        await fetch('/api/auth/logout', { method: 'POST' });
+        await apiFetch('/auth/logout', { method: 'POST' });
       } catch (e) {
         console.warn('Failed to clear server cookies:', e);
         // Continue with logout anyway
@@ -81,7 +82,7 @@ export const ProfileDropdown: React.FC = () => {
   const fetchTenants = async () => {
     setLoadingTenants(true);
     try {
-      const response = await fetch('/api/superadmin/tenants');
+      const response = await apiFetch('/superadmin/tenants');
       const result = await response.json();
       if (result.success) {
         setTenants(result.data.map((t: any) => ({
@@ -124,9 +125,8 @@ export const ProfileDropdown: React.FC = () => {
     try {
       // For superadmin, must call API to update session with tenant context
       if (profile.isSuperadmin && tenantId) {
-        const response = await fetch('/api/auth/superadmin/switch-tenant', {
+        const response = await apiFetch('/auth/superadmin/switch-tenant', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tenantId }),
         });
         

@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface PlayerTrendData {
   power_rating_percentile: number | null;
@@ -24,9 +25,7 @@ async function fetchPlayerTrends(
     return null;
   }
 
-  const response = await fetch(`/api/player/trends/${playerId}`, {
-    credentials: 'include',
-  });
+  const response = await apiFetch(`/player/trends/${playerId}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch trends: ${response.statusText}`);

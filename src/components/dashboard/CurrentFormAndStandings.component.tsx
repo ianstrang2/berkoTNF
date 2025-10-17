@@ -6,6 +6,7 @@ import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import { LeaderData } from '@/utils/timeline.util';
 import { PlayerProfile } from '@/types/player.types';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface MatchInfo {
   match_date: string;
@@ -102,9 +103,9 @@ const CurrentFormAndStandings: React.FC = () => {
       setError(null);
       
       const [matchResponse, playersResponse, configResponse] = await Promise.all([
-        fetch('/api/matchReport'),
-        fetch('/api/players'),
-        fetch('/api/admin/app-config?group=match_settings')
+        apiFetch('/matchReport'),
+        apiFetch('/players'),
+        apiFetch('/admin/app-config?group=match_settings')
       ]);
       
       if (!matchResponse.ok) {

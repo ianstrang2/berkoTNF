@@ -6,12 +6,13 @@ import {
 } from '@/types/team-algorithm.types';
 import { PlayerProfile, PlayerInPool } from '@/types/player.types';
 import { TeamBalanceService } from './TeamBalance.service';
+import { apiFetch } from '@/lib/apiConfig';
 
 export const TeamAPIService = {
   // Player pool APIs
   fetchPlayerPool: async (matchId: string): Promise<PlayerInPool[]> => {
     try {
-      const response = await fetch(`/api/admin/match-player-pool?match_id=${matchId}`);
+      const response = await apiFetch(`/admin/match-player-pool?match_id=${matchId}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch player pool: ${response.status} ${errorText}`);
@@ -26,9 +27,8 @@ export const TeamAPIService = {
   
   addPlayerToPool: async (matchId: string, playerId: string): Promise<void> => {
     try {
-      const response = await fetch('/api/admin/match-player-pool', {
+      const response = await apiFetch('/admin/match-player-pool', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ match_id: matchId, player_id: playerId })
       });
       
@@ -44,7 +44,7 @@ export const TeamAPIService = {
   
   removePlayerFromPool: async (matchId: string, playerId: string): Promise<void> => {
     try {
-      const response = await fetch(`/api/admin/match-player-pool?match_id=${matchId}&player_id=${playerId}`, {
+      const response = await apiFetch(`/admin/match-player-pool?match_id=${matchId}&player_id=${playerId}`, {
         method: 'DELETE'
       });
       
@@ -60,7 +60,7 @@ export const TeamAPIService = {
   
   clearEntirePlayerPool: async (matchId: string): Promise<void> => {
     try {
-      const response = await fetch(`/api/admin/match-player-pool?match_id=${matchId}`, {
+      const response = await apiFetch(`/admin/match-player-pool?match_id=${matchId}`, {
         method: 'DELETE'
       });
       
@@ -82,7 +82,7 @@ export const TeamAPIService = {
   // Team assignment APIs
   fetchTeamAssignments: async (matchId: string): Promise<Slot[]> => {
     try {
-      const response = await fetch(`/api/admin/upcoming-match-players?matchId=${matchId}`);
+      const response = await apiFetch(`/admin/upcoming-match-players?matchId=${matchId}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch team assignments: ${response.status} ${errorText}`);
@@ -106,9 +106,8 @@ export const TeamAPIService = {
   
   assignPlayerToSlot: async (matchId: string, playerId: string, slotNumber: number, team: string): Promise<void> => {
     try {
-      const response = await fetch('/api/admin/upcoming-match-players', {
+      const response = await apiFetch('/admin/upcoming-match-players', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           upcoming_match_id: matchId,
           player_id: playerId,
@@ -134,7 +133,7 @@ export const TeamAPIService = {
     
     while (attempts < maxAttempts) {
       try {
-        const response = await fetch(`/api/admin/balance-planned-match?matchId=${matchId}`, {
+        const response = await apiFetch(`/admin/balance-planned-match?matchId=${matchId}`, {
           method: 'POST'
         });
         
@@ -174,7 +173,7 @@ export const TeamAPIService = {
   
   balanceTeamsRandomly: async (matchId: string, playerIds: string[]): Promise<any> => {
     try {
-      const response = await fetch(`/api/admin/random-balance-match?matchId=${matchId}`, {
+      const response = await apiFetch(`/admin/random-balance-match?matchId=${matchId}`, {
         method: 'POST'
       });
       
@@ -196,9 +195,8 @@ export const TeamAPIService = {
   // New function for balancing by past performance
   balanceTeamsByPastPerformance: async (matchId: string, playerIds: string[]): Promise<any> => {
     try {
-      const response = await fetch(`/api/admin/balance-by-past-performance`, { // Updated endpoint
+      const response = await apiFetch(`/admin/balance-by-past-performance`, { // Updated endpoint
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchId, playerIds }) // Pass matchId and playerIds
       });
 
@@ -223,7 +221,7 @@ export const TeamAPIService = {
   performClientSideRandomBalance: async (matchId: string, playerIds: string[]): Promise<any> => {
     try {
       // Fetch current match data to get team size
-      const matchResponse = await fetch(`/api/admin/upcoming-matches?id=${matchId}`);
+      const matchResponse = await apiFetch(`/admin/upcoming-matches?id=${matchId}`);
       const matchData = await matchResponse.json();
       if (!matchData.success) throw new Error('Failed to fetch match data');
       
@@ -272,9 +270,8 @@ export const TeamAPIService = {
       ));
       
       // Mark match as balanced
-      await fetch(`/api/admin/upcoming-matches`, {
+      await apiFetch(`/admin/upcoming-matches`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           upcoming_match_id: matchId,
           is_balanced: true
@@ -303,7 +300,7 @@ export const TeamAPIService = {
   // Clear all slot assignments but keep the match
   clearTeamAssignments: async (matchId: string): Promise<void> => {
     try {
-      const response = await fetch(`/api/admin/upcoming-match-players/clear?matchId=${matchId}`, {
+      const response = await apiFetch(`/admin/upcoming-match-players/clear?matchId=${matchId}`, {
         method: 'POST'
       });
       
@@ -320,7 +317,7 @@ export const TeamAPIService = {
   // Clear the active match entirely
   clearActiveMatch: async (): Promise<void> => {
     try {
-      const response = await fetch('/api/admin/clear-active-match', {
+      const response = await apiFetch('/admin/clear-active-match', {
         method: 'POST'
       });
       
@@ -337,9 +334,8 @@ export const TeamAPIService = {
   // Create a new match
   createMatch: async (matchData: MatchFormData): Promise<void> => {
     try {
-      const response = await fetch('/api/admin/create-planned-match', {
+      const response = await apiFetch('/admin/create-planned-match', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: matchData.match_date,
           team_size: matchData.team_size
@@ -359,9 +355,8 @@ export const TeamAPIService = {
   // Edit an existing match
   updateMatch: async (matchId: string, matchData: MatchFormData): Promise<void> => {
     try {
-      const response = await fetch('/api/admin/upcoming-matches', {
+      const response = await apiFetch('/admin/upcoming-matches', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           match_id: matchId,
           match_date: matchData.match_date,
@@ -382,9 +377,8 @@ export const TeamAPIService = {
   // Add a ringer player
   addRinger: async (ringerData: PlayerFormData): Promise<PlayerProfile> => {
     try {
-      const response = await fetch('/api/admin/add-ringer', {
+      const response = await apiFetch('/admin/add-ringer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: ringerData.name,
           goalscoring: parseFloat(ringerData.goalscoring.toString()),

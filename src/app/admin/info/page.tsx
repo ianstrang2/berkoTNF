@@ -8,6 +8,7 @@ import Button from '@/components/ui-kit/Button.component';
 
 import { format } from 'date-fns';
 import { shouldUseBackgroundJobs } from '@/config/feature-flags';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface CacheMetadata {
   cache_key: string;
@@ -115,7 +116,7 @@ const AdminInfoPage = () => {
     try {
       // Add a cache-busting query parameter
       const cacheBuster = `_=${new Date().getTime()}`;
-      const response = await fetch(`/api/cache-metadata?${cacheBuster}`);
+      const response = await apiFetch(`/cache-metadata?${cacheBuster}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch cache metadata: ${response.statusText}`);
       }
@@ -137,7 +138,7 @@ const AdminInfoPage = () => {
     setIsLoadingInfoData(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/info-data');
+      const response = await apiFetch('/admin/info-data');
       if (!response.ok) {
         throw new Error(`Failed to fetch info data: ${response.statusText}`);
       }
@@ -161,7 +162,7 @@ const AdminInfoPage = () => {
     setPlayersLoading(true);
     setPlayersError(null);
     try {
-      const res = await fetch('/api/admin/players');
+      const res = await apiFetch('/admin/players');
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
@@ -190,7 +191,7 @@ const AdminInfoPage = () => {
     setDataError(null);
     try {
       // Use the simplified rating-data API for EWMA-only data
-      const res = await fetch(`/api/admin/rating-data?id=${playerId}`);
+      const res = await apiFetch(`/admin/rating-data?id=${playerId}`);
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
@@ -208,7 +209,7 @@ const AdminInfoPage = () => {
     setIsLoadingProfiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/player-profile-metadata');
+      const response = await apiFetch('/admin/player-profile-metadata');
       if (!response.ok) {
         throw new Error(`Failed to fetch profile metadata: ${response.statusText}`);
       }
@@ -226,11 +227,8 @@ const AdminInfoPage = () => {
     setIsUpdatingProfiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/trigger-player-profiles', {
+      const response = await apiFetch('/admin/trigger-player-profiles', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ limit: 100 }) // Process all eligible players
       });
 
@@ -271,7 +269,7 @@ const AdminInfoPage = () => {
     setIsResettingProfiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/reset-player-profiles', {
+      const response = await apiFetch('/admin/reset-player-profiles', {
         method: 'POST'
       });
 
@@ -309,7 +307,7 @@ const AdminInfoPage = () => {
     setIsLoadingJobs(true);
     setJobError(null);
     try {
-      const response = await fetch('/api/admin/background-jobs');
+      const response = await apiFetch('/admin/background-jobs');
       const result = await response.json();
 
       if (!result.success) {
@@ -335,9 +333,8 @@ const AdminInfoPage = () => {
       ));
 
       // Re-enqueue the failed job
-      const response = await fetch('/api/admin/enqueue-stats-job', {
+      const response = await apiFetch('/admin/enqueue-stats-job', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           triggeredBy: 'admin',
           requestId: crypto.randomUUID(),
@@ -531,7 +528,7 @@ const AdminInfoPage = () => {
   const fetchSystemHealth = useCallback(async () => {
     setIsLoadingSystemHealth(true);
     try {
-      const response = await fetch('/api/admin/system-health');
+      const response = await apiFetch('/admin/system-health');
       if (response.ok) {
         const result = await response.json();
         setSystemHealth(result.health);
@@ -602,7 +599,7 @@ const AdminInfoPage = () => {
     setIsUpdatingStats(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/trigger-stats-update', {
+      const response = await apiFetch('/admin/trigger-stats-update', {
         method: 'POST',
       });
 
@@ -1194,9 +1191,8 @@ async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', match
       userId: 'admin' // For admin-triggered jobs
     };
 
-    const response = await fetch('/api/admin/enqueue-stats-job', {
+    const response = await apiFetch('/admin/enqueue-stats-job', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -1211,7 +1207,7 @@ async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', match
     // Fallback to original edge function system
     console.log(`🔄 Using fallback edge functions for ${triggerType} stats update`);
     
-    const response = await fetch('/api/admin/trigger-stats-update', { 
+    const response = await apiFetch('/admin/trigger-stats-update', { 
       method: 'POST' 
     });
 

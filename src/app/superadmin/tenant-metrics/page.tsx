@@ -5,6 +5,7 @@ import AdminLayout from '@/components/layout/AdminLayout.layout';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import Button from '@/components/ui-kit/Button.component';
 import { format } from 'date-fns';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface Tenant {
   tenant_id: string;
@@ -79,7 +80,7 @@ export default function TenantMetricsPage() {
 
   const fetchTenants = async () => {
     try {
-      const response = await fetch('/api/superadmin/tenants');
+      const response = await apiFetch('/superadmin/tenants');
       const result = await response.json();
       if (result.success) {
         setTenants(result.data.map((t: any) => ({
@@ -100,7 +101,7 @@ export default function TenantMetricsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/superadmin/tenant-metrics?tenantId=${tenantId}`);
+      const response = await apiFetch(`/superadmin/tenant-metrics?tenantId=${tenantId}`);
       const result = await response.json();
       
       if (result.success) {
@@ -122,7 +123,7 @@ export default function TenantMetricsPage() {
     
     setIsLoadingRating(true);
     try {
-      const response = await fetch(`/api/admin/rating-data?id=${playerId}`);
+      const response = await apiFetch(`/admin/rating-data?id=${playerId}`);
       const result = await response.json();
       setRatingData(result.data || null);
     } catch (err) {
@@ -151,7 +152,7 @@ export default function TenantMetricsPage() {
     setIsUpdatingProfiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/trigger-player-profiles', {
+      const response = await apiFetch('/admin/trigger-player-profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ limit: 100 })
@@ -181,7 +182,7 @@ export default function TenantMetricsPage() {
     setIsResettingProfiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/reset-player-profiles', {
+      const response = await apiFetch('/admin/reset-player-profiles', {
         method: 'POST'
       });
 

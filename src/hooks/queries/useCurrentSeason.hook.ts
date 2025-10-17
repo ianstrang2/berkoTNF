@@ -8,6 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface CurrentSeasonData {
   id: string;
@@ -31,9 +32,7 @@ async function fetchCurrentSeason(tenantId: string | null): Promise<CurrentSeaso
     return null;
   }
   
-  const response = await fetch('/api/seasons/current', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/seasons/current');
   
   if (!response.ok) {
     throw new Error(`Current season API returned ${response.status}`);

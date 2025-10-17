@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { PlayerWithStats, PlayerWithGoalStats } from '@/types/player.types';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface FormData {
   name: string;
@@ -31,10 +32,8 @@ async function fetchHalfSeasonStats(tenantId: string | null): Promise<HalfSeason
     return { seasonStats: [], goalStats: [], formData: [] };
   }
   
-  const response = await fetch('/api/stats/half-season', {
+  const response = await apiFetch('/stats/half-season', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
   });
   
   if (!response.ok) {

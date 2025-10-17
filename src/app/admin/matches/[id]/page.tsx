@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import useMatchState from '@/hooks/useMatchState.hook';
+import { apiFetch } from '@/lib/apiConfig';
 import { splitSizesFromPool, getPoolValidation, COPY_CONSTANTS } from '@/utils/teamSplit.util';
 import { areAllSlotsFilled, getTeamCompletionStatus } from '@/utils/teamValidation.util';
 import PlayerPoolPane from '@/components/admin/matches/PlayerPoolPane.component';
@@ -86,7 +87,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
     setEditError(null);
     
     try {
-      const response = await fetch('/api/admin/upcoming-matches', {
+      const response = await apiFetch('/admin/upcoming-matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

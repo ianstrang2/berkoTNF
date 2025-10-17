@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { PlayerProfile } from '@/types/player.types';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface PlayersResponse {
   data: PlayerProfile[];
@@ -20,9 +21,7 @@ async function fetchPlayers(tenantId: string | null): Promise<PlayerProfile[]> {
     return [];
   }
   
-  const response = await fetch('/api/players', {
-    credentials: 'include', // Important: include cookies for auth
-  });
+  const response = await apiFetch('/players');
   
   if (!response.ok) {
     throw new Error(`Players API returned ${response.status}`);

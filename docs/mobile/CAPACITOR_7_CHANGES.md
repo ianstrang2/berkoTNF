@@ -131,9 +131,9 @@ Error: Could not connect to livereload server
 - No `server` config needed (Capacitor 7 handles it automatically)
 
 ### Documentation Updated ✅
-- `docs/CAPACITOR_BUILD_WORKFLOW.md` - Updated examples
-- `docs/IOS_SETUP_CHECKLIST.md` - Updated testing scenarios
-- `README_IOS_SETUP.md` - Updated quick start
+- `docs/mobile/BUILD_WORKFLOW.md` - Updated examples
+- `docs/ios/SETUP_CHECKLIST.md` - Updated testing scenarios
+- `docs/ios/README.md` - Updated quick start
 
 ---
 

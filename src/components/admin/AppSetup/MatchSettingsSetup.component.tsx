@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
 import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface ConfigItem {
   config_key: string;
@@ -44,7 +45,7 @@ const MatchSettingsSetup: React.FC = () => {
   const fetchSettings = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/app-config?group=match_settings');
+      const response = await apiFetch('/admin/app-config?group=match_settings');
       
       if (!response.ok) throw new Error('Failed to fetch match settings');
       
@@ -95,7 +96,7 @@ const MatchSettingsSetup: React.FC = () => {
         config_value
       }));
       
-      const response = await fetch('/api/admin/app-config', {
+      const response = await apiFetch('/admin/app-config', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -130,7 +131,7 @@ const MatchSettingsSetup: React.FC = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch('/api/admin/app-config/reset', { // Changed endpoint
+      const response = await apiFetch('/admin/app-config/reset', { // Changed endpoint
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

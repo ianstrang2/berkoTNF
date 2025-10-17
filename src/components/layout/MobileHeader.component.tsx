@@ -15,6 +15,7 @@ import { Capacitor } from '@capacitor/core';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 export const MobileHeader: React.FC = () => {
   const pathname = usePathname() || '';
@@ -37,7 +38,7 @@ export const MobileHeader: React.FC = () => {
     setLoggingOut(true);
     try {
       try {
-        await fetch('/api/auth/logout', { method: 'POST' });
+        await apiFetch('/auth/logout', { method: 'POST' });
       } catch (e) {
         console.warn('Failed to clear server cookies:', e);
       }

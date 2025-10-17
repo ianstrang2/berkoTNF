@@ -13,6 +13,7 @@ import { calculateTeamStatsFromPlayers, calculatePerformanceTeamStats } from '@/
 import { deriveTemplate, formationToTemplate } from '@/utils/teamFormation.util';
 // React Query hooks for automatic deduplication
 import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
+import { apiFetch } from '@/lib/apiConfig';
 import { useLatestPlayerStatus } from '@/hooks/queries/useLatestPlayerStatus.hook';
 import { useTeamTemplate } from '@/hooks/queries/useTeamTemplates.hook';
 import { useBalanceAlgorithm, usePerformanceWeights } from '@/hooks/queries/useBalanceWeights.hook';
@@ -127,7 +128,7 @@ const useTeamDragAndDrop = (
     try {
       if (conflictPlayer) {
         // Use atomic swap endpoint for any conflicts (either true swap or displacement to pool)
-        const response = await fetch('/api/admin/upcoming-match-players/swap', {
+        const response = await apiFetch('/admin/upcoming-match-players/swap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -150,7 +151,7 @@ const useTeamDragAndDrop = (
         }
       } else {
         // Single player move (no conflict)
-        const response = await fetch('/api/admin/upcoming-match-players', {
+        const response = await apiFetch('/admin/upcoming-match-players', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

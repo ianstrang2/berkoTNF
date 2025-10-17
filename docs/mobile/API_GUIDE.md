@@ -555,5 +555,5 @@ console.log('API Base:', getApiBaseUrl());
 
 ---
 
-**Questions?** Check `docs/CAPACITOR_BUILD_WORKFLOW.md` for overall architecture or `docs/IOS_SETUP_CHECKLIST.md` for iOS-specific setup.
+**Questions?** Check `docs/mobile/BUILD_WORKFLOW.md` for overall architecture or `docs/ios/SETUP_CHECKLIST.md` for iOS-specific setup.
 

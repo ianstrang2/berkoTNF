@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { withTenantFilter } from '@/lib/tenantFilter';
+import { apiFetch } from '@/lib/apiConfig';
 
 // Player rating interface for new EWMA data
 interface PlayerRating {
@@ -54,7 +55,7 @@ export async function balanceByPastPerformance(
   let weights = performanceWeights;
   if (!weights) {
     try {
-      const weightsResponse = await fetch('/api/admin/performance-weights');
+      const weightsResponse = await apiFetch('/admin/performance-weights');
       if (weightsResponse.ok) {
         const weightsData = await weightsResponse.json();
         if (weightsData.success) {

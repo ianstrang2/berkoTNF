@@ -9,6 +9,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 
 import { format } from 'date-fns';
 import { shouldUseBackgroundJobs } from '@/config/feature-flags';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface CacheMetadata {
   cache_key: string;
@@ -120,7 +121,7 @@ export default function SuperadminInfoPage() {
     setError(null);
     try {
       const cacheBuster = `_=${new Date().getTime()}`;
-      const response = await fetch(`/api/superadmin/cache-metadata?${cacheBuster}`);
+      const response = await apiFetch(`/superadmin/cache-metadata?${cacheBuster}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch cache metadata: ${response.statusText}`);
       }
@@ -142,7 +143,7 @@ export default function SuperadminInfoPage() {
     setIsLoadingInfoData(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/info-data');
+      const response = await apiFetch('/admin/info-data');
       if (!response.ok) {
         throw new Error(`Failed to fetch info data: ${response.statusText}`);
       }
@@ -165,7 +166,7 @@ export default function SuperadminInfoPage() {
     setPlayersLoading(true);
     setPlayersError(null);
     try {
-      const res = await fetch('/api/admin/players');
+      const res = await apiFetch('/admin/players');
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
@@ -192,7 +193,7 @@ export default function SuperadminInfoPage() {
     setDataLoading(true);
     setDataError(null);
     try {
-      const res = await fetch(`/api/admin/rating-data?id=${playerId}`);
+      const res = await apiFetch(`/admin/rating-data?id=${playerId}`);
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
@@ -209,7 +210,7 @@ export default function SuperadminInfoPage() {
     setIsLoadingProfiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/player-profile-metadata');
+      const response = await apiFetch('/admin/player-profile-metadata');
       if (!response.ok) {
         throw new Error(`Failed to fetch profile metadata: ${response.statusText}`);
       }
@@ -227,7 +228,7 @@ export default function SuperadminInfoPage() {
     setIsUpdatingProfiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/trigger-player-profiles', {
+      const response = await apiFetch('/admin/trigger-player-profiles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,7 +271,7 @@ export default function SuperadminInfoPage() {
     setIsResettingProfiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/reset-player-profiles', {
+      const response = await apiFetch('/admin/reset-player-profiles', {
         method: 'POST'
       });
 
@@ -305,7 +306,7 @@ export default function SuperadminInfoPage() {
     setIsLoadingJobs(true);
     setJobError(null);
     try {
-      const response = await fetch('/api/superadmin/background-jobs');
+      const response = await apiFetch('/superadmin/background-jobs');
       const result = await response.json();
 
       if (!result.success) {
@@ -329,7 +330,7 @@ export default function SuperadminInfoPage() {
           : job
       ));
 
-      const response = await fetch('/api/admin/enqueue-stats-job', {
+      const response = await apiFetch('/admin/enqueue-stats-job', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -516,7 +517,7 @@ export default function SuperadminInfoPage() {
   const fetchSystemHealth = useCallback(async () => {
     setIsLoadingSystemHealth(true);
     try {
-      const response = await fetch('/api/superadmin/system-health');
+      const response = await apiFetch('/superadmin/system-health');
       if (response.ok) {
         const result = await response.json();
         setSystemHealth(result.health);
@@ -1158,7 +1159,7 @@ async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', match
       userId: 'admin'
     };
 
-    const response = await fetch('/api/admin/enqueue-stats-job', {
+    const response = await apiFetch('/admin/enqueue-stats-job', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1174,7 +1175,7 @@ async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', match
   } else {
     console.log(`🔄 Using fallback edge functions for ${triggerType} stats update`);
     
-    const response = await fetch('/api/admin/trigger-stats-update', { 
+    const response = await apiFetch('/admin/trigger-stats-update', { 
       method: 'POST' 
     });
 

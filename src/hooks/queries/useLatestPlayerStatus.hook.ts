@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface LatestPlayerStatus {
   on_fire_player_id: string | null;
@@ -16,9 +17,7 @@ async function fetchLatestPlayerStatus(tenantId: string | null): Promise<LatestP
     };
   }
   
-  const response = await fetch('/api/latest-player-status', { 
-    credentials: 'include'
-  });
+  const response = await apiFetch('/latest-player-status');
   
   if (!response.ok) {
     throw new Error(`Failed to fetch player status: ${response.status}`);

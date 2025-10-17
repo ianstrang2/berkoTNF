@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TeamSectionProps } from '@/types/team-algorithm.types';
 import DraggablePlayerSlot from './DraggablePlayerSlot.component';
 import { getPositionFromSlot, getPlayerStats } from '@/utils/teamAlgorithm.util';
+import { apiFetch } from '@/lib/apiConfig';
 
 const TeamSection: React.FC<TeamSectionProps> = ({
   teamType,
@@ -26,7 +27,7 @@ const TeamSection: React.FC<TeamSectionProps> = ({
   useEffect(() => {
     const fetchTeamNames = async () => {
       try {
-        const response = await fetch('/api/admin/app-config?group=match_settings');
+        const response = await apiFetch('/admin/app-config?group=match_settings');
         if (response.ok) {
           const data = await response.json();
           if (data.success) {

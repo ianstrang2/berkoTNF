@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface UpcomingMatch {
   upcoming_match_id: number;
@@ -18,8 +19,7 @@ async function fetchUpcomingMatches(tenantId: string | null): Promise<UpcomingMa
   // Gracefully handle missing tenantId - return empty data
   if (!tenantId) return [];
   
-  const response = await fetch('/api/upcoming', { 
-    credentials: 'include',
+  const response = await apiFetch('/upcoming', { 
     cache: 'no-store'
   });
   

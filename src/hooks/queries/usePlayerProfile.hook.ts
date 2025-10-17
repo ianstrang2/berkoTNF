@@ -15,6 +15,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface PlayerProfileData {
   name: string;
@@ -54,9 +55,7 @@ async function fetchPlayerProfile(
     return null;
   }
 
-  const response = await fetch(`/api/playerprofile?id=${playerId}`, {
-    credentials: 'include',
-  });
+  const response = await apiFetch(`/playerprofile?id=${playerId}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch profile: ${response.statusText}`);

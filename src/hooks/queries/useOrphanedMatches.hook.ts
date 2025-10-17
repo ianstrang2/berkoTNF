@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface OrphanedMatch {
   match_id: number;
@@ -21,9 +22,7 @@ interface OrphanedMatch {
 async function fetchOrphanedMatches(tenantId: string | null): Promise<OrphanedMatch[]> {
   if (!tenantId) return [];
 
-  const response = await fetch('/api/matches/orphaned', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/matches/orphaned');
 
   if (!response.ok) {
     throw new Error(`Failed to fetch orphaned matches: ${response.statusText}`);

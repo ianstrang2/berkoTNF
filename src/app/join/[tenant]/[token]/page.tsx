@@ -11,6 +11,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { QRCodeSVG } from 'qrcode.react';
+import { apiFetch } from '@/lib/apiConfig';
 
 function JoinForm() {
   const params = useParams();
@@ -49,7 +50,7 @@ function JoinForm() {
   useEffect(() => {
     const validateToken = async () => {
       try {
-        const response = await fetch(`/api/join/validate-token?tenant=${tenant}&token=${token}`);
+        const response = await apiFetch(`/join/validate-token?tenant=${tenant}&token=${token}`);
         const data = await response.json();
         
         if (!data.success) {
@@ -150,9 +151,8 @@ function JoinForm() {
       const formattedPhone = formatPhoneNumber(phone);
 
       // Now auto-link with name provided
-      const linkResponse = await fetch('/api/join/link-player', {
+      const linkResponse = await apiFetch('/join/link-player', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tenant,
           token,

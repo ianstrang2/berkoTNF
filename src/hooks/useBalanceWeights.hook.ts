@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface Weight {
   attribute_id: string;
@@ -26,7 +27,7 @@ export const useBalanceWeights = () => {
       setError(null);
       
       try {
-        const response = await fetch('/api/admin/balance-algorithm');
+        const response = await apiFetch('/admin/balance-algorithm');
         
         if (!response.ok) {
           throw new Error('Failed to fetch balance weights');

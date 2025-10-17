@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface AppConfigData {
   config_key: string;
@@ -29,7 +30,7 @@ const PerformanceBalanceSetup: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/admin/app-config?groups=performance');
+      const response = await apiFetch('/admin/app-config?groups=performance');
       
       if (!response.ok) {
         throw new Error('Failed to fetch performance configuration');
@@ -83,7 +84,7 @@ const PerformanceBalanceSetup: React.FC = () => {
         return;
       }
       
-      const response = await fetch('/api/admin/app-config', {
+      const response = await apiFetch('/admin/app-config', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +122,7 @@ const PerformanceBalanceSetup: React.FC = () => {
       setSaving(true);
       setError(null);
       
-      const response = await fetch('/api/admin/app-config', {
+      const response = await apiFetch('/admin/app-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

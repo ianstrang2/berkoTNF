@@ -12,6 +12,7 @@ import { useCurrentSeason } from '@/hooks/queries/useCurrentSeason.hook';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 const SeasonManager: React.FC = () => {
   // ALL HOOKS MUST BE AT THE TOP (React rules!)
@@ -122,7 +123,7 @@ const SeasonManager: React.FC = () => {
     setFormError('');
 
     try {
-      const response = await fetch(`/api/seasons/${seasonToDelete.id}`, {
+      const response = await apiFetch(`/seasons/${seasonToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -185,7 +186,7 @@ const SeasonManager: React.FC = () => {
         reason: 'season-change' // Add context for season changes
       };
 
-      const response = await fetch('/api/admin/enqueue-stats-job', {
+      const response = await apiFetch('/admin/enqueue-stats-job', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -202,7 +203,7 @@ const SeasonManager: React.FC = () => {
       // Fallback to original edge function system
       console.log(`🔄 Using fallback edge functions for season change stats update`);
       
-      const response = await fetch('/api/admin/trigger-stats-update', { 
+      const response = await apiFetch('/admin/trigger-stats-update', { 
         method: 'POST' 
       });
 

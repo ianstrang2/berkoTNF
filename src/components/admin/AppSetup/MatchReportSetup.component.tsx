@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
 import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface MatchReportSetting {
   id: number;
@@ -46,7 +47,7 @@ const MatchReportSetup: React.FC = () => {
   const fetchSettings = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/match-report-settings');
+      const response = await apiFetch('/admin/match-report-settings');
       
       if (!response.ok) throw new Error('Failed to fetch match report settings');
       
@@ -76,7 +77,7 @@ const MatchReportSetup: React.FC = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch('/api/admin/match-report-settings', {
+      const response = await apiFetch('/admin/match-report-settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -108,7 +109,7 @@ const MatchReportSetup: React.FC = () => {
     try {
       setIsLoading(true);
       
-      const response = await fetch('/api/admin/match-report-settings/reset', {
+      const response = await apiFetch('/admin/match-report-settings/reset', {
         method: 'POST'
       });
       

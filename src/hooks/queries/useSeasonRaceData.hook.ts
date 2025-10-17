@@ -8,6 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface PlayerRaceData {
   player_id: number;
@@ -36,9 +37,7 @@ async function fetchSeasonRaceData(tenantId: string | null, period: 'whole_seaso
     return { players: [], lastUpdated: null, periodType: period };
   }
   
-  const response = await fetch(`/api/season-race-data?period=${period}`, {
-    credentials: 'include',
-  });
+  const response = await apiFetch(`/season-race-data?period=${period}`);
   
   if (!response.ok) {
     throw new Error(`Season race data API returned ${response.status}`);

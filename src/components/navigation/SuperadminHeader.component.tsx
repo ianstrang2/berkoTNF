@@ -9,6 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface Tenant {
   tenant_id: string;
@@ -38,7 +39,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
 
   const fetchTenants = async () => {
     try {
-      const response = await fetch('/api/superadmin/tenants');
+      const response = await apiFetch('/superadmin/tenants');
       const data = await response.json();
 
       if (data.success) {
@@ -55,9 +56,8 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
     setSwitching(true);
 
     try {
-      const response = await fetch('/api/auth/superadmin/switch-tenant', {
+      const response = await apiFetch('/auth/superadmin/switch-tenant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId }),
       });
 
@@ -82,9 +82,8 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
 
     try {
       // Clear tenant context from app_metadata
-      const response = await fetch('/api/auth/superadmin/switch-tenant', {
+      const response = await apiFetch('/auth/superadmin/switch-tenant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId: null }),
       });
 
@@ -134,7 +133,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
         window.location.href = '/superadmin/tenants';
       } else if (mode === 'admin') {
         // Switch to admin view for tenant
-        const response = await fetch('/api/auth/superadmin/switch-tenant', {
+        const response = await apiFetch('/auth/superadmin/switch-tenant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tenantId }),
@@ -144,7 +143,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
         }
       } else if (mode === 'player') {
         // Switch to player view for tenant
-        const response = await fetch('/api/auth/superadmin/switch-tenant', {
+        const response = await apiFetch('/auth/superadmin/switch-tenant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tenantId }),

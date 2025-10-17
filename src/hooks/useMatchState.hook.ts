@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { differenceInHours } from 'date-fns';
 import { PlayerInPool } from '@/types/player.types';
 import { shouldUseBackgroundJobs } from '@/config/feature-flags';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface ToastState {
   message: string;
@@ -76,7 +77,7 @@ export const useMatchState = (matchId: number | string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/upcoming-matches?matchId=${matchId}`);
+      const response = await apiFetch(`/admin/upcoming-matches?matchId=${matchId}`);
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -121,13 +122,12 @@ export const useMatchState = (matchId: number | string) => {
       if (method === 'ability' || method === 'performance') {
         const playerIds = matchData?.players.map(p => p.id) || [];
         const apiMethod = method === 'ability' ? 'balanceByRating' : 'balanceByPerformance';
-        response = await fetch(`/api/admin/balance-teams`, {
+        response = await apiFetch(`/admin/balance-teams`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ matchId, playerIds, method: apiMethod })
         });
       } else { // random
-        response = await fetch(`/api/admin/random-balance-match?matchId=${matchId}`, { method: 'POST' });
+        response = await apiFetch(`/admin/random-balance-match?matchId=${matchId}`, { method: 'POST' });
       }
       
       if (!response.ok) {
@@ -146,9 +146,8 @@ export const useMatchState = (matchId: number | string) => {
   const createApiAction = (url: string, method: 'PATCH' | 'POST') => async (actionBody?: Record<string, any>) => {
     try {
       const finalBody = { ...actionBody, state_version: matchData?.stateVersion || 0 };
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(finalBody),
       });
 
@@ -211,9 +210,8 @@ export const useMatchState = (matchId: number | string) => {
     if (!matchData || !matchData.isBalanced) return;
 
     try {
-      await fetch(`/api/admin/upcoming-matches`, {
+      await apiFetch(`/admin/upcoming-matches`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             upcoming_match_id: matchId,
             is_balanced: false
@@ -232,7 +230,7 @@ export const useMatchState = (matchId: number | string) => {
     try {
       // The API now handles both clearing assignments and setting is_balanced,
       // so we only need to make one call.
-      await fetch(`/api/admin/upcoming-match-players/clear?matchId=${matchId}`, {
+      await apiFetch(`/admin/upcoming-match-players/clear?matchId=${matchId}`, {
         method: 'POST',
       });
 
@@ -256,14 +254,14 @@ export const useMatchState = (matchId: number | string) => {
     matchData,
     showToast,
     actions: {
-      lockPool: createApiAction(`/api/admin/upcoming-matches/${matchId}/lock-pool`, 'PATCH'),
-      confirmTeams: createApiAction(`/api/admin/upcoming-matches/${matchId}/confirm-teams`, 'PATCH'),
-      completeMatch: (scoreData: any) => createApiAction(`/api/admin/upcoming-matches/${matchId}/complete`, 'POST')(scoreData),
+      lockPool: createApiAction(`/admin/upcoming-matches/${matchId}/lock-pool`, 'PATCH'),
+      confirmTeams: createApiAction(`/admin/upcoming-matches/${matchId}/confirm-teams`, 'PATCH'),
+      completeMatch: (scoreData: any) => createApiAction(`/admin/upcoming-matches/${matchId}/complete`, 'POST')(scoreData),
       revalidate: fetchMatchState,
       balanceTeams: balanceTeams,
-      unlockPool: createApiAction(`/api/admin/upcoming-matches/${matchId}/unlock-pool`, 'PATCH'),
-      unlockTeams: createApiAction(`/api/admin/upcoming-matches/${matchId}/unlock-teams`, 'PATCH'),
-      undoComplete: createApiAction(`/api/admin/upcoming-matches/${matchId}/undo`, 'PATCH'),
+      unlockPool: createApiAction(`/admin/upcoming-matches/${matchId}/unlock-pool`, 'PATCH'),
+      unlockTeams: createApiAction(`/admin/upcoming-matches/${matchId}/unlock-teams`, 'PATCH'),
+      undoComplete: createApiAction(`/admin/upcoming-matches/${matchId}/undo`, 'PATCH'),
       markAsUnbalanced: markAsUnbalanced,
       clearAssignments: clearAssignments,
     }
@@ -287,9 +285,8 @@ async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', match
       timestamp: new Date().toISOString()
     };
 
-    const response = await fetch('/api/admin/enqueue-stats-job', {
+    const response = await apiFetch('/admin/enqueue-stats-job', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -302,7 +299,7 @@ async function triggerStatsUpdate(triggerType: 'match' | 'admin' | 'cron', match
     // Fallback to original edge function system
     console.log(`🔄 Using fallback edge functions for ${triggerType} stats update`);
     
-    const response = await fetch('/api/admin/trigger-stats-update', { 
+    const response = await apiFetch('/admin/trigger-stats-update', { 
       method: 'POST' 
     });
 

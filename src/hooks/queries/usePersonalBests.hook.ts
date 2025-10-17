@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
 import { PersonalBestsAPIResponseData } from '@/types/personal-bests.types';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface PersonalBestsResponse {
   success: boolean;
@@ -17,7 +18,7 @@ interface PersonalBestsResponse {
 }
 
 async function fetchPersonalBests(): Promise<PersonalBestsAPIResponseData | null> {
-  const response = await fetch('/api/personal-bests');
+  const response = await apiFetch('/personal-bests');
   
   if (!response.ok) {
     // Don't throw error for 404 - new tenants may not have data yet

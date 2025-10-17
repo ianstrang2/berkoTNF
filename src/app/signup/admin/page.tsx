@@ -11,6 +11,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { isMobileUserAgent } from '@/utils/platform-detection';
+import { apiFetch } from '@/lib/apiConfig';
 
 function AdminSignupForm() {
   // Multi-step form state
@@ -43,7 +44,7 @@ function AdminSignupForm() {
           console.log('[ADMIN_SIGNUP] Found existing session, checking if user already has a player...');
           
           // Check if this user already has a player in any club
-          const response = await fetch('/api/auth/profile');
+          const response = await apiFetch('/auth/profile');
           if (response.ok) {
             const profileData = await response.json();
             
@@ -188,9 +189,8 @@ function AdminSignupForm() {
       }
 
       // Phone comes from authenticated session, not from frontend
-      const response = await fetch('/api/admin/create-club', {
+      const response = await apiFetch('/admin/create-club', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim(),
           name: name.trim(),

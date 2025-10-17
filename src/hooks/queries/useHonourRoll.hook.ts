@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 export interface Runner {
   name: string;
@@ -115,9 +116,7 @@ async function fetchHonourRoll(tenantId: string | null): Promise<HonourRollData>
     return { seasonWinners: [], topScorers: [], records: [] };
   }
   
-  const response = await fetch('/api/honourroll', {
-    credentials: 'include', // Important: include cookies for auth
-  });
+  const response = await apiFetch('/honourroll');
   
   if (!response.ok) {
     throw new Error(`Honour roll API returned ${response.status}`);

@@ -8,6 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface MatchInfo {
   match_date: string;
@@ -86,7 +87,7 @@ async function fetchMatchReport(tenantId: string | null): Promise<MatchReportDat
     return null;
   }
   
-  const response = await fetch('/api/matchReport');
+  const response = await apiFetch('/matchReport');
   
   if (!response.ok) {
     // Don't throw error for 404 - new tenants may not have data yet

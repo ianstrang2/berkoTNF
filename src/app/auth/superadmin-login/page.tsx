@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { apiFetch } from '@/lib/apiConfig';
 
 function SuperadminLoginForm() {
   const [email, setEmail] = useState('');
@@ -35,7 +36,7 @@ function SuperadminLoginForm() {
 
       if (data.session) {
         // Verify user is actually a superadmin
-        const response = await fetch('/api/auth/profile');
+        const response = await apiFetch('/auth/profile');
         const profileData = await response.json();
 
         if (profileData.profile?.adminRole === 'superadmin') {

@@ -10,6 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout.layout';
 import { format } from 'date-fns';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface Tenant {
   tenant_id: string;
@@ -39,7 +40,7 @@ const TenantsManagementContent = () => {
 
   const fetchTenants = async () => {
     try {
-      const response = await fetch('/api/superadmin/tenants');
+      const response = await apiFetch('/superadmin/tenants');
       const data = await response.json();
 
       if (data.success) {

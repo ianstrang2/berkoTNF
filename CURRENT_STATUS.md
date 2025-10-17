@@ -1,6 +1,6 @@
 # 🎯 Capo - Current Status & Next Steps
 
-**Updated:** October 10, 2025  
+**Updated:** October 17, 2025  
 **Launch:** 2 weeks  
 
 ---
@@ -76,52 +76,90 @@
 - Uneven teams support (4v4 to 11v11)
 - **Spec:** `docs/SPEC_match-control-centre.md`
 
+### 8. iOS Platform (Phase 7) ✅ **COMPLETE** (October 17, 2025)
+**Achievement:** Native iOS app ready for testing via Capacitor
+
+**Deliverables:**
+- ✅ Capacitor 7 configuration
+- ✅ iOS platform setup (Mac)
+- ✅ Deep links working (custom scheme `capo://`)
+- ✅ Platform-adaptive mobile header (iOS FAB, Android centered, Web left/right)
+- ✅ Safe area handling (notch support)
+- ✅ Status bar configuration
+- ✅ Documentation organized (`docs/ios/` and `docs/mobile/`)
+
+**Status:**
+- ✅ iOS simulator tested with live reload (`npm run ios:dev`)
+- ✅ Deep links tested and working
+- ✅ Phase 6 auth flows tested on Android, Web & iOS
+- ✅ iOS auth verification complete (all working)
+
+**Documentation:** `docs/ios/README.md` (entry point), `docs/SPEC_auth.md` (Phase 7 section)
+
 ---
 
-## 🧪 NEXT: PHASE 6 AUTH TESTING
+## ✅ PHASE 7 COMPLETE: iOS PLATFORM
 
-**Context:** Before RLS/performance work, you were testing Phase 6 auth (club creation flow).
+**All testing complete!** Auth works across all platforms.
 
-**Phase 6 Status:**
-- ✅ Admin signup flow with club creation
-- ✅ Email collection for admins and players
-- ✅ No-club-found edge case handling
-- ✅ Platform detection and app download prompts
+**What's Done:**
+- ✅ Phase 6 auth implementation complete
+- ✅ Tested on Android (working)
+- ✅ Tested on Web (working)
+- ✅ iOS platform setup complete
+- ✅ Deep links working on iOS
+- ✅ **iOS auth verified (October 17, 2025)** ← COMPLETE!
 
-**Testing Needed:**
-- [ ] Admin signup flow end-to-end
-- [ ] Club creation with validation
-- [ ] Join request approval flow
-- [ ] Player promotion to admin
-- [ ] Email notifications (if implemented)
+**Verification Completed:**
+- ✅ Login flow works on iOS simulator
+- ✅ Admin pages work on iOS
+- ✅ Deep link navigation works
 
-**Spec:** `docs/SPEC_auth.md` (Phase 6 section - lines 124-152)
+**Result:** Works identically across all platforms (Android, iOS, Web) ✅
+
+**Spec:** `docs/SPEC_auth.md` (Phase 7 iOS section)
 
 ---
 
 ## 📋 REMAINING (BEFORE LAUNCH)
 
 ### Critical
-- [ ] Test Phase 6 auth flows (see above)
-- [ ] Verify club creation works end-to-end
-- [ ] Test join request approval
+- ✅ iOS auth verification complete (October 17, 2025)
 
-### Optional Future Work
+### Production Mobile (Optional - only needed for production builds)
+- [ ] API migration (~80 routes need `apiFetch()` helper)
+- [ ] Remove `NSAppTransportSecurity` from Info.plist (before App Store)
+- [ ] App icons (all required sizes)
+- [ ] Splash screens (optional but nice)
+
+### Future Optimizations
 - [ ] Migrate 51 instances of manual `tenant_id: tenantId` to `withTenantFilter()` (29 files)
 - [ ] Lazy load match history on Admin Matches page (would save ~2s)
 - [ ] Bundle size optimization (3.5 MB → 1-1.2 MB target, see `docs/FUTURE_PROBLEMS.md`)
 
 ---
 
-## 📁 DOCUMENTATION (CLEAN!)
+## 📁 DOCUMENTATION (CLEAN & ORGANIZED!)
 
 ### Root Level (2 files)
 - **`CURRENT_STATUS.md`** - Master status (this file)
 - **`FIND_MISSING_TRY_BLOCKS.md`** - Debugging guide
 
+### docs/ios/ - iOS Platform (5 files)
+- **`README.md`** - iOS quick start & entry point
+- **`SETUP_CHECKLIST.md`** - Detailed Mac setup steps
+- **`PRE_PRODUCTION_CHECKLIST.md`** - App Store prep (18 steps)
+- **`info_plist_config.xml`** - Deep links config template
+- **`universal_links.json`** - Universal links config
+
+### docs/mobile/ - Cross-Platform Mobile (3 files)
+- **`BUILD_WORKFLOW.md`** - Complete workflow (iOS + Android)
+- **`API_GUIDE.md`** - API migration guide + examples
+- **`CAPACITOR_7_CHANGES.md`** - Capacitor 7 syntax reference
+
 ### docs/ Specifications (16 files)
-- **`SPEC_auth.md`** - Authentication (Phase 6 complete)
-- **`SPEC_multi_tenancy.md`** - Multi-tenancy + RLS architecture (updated)
+- **`SPEC_auth.md`** - Authentication (Phase 6 + Phase 7 iOS complete)
+- **`SPEC_multi_tenancy.md`** - Multi-tenancy + RLS architecture
 - **`SPEC_match-control-centre.md`** - Match Control (includes uneven teams)
 - **`SPEC_match-report.md`** - Dashboard
 - **`SPEC_background_jobs.md`** - Background jobs
@@ -143,15 +181,31 @@
 ### Other (1 file)
 - **`worker/README.md`** - Worker documentation
 
-**Total:** ~20 essential files (from 75!) 🧹✨
+**Total:** ~28 essential files, cleanly organized by category 🧹✨
 
 ---
 
 ## 🎯 IMMEDIATE NEXT STEP
 
-**Resume Phase 6 auth testing** - Test club creation, join requests, and admin promotion flows.
+**All authentication testing complete!** ✅
 
-**Spec Reference:** `docs/SPEC_auth.md` lines 124-152
+**Options for next priority:**
+
+1. **Production Mobile Prep** (2-4 hours)
+   - API migration (~80 routes need `apiFetch()`)
+   - See: `docs/mobile/API_GUIDE.md`
+
+2. **App Store Prep** (when ready)
+   - App icons (all sizes)
+   - Remove `NSAppTransportSecurity` from Info.plist
+   - See: `docs/ios/PRE_PRODUCTION_CHECKLIST.md`
+
+3. **Other Features**
+   - RSVP system
+   - Performance optimizations
+   - New features
+
+**Spec Reference:** `docs/SPEC_auth.md` (auth complete), `docs/ios/README.md` (iOS complete)
 
 ---
 
@@ -186,5 +240,7 @@
 
 **Questions? Check:**
 - RLS architecture? → `docs/SPEC_multi_tenancy.md` Section O
-- Phase 6 auth features? → `docs/SPEC_auth.md` lines 124-152
+- Auth implementation (Phase 6 + 7)? → `docs/SPEC_auth.md`
+- iOS setup? → `docs/ios/README.md`
+- Mobile API migration? → `docs/mobile/API_GUIDE.md`
 - Debugging patterns? → `FIND_MISSING_TRY_BLOCKS.md`

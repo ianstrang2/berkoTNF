@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { apiFetch } from '@/lib/apiConfig';
 
 export default function PendingApprovalPage() {
   const [checking, setChecking] = useState(true);
@@ -20,7 +21,7 @@ export default function PendingApprovalPage() {
     // Check every 5 seconds if profile has been approved
     const checkApproval = async () => {
       try {
-        const response = await fetch('/api/auth/profile');
+        const response = await apiFetch('/auth/profile');
         const data = await response.json();
         
         if (data.linkedPlayerId) {

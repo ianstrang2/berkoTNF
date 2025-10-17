@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { apiFetch } from '@/lib/apiConfig';
 
 function PlayerLoginForm() {
   const [phone, setPhone] = useState('');
@@ -87,9 +88,8 @@ function PlayerLoginForm() {
         const formattedPhone = formatPhoneNumber(phone);
         
         try {
-          const linkResponse = await fetch('/api/auth/link-by-phone', {
+          const linkResponse = await apiFetch('/auth/link-by-phone', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: formattedPhone }),
           });
           

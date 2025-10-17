@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from '@/components/ui-kit/Card.component';
 import Button from '@/components/ui-kit/Button.component';
 import ConfirmationDialog from '@/components/ui-kit/ConfirmationDialog.component';
+import { apiFetch } from '@/lib/apiConfig';
 
 type TeamTemplate = {
   template_id: number;
@@ -40,7 +41,7 @@ const TeamTemplates = () => {
 
   const fetchDefaultTeamSize = async () => {
     try {
-      const response = await fetch('/api/admin/app-config?group=match_settings');
+      const response = await apiFetch('/admin/app-config?group=match_settings');
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -62,7 +63,7 @@ const TeamTemplates = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/admin/team-templates');
+      const response = await apiFetch('/admin/team-templates');
       if (!response.ok) {
         throw new Error('Failed to fetch team templates');
       }
@@ -136,7 +137,7 @@ const TeamTemplates = () => {
       const template = templates.find(t => t.template_id === templateId);
       if (!template) return;
       
-      const response = await fetch('/api/admin/team-templates', {
+      const response = await apiFetch('/admin/team-templates', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -212,7 +213,7 @@ const TeamTemplates = () => {
       const template = templates.find(t => t.template_id === templateId);
       if (!template) return;
       
-      const response = await fetch(`/api/admin/team-templates/reset?templateId=${templateId}`, {
+      const response = await apiFetch(`/admin/team-templates/reset?templateId=${templateId}`, {
         method: 'POST'
       });
       

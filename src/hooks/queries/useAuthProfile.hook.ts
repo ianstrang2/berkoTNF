@@ -7,6 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
+import { apiFetch } from '@/lib/apiConfig';
 
 export interface AuthProfileData {
   user: {
@@ -29,9 +30,7 @@ export interface AuthProfileData {
 }
 
 async function fetchAuthProfile(): Promise<AuthProfileData | null> {
-  const response = await fetch('/api/auth/profile', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/auth/profile');
   
   if (!response.ok) {
     if (response.status === 401) {

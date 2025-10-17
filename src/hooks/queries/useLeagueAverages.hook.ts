@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface YearlyAverage {
   year: number;
@@ -31,9 +32,7 @@ async function fetchLeagueAverages(
     return [];
   }
 
-  const response = await fetch('/api/stats/league-averages', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/stats/league-averages');
 
   if (!response.ok) {
     throw new Error(`Failed to fetch league averages: ${response.statusText}`);

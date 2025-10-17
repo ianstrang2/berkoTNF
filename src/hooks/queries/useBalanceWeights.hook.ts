@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface BalanceWeight {
   name: string;
@@ -32,9 +33,7 @@ async function fetchBalanceAlgorithm(tenantId: string | null): Promise<BalanceWe
     return { defense: {}, midfield: {}, attack: {} };
   }
 
-  const response = await fetch('/api/admin/balance-algorithm', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/admin/balance-algorithm');
 
   if (!response.ok) {
     throw new Error(`Failed to fetch balance algorithm: ${response.statusText}`);
@@ -69,9 +68,7 @@ async function fetchPerformanceWeights(tenantId: string | null): Promise<Perform
     return { power_weight: 0.5, goal_weight: 0.5 };
   }
 
-  const response = await fetch('/api/admin/performance-weights', {
-    credentials: 'include',
-  });
+  const response = await apiFetch('/admin/performance-weights');
 
   if (!response.ok) {
     throw new Error(`Failed to fetch performance weights: ${response.statusText}`);

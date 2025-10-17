@@ -10,6 +10,7 @@ import { usePlayersAdmin } from '@/hooks/queries/usePlayersAdmin.hook';
 import { useAuth } from '@/hooks/useAuth.hook';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
+import { apiFetch } from '@/lib/apiConfig';
 
 
 // Extend PlayerProfile to include matches_played for this component's context
@@ -101,7 +102,7 @@ const PlayerManager: React.FC = () => {
     }
 
     try {
-      const response = await fetch('/api/admin/players/promote', {
+      const response = await apiFetch('/admin/players/promote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
