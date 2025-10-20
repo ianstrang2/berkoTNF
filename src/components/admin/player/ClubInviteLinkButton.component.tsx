@@ -12,6 +12,7 @@ import { apiFetch } from '@/lib/apiConfig';
 export const ClubInviteLinkButton: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [inviteUrl, setInviteUrl] = useState('');
+  const [tenantName, setTenantName] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -23,6 +24,7 @@ export const ClubInviteLinkButton: React.FC = () => {
       
       if (data.success) {
         setInviteUrl(data.data.inviteUrl);
+        setTenantName(data.data.tenantName);
         setShowModal(true);
       } else {
         alert('Failed to get invite link');
@@ -51,7 +53,7 @@ export const ClubInviteLinkButton: React.FC = () => {
     setCopied(false);
   };
 
-  const whatsappMessage = `Join BerkoTNF on Capo ⚽
+  const whatsappMessage = `Join ${tenantName} on Capo ⚽
 
 All match invites and RSVPs happen in the Capo app.
 Download to get notifications and secure your spot:

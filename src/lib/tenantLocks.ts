@@ -1,7 +1,7 @@
 /**
  * Multi-Tenant Advisory Locks
  * 
- * This module provides tenant-aware advisory locks for the BerkoTNF application.
+ * This module provides tenant-aware advisory locks for the Capo application.
  * It ensures that locks are scoped to specific tenants, preventing cross-tenant
  * interference while maintaining the existing match locking functionality.
  * 

@@ -46,14 +46,15 @@ export async function GET(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const inviteUrl = `${baseUrl}/join/${tenant?.slug}/${inviteToken.invite_code}`;
 
-      return NextResponse.json({
-        success: true,
-        data: {
-          inviteUrl,
-          inviteCode: inviteToken.invite_code,
-          createdAt: inviteToken.created_at,
-        },
-      });
+    return NextResponse.json({
+      success: true,
+      data: {
+        inviteUrl,
+        inviteCode: inviteToken.invite_code,
+        createdAt: inviteToken.created_at,
+        tenantName: tenant?.name || 'Your Club',
+      },
+    });
     } catch (error: any) {
       console.error('Error managing club invite:', error);
       return NextResponse.json(
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Get tenant slug for URL
     const tenant = await prisma.tenants.findUnique({
       where: { tenant_id: tenantId },
-      select: { slug: true },
+      select: { slug: true, name: true },
     });
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
           inviteUrl,
           inviteCode: newToken.invite_code,
           createdAt: newToken.created_at,
+          tenantName: tenant?.name || 'Your Club',
         },
       });
     } catch (error: any) {

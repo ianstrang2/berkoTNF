@@ -1,4 +1,4 @@
-# BerkoTNF Background Worker
+# Capo Background Worker
 
 A Node.js background worker service that processes stats update jobs using Supabase Queues. This worker replaces the previous edge function system with a more robust, scalable queue-based architecture.
 

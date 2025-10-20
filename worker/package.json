@@ -1,7 +1,7 @@
 {
   "name": "berkotns-background-worker",
   "version": "1.0.0",
-  "description": "Background job processor for BerkoTNF stats updates using Supabase Queues",
+  "description": "Background job processor for Capo stats updates using Supabase Queues",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -13,7 +13,7 @@
     "type-check": "tsc --noEmit"
   },
   "keywords": ["background-jobs", "supabase", "queue", "stats"],
-  "author": "BerkoTNF Team",
+  "author": "Capo Team",
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

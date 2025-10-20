@@ -2,7 +2,7 @@
  * @file Implements the "Balance by Rating" algorithm as per the specification.
  * @author [Your Name]
  * @version 1.0
- * @see /berko_balance_algorithm_spec.md
+ * @see docs/SPEC_balance_by_rating_algorithm.md
  */
 import { prisma } from '@/lib/prisma';
 import { players as Player, team_balance_weights as TeamBalanceWeight, team_size_templates as TeamSizeTemplate } from '@prisma/client';
