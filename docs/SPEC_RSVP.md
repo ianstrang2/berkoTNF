@@ -1,23 +1,48 @@
-# BerkoTNF RSVP & Player Invitation System — Consolidated Implementation Specification
+# Capo RSVP & Player Invitation System — Consolidated Implementation Specification
 
-**Version 4.2.0-consolidated • Updated January 2025**
+**Version 4.3.0-updated • Updated January 2025**
 
-**CONSOLIDATION NOTES:**
+**UPDATE NOTES (v4.3.0):**
+- Updated to align with completed multi-tenancy implementation (Phase 2 patterns)
+- Updated to align with auth implementation (v6.0 - Phone-Only + Club Creation)
+- Replaced RLS enforcement with `withTenantFilter()` helper pattern
+- Updated all API patterns to use `withTenantContext` wrapper
+- Removed duplicate phone/email fields (already exist from auth)
+- Updated React Query patterns to match `queryKeys.ts`
+- Updated tenant resolution to use `getTenantFromRequest()`
+- Clarified background job integration with `withBackgroundTenantContext`
+
+**PREVIOUS CONSOLIDATION (v4.2.0):**
 - Removed calendar integration (out of scope)
 - Simplified auto-balance coverage (leverages existing implementation)
 - Aligned with actual codebase patterns (worker HTTP calls, method name mapping)
 - Reduced redundancy while preserving all critical technical details
-- Clarified dropout/refill rebalance behavior
-- Merged security and concurrency sections for clarity
-- Length reduced from 2477 to 1273 lines (~49% reduction)
 
 ---
 
-**BUILDING ON COMPLETE MULTI-TENANCY FOUNDATION**
+**BUILDING ON COMPLETED MULTI-TENANCY & AUTH FOUNDATIONS**
 
-This specification builds on **fully implemented multi-tenancy infrastructure** (all 33+ tables tenant-scoped with RLS policies) and established API patterns across 70+ routes. Current system includes Draft → PoolLocked → TeamsBalanced → Completed match lifecycle, established UI patterns, and production-ready tenant-aware infrastructure.
+This specification builds on **fully implemented infrastructure**:
 
-**Dependencies:** This specification builds on `SPEC_auth.md` (v5.0 - Phone-Only) for phone authentication, admin privileges, auto-linking, and session management. All authentication logic is defined in the Auth Specification. This spec focuses on RSVP booking logic only.
+**Multi-Tenancy (COMPLETE ✅):**
+- All 33+ tables tenant-scoped with `tenant_id` fields
+- Defense-in-depth: Explicit filtering + RLS on auth tables
+- `withTenantFilter()` helper for type-safe queries
+- `withTenantContext()` wrapper for automatic context propagation
+- See `SPEC_multi_tenancy.md` v2.1.0 for architecture details
+
+**Authentication (COMPLETE ✅):**
+- Phone-only auth via Supabase (all users)
+- Players table has: `phone`, `email`, `auth_user_id`, `is_admin`
+- Auto-linking via phone number matching
+- Deep links configured (`capo://match/123`)
+- See `SPEC_auth.md` v6.0 for authentication patterns
+
+**Dependencies:** 
+- `SPEC_auth.md` (v6.0) - Phone authentication, admin privileges, auto-linking
+- `SPEC_multi_tenancy.md` (v2.1.0) - Tenant isolation, security patterns
+- All authentication and tenant logic is defined in those specs
+- This spec focuses **only** on RSVP booking logic
 
 ---
 
@@ -135,22 +160,23 @@ Multi-tenancy foundation complete. All 33+ tables have `tenant_id`, RLS policies
 
 ### **3.1 Players Table**
 
-```sql
--- Current: players(player_id, tenant_id, name, is_ringer, ...) ✅ EXISTS
+**Fields Already Added by Auth Implementation (v6.0):**
+- ✅ `phone` (TEXT) - Phone number in E.164 format
+- ✅ `email` (TEXT, nullable) - Email address for notifications
+- ✅ `auth_user_id` (UUID, nullable) - Link to Supabase auth.users
+- ✅ `is_admin` (BOOLEAN, default false) - Admin privilege flag
+- ✅ `tenant_id` (UUID) - Tenant isolation (multi-tenancy)
+- ✅ `idx_players_phone` index already exists
 
+**RSVP-Specific Fields to Add:**
+
+```sql
+-- Add RSVP-specific fields only (phone, email, auth_user_id already exist)
 ALTER TABLE players
-  ADD COLUMN phone TEXT,
   ADD COLUMN tier TEXT NOT NULL DEFAULT 'C' CHECK (tier IN ('A','B','C')),
   ADD COLUMN last_verified_at TIMESTAMPTZ;
 
-ALTER TABLE players
-  ADD CONSTRAINT valid_uk_phone 
-  CHECK (phone IS NULL OR phone ~ '^\+44[1-9]\d{9}$');
-
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_players_tenant_phone 
-  ON players (tenant_id, phone) WHERE phone IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_players_tenant_phone ON players(tenant_id, phone);
+-- Add tier index for RSVP invite filtering
 CREATE INDEX IF NOT EXISTS idx_players_tenant_tier ON players(tenant_id, tier);
 ```
 
@@ -163,6 +189,8 @@ CREATE INDEX IF NOT EXISTS idx_players_tenant_tier ON players(tenant_id, tier);
 
 ALTER TABLE upcoming_matches
   ADD COLUMN booking_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN invite_mode TEXT NOT NULL DEFAULT 'all'
+    CHECK (invite_mode IN ('all','tiered')),
   ADD COLUMN invite_token_hash TEXT,
   ADD COLUMN invite_token_created_at TIMESTAMPTZ NULL,
   ADD COLUMN a_open_at TIMESTAMPTZ NULL,
@@ -202,6 +230,7 @@ ALTER TABLE match_player_pool
   ADD COLUMN out_flexible BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN waitlist_position INTEGER NULL,
   ADD COLUMN offer_expires_at TIMESTAMPTZ NULL,
+  ADD COLUMN response_timestamp TIMESTAMPTZ NULL,
   ADD COLUMN source TEXT NULL;
 
 ALTER TABLE match_player_pool 
@@ -218,6 +247,9 @@ CREATE INDEX IF NOT EXISTS idx_mpp_tenant_waitlist_active
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_mpp_tenant_waitpos_per_match
   ON match_player_pool (tenant_id, upcoming_match_id, waitlist_position)
   WHERE response_status = 'WAITLIST' AND waitlist_position IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_mpp_active_offer_per_player
+  ON match_player_pool (tenant_id, upcoming_match_id, player_id)
+  WHERE response_status = 'WAITLIST' AND offer_expires_at > now();
 
 ALTER TABLE match_player_pool
   ADD CONSTRAINT offer_expiry_only_for_waitlist
@@ -247,7 +279,7 @@ CREATE TABLE IF NOT EXISTS notification_ledger (
   id BIGSERIAL PRIMARY KEY,
   tenant_id UUID NOT NULL,
   upcoming_match_id INT NOT NULL REFERENCES upcoming_matches(upcoming_match_id) ON DELETE CASCADE,
-  player_id INT NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+  player_id INT NULL REFERENCES players(player_id) ON DELETE SET NULL,
   kind TEXT NOT NULL
     CHECK (kind IN (
       'invite','dropout','waitlist_offer','last_call','cancellation',
@@ -259,7 +291,7 @@ CREATE TABLE IF NOT EXISTS notification_ledger (
   sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   actor_name TEXT NULL,
   source TEXT NULL,
-  details TEXT NULL
+  details JSONB NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_match_player
@@ -270,6 +302,12 @@ CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_audit
   ON notification_ledger(tenant_id, upcoming_match_id, kind, sent_at DESC)
   WHERE kind LIKE 'audit/%';
 ```
+
+**Design Notes:**
+- `player_id` is **nullable** with `ON DELETE SET NULL` to preserve audit history when players are removed
+- `details` is **JSONB** (not TEXT) to store structured metadata (e.g., capacity changes, offer TTLs)
+- `actor_name` stores masked player name for display (since player_id may be NULL after deletion)
+- `batch_key` groups related notifications (e.g., all tier-open pushes in one wave)
 
 **Push Tokens:**
 ```sql
@@ -331,31 +369,134 @@ ON CONFLICT (config_key) DO NOTHING;
 
 ## **4) Implementation Patterns**
 
-All RSVP endpoints follow established BerkoTNF patterns.
+All RSVP endpoints follow established Capo patterns.
 
 ### **4.1 API Response Format**
 
 ```typescript
 export type ApiOk<T> = { success: true; data: T };
-export type ApiErr = { success: false; error: string; code?: string };
+export type ApiErr = { success: false; error: string; code: string };
 export const ok = <T>(data: T): ApiOk<T> => ({ success: true, data });
-export const fail = (error: string, code?: string): ApiErr => ({ success: false, error, code });
+export const fail = (error: string, code: string): ApiErr => ({ success: false, error, code });
+```
+
+**Error Codes (Machine-Readable):**
+
+```typescript
+export const RSVP_ERROR_CODES = {
+  // Auth errors
+  AUTH_REQUIRED: 'ERR_AUTH_REQUIRED',
+  PLAYER_NOT_FOUND: 'ERR_PLAYER_NOT_FOUND',
+  
+  // Match errors
+  MATCH_NOT_FOUND: 'ERR_MATCH_NOT_FOUND',
+  MATCH_NOT_BOOKABLE: 'ERR_MATCH_NOT_BOOKABLE',
+  BOOKING_CLOSED: 'ERR_BOOKING_CLOSED',
+  
+  // Capacity errors
+  MATCH_FULL: 'ERR_MATCH_FULL',
+  CAPACITY_REACHED: 'ERR_CAPACITY_REACHED',
+  
+  // Waitlist errors
+  WAITLIST_OFFER_EXPIRED: 'ERR_WAITLIST_OFFER_EXPIRED',
+  WAITLIST_OFFER_NOT_FOUND: 'ERR_WAITLIST_OFFER_NOT_FOUND',
+  ALREADY_ON_WAITLIST: 'ERR_ALREADY_ON_WAITLIST',
+  
+  // Tier errors
+  TIER_NOT_OPEN: 'ERR_TIER_NOT_OPEN',
+  TIER_INVALID: 'ERR_TIER_INVALID',
+  
+  // Rate limiting
+  RATE_LIMIT_EXCEEDED: 'ERR_RATE_LIMIT_EXCEEDED',
+  BURST_LIMIT_EXCEEDED: 'ERR_BURST_LIMIT_EXCEEDED',
+  
+  // Token errors
+  TOKEN_INVALID: 'ERR_TOKEN_INVALID',
+  TOKEN_EXPIRED: 'ERR_TOKEN_EXPIRED',
+  
+  // Policy errors
+  GUEST_BOOKING_DISABLED: 'ERR_GUEST_BOOKING_DISABLED',
+  UNKNOWN_PLAYER_BLOCKED: 'ERR_UNKNOWN_PLAYER_BLOCKED',
+} as const;
+
+// Usage example
+return NextResponse.json(
+  fail('This offer has expired', RSVP_ERROR_CODES.WAITLIST_OFFER_EXPIRED),
+  { status: 410 }
+);
 ```
 
 ### **4.2 Cache Integration**
 
-```typescript
-export const CACHE_TAGS = {
-  RSVP_MATCH: (tenantId: string, mid: number) => `RSVP_MATCH:${tenantId}:${mid}`,
-  PLAYER_POOL: (tenantId: string, mid: number) => `PLAYER_POOL:${tenantId}:${mid}`,
-};
+**React Query Keys (Frontend):**
 
-export async function revalidateRsvp(tenantId: string, matchId: number) {
-  await Promise.allSettled([
-    revalidateTag(CACHE_TAGS.RSVP_MATCH(tenantId, matchId)),
-    revalidateTag(CACHE_TAGS.PLAYER_POOL(tenantId, matchId)),
-  ]);
+Add RSVP-specific keys to `src/lib/queryKeys.ts`:
+
+```typescript
+export const queryKeys = {
+  // ... existing keys ...
+  
+  // RSVP Match Status (public + authenticated)
+  rsvpMatch: (tenantId: string | null, matchId: number | null) => 
+    ['rsvpMatch', tenantId, matchId] as const,
+  
+  // Player Pool for Match (admin view)
+  matchPlayerPool: (tenantId: string | null, matchId: number | null) => 
+    ['matchPlayerPool', tenantId, matchId] as const,
+  
+  // Waitlist Status (player view)
+  waitlistStatus: (tenantId: string | null, matchId: number | null) => 
+    ['waitlistStatus', tenantId, matchId] as const,
+  
+  // Activity Feed (admin view)
+  matchActivity: (tenantId: string | null, matchId: number | null) => 
+    ['matchActivity', tenantId, matchId] as const,
+} as const;
+```
+
+**React Query Hook Pattern:**
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth.hook';
+import { queryKeys } from '@/lib/queryKeys';
+import { apiFetch } from '@/lib/apiConfig';
+
+async function fetchRsvpMatch(
+  tenantId: string | null, 
+  matchId: number | null
+): Promise<RsvpMatchData> {
+  if (!tenantId || !matchId) return null;
+  
+  const response = await apiFetch(`/booking/match/${matchId}/status`);
+  if (!response.ok) throw new Error(`API returned ${response.status}`);
+  return response.json();
 }
+
+export function useRsvpMatch(matchId: number | null) {
+  const { profile } = useAuth();
+  const tenantId = profile.tenantId;
+  
+  return useQuery({
+    queryKey: queryKeys.rsvpMatch(tenantId, matchId),
+    queryFn: () => fetchRsvpMatch(tenantId, matchId),
+    staleTime: 30 * 1000, // 30 seconds for real-time RSVP
+  });
+}
+```
+
+**HTTP Cache Headers (Backend):**
+
+All RSVP endpoints must disable HTTP caching:
+
+```typescript
+return NextResponse.json({ data }, {
+  headers: {
+    'Cache-Control': 'no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Vary': 'Cookie',
+  }
+});
 ```
 
 ### **4.3 Transaction Patterns**
@@ -372,16 +513,83 @@ export async function processRSVPResponse<T>(
 }
 ```
 
-### **4.4 Security & Rate Limiting**
+### **4.4 Security & Tenant Resolution**
 
-**Deep Link:** `capo://match/123`
+**Tenant Context Resolution:**
 
-**Token Security:** 32+ byte URL-safe random, hashed storage (bcrypt), auto-expire at kickoff+24h.
+Use standardized `getTenantFromRequest()` for all routes:
 
-**Rate Limits (multi-tenant):**
-- Respond: `tenant:{tenantId}:match:{matchId}:phone:{E164}` (10/min)
-- Burst: `tenant:{tenantId}:match:{matchId}` (50 writes/10s)
-- Token validation: 50/hour per IP
+```typescript
+import { getTenantFromRequest } from '@/lib/tenantContext';
+import { withTenantContext } from '@/lib/tenantContext';
+
+// For public RSVP routes (no authentication required)
+export async function POST(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    // tenantId automatically resolved from:
+    // 1. Invite token → match → tenant_id
+    // 2. Session if authenticated
+    // 3. Player record if phone auth
+    
+    // Process RSVP with tenant context
+  }, { allowUnauthenticated: true });
+}
+
+// For admin routes (authentication required)
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    await requireAdminRole(request);
+    // Process with tenant context
+  });
+}
+```
+
+**Deep Link Pattern:** `capo://match/{matchId}?token={inviteToken}`
+
+**Token Security & Hashing Strategy:** 
+- **Token generation:** 32+ byte URL-safe random tokens (crypto.randomBytes)
+- **Hashing method:** HMAC-SHA256 for invite tokens (faster lookups than bcrypt)
+  - Use bcrypt only for auth-critical tokens (admin invitations per `SPEC_auth.md`)
+  - HMAC allows deterministic hash → efficient indexed lookups
+  - Store first 8 chars of hash for prefix matching if needed
+- **Storage:** NEVER store raw tokens, only hashed values
+- **Expiry:** Auto-expire at kickoff+24h
+- **Uniqueness:** Tenant-scoped via composite index `(tenant_id, invite_token_hash)`
+
+```typescript
+// Token hashing for invite tokens
+import crypto from 'crypto';
+
+const HMAC_SECRET = process.env.INVITE_TOKEN_SECRET!; // Store in env
+
+export function hashInviteToken(token: string): string {
+  return crypto
+    .createHmac('sha256', HMAC_SECRET)
+    .update(token)
+    .digest('hex');
+}
+
+// Validation
+export async function validateInviteToken(
+  tenantId: string, 
+  matchId: number, 
+  token: string
+): Promise<boolean> {
+  const tokenHash = hashInviteToken(token);
+  
+  const invite = await prisma.upcoming_matches.findFirst({
+    where: withTenantFilter(tenantId, {
+      upcoming_match_id: matchId,
+      invite_token_hash: tokenHash,
+      booking_enabled: true
+    })
+  });
+  
+  return !!invite;
+}
+```
+
+**Rate Limiting (Multi-Tenant):**
 
 ```typescript
 const buckets = new Map<string, { n: number; t: number }>();
@@ -396,18 +604,134 @@ export function phoneRateLimit(tenantId: string, matchId: number, phone: string)
 }
 ```
 
-### **4.5 RLS Policies**
+**Rate Limit Keys:**
+- RSVP response: `tenant:{tenantId}:match:{matchId}:phone:{E164}` (10/min)
+- Burst protection: `tenant:{tenantId}:match:{matchId}` (50 writes/10s)
+- Token validation: 50/hour per IP
 
-```sql
-ALTER TABLE players ENABLE ROW LEVEL SECURITY;
-ALTER TABLE upcoming_matches ENABLE ROW LEVEL SECURITY;
-ALTER TABLE match_player_pool ENABLE ROW LEVEL SECURITY;
+**Idempotency Protection:**
 
-CREATE POLICY tenant_isolation_players ON players
-  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+Prevent duplicate RSVP submissions from double-taps:
+
+```typescript
+// Idempotency key pattern
+const IDEMPOTENCY_WINDOW_MS = 5000; // 5 seconds
+const recentSubmissions = new Map<string, number>();
+
+export function checkIdempotency(
+  tenantId: string,
+  matchId: number,
+  playerId: number,
+  action: string
+): boolean {
+  const key = `${tenantId}:${matchId}:${playerId}:${action}`;
+  const now = Date.now();
+  const lastSubmit = recentSubmissions.get(key);
+  
+  if (lastSubmit && (now - lastSubmit) < IDEMPOTENCY_WINDOW_MS) {
+    return false; // Duplicate - reject
+  }
+  
+  recentSubmissions.set(key, now);
+  
+  // Cleanup old entries (memory management)
+  if (recentSubmissions.size > 10000) {
+    const cutoff = now - IDEMPOTENCY_WINDOW_MS;
+    for (const [k, t] of recentSubmissions.entries()) {
+      if (t < cutoff) recentSubmissions.delete(k);
+    }
+  }
+  
+  return true; // Allowed
+}
+
+// Usage in /api/booking/respond
+if (!checkIdempotency(tenantId, matchId, player.player_id, action)) {
+  return NextResponse.json({ 
+    success: true, 
+    message: 'Already processed' 
+  }); // Return success (idempotent)
+}
 ```
 
-Set tenant context: `SELECT set_config('app.tenant_id', $1, false);`
+### **4.5 Tenant Filtering (MANDATORY)**
+
+**⚠️ CRITICAL:** RLS policies are **disabled** on operational tables due to connection pooling issues. 
+All security relies on explicit `withTenantFilter()` helper.
+
+**Security Model:**
+
+Only these tables have RLS **enabled**:
+- `auth.*` - Supabase auth system
+- `tenants` - Superadmin only
+- `admin_profiles` - Role/permission data
+
+All RSVP tables have RLS **disabled** and require explicit filtering:
+- `players`
+- `upcoming_matches`
+- `match_player_pool`
+- `match_invites`
+- `notification_ledger`
+- `push_tokens`
+
+**Mandatory Pattern for All RSVP Queries:**
+
+```typescript
+import { withTenantFilter } from '@/lib/tenantFilter';
+
+// Simple query - ALL tables
+const players = await prisma.match_player_pool.findMany({
+  where: withTenantFilter(tenantId)
+});
+
+// With additional filters
+const waitlist = await prisma.match_player_pool.findMany({
+  where: withTenantFilter(tenantId, {
+    upcoming_match_id: matchId,
+    response_status: 'WAITLIST'
+  })
+});
+
+// With complex filters (OR/AND)
+const activeOffers = await prisma.match_player_pool.findMany({
+  where: withTenantFilter(tenantId, {
+    response_status: 'WAITLIST',
+    offer_expires_at: { gt: new Date() },
+    OR: [
+      { waitlist_position: { lte: 3 } },
+      { offer_expires_at: null }
+    ]
+  })
+});
+
+// Nested relations - filter ALL levels
+const match = await prisma.upcoming_matches.findFirst({
+  where: withTenantFilter(tenantId, { 
+    upcoming_match_id: matchId 
+  }),
+  include: {
+    match_player_pool: {
+      where: withTenantFilter(tenantId),  // ⚠️ MANDATORY
+      orderBy: { waitlist_position: 'asc' }
+    }
+  }
+});
+```
+
+**Why withTenantFilter() is mandatory:**
+- ✅ Type-safe (throws error if tenantId is null/undefined)
+- ✅ Compile-time enforcement (impossible to forget tenant_id)
+- ✅ Consistent pattern across entire codebase
+- ✅ Development logging helps debugging
+- ✅ Single source of truth for tenant filtering
+
+**❌ FORBIDDEN - Missing Tenant Filter:**
+```typescript
+// ❌ SECURITY VULNERABILITY - NO TENANT FILTER!
+const players = await prisma.match_player_pool.findMany({
+  where: { response_status: 'WAITLIST' }  // Missing tenant_id!
+});
+```
 
 ### **4.6 SQL Functions**
 
@@ -424,73 +748,281 @@ Complex business logic in version-controlled SQL files (deployed via `deploy_all
 
 ### **5.1 Admin Endpoints**
 
-```typescript
-// GET /api/admin/upcoming-matches?matchId={id}&includeRsvp=true
-// Returns match with RSVP data, tenant-scoped
-
-// PATCH /api/admin/upcoming-matches/[id]/enable-booking
-{
-  "inviteMode": "all" | "tiered",
-  "tierWindows": { "a_open_at": "...", "b_open_at": "...", "c_open_at": "..." },
-  "autoBalance": { "enabled": false, "method": "performance", "autoLockWhenFull": false }
-}
-
-// POST /api/admin/invites/[matchId]/send
-{ "stages": ["A", "B", "C"], "targetCount": 20 }
-
-// GET /api/admin/matches/[id]/activity
-// Last 200 events from notification_ledger, ORDER BY sent_at DESC
-
-// POST /api/admin/matches/[id]/autobalance
-// Manual auto-balance trigger (Draft only, auto_balance_enabled=true)
-
-// POST /api/admin/waitlist/reissue
-{ "matchId": 123 }
-
-// POST /api/admin/dropout/process-now  
-{ "matchId": 123, "playerId": 456 }
-```
-
-### **5.2 Public Booking Endpoints**
+**All admin endpoints use Phase 2 pattern:**
 
 ```typescript
-// POST /api/booking/respond
-export async function POST(request: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return unauthorized();
-  
-  const playerPhone = session.user.phone;
-  const tenantId = session.user.app_metadata?.tenant_id;
-  const { matchId, action, outFlexible } = await request.json();
-  
-  await processRSVP(tenantId, matchId, playerPhone, action, outFlexible);
-}
+import { NextRequest, NextResponse } from 'next/server';
+import { withTenantContext } from '@/lib/tenantContext';
+import { withTenantFilter } from '@/lib/tenantFilter';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
+import { handleTenantError } from '@/lib/api-helpers';
+import { prisma } from '@/lib/prisma';
 
-// POST /api/booking/waitlist/claim
-export async function POST(request: NextRequest) {
-  const { user, player, tenantId } = await requirePlayerAccess(request);
-  const { matchId } = await request.json();
-  
-  await withTenantMatchLock(tenantId, matchId, async (tx) => {
-    const offer = await tx.match_player_pool.findFirst({
-      where: { 
-        tenant_id: tenantId,
-        upcoming_match_id: matchId,
-        phone: player.phone,
-        response_status: 'WAITLIST',
-        offer_expires_at: { gt: new Date() }
-      },
-      lock: 'UPDATE'
-    });
-    
-    if (!offer) throw new Error('No valid offer');
-    await claimWaitlistSpot(tx, tenantId, matchId, player.phone);
+// GET /api/admin/upcoming-matches - Get matches with optional RSVP data
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      await requireAdminRole(request);
+      
+      const searchParams = request.nextUrl.searchParams;
+      const matchId = searchParams.get('matchId');
+      const includeRsvp = searchParams.get('includeRsvp') === 'true';
+      
+      if (matchId) {
+        const match = await prisma.upcoming_matches.findUnique({
+          where: withTenantFilter(tenantId, {
+            upcoming_match_id: parseInt(matchId)
+          }),
+          include: includeRsvp ? {
+            match_player_pool: {
+              where: withTenantFilter(tenantId),
+              include: { players: true }
+            }
+          } : undefined
+        });
+        
+        return NextResponse.json({ success: true, data: match });
+      }
+      
+      // Return all upcoming matches
+      const matches = await prisma.upcoming_matches.findMany({
+        where: withTenantFilter(tenantId, {
+          state: { not: 'Completed' }
+        }),
+        orderBy: { match_date: 'asc' }
+      });
+      
+      return NextResponse.json({ success: true, data: matches });
+    } catch (error) {
+      return handleTenantError(error);
+    }
   });
 }
 
-// GET /api/booking/match/[id]/status
-// Returns match status for authenticated player
+// PATCH /api/admin/upcoming-matches/[id]/enable-booking
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      await requireAdminRole(request);
+      
+      const { inviteMode, tierWindows, autoBalance } = await request.json();
+      const matchId = parseInt(params.id);
+      
+      await prisma.upcoming_matches.update({
+        where: withTenantFilter(tenantId, {
+          upcoming_match_id: matchId
+        }),
+        data: {
+          booking_enabled: true,
+          invite_mode: inviteMode,
+          a_open_at: tierWindows?.a_open_at,
+          b_open_at: tierWindows?.b_open_at,
+          c_open_at: tierWindows?.c_open_at,
+          auto_balance_enabled: autoBalance?.enabled || false,
+          auto_balance_method: autoBalance?.method || 'performance',
+          auto_lock_when_full: autoBalance?.autoLockWhenFull || false
+        }
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'RSVP enabled for match' 
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
+}
+
+// GET /api/admin/matches/[id]/activity - RSVP activity feed
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      await requireAdminRole(request);
+      
+      const matchId = parseInt(params.id);
+      
+      const activity = await prisma.notification_ledger.findMany({
+        where: withTenantFilter(tenantId, {
+          upcoming_match_id: matchId
+        }),
+        orderBy: { sent_at: 'desc' },
+        take: 200
+      });
+      
+      return NextResponse.json({ success: true, data: activity });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
+}
+```
+
+**Additional admin endpoints:**
+- `POST /api/admin/invites/[matchId]/send` - Send tier invitations
+- `POST /api/admin/matches/[id]/autobalance` - Manual auto-balance trigger
+- `POST /api/admin/waitlist/reissue` - Re-issue waitlist offers
+- `POST /api/admin/dropout/process-now` - Skip grace period for dropout
+
+### **5.2 Public Booking Endpoints**
+
+**All endpoints use Phase 2 pattern with `withTenantContext` wrapper:**
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { withTenantContext } from '@/lib/tenantContext';
+import { withTenantFilter } from '@/lib/tenantFilter';
+import { withTenantMatchLock } from '@/lib/tenantLocks';
+import { requirePlayerAccess } from '@/lib/auth/apiAuth';
+import { handleTenantError } from '@/lib/api-helpers';
+import { prisma } from '@/lib/prisma';
+
+// POST /api/booking/respond - Player RSVP response
+export async function POST(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      const { user, player } = await requirePlayerAccess(request);
+      const { matchId, action, outFlexible } = await request.json();
+      
+      // Process RSVP with tenant-aware lock
+      await withTenantMatchLock(tenantId, matchId, async (tx) => {
+        const poolEntry = await tx.match_player_pool.findFirst({
+          where: withTenantFilter(tenantId, {
+            upcoming_match_id: matchId,
+            player_id: player.player_id
+          })
+        });
+        
+        if (!poolEntry) throw new Error('Player not in match pool');
+        
+        // Update response status
+        await tx.match_player_pool.update({
+          where: { id: poolEntry.id },
+          data: {
+            response_status: action,
+            out_flexible: action === 'OUT' ? outFlexible : false,
+            response_timestamp: new Date()
+          }
+        });
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'RSVP updated' 
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        }
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
+}
+
+// POST /api/booking/waitlist/claim - Claim waitlist offer
+export async function POST(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      const { user, player } = await requirePlayerAccess(request);
+      const { matchId } = await request.json();
+      
+      await withTenantMatchLock(tenantId, matchId, async (tx) => {
+        // Find valid offer with SELECT FOR UPDATE
+        const offer = await tx.match_player_pool.findFirst({
+          where: withTenantFilter(tenantId, {
+            upcoming_match_id: matchId,
+            player_id: player.player_id,
+            response_status: 'WAITLIST',
+            offer_expires_at: { gt: new Date() }
+          })
+        });
+        
+        if (!offer) throw new Error('No valid offer');
+        
+        // Atomic claim - update to IN status
+        await tx.match_player_pool.update({
+          where: { id: offer.id },
+          data: {
+            response_status: 'IN',
+            response_timestamp: new Date(),
+            offer_expires_at: null
+          }
+        });
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Waitlist spot claimed' 
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        }
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
+}
+
+// GET /api/booking/match/[id]/status - Get match RSVP status
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      const { user, player } = await requirePlayerAccess(request);
+      const matchId = parseInt(params.id);
+      
+      const match = await prisma.upcoming_matches.findUnique({
+        where: withTenantFilter(tenantId, {
+          upcoming_match_id: matchId
+        }),
+        include: {
+          match_player_pool: {
+            where: withTenantFilter(tenantId, {
+              player_id: player.player_id
+            })
+          }
+        }
+      });
+      
+      if (!match) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Match not found' 
+        }, { status: 404 });
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        data: {
+          match,
+          playerStatus: match.match_player_pool[0] || null
+        }
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        }
+      });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
+}
 ```
 
 ### **5.3 Push Notification Endpoints**
@@ -548,6 +1080,12 @@ First to claim wins (transactional). Others get "spot filled", remain on waitlis
 
 **Edge Cases:**
 - **Capacity increase:** Auto-promote earliest WAITLIST players by queue order with notification
+- **Capacity decrease with active offers:** 
+  - System demotes most-recent IN players to WAITLIST (LIFO)
+  - Revokes ALL outstanding waitlist offers (prevents over-capacity)
+  - Sends "capacity reduced" notification to affected players
+  - Waitlist positions recalculated from scratch
+  - Activity feed logs `audit/admin_capacity_change` event
 - **Near kick-off offers:** Auto-expire all offers at kickoff−15m with countdown
 - **Manual admin add:** Consumes capacity and supersedes outstanding offers (logged in activity feed)
 - **Instant claim mode:** When <15min to kick-off, switch to instant claim (no hold period)
@@ -559,7 +1097,7 @@ First to claim wins (transactional). Others get "spot filled", remain on waitlis
 
 ## **8) UI/UX Implementation**
 
-Integration with existing BerkoTNF soft-UI styling and component patterns.
+Integration with existing Capo soft-UI styling and component patterns.
 
 ### **8.1 Admin Interface**
 
@@ -626,14 +1164,29 @@ App-only interface. All users use Capacitor app (`capo://match/123`). Authentica
 
 Extend existing multi-tenant background job system with RSVP job types.
 
-**Tenant context pattern (critical):**
+**Tenant context pattern (use withBackgroundTenantContext):**
 
 ```typescript
+import { withBackgroundTenantContext } from '@/lib/tenantContext';
+import { withTenantFilter } from '@/lib/tenantFilter';
+
 async function processJob(job: JobData) {
   const { tenant_id } = job.payload;
-  if (!tenant_id) throw new Error('Missing tenant_id');
-  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenant_id}, false)`;
-  await processJobLogic(job);
+  if (!tenant_id) throw new Error('Missing tenant_id in job payload');
+  
+  return withBackgroundTenantContext(tenant_id, async () => {
+    // Tenant context automatically available to Prisma middleware
+    // All queries still need explicit withTenantFilter() for safety
+    
+    const offers = await prisma.match_player_pool.findMany({
+      where: withTenantFilter(tenant_id, {
+        response_status: 'WAITLIST',
+        offer_expires_at: { lt: new Date() }
+      })
+    });
+    
+    // Process expired offers...
+  });
 }
 ```
 
@@ -652,11 +1205,29 @@ export const RSVP_JOB_TYPES = {
 
 **AUTO_BALANCE_PROCESSOR implementation:**
 
-Uses existing balance system. Worker makes HTTP call to balance endpoint:
+Uses existing balance system. Worker makes HTTP call to balance endpoint.
+
+**Deduplication:** Prevents rapid-fire rebalance jobs during dropout/refill churn:
 
 ```typescript
+const REBALANCE_COOLDOWN_MS = 60_000; // 1 minute cooldown per match
+const rebalanceTimestamps = new Map<string, number>();
+
 export async function processAutoBalanceJob(jobId: string, payload: AutoBalanceJobPayload) {
   const { matchId, method, tenantId, playerIds, state_version } = payload;
+  
+  // Deduplication: Skip if rebalanced within last minute
+  const cooldownKey = `${tenantId}:${matchId}`;
+  const lastRebalance = rebalanceTimestamps.get(cooldownKey);
+  const now = Date.now();
+  
+  if (lastRebalance && (now - lastRebalance) < REBALANCE_COOLDOWN_MS) {
+    console.log(`[AUTO_BALANCE] Skipping duplicate job for match ${matchId} (cooldown active)`);
+    await updateJobStatus(jobId, 'skipped');
+    return;
+  }
+  
+  rebalanceTimestamps.set(cooldownKey, now);
   
   // Map UI method names to API
   const apiMethod = method === 'ability' ? 'balanceByRating' 
@@ -684,7 +1255,7 @@ export async function processAutoBalanceJob(jobId: string, payload: AutoBalanceJ
     data: {
       tenant_id: tenantId,
       upcoming_match_id: matchId,
-      player_id: 0,
+      player_id: null, // System action (no specific player)
       kind: 'autobalance.balanced',
       batch_key: `autobalance:${matchId}:${Date.now()}`
     }
@@ -1228,13 +1799,54 @@ All database changes are additive. Can disable RSVP via feature flags without da
 
 ## **19) Future Enhancements**
 
-Document moved to `docs/FUTURE_PROBLEMS.md`:
+### **Near-Term (Post-MVP)**
+
+**RSVP-Specific:**
+- **WebSocket real-time updates:** Replace 30s polling with live match fill counter
+- **Email/SMS fallback:** Notification delivery via Twilio if push fails
+- **Auto-tier promotion:** Promote to Tier B after X attendances (reduces admin burden)
+- **Bulk tier management:** CSV upload for tier assignments (for clubs with 100+ players)
+
+**UX Polish:**
+- **Push notification templates:** Server-side rendering (not client substitution)
+- **Optimistic UI updates:** Instant feedback before server confirmation
+- **Offline support:** Queue RSVP responses when network unavailable
+
+### **Scale-Related (>200 Tenants)**
+
+**Infrastructure:**
+- **Redis rate limiting:** Replace in-memory Map with distributed cache
+- **Job queue partitioning:** Separate queues per tenant for load isolation
+- **Per-tenant monitoring:** Alert thresholds and dashboards per club
+
+**Performance:**
+- **Notification batching optimization:** Smart batching algorithms for large clubs
+- **Lock granularity refinement:** Player-level locks instead of match-level where safe
+- **Database read replicas:** Offload read-heavy RSVP status queries
+
+**Operations:**
+- **Automated tier assignment:** ML-based tier suggestions from attendance patterns
+- **Cross-tenant analytics:** Benchmark RSVP conversion rates across clubs
+- **Capacity planning tools:** Predict optimal match capacity from historical data
+
+### **Already Documented**
+
+See `docs/FUTURE_PROBLEMS.md` for:
 - Multi-league identity management
 - Payment authorization timing
 - Profile name conflict resolution
-- Bulk operations for large leagues
-- Cross-platform admin notifications
-- Email/SMS fallback for notifications
+
+### **Scale Context**
+
+**Current target:** ~200 tenants over 3 years
+- **Per tenant:** 30-50 active players
+- **Total players:** ~6,000 across platform
+- **Concurrent matches:** <50 at peak times
+- **Verdict:** Current architecture handles this easily
+
+**Scale threshold for optimization:** >500 tenants or >20,000 active players
+
+Most "future enhancements" in this section can be deferred until hitting scale thresholds. Focus on correctness and user experience first.
 
 ---
 
@@ -1253,20 +1865,34 @@ This consolidated specification delivers a **production-ready multi-tenant RSVP 
 
 ### **Key Architectural Decisions**
 
-- Multi-tenant from day one (all 33+ tables tenant-scoped)
-- Phone-only authentication (UK mobile numbers initially)
-- App-first experience (Capacitor wrapper)
-- Conservative defaults (booking OFF, auto-balance OFF, auto-lock OFF)
-- Dropout/refill rebalancing (teams unbalance when below capacity)
-- Worker HTTP calls for balance (not RPC, matches existing pattern)
+- **Multi-tenant from day one** (all 33+ tables tenant-scoped)
+- **Phone-only authentication** (UK mobile numbers initially)
+- **App-first experience** (Capacitor wrapper with deep links)
+- **Conservative defaults** (booking OFF, auto-balance OFF, auto-lock OFF)
+- **Dropout/refill rebalancing** (teams unbalance when below capacity)
+- **Worker HTTP calls** for balance (not RPC, matches existing pattern)
+- **Type-safe tenant filtering** (`withTenantFilter()` helper mandatory)
+- **Explicit over implicit** (RLS disabled, application-level security)
 
 ### **Database Changes**
 
-- 6 tables enhanced with RSVP fields
-- 3 new tables (match_invites, notification_ledger, push_tokens)
-- 20+ tenant-scoped indexes
-- FK integrity triggers
-- Complete RLS policies
+- **6 tables enhanced** with RSVP fields:
+  - `players` (+2 fields: tier, last_verified_at)
+  - `upcoming_matches` (+13 fields: booking config, tier windows, auto-balance)
+  - `match_player_pool` (+8 fields: waitlist, offers, timestamps)
+- **3 new tables:** match_invites, notification_ledger, push_tokens
+- **25+ tenant-scoped indexes** with security constraints
+- **Audit trail protection** (ON DELETE SET NULL for notification ledger)
+- **Idempotency safeguards** (unique indexes prevent double-offers, double-taps)
+
+### **Security Enhancements**
+
+- **HMAC-SHA256 token hashing** (faster than bcrypt for lookups)
+- **Machine-readable error codes** (20+ error types for frontend UX)
+- **Idempotency protection** (5-second window prevents double-submissions)
+- **Rebalance job deduplication** (1-minute cooldown prevents thrashing)
+- **Active offer prevention** (unique index prevents race-condition double-offers)
+- **Audit trail preservation** (SET NULL keeps history when players deleted)
 
 ### **Implementation Phases**
 
@@ -1276,4 +1902,138 @@ The specification maintains **backward compatibility** throughout. Teams using m
 
 ---
 
-**End of Consolidated Specification**
+## **21) Implementation Guidance (v4.3.0 Updates)**
+
+### **Key Pattern Changes from v4.2.0**
+
+**1. All API Routes Use withTenantContext Wrapper:**
+```typescript
+// ✅ NEW PATTERN (v4.3.0)
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    try {
+      await requireAdminRole(request);
+      const data = await prisma.players.findMany({
+        where: withTenantFilter(tenantId)
+      });
+      return NextResponse.json({ success: true, data });
+    } catch (error) {
+      return handleTenantError(error);
+    }
+  });
+}
+
+// ❌ OLD PATTERN (v4.2.0)
+export async function GET(request: NextRequest) {
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+  const tenantId = session.user.app_metadata?.tenant_id;
+  // ... manual tenant handling
+}
+```
+
+**2. All Queries Use withTenantFilter Helper:**
+```typescript
+// ✅ NEW PATTERN (v4.3.0)
+const players = await prisma.match_player_pool.findMany({
+  where: withTenantFilter(tenantId, {
+    response_status: 'WAITLIST'
+  })
+});
+
+// ❌ OLD PATTERN (v4.2.0)
+const players = await prisma.match_player_pool.findMany({
+  where: { 
+    tenant_id: tenantId,
+    response_status: 'WAITLIST'
+  }
+});
+```
+
+**3. Background Jobs Use withBackgroundTenantContext:**
+```typescript
+// ✅ NEW PATTERN (v4.3.0)
+async function processJob(job: JobData) {
+  const { tenant_id } = job.payload;
+  return withBackgroundTenantContext(tenant_id, async () => {
+    const offers = await prisma.match_player_pool.findMany({
+      where: withTenantFilter(tenant_id, { ... })
+    });
+  });
+}
+
+// ❌ OLD PATTERN (v4.2.0)
+async function processJob(job: JobData) {
+  const { tenant_id } = job.payload;
+  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenant_id}, false)`;
+  // ... manual RLS context
+}
+```
+
+**4. React Query Keys Follow Established Pattern:**
+```typescript
+// ✅ NEW PATTERN (v4.3.0)
+export const queryKeys = {
+  rsvpMatch: (tenantId: string | null, matchId: number | null) => 
+    ['rsvpMatch', tenantId, matchId] as const,
+} as const;
+
+export function useRsvpMatch(matchId: number | null) {
+  const { profile } = useAuth();
+  const tenantId = profile.tenantId;
+  
+  return useQuery({
+    queryKey: queryKeys.rsvpMatch(tenantId, matchId),
+    queryFn: () => fetchRsvpMatch(tenantId, matchId),
+    staleTime: 30 * 1000,
+    // NO enabled condition - avoids race condition
+  });
+}
+```
+
+### **Fields Already Implemented**
+
+Don't add these to the database (already exist from auth implementation):
+- ✅ `players.phone` (E.164 format)
+- ✅ `players.email` (nullable)
+- ✅ `players.auth_user_id` (link to Supabase auth)
+- ✅ `players.is_admin` (admin flag)
+- ✅ `players.tenant_id` (multi-tenancy)
+- ✅ `idx_players_phone` index
+
+Only add RSVP-specific fields:
+- ⭕ `players.tier` (A/B/C for booking priority)
+- ⭕ `players.last_verified_at` (phone verification tracking)
+
+### **Security Reminders**
+
+**RLS is NOT enforcing on operational tables:**
+- Only `auth.*`, `tenants`, `admin_profiles` have RLS enabled
+- All RSVP tables rely on explicit `withTenantFilter()` helper
+- Missing `withTenantFilter()` = security vulnerability
+- See `SPEC_multi_tenancy.md` Section Q for architecture decision
+
+**HTTP Cache Headers Required:**
+All RSVP endpoints must include:
+```typescript
+headers: {
+  'Cache-Control': 'no-store, must-revalidate',
+  'Pragma': 'no-cache',
+  'Vary': 'Cookie',
+}
+```
+
+### **Reference Implementations**
+
+Study these existing files before implementing RSVP:
+- **API Pattern**: `src/app/api/admin/match-player-pool/route.ts`
+- **React Query**: `src/hooks/queries/useLatestPlayerStatus.hook.ts`
+- **Query Keys**: `src/lib/queryKeys.ts`
+- **Tenant Filtering**: `src/lib/tenantFilter.ts`
+- **Tenant Context**: `src/lib/tenantContext.ts`
+- **Auth Helpers**: `src/lib/auth/apiAuth.ts`
+- **Advisory Locks**: `src/lib/tenantLocks.ts`
+
+---
+
+**End of Consolidated Specification v4.3.0**

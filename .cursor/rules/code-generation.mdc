@@ -2,7 +2,7 @@
 alwaysApply: true
 ---
 
-# BerkoTNF Project Rules
+# Capo Project Rules
 
 ## File Organization
 - Organize code by feature, not by type
@@ -100,6 +100,14 @@ export async function GET(request: NextRequest) {
 - ✅ Type-safe tenant filtering (impossible to forget tenant_id)
 - ✅ Consistent error handling via `handleTenantError()`
 - ✅ Defense-in-depth security model
+
+**NOTE:** Some older routes may use inline error handling instead of `handleTenantError()`. 
+When editing these routes, migrate to `handleTenantError()` for consistency.
+
+**Authentication Helpers:**
+- `requireAdminRole(request)` - Admin/superadmin access (returns `{ user, userRole, tenantId, linkedPlayerId }`)
+- `requirePlayerAccess(request)` - Player access (returns `{ user, player, tenantId }`)
+- For public routes: Use `withTenantContext(request, handler, { allowUnauthenticated: true })`
 
 **Edge Functions** - Use Supabase Client
 - Supabase Edge Functions in `supabase/functions/` should use Supabase client
