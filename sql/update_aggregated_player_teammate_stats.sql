@@ -61,10 +61,10 @@ BEGIN
                 CASE 
                     WHEN pm_player.result = 'win' THEN
                         c.win_points
-                        + CASE WHEN ABS(CASE WHEN pm_player.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold 
+                        + CASE WHEN ABS(CASE WHEN COALESCE(pm_player.actual_team, pm_player.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold 
                                THEN (c.heavy_win_points - c.win_points) ELSE 0 END
                         + CASE WHEN pm_player.clean_sheet THEN (c.cs_win_points - c.win_points) ELSE 0 END
-                        + CASE WHEN pm_player.clean_sheet AND ABS(CASE WHEN pm_player.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                        + CASE WHEN pm_player.clean_sheet AND ABS(CASE WHEN COALESCE(pm_player.actual_team, pm_player.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
                                THEN (c.heavy_cs_win_points - c.win_points - (c.heavy_win_points - c.win_points) - (c.cs_win_points - c.win_points)) ELSE 0 END
                         + (COALESCE(pm_player.goals, 0) * c.goals_scored_points)
                     WHEN pm_player.result = 'draw' THEN
@@ -73,7 +73,7 @@ BEGIN
                         + (COALESCE(pm_player.goals, 0) * c.goals_scored_points)
                     WHEN pm_player.result = 'loss' THEN
                         c.loss_points
-                        + CASE WHEN ABS(CASE WHEN pm_player.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                        + CASE WHEN ABS(CASE WHEN COALESCE(pm_player.actual_team, pm_player.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
                                THEN (c.heavy_loss_points - c.loss_points) ELSE 0 END
                         + (COALESCE(pm_player.goals, 0) * c.goals_scored_points)
                     ELSE 0
@@ -82,7 +82,7 @@ BEGIN
         FROM public.player_matches pm_player
         JOIN public.matches m ON pm_player.match_id = m.match_id AND m.tenant_id = target_tenant_id
         JOIN public.player_matches pm_teammate ON m.match_id = pm_teammate.match_id 
-            AND pm_player.team = pm_teammate.team 
+            AND COALESCE(pm_player.actual_team, pm_player.team) = COALESCE(pm_teammate.actual_team, pm_teammate.team) 
             AND pm_player.player_id != pm_teammate.player_id
             AND pm_teammate.tenant_id = target_tenant_id
         JOIN public.players p_teammate ON pm_teammate.player_id = p_teammate.player_id

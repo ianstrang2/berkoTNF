@@ -55,7 +55,7 @@ BEGIN
                     m.match_date,
                     pm.goals,
                     pm.result,
-                    pm.team,
+                    COALESCE(pm.actual_team, pm.team) AS team,
                     m.team_a_score,
                     m.team_b_score
                 FROM player_matches pm

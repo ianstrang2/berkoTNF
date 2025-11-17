@@ -59,7 +59,7 @@ BEGIN
             SUM(CASE WHEN pm.player_id IS NOT NULL 
                      THEN calculate_match_fantasy_points(
                          pm.result, 
-                         CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
+                         CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score WHEN COALESCE(pm.actual_team, pm.team) = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
                          pm.clean_sheet, 
                          pm.goals,
                          target_tenant_id

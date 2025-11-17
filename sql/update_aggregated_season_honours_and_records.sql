@@ -125,8 +125,8 @@ BEGIN
     biggest_victories AS (
         SELECT m.match_id, m.match_date, m.team_a_score, m.team_b_score, ABS(m.team_a_score - m.team_b_score) as score_difference,
                DENSE_RANK() OVER (ORDER BY ABS(m.team_a_score - m.team_b_score) DESC, m.match_date DESC) as rnk,
-               string_agg(CASE WHEN pm.team = 'A' THEN p.name || CASE WHEN pm.goals > 0 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) as team_a_players,
-               string_agg(CASE WHEN pm.team = 'B' THEN p.name || CASE WHEN pm.goals > 0 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) as team_b_players
+               string_agg(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN p.name || CASE WHEN pm.goals > 0 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) as team_a_players,
+               string_agg(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'B' THEN p.name || CASE WHEN pm.goals > 0 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) as team_b_players
         FROM matches m JOIN player_matches pm ON m.match_id = pm.match_id JOIN players p ON pm.player_id = p.player_id
         WHERE m.tenant_id = target_tenant_id AND pm.tenant_id = target_tenant_id AND p.tenant_id = target_tenant_id
         AND m.match_date IS NOT NULL AND p.is_ringer = false
@@ -267,7 +267,7 @@ BEGIN
         'most_goals_in_game', (
             -- Include ALL joint record holders
             SELECT COALESCE(jsonb_agg(
-                jsonb_build_object('name', name, 'goals', goals, 'date', match_date::text, 'score', CASE WHEN team = 'A' THEN team_a_score || '-' || team_b_score ELSE team_b_score || '-' || team_a_score END)
+                jsonb_build_object('name', name, 'goals', goals, 'date', match_date::text, 'score', CASE WHEN COALESCE(actual_team, team) = 'A' THEN team_a_score || '-' || team_b_score ELSE team_b_score || '-' || team_a_score END)
                 ORDER BY goals DESC, match_date DESC, name ASC
             ), '[]'::jsonb)
             FROM limited_game_goals

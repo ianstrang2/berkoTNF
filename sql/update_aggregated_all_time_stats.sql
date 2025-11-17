@@ -59,18 +59,18 @@ BEGIN
             SUM(CASE WHEN pm.result = 'draw' THEN 1 ELSE 0 END) as draws,
             SUM(CASE WHEN pm.result = 'loss' THEN 1 ELSE 0 END) as losses,
             SUM(COALESCE(pm.goals, 0)) as goals,
-            SUM(CASE WHEN pm.result = 'win' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END) as heavy_wins,
-            SUM(CASE WHEN pm.result = 'loss' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END) as heavy_losses,
+            SUM(CASE WHEN pm.result = 'win' AND ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score WHEN COALESCE(pm.actual_team, pm.team) = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END) as heavy_wins,
+            SUM(CASE WHEN pm.result = 'loss' AND ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score WHEN COALESCE(pm.actual_team, pm.team) = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END) >= c.heavy_win_threshold THEN 1 ELSE 0 END) as heavy_losses,
             SUM(CASE WHEN pm.clean_sheet THEN 1 ELSE 0 END) as clean_sheets,
             -- Inline fantasy points calculation using config from temp table
             SUM(
                 CASE 
                     WHEN pm.result = 'win' THEN
                         c.win_points
-                        + CASE WHEN ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold 
+                        + CASE WHEN ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold 
                                THEN (c.heavy_win_points - c.win_points) ELSE 0 END
                         + CASE WHEN COALESCE(pm.clean_sheet, false) THEN (c.cs_win_points - c.win_points) ELSE 0 END
-                        + CASE WHEN COALESCE(pm.clean_sheet, false) AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                        + CASE WHEN COALESCE(pm.clean_sheet, false) AND ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
                                THEN (c.heavy_cs_win_points - c.win_points - (c.heavy_win_points - c.win_points) - (c.cs_win_points - c.win_points)) ELSE 0 END
                         + (COALESCE(pm.goals, 0) * c.goals_scored_points)
                     WHEN pm.result = 'draw' THEN
@@ -79,7 +79,7 @@ BEGIN
                         + (COALESCE(pm.goals, 0) * c.goals_scored_points)
                     WHEN pm.result = 'loss' THEN
                         c.loss_points
-                        + CASE WHEN ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
+                        + CASE WHEN ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
                                THEN (c.heavy_loss_points - c.loss_points) ELSE 0 END
                         + (COALESCE(pm.goals, 0) * c.goals_scored_points)
                     ELSE 0

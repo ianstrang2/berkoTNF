@@ -36,7 +36,7 @@ BEGIN
         SELECT m.match_id, m.match_date, pm.player_id, p.name,
                calculate_match_fantasy_points(
                    COALESCE(pm.result, 'loss'), 
-                   CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
+                   CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score WHEN COALESCE(pm.actual_team, pm.team) = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END,
                    COALESCE(pm.clean_sheet, false),
                    COALESCE(pm.goals, 0),
                    target_tenant_id

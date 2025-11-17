@@ -112,14 +112,14 @@ BEGIN
             m.team_b_score,
             pm.player_id,
             p.name AS player_name,
-            pm.team,
+            COALESCE(pm.actual_team, pm.team) AS team,  -- Use actual team if swapped
             pm.goals,
             pm.result,
             pm.clean_sheet,
-            -- Calculate heavy_win and heavy_loss from goal_difference
-            (pm.result = 'win' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold) as heavy_win,
-            (pm.result = 'loss' AND ABS(CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold) as heavy_loss,
-            calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id) AS fantasy_points
+            -- Calculate heavy_win and heavy_loss from goal_difference (use actual_team)
+            (pm.result = 'win' AND ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold) as heavy_win,
+            (pm.result = 'loss' AND ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold) as heavy_loss,
+            calculate_match_fantasy_points(COALESCE(pm.result, 'loss'), CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score WHEN COALESCE(pm.actual_team, pm.team) = 'B' THEN m.team_b_score - m.team_a_score ELSE 0 END, COALESCE(pm.clean_sheet, false), COALESCE(pm.goals, 0), target_tenant_id) AS fantasy_points
         FROM matches m
         JOIN player_matches pm ON m.match_id = pm.match_id
         JOIN players p ON pm.player_id = p.player_id
@@ -188,27 +188,27 @@ BEGIN
 
     -- 3. Get Match Participants & Details
     SELECT
-        -- Team A players (without own goals)
-        COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'A'), '[]'::jsonb),
-        -- Team B players (without own goals)
-        COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE pm.team = 'B'), '[]'::jsonb),
-        -- Team A scorers with own goals appended if > 0
+        -- Team A players (using actual_team if swapped, otherwise planned team)
+        COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE COALESCE(pm.actual_team, pm.team) = 'A'), '[]'::jsonb),
+        -- Team B players (using actual_team if swapped, otherwise planned team)
+        COALESCE(jsonb_agg(p.name ORDER BY p.name) FILTER (WHERE COALESCE(pm.actual_team, pm.team) = 'B'), '[]'::jsonb),
+        -- Team A scorers with own goals appended if > 0 (use actual_team)
         CASE 
             WHEN COALESCE(latest_match.team_a_own_goals, 0) > 0 THEN
-                COALESCE(string_agg(CASE WHEN pm.team = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '') ||
-                CASE WHEN string_agg(CASE WHEN pm.team = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) IS NOT NULL THEN ', ' ELSE '' END ||
+                COALESCE(string_agg(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '') ||
+                CASE WHEN string_agg(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) IS NOT NULL THEN ', ' ELSE '' END ||
                 'OG (' || latest_match.team_a_own_goals || ')'
             ELSE
-                COALESCE(string_agg(CASE WHEN pm.team = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '')
+                COALESCE(string_agg(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '')
         END,
-        -- Team B scorers with own goals appended if > 0
+        -- Team B scorers with own goals appended if > 0 (use actual_team)
         CASE 
             WHEN COALESCE(latest_match.team_b_own_goals, 0) > 0 THEN
-                COALESCE(string_agg(CASE WHEN pm.team = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '') ||
-                CASE WHEN string_agg(CASE WHEN pm.team = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) IS NOT NULL THEN ', ' ELSE '' END ||
+                COALESCE(string_agg(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '') ||
+                CASE WHEN string_agg(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name) IS NOT NULL THEN ', ' ELSE '' END ||
                 'OG (' || latest_match.team_b_own_goals || ')'
             ELSE
-                COALESCE(string_agg(CASE WHEN pm.team = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '')
+                COALESCE(string_agg(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'B' AND pm.goals > 0 THEN p.name || CASE WHEN pm.goals > 1 THEN ' (' || pm.goals || ')' ELSE '' END END, ', ' ORDER BY p.name), '')
         END,
         array_agg(pm.player_id) FILTER (WHERE p.is_ringer = false AND p.is_ringer = false), -- Filter out ringers/retired here
         COALESCE(jsonb_object_agg(pm.player_id::text, p.name), '{}'::jsonb)

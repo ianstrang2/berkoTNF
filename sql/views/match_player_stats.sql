@@ -17,8 +17,8 @@ SELECT
     m.team_b_score,
     -- Calculate goal_difference from team perspective
     CASE 
-        WHEN pm.team = 'A' THEN m.team_a_score - m.team_b_score
-        WHEN pm.team = 'B' THEN m.team_b_score - m.team_a_score
+        WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score
+        WHEN COALESCE(pm.actual_team, pm.team) = 'B' THEN m.team_b_score - m.team_a_score
         ELSE 0
     END AS goal_difference,
     -- Result code for compatibility with existing queries
