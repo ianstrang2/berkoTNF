@@ -1,10 +1,10 @@
-# BerkoTNF Multi-Tenancy Implementation Specification
+# Capo Multi-Tenancy Implementation Specification
 
 Version 2.1.0 • IMPLEMENTATION COMPLETE ✅
 
 **VENDOR-AGNOSTIC, PRAGMATIC MULTI-TENANCY FOR PRODUCTION DEPLOYMENT**
 
-This specification provides a comprehensive, execution-ready plan for introducing robust multi-tenancy (MT) across the entire BerkoTNF application with minimal downtime and clear audit trails.
+This specification provides a comprehensive, execution-ready plan for introducing robust multi-tenancy (MT) across the entire Capo application with minimal downtime and clear audit trails.
 
 ---
 
@@ -12,7 +12,7 @@ This specification provides a comprehensive, execution-ready plan for introducin
 
 ### Why Multi-Tenancy Now
 
-The BerkoTNF RSVP system specification (`docs/SPEC_RSVP.md` v4.2.0-consolidated) requires tenant-aware functionality across the entire application stack:
+The Capo RSVP system specification (`docs/SPEC_RSVP.md` v4.2.0-consolidated) requires tenant-aware functionality across the entire application stack:
 
 - **RSVP Token Uniqueness**: Invite tokens must be unique per tenant, not globally
 - **Activity Feed Isolation**: Each tenant needs isolated activity streams
@@ -116,7 +116,7 @@ Located in `prisma/schema.prisma` with 40+ models. Key models for MT:
 
 ### Tenant Model
 
-**What is a Tenant**: A club/organization using BerkoTNF
+**What is a Tenant**: A club/organization using Capo
 - **Identifier**: UUID (`tenant_id`)
 - **Storage**: New `tenants` table with metadata
 - **Resolution**: Middleware extracts from session, token, or job context
@@ -2410,7 +2410,7 @@ Following user testing, additional critical issues were discovered and resolved:
 
 ### **🎯 Multi-Tenancy Implementation: COMPLETE & PRODUCTION READY ✅**
 
-This document serves as the **definitive implementation record** for BerkoTNF's multi-tenancy system. The implementation is **100% complete and production-deployed** with the following verified achievements:
+This document serves as the **definitive implementation record** for Capo's multi-tenancy system. The implementation is **100% complete and production-deployed** with the following verified achievements:
 
 #### **✅ Database Layer - COMPLETE**
 - **33 tables** with tenant_id fields and foreign key constraints
@@ -2447,7 +2447,7 @@ This document serves as the **definitive implementation record** for BerkoTNF's 
 - 🔄 Build on established tenant context patterns
 - 🔄 Use existing `withTenantMatchLock` for RSVP operations
 
-This multi-tenancy implementation provides a **rock-solid foundation** for all future BerkoTNF features, ensuring data isolation, security, and scalability from day one.
+This multi-tenancy implementation provides a **rock-solid foundation** for all future Capo features, ensuring data isolation, security, and scalability from day one.
 
 ---
 

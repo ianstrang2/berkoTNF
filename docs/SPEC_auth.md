@@ -1028,7 +1028,7 @@ https://capo.app/join/berkotnf/abc123...
 **Player Flow**:
 1. Player taps link (shared in WhatsApp group)
 2. Opens `/join/{tenant_slug}/{invite_token}` in app or browser
-3. System validates invite token and shows: "Join BerkoTNF"
+3. System validates invite token and shows: "Join Capo"
 4. Player enters phone number
 5. Receives SMS with 6-digit OTP code
 6. Verifies code
