@@ -65,6 +65,7 @@ export async function GET(
         clean_sheet: pm.clean_sheet,
         result: pm.result,
         fantasy_points: pm.fantasy_points,
+        actual_team: (pm as any).actual_team || pm.team,
         players: pm.players ? {
           name: pm.players.name,
           join_date: pm.players.join_date!.toISOString()

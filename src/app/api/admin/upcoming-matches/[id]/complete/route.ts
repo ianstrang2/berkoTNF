@@ -50,17 +50,13 @@ export async function POST(
         return NextResponse.json({ success: false, error: 'Match not found' }, { status: 404 });
       }
       
-      // Create a map of player_id to team
-      const playerTeamMap = new Map(
-        (upcomingMatchForValidation as any).upcoming_match_players.map(p => [p.player_id, p.team])
-      );
-      
-      // Calculate total goals by team using the team assignments
+      // Calculate total goals by team using ACTUAL team assignments (respects swaps)
+      // Note: player_stats only contains players who played (no-shows filtered out in UI)
       const totalPlayerGoalsA = player_stats
-        .filter(p => playerTeamMap.get(p.player_id) === 'A')
+        .filter(p => (p.actual_team || p.team) === 'A')
         .reduce((sum, p) => sum + (p.goals || 0), 0);
       const totalPlayerGoalsB = player_stats
-        .filter(p => playerTeamMap.get(p.player_id) === 'B')
+        .filter(p => (p.actual_team || p.team) === 'B')
         .reduce((sum, p) => sum + (p.goals || 0), 0);
       
       if (score.team_a !== totalPlayerGoalsA + own_goals.team_a) {
@@ -110,20 +106,27 @@ export async function POST(
         });
 
         // 2. Create player_matches records with calculated result fields
-        const goalsMap = new Map(player_stats.map((p: { player_id: number; goals: number }) => [p.player_id, p.goals]));
+        // Note: player_stats only contains players who actually played (no-shows excluded)
+        const playerStatsMap = new Map(player_stats.map((p: any) => [p.player_id, p]));
         
-        // Note: heavy_win/heavy_loss NO LONGER stored - calculated from goal_difference in SQL
         console.log(`MATCH COMPLETION DEBUG: Match ${matchId}, Score: ${score.team_a}-${score.team_b}, Own Goals: ${own_goals.team_a}-${own_goals.team_b}`);
+        console.log(`PLAYERS WHO PLAYED: ${player_stats.length} players (no-shows excluded)`);
         
-        const assignedPlayers = (upcomingMatch as any).upcoming_match_players.filter(p => p.team === 'A' || p.team === 'B');
-        console.log(`ASSIGNED PLAYERS: ${assignedPlayers.length} players found`);
-        
-        const playerMatchesData = assignedPlayers.map(p => {
-            // Determine team score and opposing score
-            const teamScore = p.team === 'A' ? score.team_a : score.team_b;
-            const opposingScore = p.team === 'A' ? score.team_b : score.team_a;
+        const playerMatchesData = player_stats.map((playerStat: any) => {
+            // Get team from upcoming_match_players
+            const upcomingPlayer = (upcomingMatch as any).upcoming_match_players.find(p => p.player_id === playerStat.player_id);
+            if (!upcomingPlayer) {
+              throw new Error(`Player ${playerStat.player_id} not found in upcoming_match_players`);
+            }
             
-            // Calculate result - ensure we always get a valid string
+            const plannedTeam = upcomingPlayer.team;
+            const actualTeam = playerStat.actual_team || plannedTeam;
+            
+            // Determine team score and opposing score (use actual team if swapped)
+            const teamScore = actualTeam === 'A' ? score.team_a : score.team_b;
+            const opposingScore = actualTeam === 'A' ? score.team_b : score.team_a;
+            
+            // Calculate result
             const result = teamScore > opposingScore ? 'win' : (teamScore < opposingScore ? 'loss' : 'draw');
             
             // Calculate clean_sheet flag
@@ -131,16 +134,16 @@ export async function POST(
             
             const playerData = {
               match_id: newMatch.match_id,
-              player_id: p.player_id,
-              team: p.team,
-              goals: goalsMap.get(p.player_id) || 0,
+              player_id: playerStat.player_id,
+              team: plannedTeam, // Planned team (from upcoming_match_players)
+              actual_team: actualTeam, // Actual team (may differ if swapped)
+              goals: playerStat.goals || 0,
               result,
-              // REMOVED: heavy_win and heavy_loss - calculated from goal_difference in SQL
               clean_sheet,
               tenant_id: tenantId  // Multi-tenant: Include tenant in player match records
             };
             
-            console.log(`PLAYER ${p.player_id} (Team ${p.team}): result=${result}, clean_sheet=${clean_sheet}`);
+            console.log(`PLAYER ${playerStat.player_id} (Team ${plannedTeam}${actualTeam !== plannedTeam ? ` → ${actualTeam}` : ''}): result=${result}, clean_sheet=${clean_sheet}, goals=${playerStat.goals}`);
             
             return playerData;
           });

@@ -1659,7 +1659,164 @@ All RSVP events logged to `notification_ledger` with masked player identifiers. 
 
 ---
 
-## **15) Developer Guide**
+## **15) Match Day Reality & Payment Stability - ✅ BASE FEATURE IMPLEMENTED (January 2025)**
+
+### **Core Principle: Lock Backwards, Flex Forward**
+
+Once payments are enabled OR RSVP deadline passes:
+- ❌ Cannot go back to Draft or PoolLocked (prevents payment/RSVP disruption)
+- ❌ Cannot remove players from pool/teams via planning screens
+- ✅ Handle all real-world chaos via "Match Day Adjustments" on results screen
+
+### **Already Implemented: Base Feature (No RSVP Required)**
+
+The foundation for handling match-day reality is **already live** and works today without RSVP:
+
+**Database Schema (Complete):**
+```sql
+ALTER TABLE player_matches
+  ADD COLUMN actual_team VARCHAR(20);  -- Track team swaps
+-- Note: is_no_show column removed - absence from table = no-show
+```
+
+**UI/UX (Complete):**
+- **Location:** CompleteMatchForm (results screen)
+- **No-Show Handling:** Uncheck player → not saved to `player_matches` → no stats credit
+- **Team Swaps:** Click arrow (→/←) → player moves visually between columns
+- **Soft UI Styling:** Purple gradient checkmarks, circular swap buttons
+
+**Visual Example:**
+```
+ORANGE                          GREEN
+[✓] → Lee Miles   - [2] +      [✓] ← Scott Daly  - [1] +
+[✓] → Greg Dormer - [0] +      [✓] ← Simon Gill  - [0] +
+[○]   Sharpey (No Show)        [✓] ← Ade Duncan  - [0] +
+```
+
+**How It Works:**
+1. Admin enters results screen
+2. Unchecks players who didn't show (checkbox = purple circle with checkmark)
+3. Clicks arrow buttons to swap players between teams
+4. Players **visually move** to the other column
+5. Enters goals and saves
+6. Only checked players get saved to `player_matches` table
+7. Stats automatically correct (no filtering needed)
+
+**Data Flow:**
+```typescript
+// Submit only players who played
+player_stats = allPlayers
+  .filter(player => isChecked)  // Checkbox controls row creation
+  .map(player => ({
+    player_id: player.id,
+    goals: goals,
+    actual_team: swappedTeam || plannedTeam  // For team swaps
+  }));
+
+// No-shows determined by absence:
+// If player exists in upcoming_match_players but NOT in player_matches = no-show
+```
+
+**Re-Editing Support:**
+```typescript
+// Cross-reference tables to restore UI state
+const playedPlayerIds = new Set(player_matches.map(pm => pm.player_id));
+const noShows = upcoming_match_players.filter(p => !playedPlayerIds.has(p.player_id));
+const swaps = player_matches.filter(pm => pm.actual_team !== pm.team);
+```
+
+### **Future RSVP Integration**
+
+When RSVP is fully implemented, this base feature extends naturally:
+
+**1. Auto-Mark No-Shows from RSVP:**
+```typescript
+// Pre-uncheck players who marked OUT in RSVP
+players.forEach(player => {
+  if (player.rsvpStatus === 'OUT' && match.state === 'TeamsBalanced') {
+    setNoShowPlayers(prev => new Set([...prev, player.id]));
+  }
+});
+```
+
+**2. Backwards Navigation Locking:**
+```sql
+-- Add to upcoming_matches when RSVP implemented
+ALTER TABLE upcoming_matches
+  ADD COLUMN locked_for_payments BOOLEAN DEFAULT FALSE;
+```
+
+**UI Changes:**
+```typescript
+// Disable unlock buttons once payments are enabled
+const canUnlock = !matchData.locked_for_payments;
+
+{canUnlock ? (
+  <button onClick={actions.unlockPool}>← Back to Pool</button>
+) : (
+  <div className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded">
+    🔒 Teams locked for payments - use Match Day adjustments for changes
+  </div>
+)}
+```
+
+**3. Payment vs Participation Separation:**
+
+Financial records (stable after payment):
+```sql
+match_player_pool {
+  player_id: 123,
+  response_status: 'IN',
+  payment_status: 'paid',  -- Never changes
+  team: 'A'  -- Planned team
+}
+```
+
+Participation records (flexible until completed):
+```sql
+player_matches {
+  player_id: 123,
+  team: 'A',  -- Planned
+  actual_team: 'B',  -- Actually played (swapped)
+  goals: 2
+}
+-- If player no-shows: no row created at all
+```
+
+**4. No Automatic Refunds:**
+- Admin policy: No-shows don't get refunds
+- Payment record stays `status: 'paid'`
+- Admin can manually refund externally if desired
+- No refund logic in codebase
+
+### **Benefits of This Architecture**
+
+✅ **Simple Today:** Works without RSVP/payments (already live)  
+✅ **Future-Ready:** Extends cleanly when RSVP implemented  
+✅ **Payment Safe:** Planning locked, reality flexible  
+✅ **Stats Clean:** No filtering needed, just works  
+✅ **Real-World Flexible:** Handles no-shows and swaps elegantly  
+
+### **Implementation Status**
+
+**✅ Phase 1 (COMPLETE - January 2025):**
+- No-show checkbox UI
+- Team swap arrows
+- Cross-reference restoration for re-editing
+- `actual_team` column for team swaps
+- Stats integrity maintained
+
+**⏳ Phase 2 (When RSVP Implemented):**
+- Auto-mark no-shows from RSVP status
+- Add `locked_for_payments` column
+- Disable backwards navigation when locked
+- Connect to payment records
+
+See `SPEC_match-control-centre.md` for complete implementation details of Phase 1.
+
+---
+
+## **16) Developer Guide**
 
 ### **Phone Normalization**
 

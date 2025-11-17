@@ -1770,4 +1770,146 @@ const getDeleteMessage = (match) => {
 
 ---
 
+## **Match Day Reality: No-Show & Team Swap Handling - ✅ IMPLEMENTED (January 2025)**
+
+**Issue**: Admin manually balanced 18 players, but on match day one player doesn't show. Going back to Draft state loses all balancing work. Also, sometimes teams need last-minute swaps for fairness.
+
+**Solution**: Handle match-day reality directly on results screen with simple checkbox UI and team swap arrows, without disrupting the planning workflow.
+
+### **Implementation**
+
+**Database Schema:**
+```sql
+-- Added to player_matches table (columns exist but not strictly used - see Design Decision below)
+ALTER TABLE player_matches
+  ADD COLUMN is_no_show BOOLEAN DEFAULT FALSE,
+  ADD COLUMN actual_team VARCHAR(20);
+```
+
+**Design Decision: Checkbox Controls Row Creation**
+
+After evaluating two approaches:
+1. ❌ **Save everyone + filter in stats** - Requires updating 9+ SQL files, high bug risk
+2. ✅ **Checkbox controls who gets saved** - Simple, stats just work, no SQL changes needed
+
+**We chose Approach 2** for simplicity and maintainability.
+
+**How It Works:**
+- ✅ **Checkbox unchecked** → Player NOT saved to `player_matches` (no appearance credit)
+- ✅ **Checkbox checked** → Player saved to `player_matches` (gets stats)
+- ✅ **Re-editing** → Cross-reference `upcoming_match_players` vs `player_matches` to restore UI state
+- ✅ **Stats queries unchanged** → No filtering needed, they just work
+
+**UI Enhancement (CompleteMatchForm):**
+
+Each player row now has:
+1. **Played checkbox**: Controls whether player gets a `player_matches` row
+2. **Team swap arrow** (→ or ←): Quick one-click team reassignment
+3. **Visual feedback**: Greyed out + "No Show" badge for unchecked players
+4. **Goal controls hidden**: No-show players can't have goals entered
+
+**Visual Example:**
+```
+ORANGE                          GREEN
+✓ Lee Miles    → - [2] +       ✓ Scott Daly  ← - [1] +
+✓ Greg Dormer  → - [0] +       ✓ Simon Gill  ← - [0] +
+✗ Sharpey (No Show)            ✓ Ade Duncan  ← - [0] +
+✓ Pete Hay     → - [0] +       ✗ Steve McG (No Show)
+```
+
+**Submit Logic:**
+```typescript
+// Only save players with checkbox checked
+const player_stats = [...teamA, ...teamB]
+  .filter(player => !noShowPlayers.has(player.id))  // Checkbox controls this
+  .map(player => ({
+    player_id: Number(player.id),
+    goals: playerGoals.get(player.id) || 0,
+    actual_team: teamSwaps.get(player.id) || player.team  // For team swaps
+  }));
+```
+
+**Re-Editing Logic:**
+```typescript
+// Cross-reference two tables to figure out who no-showed
+const playedPlayerIds = new Set(historicalMatch.player_matches.map(pm => pm.player_id));
+const noShows = new Set();
+
+players.forEach(player => {
+  if (!playedPlayerIds.has(player.id)) {
+    noShows.add(player.id);  // Was planned but didn't play
+  }
+});
+```
+
+**API Changes:**
+
+**Complete Match Endpoint:** `/api/admin/upcoming-matches/[id]/complete`
+- Accepts `player_stats` array with only players who played
+- Processes `actual_team` field for team swaps
+- No `is_no_show` field needed (absence = no-show)
+
+**Historical Data Endpoint:** `/api/admin/upcoming-matches/[id]/historical-data`
+- Returns `player_matches` (players who played)
+- Frontend cross-references with `upcoming_match_players` to determine no-shows
+
+### **Use Cases Handled**
+
+**1. Player No-Show:**
+- Uncheck player's checkbox before saving match
+- Player doesn't get appearance/stats credit
+- Re-editing preserves no-show state
+
+**2. Last-Minute Team Swap:**
+- Click arrow (→ or ←) to swap player between teams
+- Stats calculated using `actual_team` instead of planned `team`
+- Visual "(swapped)" indicator shows who moved
+
+**3. Multiple No-Shows:**
+- Uncheck multiple players
+- Final scores auto-recalculate excluding no-shows
+- Only players with ✓ get saved to database
+
+### **Benefits**
+
+✅ **Simple**: Just a checkbox - no complex state machine changes  
+✅ **Clean stats**: No filtering needed, queries just work  
+✅ **Low maintenance**: No risk of forgetting filters in SQL files  
+✅ **Re-editable**: Cross-reference preserves full history  
+✅ **Real-world flexible**: Handles no-shows and swaps elegantly  
+✅ **Future-proof**: When RSVP implemented, can auto-uncheck no-shows  
+
+### **Future RSVP Integration**
+
+When RSVP system is implemented (per `SPEC_RSVP.md`), this feature integrates seamlessly:
+
+```typescript
+// Future: RSVP auto-marks no-shows
+if (player.rsvpStatus === 'OUT' && match.state === 'TeamsBalanced') {
+  // Pre-uncheck checkbox based on RSVP data
+  setNoShowPlayers(prev => new Set([...prev, player.id]));
+}
+```
+
+**Backwards Navigation Locking:**
+- Once `locked_for_payments = TRUE`, disable "Unlock Pool" and "Unlock Teams" buttons
+- Show message: "🔒 Teams locked for payments - use Match Day adjustments for changes"
+- All real-world chaos handled on results screen
+
+### **Files Modified**
+
+**Frontend:**
+- `src/components/admin/matches/CompleteMatchForm.component.tsx` - Checkbox + arrow UI
+
+**Backend:**
+- `src/app/api/admin/upcoming-matches/[id]/complete/route.ts` - Process only played players
+- `src/app/api/admin/upcoming-matches/[id]/historical-data/route.ts` - Return `actual_team` field
+
+**Database:**
+- `player_matches` table - Added `is_no_show` and `actual_team` columns (for future use)
+
+**Note:** `is_no_show` column exists in database but is not currently used. We keep it for potential future analytics ("Player X no-shows 30% of the time") without breaking current simple implementation.
+
+---
+
 **End of Complete Implementation Documentation** 
