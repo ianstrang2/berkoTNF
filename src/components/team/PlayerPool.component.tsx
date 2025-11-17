@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { PlayerProfile, PlayerInPool } from '@/types/player.types';
 
 interface PlayerPoolProps {
@@ -23,6 +23,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
   pendingPlayers = new Set() // Default to empty set if not provided
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   // Maximum allowed players
   const maxAllowedPlayers = maxPlayers || teamSize * 2;
@@ -38,6 +39,18 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
       )
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [allPlayers, searchTerm, selectedPlayers]);
+  
+  // Wrapper to clear search when adding a player (but not when removing)
+  const handleAddPlayer = (player: PlayerProfile | PlayerInPool) => {
+    // Only clear search if adding (player not already selected)
+    const isAdding = !selectedPlayers.some(p => p.id === player.id);
+    onTogglePlayer(player);
+    if (isAdding) {
+      setSearchTerm('');
+      // Return focus to search input for quick successive additions
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
+  };
   
   // Check if we have the right number of players for the match format
   const hasCorrectPlayerCount = selectedPlayers.length === maxAllowedPlayers;
@@ -105,6 +118,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
         <div className="mb-3">
           <div className="relative">
             <input
+              ref={searchInputRef}
               type="text"
               placeholder={hasReachedMaxPlayers ? "Maximum players reached" : `Search ${allPlayers.filter(p => !p.isRetired && !selectedPlayers.some(s => s.id === p.id)).length} available players...`}
               value={searchTerm}
@@ -127,7 +141,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
               <div 
                 key={player.id}
                 className={`flex items-center justify-between p-3 hover:bg-gray-50 ${pendingPlayers.has(player.id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                onClick={() => !hasReachedMaxPlayers && !pendingPlayers.has(player.id) && onTogglePlayer(player)}
+                onClick={() => !hasReachedMaxPlayers && !pendingPlayers.has(player.id) && handleAddPlayer(player)}
               >
                 <div className="flex items-center">
                   <span className="bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-4 py-2 font-sans text-sm max-w-40">{player.name}</span>
@@ -136,7 +150,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
                   className="focus:outline-none transition-all duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (!hasReachedMaxPlayers && !pendingPlayers.has(player.id)) onTogglePlayer(player);
+                    if (!hasReachedMaxPlayers && !pendingPlayers.has(player.id)) handleAddPlayer(player);
                   }}
                   disabled={hasReachedMaxPlayers || pendingPlayers.has(player.id)}
                   aria-label={`Add ${player.name}`}
