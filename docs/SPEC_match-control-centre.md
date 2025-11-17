@@ -701,6 +701,47 @@ max-md:pb-40
 - ✅ Maintains touch-friendly interaction
 - ✅ Preserves desktop responsiveness
 
+### **7.5 Mobile UX Improvements - January 2025**
+
+**Issue 1: Match creation modal too wide on mobile**
+- Modal was taking full screen width with no padding
+- Inconsistent with other modals in the app
+
+**Solution**: Added padding to modal container
+```css
+/* Before: */
+<div className="fixed inset-0 ... flex items-center justify-center">
+
+/* After: */
+<div className="fixed inset-0 ... flex items-center justify-center p-4">
+```
+
+**Benefits**:
+- ✅ Consistent with other modals (breathing room on sides)
+- ✅ Better mobile visual hierarchy
+- ✅ Matches soft UI design system
+
+**Issue 2: Drag-and-drop not working on mobile**
+- Team balancing used only desktop drag events (`onDragStart`, `onDrop`)
+- Touch gestures didn't trigger player movement
+
+**Solution**: Added touch event handlers
+```typescript
+// Added to useTeamDragAndDrop hook:
+onTouchStart={(e) => handleTouchStart(player, e)}
+onTouchMove={handleTouchMove}
+onTouchEnd={() => handleTouchEnd(team, slot)}
+
+// Added touch-none to prevent scrolling during drag
+className="... touch-none"
+```
+
+**Benefits**:
+- ✅ Drag-and-drop now works on mobile/tablet
+- ✅ Touch-friendly 44px+ targets maintained
+- ✅ Prevents accidental scrolling during drag
+- ✅ Consistent behavior across desktop and mobile
+
 ---
 
 ## 8. Configuration Management System

@@ -61,6 +61,7 @@ const useTeamDragAndDrop = (
   currentPlayers?: PlayerInPool[]
 ) => {
   const [draggedPlayer, setDraggedPlayer] = useState<PlayerInPool | null>(null);
+  const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
 
   const updatePlayerAssignment = async (player: PlayerInPool, targetTeam: Team, targetSlot?: number) => {
     // Store original state for potential reversion
@@ -191,7 +192,35 @@ const useTeamDragAndDrop = (
     setDraggedPlayer(null);
   };
 
-  return { handleDragStart, handleDragOver, handleDrop };
+  // Touch event handlers for mobile
+  const handleTouchStart = (player: PlayerInPool, e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setTouchStartPos({ x: touch.clientX, y: touch.clientY });
+    setDraggedPlayer(player);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling while dragging
+  };
+
+  const handleTouchEnd = (targetTeam: Team, targetSlot?: number) => {
+    if (!draggedPlayer) return;
+
+    // Call the new update function
+    updatePlayerAssignment(draggedPlayer, targetTeam, targetSlot);
+
+    setDraggedPlayer(null);
+    setTouchStartPos(null);
+  };
+
+  return { 
+    handleDragStart, 
+    handleDragOver, 
+    handleDrop,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd 
+  };
 };
 
 const BalanceTeamsPane = ({ 
@@ -279,7 +308,7 @@ const BalanceTeamsPane = ({
     }
   }, [teamSize, actualSizeA, actualSizeB, teamTemplate]);
 
-  const { handleDragStart, handleDragOver, handleDrop } = useTeamDragAndDrop(
+  const { handleDragStart, handleDragOver, handleDrop, handleTouchStart, handleTouchMove, handleTouchEnd } = useTeamDragAndDrop(
     setPlayers,
     markAsUnbalanced,
     matchId,
@@ -431,8 +460,10 @@ const BalanceTeamsPane = ({
       <div 
         key={player.id} 
         draggable 
-        onDragStart={() => handleDragStart(player)} 
-        className="inline-flex items-center justify-between bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-3 py-2 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing w-[170px]"
+        onDragStart={() => handleDragStart(player)}
+        onTouchStart={(e) => handleTouchStart(player, e)}
+        onTouchMove={handleTouchMove}
+        className="inline-flex items-center justify-between bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-3 py-2 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing w-[170px] touch-none"
       >
           <span className="text-sm font-medium truncate flex-1">{displayName}</span>
           <GripVertical className="ml-2 text-slate-400 flex-shrink-0" size={16} />
@@ -449,7 +480,8 @@ const BalanceTeamsPane = ({
       <div 
         key={actualSlotNumber} 
         onDragOver={handleDragOver} 
-        onDrop={() => handleDrop(team, actualSlotNumber)} 
+        onDrop={() => handleDrop(team, actualSlotNumber)}
+        onTouchEnd={() => handleTouchEnd(team, actualSlotNumber)}
         className={`h-[44px] w-[170px] flex items-center justify-center rounded-lg transition-all duration-200 ease-in-out mx-auto ${
           playerInSlot 
             ? 'bg-transparent' 
@@ -514,7 +546,7 @@ const BalanceTeamsPane = ({
             <div className="p-3 border-b border-gray-200">
                 <h2 className="font-bold text-slate-700 text-lg">Player Pool</h2>
             </div>
-            <div className="p-4" onDragOver={handleDragOver} onDrop={() => handleDrop('Unassigned')}>
+            <div className="p-4" onDragOver={handleDragOver} onDrop={() => handleDrop('Unassigned')} onTouchEnd={() => handleTouchEnd('Unassigned')}>
                 <div className="flex flex-wrap gap-2 min-h-[120px] content-start">
                     {unassigned.length > 0 
                         ? unassigned.map(p => renderPlayer(p)) 
