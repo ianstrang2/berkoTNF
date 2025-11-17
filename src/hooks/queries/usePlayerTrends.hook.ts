@@ -34,14 +34,19 @@ async function fetchPlayerTrends(
   const result = await response.json();
   
   if (!result.success || !result.data) {
+    console.warn('[usePlayerTrends] No trend data returned from API');
     return null;
   }
 
-  return {
-    power_rating_percentile: result.data.powerRatingPercentile ?? null,
-    goal_threat_percentile: result.data.goalThreatPercentile ?? null,
-    participation_percentile: result.data.participationPercentile ?? null,
+  // API returns snake_case field names from toPlayerWithTrend transform
+  const trendData = {
+    power_rating_percentile: result.data.power_rating_percentile ?? null,
+    goal_threat_percentile: result.data.goal_threat_percentile ?? null,
+    participation_percentile: result.data.participation_percentile ?? null,
   };
+  
+  console.log('[usePlayerTrends] Trend data:', trendData);
+  return trendData;
 }
 
 export function usePlayerTrends(playerId: number | null | undefined) {

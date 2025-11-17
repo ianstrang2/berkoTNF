@@ -19,6 +19,7 @@ import {
 import { usePlayerProfile } from '@/hooks/queries/usePlayerProfile.hook';
 import { useLeagueAverages } from '@/hooks/queries/useLeagueAverages.hook';
 import { usePlayerTrends } from '@/hooks/queries/usePlayerTrends.hook';
+import { useAuth } from '@/hooks/useAuth.hook';
 
 interface ClubInfo {
   id: string;
@@ -135,6 +136,9 @@ const calculatePercentile = (value: number, min: number, max: number): number =>
 };
 
 const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
+  // Check auth state first to avoid race condition
+  const { profile: authProfile, loading: authLoading } = useAuth();
+  
   // React Query hooks - automatic deduplication and caching!
   const { data: profileData, isLoading: loading, error: profileError } = usePlayerProfile(id);
   const { data: leagueAverages = [] } = useLeagueAverages();
@@ -188,7 +192,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
     'PPG'
   ];
 
-  const yearlyPerformanceData: YearlyPerformanceData[] | undefined = profile?.yearly_stats.map(year => {
+  const yearlyPerformanceData: YearlyPerformanceData[] | undefined = profile?.yearly_stats?.map(year => {
     const minutesPerGoal = (year.games_played * 60) / (year.goals_scored || 1);
     const pointsPerGame = year.fantasy_points / (year.games_played || 1);
 
@@ -200,7 +204,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
       points_per_game: pointsPerGame || 0,
       fantasy_points: year.fantasy_points || 0
     };
-  }).reverse();
+  })?.reverse();
 
   // Process power ratings and streaks if available
   const powerRatingsNormalized = profile?.power_ratings && profile?.league_normalization ? 
@@ -280,12 +284,46 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
     };
   }, [profile]);
 
+  // Wait for auth to load first to avoid race condition
+  if (authLoading) {
+    return (
+      <div className="py-6">
+        <div className="relative flex flex-col min-w-0 break-words bg-white dark:bg-gray-950 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border">
+          <div className="text-center">
+            <h6 className="mb-2 text-lg">Loading authentication...</h6>
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if we have a tenant context
+  if (!authProfile.tenantId) {
+    return (
+      <div className="py-6">
+        <div className="relative flex flex-col min-w-0 break-words bg-white dark:bg-gray-950 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border">
+          <div className="text-center text-red-500 p-6">
+            <h6 className="mb-2 text-lg font-semibold">No Tenant Context</h6>
+            <p className="text-sm">
+              {authProfile.isSuperadmin 
+                ? 'Please select a tenant using the dropdown in the header.'
+                : 'Your account is not associated with a club. Please contact support.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="py-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white dark:bg-gray-950 shadow-soft-xl dark:shadow-soft-dark-xl rounded-2xl bg-clip-border">
           <div className="text-center">
-            <h6 className="mb-2 text-lg">Loading...</h6>
+            <h6 className="mb-2 text-lg">Loading player profile...</h6>
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
               <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
             </div>
@@ -345,7 +383,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   }
 
   // Extract years for the MatchPerformance component
-  const availableYearsForMatchPerformance = profile.yearly_stats.map(stat => stat.year).sort((a, b) => b - a);
+  const availableYearsForMatchPerformance = profile?.yearly_stats?.map(stat => stat.year).sort((a, b) => b - a) || [];
 
   return (
     <div className="flex flex-wrap -mx-3">

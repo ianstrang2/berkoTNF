@@ -51,18 +51,27 @@ async function fetchPlayerProfile(
   playerId: number | null | undefined,
   tenantId: string | null
 ): Promise<PlayerProfileData | null> {
-  if (!playerId || !tenantId) {
+  if (!playerId) {
+    return null;
+  }
+  
+  if (!tenantId) {
+    console.error('[usePlayerProfile] No tenantId in auth context - cannot fetch player profile');
     return null;
   }
 
   const response = await apiFetch(`/playerprofile?id=${playerId}`);
-
+  
   if (!response.ok) {
-    throw new Error(`Failed to fetch profile: ${response.statusText}`);
+    const errorText = await response.text();
+    console.error(`[usePlayerProfile] API error (${response.status}):`, errorText);
+    throw new Error(`Failed to fetch profile: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
-  return data;
+  const result = await response.json();
+  
+  // API returns { success: true, data: {...} } - extract the data
+  return result.data || null;
 }
 
 export function usePlayerProfile(playerId: number | null | undefined) {
