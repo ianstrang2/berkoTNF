@@ -1,137 +1,253 @@
-Capo – Football League Platform
-Marketing Specification & Feature Overview
+📄 CAPO MARKETING PAGE — MARKDOWN SPEC
+Notes for Cursor:
 
-Version: 1.1
-Date: January 2025
-Purpose: Marketing-ready overview for website and launch collateral
+Use this as the content + structure.
 
-🎯 Executive Summary
+Follow the section dividers.
 
-BerkoTNF is not just another scheduling tool — it’s the football league platform that makes every game fairer, more competitive, and more fun.
+Hero should be full-bleed, premium, Apple-style.
 
-With smart team balancing, fantasy-style stats, rich player profiles, and automated records, BerkoTNF transforms casual kickabouts into proper football history. Payments and RSVP tools keep games full and hassle-free, but the magic is in the on-pitch balance and off-pitch bragging rights.
+Use clean typography, minimal chrome, strong spacing.
 
-Core Value Propositions
+Add visuals/imagery as called out in each section.
 
-For Admins: Smarter match control, less chasing, fairer teams.
+Primary CTA = Get the App
 
-For Players: Stats, streaks, and bragging rights that make every game count.
+Secondary CTA (top-right) = Login
 
-For Communities: A living record of seasons, winners, and legends.
+Keep everything mobile-first and scroll-friendly.
 
-🏆 Key Features
-⚖️ Smart Team Balancing
+🏆 HERO SECTION
 
-Balance teams automatically using either admin-set ratings or live performance stats.
+Suggested imagery:
 
-Advanced algorithms weight pace, control, goalscoring, and more.
+Full-width pitch at night / cage football shot
 
-Real-time balance scoring with visual feedback (TornadoCharts, indicators).
+Dark-to-light gradient over image
 
-One-click “fair teams” that stop the moaning before kick-off.
+Floating phone mockup with Capo UI if you have it
 
-📊 Group Statistics & Title Race
+# CAPO  
+## The football app your mates will obsess over.  
+### And the game that finally runs itself.
 
-Leaderboards built from fantasy-style points.
+Right now your club lives inside a chaotic WhatsApp thread, a captain’s memory, and a spreadsheet from the Stone Age.
 
-Half-season and full-season standings with promotion/relegation feel.
+Capo pulls everything into one clean, addictive, brilliantly simple football system —
+**career stats for the players, zero admin for the organiser, fair teams every week.**
 
-Race for the title with points, wins, streaks, and bragging rights.
+[Get the App]  
+Login (top-right)
 
-🧑‍💻 Player Profiles
+**Free forever for organisers.**  
+*Players pay a small per-match fee.*
 
-AI-generated writeups bring each player’s journey to life.
+ECTION: FOR PLAYERS
 
-Power Rating, Goal Threat, Participation Rate.
+Suggested imagery:
 
-Performance graphs, teammate chemistry analysis, form trackers.
+Player profile screen mockup
 
-Career milestones and achievement badges.
+Streak icons / flames / skull
 
-🏅 Records & Legends
+Race graph / performance chart
 
-Season champions and golden boot winners.
+Chemistry scatter chart
 
-All-time records: most goals, most appearances, longest streaks.
+## FOR PLAYERS  
+### Your football story, told properly.
 
-Feat detection: On Fire, Grim Reaper, and other special statuses.
+Capo turns your casual 5–7-a-side into a proper mini-league — the kind people actually care about.  
+Every match counts. Every stat matters. Every streak becomes lore.
 
-A living archive that turns casual players into club legends.
+### Your AI-written player biography  
+Capo watches your performances — games, goals, wins, losses, scoring runs, attendance, form, seasons — and turns them into a living football narrative.  
+It updates as you play. It remembers everything.  
+It becomes the story of your career at the club.
 
-💳 Seamless Payments
+### Streaks & form that actually feel like form  
+Attendance runs. Unbeaten patches. Win streaks. Scoring streaks. Winless droughts.  
+Capo tracks them all and shows your current heat with bold icons and simple visuals.  
+You know exactly who’s on fire and who’s gone missing.
 
-Per-game fee collection: players pay upfront, admins never chase.
+### Fantasy-style scoring — but from real football  
+Every game feeds your season points: goals, assists, appearance points, win bonuses, clean sheet bonuses, streak multipliers and heavy-win rewards.  
+Leaderboards shift every week. Suddenly everyone starts checking where they stand.
 
-Season subscriptions for longer competitions.
+### Performance graphs that show your rise (or wobble)  
+Your games, goals, minutes and points-per-game evolve across the season in clean, simple visuals.  
+You can see your improvement — and everyone else’s.
 
-Automatic payouts to admins — full fee, no Stripe headaches.
+### Chemistry that exposes the truth  
+Capo reveals who you play best with, who you struggle with, and which combinations always deliver.  
+Some partnerships just click. Some… don’t. Now you’ve got the data to prove it.
 
-Invisible system fee baked into each booking.
+### Records, milestones & club legends  
+Longest streaks, biggest scoring nights, heaviest defeats, milestone matches.  
+Capo keeps the folklore straight.  
+Your group stops being “just a chat” and becomes a club with real history.
 
-📲 RSVP & Match Participation
+ECTION: FOR CAPTAINS
 
-One-tap IN/OUT booking with mobile-optimized flow.
+Suggested imagery:
 
-Tiered invites (A/B/C) with timed release.
+RSVP screen
 
-Automated waitlist with instant claim offers.
+Payment confirmation flow
 
-Push notifications and WhatsApp deep links keep games full.
+Tiered invite UI
 
-👨‍💼 For Administrators
+## FOR CAPTAINS  
+### Your game, sorted. Completely.
 
-Match Control Centre: Draft, lock pools, balance, and record results all from one mobile-first dashboard.
+Capo removes the admin you’ve been quietly carrying for years.  
+No more begging for replies, chasing money, or mediating team moans.
 
-Custom Balancing Algorithms: Use ratings or live stats — or let the AI mix both.
+### One-tap RSVPs  
+Players tap IN or OUT.  
+You instantly see your numbers — no scrolling, no guessing.
 
-Season Setup: Define start/half/end dates, manage templates, and let the system track it all.
+### Automatic waitlist  
+If someone drops out, Capo fills the spot.  
+You don’t lift a finger.
 
-Guest Management: Add guests for a one-off, with separate stats until they "go regular."
+### Tiered invites (A/B/C groups)  
+Your core players get invites first.  
+Then it opens up if spaces remain.  
+Your regulars feel valued. Your games fill faster.
 
-Payout Certainty: Always receive full match fees — system fee is player-side.
+### Payments handled upfront  
+Players pay when they RSVP.  
+You receive automatic payouts every match.  
+No awkward chats. No IOUs. No fronting pitch money.
 
-⚽ For Players
+SECTION: FAIR TEAMS
 
-Your Football Career: Every match, every goal, every streak tracked.
+Suggested imagery:
 
-AI Match Reports: Narrative summaries that highlight your highs and lows.
+Team balancing screen
 
-Fantasy Points: Win bonuses, clean sheets, streak multipliers — like FPL but real.
+Attribute sliders
 
-Bragging Rights: Records, leaderboards, and chemistry charts for proof in the pub.
+Balance Score visual
 
-Fair Matches: No more stacked teams — balance algorithms keep it competitive.
+Side-by-side team view
 
-🛠 Technical Excellence
+## FAIR TEAMS  
+### Balanced matches. Less moaning. More football.
 
-Modern Stack: Next.js 13, Tailwind, Prisma, Supabase.
+Stacked teams ruin a good night. Capo builds fair sides using ratings and real performance — and shows you exactly why the teams are balanced.
 
-Data Science Under the Hood: EWMA weighting for form, Bayesian shrinkage for new players.
+### AI team balancing with sliders  
+Adjust the importance of things like pace, technique, goalscoring, teamwork and resilience.  
+Use fixed ratings or let Capo lean on live form.  
+The teams feel right before you even kick off.
 
-Mobile-First UX: Designed for admins with phones in hand at the pitch.
+### Balance Score with full breakdown  
+When you generate teams, Capo shows a clear Balance Score and a breakdown across defence, midfield, attack, teamwork and resilience.  
+If someone complains, you’ve got the evidence.
 
-Secure & Reliable: Row-level security, rate limiting, background jobs, real-time updates.
+### Total control when you want it  
+Drag players between teams. Re-run the balance. Lock the sides.  
+Automatic when you want simple. Tweaker-friendly when you want control.
 
-🚀 Roadmap
+SECTION: BUILT FOR REAL 5–11-A-SIDE LIFE
 
-RSVP & Invites: Full release of tiered invitations and auto waitlists.
+Suggested imagery:
 
-Payments: Per-match and season subscriptions with automated payouts.
+Match Control Centre screen
 
-Mobile App: Native iOS/Android with push and offline support.
+Season setup UI
 
-Advanced Analytics: Player predictions, team optimization, injury tracking.
+Guest player chip
 
-💡 Why BerkoTNF?
+## BUILT FOR REAL 5–7-A-SIDE LIFE  
+### Built for the chaos around the game, not just the game.
 
-Unlike generic sports admin tools, BerkoTNF makes the game itself better:
+### Match Control Centre  
+Your pitch-side command centre.  
+One screen showing your player pool, the teams, the score entry, the finish button.  
+When you mark the match done, Capo updates everything instantly:
 
-Teams are fairer.
+- Tables  
+- Streaks  
+- Points  
+- Records  
+- Chemistry  
+- Performance graphs  
+- Every player’s AI profile  
+- The AI match report  
 
-Players have a history.
+Your post-game admin fits inside a single tap.
 
-Communities build real records.
+### Season setup & templates  
+Set your dates. Pick your stat formats. Tune your balancing weights if you want to.  
+Most captains set it once and never think about it again.
 
-Admins save time, players get hooked, and groups stay full every week.
+### Guests welcome  
+A mate of a mate turns up? Add them as a guest in seconds.  
+They’re tracked separately until they become regulars.
 
-BerkoTNF turns casual games into competitive leagues.
+### Modern, fast, reliable  
+Built on Next.js and Supabase.  
+Runs smooth on your phone.  
+Feels premium without throwing settings at you.
+
+SECTION: HOW CAPO FITS INTO YOUR WEEK
+
+Suggested imagery:
+
+A 6-step horizontal/vertical flow
+
+Simple illustrations or UI cards
+
+## HOW CAPO FITS INTO YOUR WEEK  
+### From “anyone playing?” to a proper club — in a clean, simple loop.
+
+You create your club.  
+Share the code.  
+Players join.  
+They RSVP and pay.  
+Capo fills the game.  
+You balance the teams.  
+You play.  
+You log the score.  
+Capo updates everything behind the scenes.  
+The next week is even easier.
+
+A football rhythm that finally makes sense.
+
+FINAL CTA SECTION
+
+Suggested imagery:
+
+Big club crest display
+
+Pitch lights / stadium glow
+
+Clean gradient, Apple-style
+
+# THE FOOTBALL APP YOUR MATES WILL OBSESS OVER.  
+## THE GAME THAT RUNS ITSELF.  
+**FREE FOREVER FOR ORGANISERS.**
+
+[Get the App]  
+Login
+
+*Players pay a small per-match fee that includes Capo’s system cost.*
+
+✔️ Notes to Cursor
+
+Use this Markdown content as the source for the page.
+
+Build a visually rich, Apple-inspired landing page using the sectioning provided.
+
+Add responsive visuals and layout components based on the suggested imagery.
+
+Keep whitespace generous and typography premium.
+
+“Get the App” is the primary CTA.
+
+“Login” is secondary and should appear top-right in the navigation bar.
+
+The page must scroll smoothly and feel modern, clean, and high-end.
