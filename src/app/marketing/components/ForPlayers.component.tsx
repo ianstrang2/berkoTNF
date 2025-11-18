@@ -77,7 +77,7 @@ const ForPlayers: React.FC = () => {
 
           <div>
             <h4 className="text-xl font-bold text-neutral-900 mb-3">
-              Streaks & form that actually feel like form
+              Streaks & form badges to spark the post-match chat
             </h4>
             <p className="text-neutral-700 leading-relaxed">
               Attendance runs. Unbeaten patches. Win streaks. Scoring streaks. Winless droughts. Capo tracks them all and shows your current heat with bold icons and simple visuals. You know exactly who's on fire and who's gone missing.
@@ -89,7 +89,7 @@ const ForPlayers: React.FC = () => {
               Fantasy-style scoring — but from real football
             </h4>
             <p className="text-neutral-700 leading-relaxed">
-              Every game feeds your season points: goals, assists, appearance points, win bonuses, clean sheet bonuses, streak multipliers and heavy-win rewards. Leaderboards shift every week. Suddenly everyone starts checking where they stand.
+              Every game feeds your season points: goals, wins, appearance points, clean sheets, and heavy-win or heavy-loss rewards. Leaderboards shift every week. Suddenly everyone starts checking where they stand.
             </p>
           </div>
 

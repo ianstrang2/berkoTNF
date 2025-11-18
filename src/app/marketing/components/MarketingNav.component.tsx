@@ -34,11 +34,11 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Image
-              src={isScrolled ? '/img/logo.png' : '/img/white logo.png'}
-              alt="Capo"
-              width={80}
-              height={40}
-              className="h-8 w-auto"
+              src={isScrolled ? '/img/logo-with-text-purple.png' : '/img/logo-with-text-white.png'}
+              alt="Capo - 5-a-side football app"
+              width={580}
+              height={160}
+              className="h-10 w-auto md:h-12"
               priority
             />
           </Link>

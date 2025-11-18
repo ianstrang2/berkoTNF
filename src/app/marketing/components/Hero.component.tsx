@@ -20,8 +20,11 @@ const Hero: React.FC<HeroProps> = ({ onGetApp }) => {
 
       {/* Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 animate-fade-in-up leading-tight">
-          CAPO<span className="sr-only"> – 5-a-side football app</span>
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-6 animate-fade-in-up leading-tight">
+          <span className="bg-gradient-to-r from-purple-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
+            CAPO
+          </span>
+          <span className="sr-only"> – 5-a-side football app</span>
         </h1>
         
         <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
@@ -33,13 +36,10 @@ const Hero: React.FC<HeroProps> = ({ onGetApp }) => {
         </h3>
         
         <div className="max-w-3xl mx-auto mb-12 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-          <p className="text-lg sm:text-xl text-white/90 leading-relaxed mb-6">
-            Right now your club lives inside a chaotic WhatsApp thread, a captain's memory, and a spreadsheet from the Stone Age.
-          </p>
           <p className="text-lg sm:text-xl text-white leading-relaxed">
             Capo is the casual football app that pulls everything into one clean, addictive, brilliantly simple football system —{' '}
             <strong className="text-white font-bold">
-              career stats for the players, zero admin for the organiser, fair teams every week.
+              fantasy-style stats and profiles for the players, zero admin for the organiser, fair teams every week.
             </strong>
           </p>
         </div>

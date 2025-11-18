@@ -31,10 +31,8 @@ Floating phone mockup with Capo UI if you have it
 ## The 5-a-side football app your mates will obsess over.  
 ### And the game that finally runs itself.
 
-Right now your club lives inside a chaotic WhatsApp thread, a captain's memory, and a spreadsheet from the Stone Age.
-
 Capo is the casual football app that pulls everything into one clean, addictive, brilliantly simple football system —
-**career stats for the players, zero admin for the organiser, fair teams every week.**
+**fantasy-style stats and profiles for the players, zero admin for the organiser, fair teams every week.**
 
 [Get the App]  
 Login (top-right)
@@ -65,13 +63,13 @@ Capo watches your performances — games, goals, wins, losses, scoring runs, att
 It updates as you play. It remembers everything.  
 It becomes the story of your career at the club.
 
-### Streaks & form that actually feel like form  
+### Streaks & form badges to spark the post-match chat  
 Attendance runs. Unbeaten patches. Win streaks. Scoring streaks. Winless droughts.  
 Capo tracks them all and shows your current heat with bold icons and simple visuals.  
-You know exactly who’s on fire and who’s gone missing.
+You know exactly who's on fire and who's gone missing.
 
 ### Fantasy-style scoring — but from real football  
-Every game feeds your season points: goals, assists, appearance points, win bonuses, clean sheet bonuses, streak multipliers and heavy-win rewards.  
+Every game feeds your season points: goals, wins, appearance points, clean sheets, and heavy-win or heavy-loss rewards.  
 Leaderboards shift every week. Suddenly everyone starts checking where they stand.
 
 ### Performance graphs that show your rise (or wobble)  
@@ -190,8 +188,7 @@ Most captains set it once and never think about it again.
 A mate of a mate turns up? Add them as a guest in seconds.  
 They’re tracked separately until they become regulars.
 
-### Modern, fast, reliable  
-Built on Next.js and Supabase.  
+### Smooth, fast, effortless  
 Runs smooth on your phone.  
 Feels premium without throwing settings at you.
 

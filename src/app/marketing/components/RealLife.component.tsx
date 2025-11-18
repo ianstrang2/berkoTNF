@@ -87,10 +87,10 @@ const RealLife: React.FC = () => {
 
             <div className="bg-white p-8 rounded-xl shadow-soft-md">
               <h4 className="text-xl font-bold text-neutral-900 mb-3">
-                Modern, fast, reliable
+                Smooth, fast, effortless
               </h4>
               <p className="text-neutral-700 leading-relaxed">
-                Built on Next.js and Supabase. Runs smooth on your phone. Feels premium without throwing settings at you.
+                Runs smooth on your phone. Feels premium without throwing settings at you.
               </p>
             </div>
           </div>
