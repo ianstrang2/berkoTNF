@@ -42,17 +42,17 @@ Login (top-right)
 **Free forever for organisers.**  
 *Players pay a small per-match fee.*
 
-ECTION: FOR PLAYERS
+SECTION: FOR PLAYERS
 
 Suggested imagery:
 
-Player profile screen mockup
-
-Streak icons / flames / skull
-
-Race graph / performance chart
-
-Chemistry scatter chart
+**AUTO-PLAYING CAROUSEL** (6 images):
+1. AI Player Profile - Biography and career stats
+2. Match Report - Streaks, goals, performance
+3. Season Race Graph - Leaderboard rankings over time
+4. League Tables - Season standings
+5. Chemistry Chart - Teammate partnerships
+6. Records & Achievements - All-time records
 
 ## FOR PLAYERS  
 ### Your football story, told properly.
@@ -87,15 +87,17 @@ Longest streaks, biggest scoring nights, heaviest defeats, milestone matches.
 Capo keeps the folklore straight.  
 Your group stops being “just a chat” and becomes a club with real history.
 
-ECTION: FOR CAPTAINS
+SECTION: FOR CAPTAINS
 
 Suggested imagery:
 
-RSVP screen
+Captain features screenshot (RSVP/management interface)
 
-Payment confirmation flow
-
-Tiered invite UI
+**NOTE:** Feature cards use SVG icons with purple/pink gradient backgrounds (not emojis)
+- Checkmark icon - One-tap RSVPs
+- Refresh cycle icon - Automatic waitlist
+- Users/people icon - Tiered invites
+- Credit card icon - Payments handled upfront
 
 ## FOR CAPTAINS  
 ### Your game, sorted. Completely.
@@ -202,18 +204,16 @@ A 6-step horizontal/vertical flow
 Simple illustrations or UI cards
 
 ## HOW CAPO FITS INTO YOUR WEEK  
-### From “anyone playing?” to a proper club — in a clean, simple loop.
+### From "anyone playing?" to a proper club — in a clean, simple loop.
 
-You create your club.  
-Share the code.  
-Players join.  
-They RSVP and pay.  
-Capo fills the game.  
-You balance the teams.  
-You play.  
-You log the score.  
-Capo updates everything behind the scenes.  
-The next week is even easier.
+**6-STEP FLOW:**
+
+1. You create your club, share the code and players join.
+2. You create a match and players RSVP and pay.
+3. Capo handles all the ins/outs, fills the game and balances teams.
+4. You play and log the score in a couple of clicks.
+5. Capo creates a match report and updates all the stats behind the scenes.
+6. The next week is even easier.
 
 A football rhythm that finally makes sense.
 
@@ -236,18 +236,28 @@ Login
 
 *Players pay a small per-match fee that includes Capo’s system cost.*
 
-✔️ Notes to Cursor
+✔️ IMPLEMENTATION NOTES
 
-Use this Markdown content as the source for the page.
+**Status:** ✅ COMPLETE - Marketing page live at root `/`
 
-Build a visually rich, Apple-inspired landing page using the sectioning provided.
+**Images Used:**
+- `/img/marketing/hero-pitch-night.jpg` - Hero background
+- `/img/marketing/player-profile/1-6.png` - 6-image carousel
+- `/img/marketing/for-captains.png` - Captain features
+- `/img/marketing/fair-teams.png` - Team balancing
+- `/img/marketing/match-control-centre.png` - Match control
 
-Add responsive visuals and layout components based on the suggested imagery.
+**Design Implementation:**
+- Purple/pink gradient branding (`from-purple-500 to-pink-500`)
+- Sticky navigation with transparent → solid on scroll
+- Hamburger menu on mobile, "Login" always visible
+- "Get the App" opens "Coming Soon" modal
+- Auto-playing carousel with manual controls
+- SVG icons with gradient backgrounds (not emojis)
+- Scroll reveal animations on all sections
+- Mobile-first responsive design
 
-Keep whitespace generous and typography premium.
-
-“Get the App” is the primary CTA.
-
-“Login” is secondary and should appear top-right in the navigation bar.
-
-The page must scroll smoothly and feel modern, clean, and high-end.
+**Route Structure:**
+- `/` - Marketing homepage
+- `/auth/login` - Login page (preserved)
+- All other routes (`/admin`, `/player`, etc.) unchanged
