@@ -40,7 +40,7 @@ Capo is the casual football app that pulls everything into one clean, addictive,
 Login (top-right)
 
 **Free forever for organisers.**  
-*Players only pay if your group uses in-app payments.*
+*Players only pay a small per-match fee if your group uses in-app payments.*
 
 SECTION: FOR PLAYERS
 
@@ -85,7 +85,7 @@ Some partnerships just click. Some… don’t. Now you’ve got the data to prov
 ### Records, milestones & club legends  
 Longest streaks, biggest scoring nights, heaviest defeats, milestone matches.  
 Capo keeps the folklore straight.  
-Your group stops being “just a chat” and becomes a club with real history.
+Your group stops being "just a chat" and starts to feel like it has real history.
 
 SECTION: FOR CAPTAINS
 
@@ -163,7 +163,7 @@ Season setup UI
 
 Guest player chip
 
-## BUILT FOR REAL 5–7-A-SIDE LIFE  
+## BUILT FOR REAL 5-A-SIDE LIFE  
 ### Built for the chaos around the game — the app to organise casual football without the WhatsApp headache.
 
 ### Match Control Centre  
@@ -236,6 +236,35 @@ Login
 
 *If you prefer collecting money yourselves, Capo stays 100% free for everyone.*
 
+---
+
+## FOOTER
+
+Dark gradient background (neutral-900 → purple-900 → neutral-900)
+
+**Layout (3 columns on desktop, stacked on mobile):**
+
+**Left Column:**
+- Capo logo text
+- Tagline: "The 5-a-side football app your mates will obsess over"
+
+**Center Column:**
+- "Follow us" heading
+- Social media links with icons:
+  - Twitter: @CapoSportApp (https://twitter.com/CapoSportApp)
+  - Instagram: @capo.app (https://instagram.com/capo.app)
+- Styled as cards with hover effects
+
+**Right Column:**
+- Quick links:
+  - Login (→ /auth/login)
+  - Contact (→ hello@caposport.com)
+
+**Bottom:**
+- Copyright notice: "© 2025 Capo. All rights reserved."
+
+---
+
 ✔️ IMPLEMENTATION NOTES
 
 **Status:** ✅ COMPLETE - Marketing page live at root `/`
@@ -256,6 +285,18 @@ Login
 - SVG icons with gradient backgrounds (not emojis)
 - Scroll reveal animations on all sections
 - Mobile-first responsive design
+- Footer with social media links (Twitter: @CapoSportApp, Instagram: @capo.app)
+
+**Technical SEO Implementation:**
+- Meta title: "Capo — The 5-a-side football app for organising casual football"
+- Meta description: "Capo is the 5-a-side football app that organises your casual football game. Track stats, balance teams, and collect match payments effortlessly."
+- Open Graph tags with og-image.jpg (1200x630)
+- Twitter Card tags with summary_large_image
+- JSON-LD structured data (Organization schema)
+- Canonical URL: https://caposport.com/
+- Language: en-GB
+- SEO-optimized image alt text across all sections
+- H1 includes hidden SEO text: "CAPO – 5-a-side football app"
 
 **Route Structure:**
 - `/` - Marketing homepage

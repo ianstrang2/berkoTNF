@@ -10,15 +10,16 @@ import RealLife from './marketing/components/RealLife.component';
 import HowItWorks from './marketing/components/HowItWorks.component';
 import FinalCTA from './marketing/components/FinalCTA.component';
 import ComingSoonModal from './marketing/components/ComingSoonModal.component';
+import Footer from './marketing/components/Footer.component';
 
 export default function MarketingPage() {
   // Set page metadata dynamically for SEO
   useEffect(() => {
-    document.title = 'Capo – 5-a-side football app for organising casual football';
+    document.title = 'Capo — The 5-a-side football app for organising casual football';
     
-    // Update meta description with SEO keywords
+    // Update meta description
     const metaDescription = document.querySelector('meta[name="description"]');
-    const seoDescription = '5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats. Free for organisers.';
+    const seoDescription = 'Capo is the 5-a-side football app that organises your casual football game. Track stats, balance teams, and collect match payments effortlessly.';
     if (metaDescription) {
       metaDescription.setAttribute('content', seoDescription);
     } else {
@@ -50,17 +51,17 @@ export default function MarketingPage() {
       }
     };
 
-    addOrUpdateMeta('og:title', 'Capo – 5-a-side football app for organising casual football');
-    addOrUpdateMeta('og:description', '5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats.');
+    addOrUpdateMeta('og:title', 'Capo — The 5-a-side football app your mates will obsess over');
+    addOrUpdateMeta('og:description', 'The 5-a-side football app for casual football groups. Organise matches, track stats, balance teams and handle payments with zero admin.');
     addOrUpdateMeta('og:type', 'website');
     addOrUpdateMeta('og:url', 'https://caposport.com/');
-    addOrUpdateMeta('og:image', 'https://caposport.com/img/marketing/hero-pitch-night.jpg');
+    addOrUpdateMeta('og:image', 'https://caposport.com/og-image.jpg');
     
     // Twitter card
     addOrUpdateMeta('twitter:card', 'summary_large_image');
-    addOrUpdateMeta('twitter:title', 'Capo – 5-a-side football app for organising casual football');
-    addOrUpdateMeta('twitter:description', '5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats.');
-    addOrUpdateMeta('twitter:image', 'https://caposport.com/img/marketing/hero-pitch-night.jpg');
+    addOrUpdateMeta('twitter:title', 'Capo — The 5-a-side football app your mates will obsess over');
+    addOrUpdateMeta('twitter:description', 'The 5-a-side football app for casual football groups. Organise matches, track stats, balance teams and handle payments with zero admin.');
+    addOrUpdateMeta('twitter:image', 'https://caposport.com/og-image.jpg');
 
     // Add JSON-LD structured data
     const existingScript = document.querySelector('script[type="application/ld+json"]');
@@ -72,8 +73,8 @@ export default function MarketingPage() {
         "@type": "Organization",
         "name": "Capo",
         "url": "https://caposport.com",
-        "description": "5-a-side football app for organising casual football with stats tracking, team management, and payment collection",
-        "logo": "https://caposport.com/img/logo.png"
+        "description": "Capo is the 5-a-side football app that organises your casual football game. Track stats, balance teams, and collect match payments effortlessly.",
+        "logo": "https://caposport.com/logo.png"
       });
       document.head.appendChild(script);
     }
@@ -92,6 +93,7 @@ export default function MarketingPage() {
       <RealLife />
       <HowItWorks />
       <FinalCTA onGetApp={() => setShowModal(true)} />
+      <Footer />
 
       <ComingSoonModal 
         isOpen={showModal} 

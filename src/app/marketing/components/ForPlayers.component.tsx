@@ -10,32 +10,32 @@ const ForPlayers: React.FC = () => {
   const playerProfileImages = [
     {
       src: '/img/marketing/player-profile/2-player-profile.png',
-      alt: 'AI-generated player biography and profile with career stats',
+      alt: 'Capo football stats app interface showing streaks, goals and 5-a-side performance charts',
       caption: 'AI-written biography that tells your football story'
     },
     {
       src: '/img/marketing/player-profile/1-match-report.png',
-      alt: 'Capo match report showing player streaks, goals, and performance stats',
+      alt: 'Capo 5-a-side football app showing player stats and match report',
       caption: 'Post-match reports showing streaks, form, and performance'
     },
     {
       src: '/img/marketing/player-profile/3-season-race.png',
-      alt: 'Season leaderboard race graph showing player rankings over time',
+      alt: 'Capo 5-a-side football app weekly match flow showing season race progression',
       caption: 'Track your rise through the season leaderboard'
     },
     {
       src: '/img/marketing/player-profile/6-league-tables.png',
-      alt: 'League tables showing season standings and player rankings',
+      alt: 'Capo football stats app showing league tables and season standings',
       caption: 'Half-season and full-season standings with points and performance'
     },
     {
       src: '/img/marketing/player-profile/4-chemistry.png',
-      alt: 'Player chemistry chart showing teammate partnerships and compatibility',
+      alt: 'Capo 5-a-side performance charts showing player chemistry and partnerships',
       caption: 'Who you play best with - the data proves it'
     },
     {
       src: '/img/marketing/player-profile/5-records.png',
-      alt: 'Club records, milestones, and all-time achievements leaderboard',
+      alt: 'Capo football stats app showing club records, milestones, and achievements',
       caption: 'All-time records, milestones, and club legends'
     },
   ];
@@ -116,7 +116,7 @@ const ForPlayers: React.FC = () => {
               Records, milestones & club legends
             </h4>
             <p className="text-neutral-700 leading-relaxed">
-              Longest streaks, biggest scoring nights, heaviest defeats, milestone matches. Capo keeps the folklore straight. Your group stops being "just a chat" and becomes a club with real history.
+              Longest streaks, biggest scoring nights, heaviest defeats, milestone matches. Capo keeps the folklore straight. Your group stops being "just a chat" and starts to feel like it has real history.
             </p>
           </div>
         </div>

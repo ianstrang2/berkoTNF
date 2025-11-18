@@ -18,22 +18,34 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Capo – 5-a-side football app for organising casual football",
-  description: "5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats. Free for organisers.",
+  metadataBase: new URL('https://caposport.com'),
+  title: "Capo — The 5-a-side football app for organising casual football",
+  description: "Capo is the 5-a-side football app that organises your casual football game. Track stats, balance teams, and collect match payments effortlessly.",
   keywords: "5-a-side football app, 5-a-side organiser app, football team management app, football stats app, casual football app, 5-a-side stats tracker, football team picker app, collect football match payments",
   authors: [{ name: "Capo" }],
   openGraph: {
-    title: "Capo – 5-a-side football app for organising casual football",
-    description: "5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats.",
+    title: "Capo — The 5-a-side football app your mates will obsess over",
+    description: "The 5-a-side football app for casual football groups. Organise matches, track stats, balance teams and handle payments with zero admin.",
     type: "website",
     locale: "en_GB",
     siteName: "Capo",
     url: "https://caposport.com/",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Capo 5-a-side football app",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Capo – 5-a-side football app for organising casual football",
-    description: "5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats.",
+    site: "@CapoSportApp",
+    creator: "@CapoSportApp",
+    title: "Capo — The 5-a-side football app your mates will obsess over",
+    description: "The 5-a-side football app for casual football groups. Organise matches, track stats, balance teams and handle payments with zero admin.",
+    images: ["https://caposport.com/og-image.jpg"],
   },
   alternates: {
     canonical: "https://caposport.com/",

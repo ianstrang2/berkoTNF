@@ -58,7 +58,7 @@ const Hero: React.FC<HeroProps> = ({ onGetApp }) => {
         <p className="text-white/80 text-base animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
           <strong className="font-semibold">Free forever for organisers.</strong>
           <br />
-          <span className="text-sm">Players only pay if your group uses in-app payments.</span>
+          <span className="text-sm">Players only pay a small per-match fee if your group uses in-app payments.</span>
         </p>
       </div>
 

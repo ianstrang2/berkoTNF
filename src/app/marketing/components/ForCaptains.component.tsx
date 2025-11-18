@@ -28,7 +28,7 @@ const ForCaptains: React.FC = () => {
         <div className="max-w-4xl mx-auto mb-16">
           <img
             src="/img/marketing/for-captains.png"
-            alt="5-a-side organiser app showing RSVP interface, player management, and match organization tools - Capo football team management app"
+            alt="Capo football organiser app screen with RSVPs, waitlist and match payments"
             className="w-full rounded-2xl shadow-2xl"
           />
         </div>
