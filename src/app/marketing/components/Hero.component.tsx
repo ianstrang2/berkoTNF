@@ -21,11 +21,11 @@ const Hero: React.FC<HeroProps> = ({ onGetApp }) => {
       {/* Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 animate-fade-in-up leading-tight">
-          CAPO
+          CAPO<span className="sr-only"> – 5-a-side football app</span>
         </h1>
         
         <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          The football app your mates will obsess over.
+          The 5-a-side football app your mates will obsess over.
         </h2>
         
         <h3 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white/90 mb-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
@@ -37,7 +37,7 @@ const Hero: React.FC<HeroProps> = ({ onGetApp }) => {
             Right now your club lives inside a chaotic WhatsApp thread, a captain's memory, and a spreadsheet from the Stone Age.
           </p>
           <p className="text-lg sm:text-xl text-white leading-relaxed">
-            Capo pulls everything into one clean, addictive, brilliantly simple football system —{' '}
+            Capo is the casual football app that pulls everything into one clean, addictive, brilliantly simple football system —{' '}
             <strong className="text-white font-bold">
               career stats for the players, zero admin for the organiser, fair teams every week.
             </strong>
@@ -58,7 +58,7 @@ const Hero: React.FC<HeroProps> = ({ onGetApp }) => {
         <p className="text-white/80 text-base animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
           <strong className="font-semibold">Free forever for organisers.</strong>
           <br />
-          <span className="text-sm">Players pay a small per-match fee.</span>
+          <span className="text-sm">Players only pay if your group uses in-app payments.</span>
         </p>
       </div>
 

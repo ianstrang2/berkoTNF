@@ -27,7 +27,7 @@ const FairTeams: React.FC = () => {
         <div className="max-w-4xl mx-auto mb-16">
           <img
             src="/img/marketing/fair-teams.png"
-            alt="Team balancing interface showing balance score, attribute sliders, and side-by-side team comparison with player ratings"
+            alt="Football team picker app interface showing balance score, attribute sliders, and side-by-side team comparison - Capo 5-a-side football app"
             className="w-full rounded-2xl shadow-2xl"
           />
         </div>

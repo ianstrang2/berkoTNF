@@ -28,19 +28,19 @@ Dark-to-light gradient over image
 Floating phone mockup with Capo UI if you have it
 
 # CAPO  
-## The football app your mates will obsess over.  
+## The 5-a-side football app your mates will obsess over.  
 ### And the game that finally runs itself.
 
-Right now your club lives inside a chaotic WhatsApp thread, a captain’s memory, and a spreadsheet from the Stone Age.
+Right now your club lives inside a chaotic WhatsApp thread, a captain's memory, and a spreadsheet from the Stone Age.
 
-Capo pulls everything into one clean, addictive, brilliantly simple football system —
+Capo is the casual football app that pulls everything into one clean, addictive, brilliantly simple football system —
 **career stats for the players, zero admin for the organiser, fair teams every week.**
 
 [Get the App]  
 Login (top-right)
 
 **Free forever for organisers.**  
-*Players pay a small per-match fee.*
+*Players only pay if your group uses in-app payments.*
 
 SECTION: FOR PLAYERS
 
@@ -57,8 +57,8 @@ Suggested imagery:
 ## FOR PLAYERS  
 ### Your football story, told properly.
 
-Capo turns your casual 5–7-a-side into a proper mini-league — the kind people actually care about.  
-Every match counts. Every stat matters. Every streak becomes lore.
+Capo turns your casual football game into a proper mini-league — the kind people actually care about.  
+Every match counts. Every stat matters. Every streak becomes lore. It's the football stats app for casual players — a proper 5-a-side stats tracker that finally treats your weeknight games like they matter.
 
 ### Your AI-written player biography  
 Capo watches your performances — games, goals, wins, losses, scoring runs, attendance, form, seasons — and turns them into a living football narrative.  
@@ -102,8 +102,8 @@ Captain features screenshot (RSVP/management interface)
 ## FOR CAPTAINS  
 ### Your game, sorted. Completely.
 
-Capo removes the admin you’ve been quietly carrying for years.  
-No more begging for replies, chasing money, or mediating team moans.
+Capo removes the admin you've been quietly carrying for years.  
+No more begging for replies, chasing money, or mediating team moans. It's the football team organiser app that actually fits how small-sided football works.
 
 ### One-tap RSVPs  
 Players tap IN or OUT.  
@@ -121,7 +121,7 @@ Your regulars feel valued. Your games fill faster.
 ### Payments handled upfront  
 Players pay when they RSVP.  
 You receive automatic payouts every match.  
-No awkward chats. No IOUs. No fronting pitch money.
+No awkward chats. No IOUs. No fronting pitch money. Capo makes it effortless to collect football match payments every week.
 
 SECTION: FAIR TEAMS
 
@@ -164,7 +164,7 @@ Season setup UI
 Guest player chip
 
 ## BUILT FOR REAL 5–7-A-SIDE LIFE  
-### Built for the chaos around the game, not just the game.
+### Built for the chaos around the game — the app to organise casual football without the WhatsApp headache.
 
 ### Match Control Centre  
 Your pitch-side command centre.  
@@ -204,7 +204,7 @@ A 6-step horizontal/vertical flow
 Simple illustrations or UI cards
 
 ## HOW CAPO FITS INTO YOUR WEEK  
-### From "anyone playing?" to a proper club — in a clean, simple loop.
+### From "anyone playing?" to a game that runs itself — in a clean, simple loop.
 
 **6-STEP FLOW:**
 
@@ -215,7 +215,7 @@ Simple illustrations or UI cards
 5. Capo creates a match report and updates all the stats behind the scenes.
 6. The next week is even easier.
 
-A football rhythm that finally makes sense.
+A football rhythm that finally makes sense — a casual football app that keeps your 5-a-side running every week.
 
 FINAL CTA SECTION
 
@@ -227,14 +227,14 @@ Pitch lights / stadium glow
 
 Clean gradient, Apple-style
 
-# THE FOOTBALL APP YOUR MATES WILL OBSESS OVER.  
+# THE 5-A-SIDE FOOTBALL APP YOUR MATES WILL OBSESS OVER.  
 ## THE GAME THAT RUNS ITSELF.  
 **FREE FOREVER FOR ORGANISERS.**
 
 [Get the App]  
 Login
 
-*Players pay a small per-match fee that includes Capo’s system cost.*
+*If you prefer collecting money yourselves, Capo stays 100% free for everyone.*
 
 ✔️ IMPLEMENTATION NOTES
 
@@ -261,3 +261,21 @@ Login
 - `/` - Marketing homepage
 - `/auth/login` - Login page (preserved)
 - All other routes (`/admin`, `/player`, etc.) unchanged
+
+---
+
+## SEO
+
+These are the primary SEO phrases Capo aims to rank for. They should be used naturally across meta tags, headings and supporting technical SEO, but the main marketing copy should remain unchanged.
+
+**Target Keywords:**
+- 5-a-side football app
+- 5-a-side organiser app
+- football team management app
+- football team organiser app
+- app to organise casual football
+- casual football app
+- football stats app for casual players
+- 5-a-side stats tracker
+- football team picker app
+- collect football match payments

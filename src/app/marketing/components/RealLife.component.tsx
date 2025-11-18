@@ -13,7 +13,7 @@ const RealLife: React.FC = () => {
             BUILT FOR REAL 5–7-A-SIDE LIFE
           </h2>
           <h3 className="text-2xl md:text-3xl font-semibold text-neutral-700">
-            Built for the chaos around the game, not just the game.
+            Built for the chaos around the game — the app to organise casual football without the WhatsApp headache.
           </h3>
         </div>
 
@@ -21,7 +21,7 @@ const RealLife: React.FC = () => {
         <div className="max-w-4xl mx-auto mb-16">
           <img
             src="/img/marketing/match-control-centre.png"
-            alt="Match Control Centre showing player pool, team assignments, balance score, and match management interface"
+            alt="Match Control Centre in Capo football team organiser app showing player pool, team assignments, and balance score"
             className="w-full rounded-2xl shadow-2xl"
           />
         </div>

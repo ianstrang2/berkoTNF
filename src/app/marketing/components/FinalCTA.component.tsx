@@ -16,7 +16,7 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onGetApp }) => {
       {/* Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-          THE FOOTBALL APP YOUR MATES WILL OBSESS OVER.
+          THE 5-A-SIDE FOOTBALL APP YOUR MATES WILL OBSESS OVER.
         </h2>
         
         <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
@@ -49,7 +49,7 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onGetApp }) => {
 
         <p className="text-white/80 text-base">
           <span className="text-sm italic">
-            Players pay a small per-match fee that includes Capo's system cost.
+            If you prefer collecting money yourselves, Capo stays 100% free for everyone.
           </span>
         </p>
       </div>

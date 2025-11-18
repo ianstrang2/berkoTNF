@@ -69,7 +69,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({
         <div className="relative aspect-[4/3]">
           <Image
             src={images[currentIndex].src}
-            alt={images[currentIndex].alt}
+            alt={`${images[currentIndex].alt} - Screenshot of Capo 5-a-side football app interface`}
             fill
             className="object-contain transition-opacity duration-500"
             priority={currentIndex === 0}

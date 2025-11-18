@@ -22,7 +22,7 @@ const HowItWorks: React.FC = () => {
             HOW CAPO FITS INTO YOUR WEEK
           </h2>
           <h3 className="text-2xl md:text-3xl font-semibold text-neutral-700">
-            From "anyone playing?" to a proper club — in a clean, simple loop.
+            From "anyone playing?" to a game that runs itself — in a clean, simple loop.
           </h3>
         </div>
 
@@ -50,7 +50,7 @@ const HowItWorks: React.FC = () => {
 
         <div className="text-center">
           <p className="text-2xl md:text-3xl font-semibold text-neutral-900">
-            A football rhythm that finally makes sense.
+            A football rhythm that finally makes sense — a casual football app that keeps your 5-a-side running every week.
           </p>
         </div>
       </div>

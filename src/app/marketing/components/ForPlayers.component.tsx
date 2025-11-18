@@ -54,8 +54,8 @@ const ForPlayers: React.FC = () => {
 
         <div className="max-w-4xl mx-auto mb-16">
           <p className="text-lg md:text-xl text-neutral-700 leading-relaxed text-center">
-            Capo turns your casual 5–7-a-side into a proper mini-league — the kind people actually care about.
-            Every match counts. Every stat matters. Every streak becomes lore.
+            Capo turns your casual football game into a proper mini-league — the kind people actually care about.
+            Every match counts. Every stat matters. Every streak becomes lore. It's the football stats app for casual players — a proper 5-a-side stats tracker that finally treats your weeknight games like they matter.
           </p>
         </div>
 

@@ -18,13 +18,31 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Berko TNF Stats",
-  description: "Statistics for Berko TNF Football",
+  title: "Capo – 5-a-side football app for organising casual football",
+  description: "5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats. Free for organisers.",
+  keywords: "5-a-side football app, 5-a-side organiser app, football team management app, football stats app, casual football app, 5-a-side stats tracker, football team picker app, collect football match payments",
+  authors: [{ name: "Capo" }],
+  openGraph: {
+    title: "Capo – 5-a-side football app for organising casual football",
+    description: "5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats.",
+    type: "website",
+    locale: "en_GB",
+    siteName: "Capo",
+    url: "https://caposport.com/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Capo – 5-a-side football app for organising casual football",
+    description: "5-a-side organiser app with football stats tracker. Collect match payments, balance teams, and track player stats.",
+  },
+  alternates: {
+    canonical: "https://caposport.com/",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`h-full ${inter.className}`}>
+    <html lang="en-GB" className={`h-full ${inter.className}`}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

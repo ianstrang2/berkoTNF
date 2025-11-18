@@ -20,7 +20,7 @@ const ForCaptains: React.FC = () => {
         <div className="max-w-4xl mx-auto mb-16">
           <p className="text-lg md:text-xl text-neutral-700 leading-relaxed text-center">
             Capo removes the admin you've been quietly carrying for years.
-            No more begging for replies, chasing money, or mediating team moans.
+            No more begging for replies, chasing money, or mediating team moans. It's the football team organiser app that actually fits how small-sided football works.
           </p>
         </div>
 
@@ -28,7 +28,7 @@ const ForCaptains: React.FC = () => {
         <div className="max-w-4xl mx-auto mb-16">
           <img
             src="/img/marketing/for-captains.png"
-            alt="Captain features showing RSVP interface, player management, and match organization tools"
+            alt="5-a-side organiser app showing RSVP interface, player management, and match organization tools - Capo football team management app"
             className="w-full rounded-2xl shadow-2xl"
           />
         </div>
@@ -87,7 +87,7 @@ const ForCaptains: React.FC = () => {
               Payments handled upfront
             </h4>
             <p className="text-neutral-700 leading-relaxed">
-              Players pay when they RSVP. You receive automatic payouts every match. No awkward chats. No IOUs. No fronting pitch money.
+              Players pay when they RSVP. You receive automatic payouts every match. No awkward chats. No IOUs. No fronting pitch money. Capo makes it effortless to collect football match payments every week.
             </p>
           </div>
         </div>
