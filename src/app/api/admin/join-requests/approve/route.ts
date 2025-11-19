@@ -10,6 +10,7 @@ import { requireAdminRole } from '@/lib/auth/apiAuth';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
+import { sendPlayerApprovedEmail } from '@/lib/notifications/email.service';
 
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
@@ -25,9 +26,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the join request
+    // Get the join request (requestId is UUID string)
     const joinRequest = await prisma.player_join_requests.findUnique({
-      where: { id: requestId },
+      where: { id: requestId }, // UUID string, not number
     });
 
     if (!joinRequest || joinRequest.tenant_id !== tenantId) {
@@ -99,6 +100,37 @@ export async function POST(request: NextRequest) {
         processed_at: new Date(),
       },
     });
+
+      // Send approval notification to player
+      try {
+        const playerEmail = (joinRequest as any).email || linkedPlayer.email;
+        const tenant = await prisma.tenants.findUnique({
+          where: { tenant_id: tenantId },
+          select: { name: true },
+        });
+
+        if (playerEmail && tenant) {
+          const emailResult = await sendPlayerApprovedEmail({
+            toEmail: playerEmail,
+            playerName: linkedPlayer.name,
+            clubName: tenant.name,
+            loginUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://app.caposport.com'}/auth/login`,
+          });
+
+          if (emailResult.success) {
+            console.log('[APPROVAL] Email notification sent to:', playerEmail);
+          } else {
+            console.warn('[APPROVAL] Email notification failed:', emailResult.error);
+            // TODO Phase 3: Try SMS fallback here
+          }
+        } else {
+          console.log('[APPROVAL] No email available for notification (phone:', joinRequest.phone_number, ')');
+          // TODO Phase 3: Send SMS fallback
+        }
+      } catch (notificationError) {
+        // Log error but don't fail approval
+        console.error('[APPROVAL] Notification error (approval still succeeded):', notificationError);
+      }
 
       return NextResponse.json({
         success: true,

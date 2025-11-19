@@ -39,10 +39,11 @@ function JoinForm() {
     const checkMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     setIsMobile(checkMobile);
     
-    // If already in Capacitor app, skip landing and go straight to phone verification
+    // Skip landing for web browsers (desktop + mobile web)
+    // Show landing ONLY in Capacitor app (where app benefits are relevant)
     const isCapacitor = document.documentElement.classList.contains('capacitor');
-    if (isCapacitor && !validatingToken && clubName) {
-      setStep('phone');
+    if (!isCapacitor && !validatingToken && clubName) {
+      setStep('phone'); // Web: skip landing, go straight to phone entry
     }
   }, [validatingToken, clubName]);
 

@@ -47,6 +47,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.15.0",
+    "resend": "^6.5.1",
     "shadcn-ui": "^0.9.4",
     "sharp": "^0.34.2",
     "sweetalert2": "^11.18.0",

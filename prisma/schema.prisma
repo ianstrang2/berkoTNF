@@ -779,6 +779,7 @@ model player_join_requests {
   tenant_id        String    @db.Uuid
   phone_number     String
   display_name     String?
+  email            String?
   status           String    @default("pending")
   auth_user_id     String?   @db.Uuid
   approved_by      String?   @db.Uuid

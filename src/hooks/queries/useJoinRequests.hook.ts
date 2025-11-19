@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth.hook';
 import { apiFetch } from '@/lib/apiConfig';
 
 export interface JoinRequest {
-  id: number;
+  id: string; // UUID from player_join_requests table
   phone: string;
   phone_number: string; // Alias for component compatibility
   name: string;
@@ -60,7 +60,7 @@ export function useApproveJoinRequest() {
   const tenantId = profile.tenantId;
 
   return useMutation({
-    mutationFn: async (data: { requestId: number; clubOverride?: any }) => {
+    mutationFn: async (data: { requestId: string; clubOverride?: any }) => {
       const response = await apiFetch('/admin/join-requests/approve', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -90,7 +90,7 @@ export function useRejectJoinRequest() {
   const tenantId = profile.tenantId;
 
   return useMutation({
-    mutationFn: async (requestId: number) => {
+    mutationFn: async (requestId: string) => {
       const response = await apiFetch('/admin/join-requests/reject', {
         method: 'POST',
         body: JSON.stringify({ requestId }),

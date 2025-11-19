@@ -15,12 +15,16 @@ import { apiFetch } from '@/lib/apiConfig';
 function PlayerLoginForm() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [step, setStep] = useState<'phone' | 'otp' | 'joinForm'>('phone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showClubCodeEntry, setShowClubCodeEntry] = useState(false);
-  const [clubCode, setClubCode] = useState('');
   const [checkingPhone, setCheckingPhone] = useState(false);
+  const [phoneExists, setPhoneExists] = useState(false); // Track if phone was found in pre-check
+  
+  // Join form fields (shown after OTP for new phones)
+  const [clubCode, setClubCode] = useState('');
+  const [playerName, setPlayerName] = useState('');
+  const [playerEmail, setPlayerEmail] = useState('');
   
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -67,11 +71,11 @@ function PlayerLoginForm() {
         setLoading(false);
         setCheckingPhone(false);
         setError('Please enter a valid UK mobile number (07XXX XXXXXX)');
-        return; // Don't proceed with pre-check
+        return;
       }
       
-      // PRE-CHECK: Does phone exist in any club?
-      let shouldSendOTP = true; // Default: allow SMS (lenient fallback policy)
+      // PRE-CHECK: Does phone exist in any club? (for bot protection only)
+      let phoneFoundInDB = false;
       
       try {
         const checkResponse = await apiFetch('/auth/check-phone', {
@@ -81,31 +85,19 @@ function PlayerLoginForm() {
         
         if (checkResponse.ok) {
           const { exists } = await checkResponse.json();
-          
-          if (!exists) {
-            // Phone not found - show club code entry immediately
-            setError(
-              `Phone not found in any club. Enter your club code below to continue.`
-            );
-            setShowClubCodeEntry(true);
-            setLoading(false);
-            shouldSendOTP = false; // Don't send SMS
-          }
+          phoneFoundInDB = exists;
+          setPhoneExists(exists); // Store for use after OTP verification
         } else {
-          // Pre-check API failed - log warning but continue with SMS (fallback)
-          console.warn('Pre-check failed, falling back to SMS:', checkResponse.status);
+          console.warn('Pre-check failed, assuming phone not found:', checkResponse.status);
         }
       } catch (checkErr) {
-        // Pre-check error (network issue, timeout, etc.) - log but continue (fallback)
-        console.error('Pre-check error, falling back to SMS:', checkErr);
-        // shouldSendOTP remains true (lenient policy: prefer false negatives over blocking users)
+        console.error('Pre-check error, assuming phone not found:', checkErr);
       }
       
       setCheckingPhone(false);
       
-      if (!shouldSendOTP) return; // Exit if pre-check succeeded and phone not found
-      
-      // Phone exists OR pre-check failed - proceed with SMS
+      // ALWAYS send OTP (even for new phones - ~£0.01 per genuine attempt)
+      // Pre-check is for bot protection/rate limiting only
       const { error } = await supabase.auth.signInWithOtp({
         phone: formattedPhone,
       });
@@ -138,35 +130,41 @@ function PlayerLoginForm() {
       if (error) throw error;
 
       if (data.session) {
-        // Try to auto-link by phone number
-        const formattedPhone = formatPhoneNumber(phone);
-        
-        try {
-          const linkResponse = await apiFetch('/auth/link-by-phone', {
-            method: 'POST',
-            body: JSON.stringify({ phone: formattedPhone }),
-          });
-          
-          const linkData = await linkResponse.json();
-          
-          if (linkData.success && linkData.player) {
-            // Linked! Clear cache and reload to refresh profile
-            localStorage.removeItem('userProfile');
+        // Check if phone was found in pre-check
+        if (phoneExists) {
+          // EXISTING PLAYER: Auto-link and redirect
+          try {
+            const linkResponse = await apiFetch('/auth/link-by-phone', {
+              method: 'POST',
+              body: JSON.stringify({ phone: formattedPhone }),
+            });
             
-            // Redirect based on role
-            if (linkData.player.is_admin) {
-              window.location.href = '/admin/matches'; // Full reload to refresh auth context
+            const linkData = await linkResponse.json();
+            
+            if (linkData.success && linkData.player) {
+              // Linked! Clear cache and reload to refresh profile
+              localStorage.removeItem('userProfile');
+              
+              // Redirect based on role
+              if (linkData.player.is_admin) {
+                window.location.href = '/admin/matches';
+              } else {
+                window.location.href = '/';
+              }
             } else {
-              window.location.href = '/';
+              // Shouldn't happen (pre-check said exists), but handle gracefully
+              console.error('Pre-check said phone exists but link-by-phone failed');
+              setError('Failed to link profile. Please contact admin.');
+              setStep('phone');
             }
-          } else {
-            // No player found - redirect to no-club page
-            router.push('/auth/no-club');
+          } catch (linkError) {
+            console.error('Link error:', linkError);
+            setError('Failed to link profile. Please try again.');
+            setStep('phone');
           }
-        } catch (linkError) {
-          console.error('Link error:', linkError);
-          setError('Failed to link profile. Please use your club invite link.');
-          setStep('phone');
+        } else {
+          // NEW PHONE: Show join form (club code + name + email)
+          setStep('joinForm');
         }
       }
     } catch (error: any) {
@@ -188,11 +186,15 @@ function PlayerLoginForm() {
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Login</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {step === 'phone' && 'Login'}
+            {step === 'otp' && 'Verify Your Phone'}
+            {step === 'joinForm' && 'Request to Join Club'}
+          </h1>
           <p className="text-gray-600 mt-2">
-            {step === 'phone' 
-              ? 'Enter your mobile number to continue' 
-              : 'Enter the 6-digit code we sent you'}
+            {step === 'phone' && 'Enter your mobile number to continue'}
+            {step === 'otp' && 'Enter the 6-digit code we sent you'}
+            {step === 'joinForm' && 'Tell us which club you want to join'}
           </p>
         </div>
 
@@ -213,15 +215,7 @@ function PlayerLoginForm() {
                   id="phone"
                   type="tel"
                   value={phone}
-                  onChange={(e) => {
-                    setPhone(e.target.value);
-                    // Reset club code state when phone changes (prevents stale UI)
-                    if (showClubCodeEntry) {
-                      setShowClubCodeEntry(false);
-                      setClubCode('');
-                      setError('');
-                    }
-                  }}
+                  onChange={(e) => setPhone(e.target.value)}
                   placeholder="07XXX XXXXXX"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   required
@@ -240,86 +234,8 @@ function PlayerLoginForm() {
                 {checkingPhone ? 'Checking phone...' : loading ? 'Sending...' : 'Send Verification Code'}
               </button>
             </form>
-            
-            {/* Club Code Entry - shown when phone not found in pre-check */}
-            {showClubCodeEntry && (
-            <div className="mt-6 border-t border-gray-200 pt-6">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Enter Club Code
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Your admin can find this on their Players page
-                </p>
-              </div>
-              
-              <div className="mb-4">
-                <label htmlFor="clubCode" className="block text-sm font-medium text-gray-700 mb-2">
-                  5-Character Code
-                </label>
-                <input
-                  id="clubCode"
-                  type="text"
-                  value={clubCode}
-                  onChange={(e) => setClubCode(e.target.value.toUpperCase())}
-                  placeholder="FC247"
-                  maxLength={5}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-2xl tracking-widest font-mono uppercase"
-                  disabled={loading}
-                  autoFocus
-                />
-              </div>
-
-              <button
-                onClick={async () => {
-                  setLoading(true);
-                  setError('');
-                  try {
-                    const response = await apiFetch('/join/by-code', {
-                      method: 'POST',
-                      body: JSON.stringify({ club_code: clubCode }),
-                    });
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                      router.push(data.join_url);
-                    } else {
-                      throw new Error(data.error || 'Club not found');
-                    }
-                  } catch (err: any) {
-                    setError(err.message || 'Failed to find club');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                disabled={loading || clubCode.length !== 5}
-                className="w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Looking up club...' : 'Continue with Code'}
-              </button>
-
-              <div className="mt-4 bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 text-center">
-                  💡 <strong>Don't have a code?</strong><br />
-                  Ask your admin or use the invite link they shared
-                </p>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600 text-center">
-                  Want to start your own club?
-                </p>
-                <button
-                  onClick={() => router.push('/signup/admin')}
-                  className="w-full mt-3 py-2 px-4 text-purple-700 font-medium text-sm hover:text-purple-900 transition-colors"
-                >
-                  Create a New Club →
-                </button>
-              </div>
-            </div>
-          )}
           </>
-        ) : (
+        ) : step === 'otp' ? (
           <form onSubmit={handleVerifyOTP}>
             <div className="mb-6">
               <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
@@ -364,7 +280,142 @@ function PlayerLoginForm() {
               ← Change Phone Number
             </button>
           </form>
-        )}
+        ) : step === 'joinForm' ? (
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            setError('');
+            
+            try {
+              const formattedPhone = formatPhoneNumber(phone);
+              
+              // Validate club code first
+              const codeResponse = await apiFetch('/join/by-code', {
+                method: 'POST',
+                body: JSON.stringify({ club_code: clubCode }),
+              });
+              
+              const codeData = await codeResponse.json();
+              
+              if (!codeData.success) {
+                throw new Error(codeData.error || 'Club code not found');
+              }
+              
+              // Get tenant info from code lookup
+              const tenant = codeData.club_name;
+              
+              // Create join request (with authenticated user)
+              const requestResponse = await apiFetch('/join/request-access', {
+                method: 'POST',
+                body: JSON.stringify({
+                  phone: formattedPhone,
+                  clubCode: clubCode,
+                  name: playerName.trim(),
+                  email: playerEmail.trim() || null,
+                }),
+              });
+              
+              const requestData = await requestResponse.json();
+              
+              if (!requestData.success) {
+                throw new Error(requestData.error || 'Failed to create join request');
+              }
+              
+              // Success! Redirect to pending approval
+              router.push('/auth/pending-approval');
+              
+            } catch (error: any) {
+              console.error('Error submitting join request:', error);
+              setError(error.message || 'Failed to submit request');
+            } finally {
+              setLoading(false);
+            }
+          }}>
+            {/* Phone (display only - already verified) */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number (Verified)
+              </label>
+              <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                {phone}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                ✓ Verified via SMS
+              </p>
+            </div>
+
+            {/* Club Code */}
+            <div className="mb-6">
+              <label htmlFor="clubCode" className="block text-sm font-medium text-gray-700 mb-2">
+                Club Code
+              </label>
+              <input
+                id="clubCode"
+                type="text"
+                value={clubCode}
+                onChange={(e) => setClubCode(e.target.value.toUpperCase())}
+                placeholder="FC247"
+                maxLength={5}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-2xl tracking-widest font-mono uppercase"
+                required
+                disabled={loading}
+                autoFocus
+              />
+              <p className="mt-2 text-xs text-gray-500 text-center">
+                Ask your admin for your club's 5-character code
+              </p>
+            </div>
+
+            {/* Name */}
+            <div className="mb-6">
+              <label htmlFor="playerName" className="block text-sm font-medium text-gray-700 mb-2">
+                Your Name
+              </label>
+              <input
+                id="playerName"
+                type="text"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                placeholder="John Smith"
+                maxLength={14}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+                disabled={loading}
+              />
+              <p className="mt-2 text-xs text-gray-500 flex justify-between">
+                <span>This helps the admin identify you</span>
+                <span>{playerName.length} / 14</span>
+              </p>
+            </div>
+
+            {/* Email (optional) */}
+            <div className="mb-6">
+              <label htmlFor="playerEmail" className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address (optional)
+              </label>
+              <input
+                id="playerEmail"
+                type="email"
+                value={playerEmail}
+                onChange={(e) => setPlayerEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                disabled={loading}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                For match notifications and updates
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || clubCode.length !== 5 || !playerName.trim()}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-700 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Submitting Request...' : 'Request to Join Club'}
+            </button>
+          </form>
+        ) : null}
 
       </div>
     </div>

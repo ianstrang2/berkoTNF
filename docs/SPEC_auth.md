@@ -1,8 +1,10 @@
 # Capo Authentication Implementation Specification
 
-Version 6.0.0 • Phone-Only Authentication + Club Creation
+Version 6.6.0 • Phone-Only Authentication + Email Notifications
 
 **PHONE/SMS AUTHENTICATION FOR ALL USERS**
+
+**Visual Flow Diagrams:** See `docs/MERMAID_Auth.md` for comprehensive Mermaid diagrams of all authentication flows.
 
 ## Executive Summary
 
@@ -926,33 +928,36 @@ const PLAYER_ROUTES = [
 
 ### 1. Player Login Flow (Phone Authentication with Pre-Check)
 
-#### Pre-Check Before SMS (Prevents Bot Spam & SMS Waste)
+#### Pre-Check for Bot Protection + OTP for All Users
 
-**Status:** ✅ Implemented (Phase 6.5 - January 2025)
+**Status:** ✅ Implemented (Phase 6.6 - January 2025)
 
-**Purpose:** Verify phone exists in database BEFORE sending costly SMS
+**Purpose:** Bot protection via rate limiting, SMS OTP for all genuine users (verified phones)
 
 **Flow:**
 1. User enters phone: `07949251277`
 2. **Client-side validation:** Check format (must be valid UK number)
    - If invalid → Show error immediately, no API call
-3. **Pre-check API call:** `POST /api/auth/check-phone`
-   - Searches ALL tenants for matching phone (cross-tenant lookup)
-4. **IF FOUND:**
-   - Proceed with SMS OTP ✅
-   - Show OTP entry screen
-   - After verification, link to player record (existing `/api/auth/link-by-phone` logic)
-   - Redirect to dashboard
-5. **IF NOT FOUND:**
-   - Show club code entry immediately ✅
-   - NO SMS sent (saves quota)
-   - User options:
-     - Enter club code (5 chars) → redirects to invite flow
-     - Use invite link from admin
-     - Create own club (admin signup)
-6. **IF PRE-CHECK FAILS (API down, network error):**
-   - Fall back to SMS (lenient policy) ✅
-   - Prevents blocking users due to infrastructure issues
+3. **Pre-check API call:** `POST /api/auth/check-phone` (for bot protection + routing logic)
+   - Rate limiting: 10 req/min per IP
+   - Searches ALL tenants for matching phone
+   - Stores result for post-OTP routing
+4. **ALWAYS send SMS OTP** (even for new phones)
+   - Bot protection via rate limiting (not by skipping SMS)
+   - ~£0.01 per genuine attempt (acceptable cost)
+   - Verified phones only (admin-friendly)
+5. **User verifies OTP**
+6. **IF PHONE WAS FOUND (existing player):**
+   - Auto-link to player record via `/api/auth/link-by-phone`
+   - Redirect to dashboard ✅
+7. **IF PHONE WAS NOT FOUND (new player):**
+   - Show join form (club code + name + email) ✅
+   - Phone already verified, display as read-only
+   - User fills: Club Code (5 chars), Name, Email (optional)
+   - Submit creates `player_join_requests` (WITH `auth_user_id`)
+   - Redirect to `/auth/pending-approval`
+   - Admin approves → Email notification sent
+   - Player logs in normally (phone now in DB)
 
 **API Endpoint:** `POST /api/auth/check-phone`
 
@@ -971,17 +976,35 @@ const PLAYER_ROUTES = [
 }
 ```
 
+**Pre-Check Endpoint:** `POST /api/auth/check-phone`
+
+**Request:**
+```json
+{
+  "phone": "+447949251277"
+}
+```
+
+**Response:**
+```json
+{
+  "exists": true,
+  "clubName": "Berko TNF"
+}
+```
+
 **Security Features:**
-- Rate limiting: 10 requests/minute per IP (prevents phone enumeration at scale)
+- Rate limiting: 10 requests/minute per IP (prevents bot attacks)
 - In-memory rate limiting (no Redis required for MVP)
 - Client-side validation (saves DB queries on invalid input)
-- Lenient fallback policy (resilient to API failures)
+- Pre-check determines routing AFTER OTP, not whether to send SMS
 
-**Security Trade-off:** 
+**Design Decision:**
+- ✅ Always send OTP (even for new phones) - Verified phones, admin-friendly
+- ✅ Pre-check for bot protection only (rate limiting)
+- ✅ ~£0.01 per genuine join attempt (acceptable cost)
+- ✅ Join requests linked to `auth_user_id` (robust)
 - ⚠️ Reveals if phone is registered (acceptable for casual sports app)
-- ✅ Prevents bot SMS spam (saves $10+ per attack)
-- ✅ Better UX (immediate feedback, no waiting for SMS that never arrives)
-- ✅ Protected by rate limiting (10/min per IP)
 
 **Multi-Club Handling:**
 - If phone exists in multiple tenants, returns first match
@@ -3314,6 +3337,10 @@ TWILIO_PHONE_NUMBER=+1234567890
 RATE_LIMIT_REDIS_URL=redis://localhost:6379
 AUTH_RATE_LIMIT_PER_15MIN=5
 ADMIN_INVITE_LIMIT_PER_DAY=10
+
+# Email Notifications (Resend - Phase 6.6)
+RESEND_API_KEY=re_your_api_key_here
+EMAIL_FROM=noreply@caposport.com  # or onboarding@resend.dev for testing
 ```
 
 #### Supabase Dashboard Configuration
@@ -3504,10 +3531,10 @@ export async function logAuthActivity(params: {
 
 ---
 
-**Document Status**: ✅ Phase 6 Complete - Club Creation & Onboarding - TESTED & PRODUCTION READY
-**Version**: 6.0.0 (Club creation + No-club handling)  
-**Last Updated**: October 13, 2025  
-**Implementation Notes**: Phase 1-6 complete AND tested. Phase 6 adds admin signup, club creation, and edge case handling. All features verified working.
+**Document Status**: ✅ Phase 6.6 Complete - Final Auth Architecture - TESTED & PRODUCTION READY
+**Version**: 6.6.0 (OTP-before-join + Email notifications)  
+**Last Updated**: January 8, 2025  
+**Implementation Notes**: All phases complete. Phase 6.6 implements final architecture with verified phones, join form after OTP, email notifications, and app promo modal post-login.
 
 **Phase 6 Implementation Summary**:
 - **Pages**: 2 new pages (`/signup/admin`, `/auth/no-club`)
@@ -3516,6 +3543,19 @@ export async function logAuthActivity(params: {
 - **Database**: Email column + club_code column added (both with backfill)
 - **Club Code System**: 5-character codes for easy joining (e.g., "FC247")
 - **Total Lines of Code**: ~800 lines implemented
+
+**Phase 6.6 Implementation Summary (January 2025)**:
+- **Problem**: Direct login sent SMS to unknown phones, desktop users stuck at QR code with no continue button
+- **Evolution**: Phase 6.5 (pre-check skips SMS) → 6.6 (pre-check for bots only, always send OTP)
+- **Final Architecture**: Phone → OTP → Join form (club code + name + email) for new players
+- **Key Changes**:
+  - 3-step login flow with join form after OTP verification
+  - Skip QR/app landing on web browsers (show only in Capacitor app)
+  - Email notifications via Resend on admin approval
+  - Post-login app promo modal (dismissible, 30-day cooldown)
+  - Rate limiting (10 req/min per IP) for bot protection
+- **Design Decision**: Verified phones (~£0.01 per join attempt) + admin-friendly (no phone editing)
+- **Total Additional Lines**: ~600 lines (email service, join form, modal, rate limiting, notifications)
 
 **Files Created/Modified**:
 1. ✅ `src/utils/platform-detection.ts` - Platform detection utilities (new)
@@ -4029,23 +4069,25 @@ npx cap open ios
 
 ## Phase 6.5: Phone Pre-Check Implementation (January 2025)
 
-**Status:** ✅ **COMPLETE** - SMS Cost Optimization
+**Status:** ⚠️ **SUPERSEDED BY PHASE 6.6** - See below
+
+## Phase 6.6: Final Auth Architecture (January 2025)
+
+**Status:** ✅ **COMPLETE** - OTP-Before-Join with Bot Protection
 
 ### Design Decision: Phone Pre-Check Before SMS
 
-**Problem Identified:** Direct login (`/auth/login`) was sending SMS to ANY phone number, including:
-- Bot attacks attempting spam (could cost $10-100 per incident)
-- Typos and incorrect numbers (wasted SMS quota)
-- Players not yet added to system (no valid onboarding path)
-- Legitimate users confused ("where's my code?")
+**Problem Identified:** Direct login (`/auth/login`) was sending SMS to ANY phone number, including bots.
 
-**Cost Impact:**
-- ~$0.01-0.02 per SMS
-- Bot attacks could exhaust daily SMS quota
-- Orphaned `auth.users` records created
-- Poor UX (users waiting for SMS that never arrives)
+**Initial Solution (Phase 6.5):** Pre-check NOT FOUND → Don't send SMS
+- ✅ Saved SMS costs
+- ❌ Poor UX (no verified phones, admin had to edit numbers)
 
-**Solution:** Pre-check phone existence BEFORE sending SMS + Rate limiting
+**Final Solution (Phase 6.6):** Pre-check for bot protection ONLY, always send OTP
+- ✅ Bot protection via rate limiting (10 req/min per IP)
+- ✅ Verified phones (~£0.01 per genuine attempt - acceptable)
+- ✅ Admin-friendly (no phone number editing needed)
+- ✅ Join requests linked to auth_user_id (robust system)
 
 **Implementation:**
 - ✅ New endpoint: `POST /api/auth/check-phone` (searches ALL tenants for phone)

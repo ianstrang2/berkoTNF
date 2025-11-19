@@ -12,6 +12,7 @@ import { DesktopSidebar } from '@/components/navigation/DesktopSidebar.component
 import { NavigationTabs } from '@/components/navigation/NavigationTabs.component';
 import { NavigationSubTabs } from '@/components/navigation/NavigationSubTabs.component';
 import { ProfileDropdown } from '@/components/layout/ProfileDropdown.component';
+import AppPromoModal from '@/components/modals/AppPromoModal.component';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -69,6 +70,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
               {children}
             </ErrorBoundary>
           </main>
+          
+          {/* App promo modal - shows on first web login, dismissible */}
+          {profile.isAuthenticated && <AppPromoModal clubName={profile.clubName} />}
         </div>
       </ResponsiveNavigation>
     );
@@ -107,6 +111,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </ErrorBoundary>
           </div>
         </main>
+        
+        {/* App promo modal - shows on first web login, dismissible */}
+        {profile.isAuthenticated && <AppPromoModal clubName={profile.clubName} />}
       </div>
     </ResponsiveNavigation>
   );

@@ -74,10 +74,16 @@ export default function PendingApprovalPage() {
           )}
 
           <div className="bg-white border border-slate-200 rounded-xl p-6 mb-6 shadow-soft-sm">
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Your request has been sent to the team organiser. 
-              Contact them to speed up approval.
+            <p className="text-sm text-slate-600 leading-relaxed mb-3">
+              Your request has been sent to your club admin for approval.
             </p>
+            <p className="text-sm text-slate-600 leading-relaxed mb-3">
+              You'll receive a notification when approved. 
+              Feel free to close this page - we'll let you know!
+            </p>
+            <div className="flex items-center justify-center gap-2 text-xs text-slate-500 pt-3 border-t border-slate-100">
+              <span>📧 Email & 📱 SMS notification enabled</span>
+            </div>
           </div>
 
           <button

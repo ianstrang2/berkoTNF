@@ -139,12 +139,12 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // No matching player - create join request for admin approval
-      // Note: email is stored in display_name or could be added as separate field
       const joinRequest = await prisma.player_join_requests.create({
         data: {
           tenant_id: tenantRecord.tenant_id,
           phone_number: normalizedIncomingPhone,
           display_name: displayName || null,
+          email: email ? email.trim() : null, // Store email for notifications
           auth_user_id: session.user.id,
           status: 'pending',
         },

@@ -19,7 +19,7 @@ export const PendingJoinRequests: React.FC = () => {
   const approveMutation = useApproveJoinRequest();
   const rejectMutation = useRejectJoinRequest();
   
-  const [processing, setProcessing] = useState<number | null>(null);
+  const [processing, setProcessing] = useState<string | null>(null); // UUID string, not number
 
   const [approvingRequest, setApprovingRequest] = useState<JoinRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<JoinRequest | null>(null);
@@ -61,7 +61,7 @@ export const PendingJoinRequests: React.FC = () => {
     
     try {
       await approveMutation.mutateAsync({
-        requestId: Number(approvingRequest.id),
+        requestId: approvingRequest.id, // id is already a UUID string
         clubOverride: approvalMode === 'new' ? { playerName: newPlayerName } : { existingPlayerId: selectedExistingPlayer }
       });
 
@@ -88,7 +88,7 @@ export const PendingJoinRequests: React.FC = () => {
     setProcessing(rejectingRequest.id);
     
     try {
-      await rejectMutation.mutateAsync(Number(rejectingRequest.id));
+      await rejectMutation.mutateAsync(rejectingRequest.id); // id is already a UUID string
 
       // Success - mutation automatically refetches list
       setShowRejectModal(false);
