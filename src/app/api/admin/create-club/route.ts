@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       app_metadata: session.user.app_metadata
     });
 
-    const { email, name, club_name } = await request.json();
+    const { email, name, club_name, attribution } = await request.json();
 
     // Get phone from authenticated session (already verified via OTP)
     const phone = session.user.phone;
@@ -167,16 +167,26 @@ export async function POST(request: NextRequest) {
         clubCode = generateClubCode();
       }
 
-      // Create tenant
+      // Create tenant with attribution data (if provided)
       const tenant = await tx.tenants.create({
         data: {
           name: club_name,
           slug: slug,
           club_code: clubCode,
           is_active: true,
-          settings: {},
+          settings: attribution ? { attribution } : {},
         },
       });
+
+      // Log attribution capture
+      if (attribution) {
+        console.log('[CREATE_CLUB] Attribution captured:', {
+          referrer: attribution.referrer,
+          utm_source: attribution.utm_source,
+          utm_campaign: attribution.utm_campaign,
+          landing_page: attribution.landing_page,
+        });
+      }
 
       // Auto-create invite token for the new club (permanent link for sharing)
       const inviteCode = crypto.randomUUID().replace(/-/g, '').substring(0, 32);

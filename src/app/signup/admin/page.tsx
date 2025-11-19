@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { isMobileUserAgent } from '@/utils/platform-detection';
 import { apiFetch } from '@/lib/apiConfig';
+import { getStoredAttribution, clearAttribution } from '@/lib/attribution';
 
 function AdminSignupForm() {
   // Multi-step form state
@@ -188,6 +189,12 @@ function AdminSignupForm() {
         throw new Error('Club name must be 50 characters or less');
       }
 
+      // Read attribution data from localStorage (if exists)
+      const attribution = getStoredAttribution();
+      if (attribution) {
+        console.log('📊 Attribution data found:', attribution);
+      }
+
       // Phone comes from authenticated session, not from frontend
       const response = await apiFetch('/admin/create-club', {
         method: 'POST',
@@ -195,6 +202,7 @@ function AdminSignupForm() {
           email: email.trim(),
           name: name.trim(),
           club_name: clubName.trim(),
+          attribution: attribution, // Include attribution data
         }),
       });
 
@@ -205,6 +213,9 @@ function AdminSignupForm() {
       }
 
       console.log('✅ Club created successfully:', data);
+
+      // Clear attribution after successful signup (prevents stale data)
+      clearAttribution();
 
       // Success! Redirect to admin dashboard
       window.location.href = '/admin/matches';

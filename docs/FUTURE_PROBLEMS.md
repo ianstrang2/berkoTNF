@@ -49,3 +49,47 @@ This document tracks potential problems and limitations that may need to be addr
 > "The bundles are 3.5 MB of JS. Can you implement code splitting and lazy loading for routes that aren't immediately needed? Focus on the biggest wins first - main-app.js is 2 MB. Show me before/after bundle sizes."
 
 **Effort estimate**: 1-2 hours implementation + 30 mins testing
+
+---
+
+## **Multi-Club Player Support**
+
+**Problem**: Players who play for multiple clubs (e.g., Sunday League + Thursday League) cannot easily switch between clubs in the app
+
+**Current State**:
+- Database allows phone number in multiple tenants (no constraint)
+- Phone authentication returns first matching club only
+- Player must use separate invite links to access each club
+- `/api/auth/link-by-phone` returns single club, not all clubs
+- No club switcher UI in player profile
+
+**When to prioritize**:
+- First user reports playing for multiple clubs and needing to switch
+- Community feedback requests this feature
+- Competitive apps offer this functionality
+
+**Impact if not addressed**:
+- Minor UX friction for multi-club players (small minority)
+- Workaround exists (use different invite links)
+- Not a blocker for growth
+
+**Solution approach**:
+1. Update `/api/auth/check-phone` to return ALL matching clubs (not just first)
+2. Update `/api/auth/link-by-phone` to return `clubs: [{ tenant_id, name, is_admin }]`
+3. Add club selector UI to player profile (reuse admin role switching pattern from Section E2 in SPEC_auth.md)
+4. Store current active club in localStorage
+5. Add "Switch Club" menu item if `clubs.length > 1`
+6. Update tenant context on switch (same logic as superadmin tenant switching)
+
+**Expected outcome**:
+- Player sees all their clubs in profile menu
+- Can switch between clubs with one tap
+- Stats, matches, RSVPs update to selected club
+- Seamless experience like admin role switching
+
+**Cursor prompt to use**:
+> "A player is registered in multiple clubs (different tenant_ids). Update the auth flow to return all matching clubs when they log in, and add a club switcher UI in the player profile menu. Reuse the existing admin role switching pattern from /auth/login (lines 103-107) and the superadmin tenant switching logic."
+
+**Effort estimate**: 2-3 hours implementation + 1 hour testing
+
+**Priority**: Low (edge case, workaround exists, wait for user demand)

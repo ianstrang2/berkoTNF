@@ -11,8 +11,13 @@ import HowItWorks from './marketing/components/HowItWorks.component';
 import FinalCTA from './marketing/components/FinalCTA.component';
 import ComingSoonModal from './marketing/components/ComingSoonModal.component';
 import Footer from './marketing/components/Footer.component';
+import PlausibleScript from '@/components/analytics/PlausibleScript.component';
+import { useAttribution } from '@/hooks/useAttribution.hook';
 
 export default function MarketingPage() {
+  // Capture marketing attribution on first visit
+  useAttribution();
+  
   // Set page metadata dynamically for SEO
   useEffect(() => {
     document.title = 'Capo — The 5-a-side football app for organising casual football';
@@ -84,6 +89,9 @@ export default function MarketingPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Privacy-friendly analytics for marketing page only */}
+      <PlausibleScript />
+      
       <MarketingNav onGetApp={() => setShowModal(true)} />
       
       <Hero onGetApp={() => setShowModal(true)} />

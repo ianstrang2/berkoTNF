@@ -428,6 +428,83 @@ To ensure consistency and type safety, all player-related data across the applic
 
 ---
 
+## Marketing Pages - Analytics & Attribution
+
+### Plausible Analytics Integration
+
+**ONLY track public marketing pages, NOT the authenticated app.**
+
+- **Marketing pages** (track with Plausible):
+  - `/` - Homepage/landing page
+  - Future public pages: `/pricing`, `/about`, `/contact`, etc.
+
+- **Authenticated app** (do NOT track):
+  - `/admin/*` - Admin dashboard
+  - `/player/*` - Player dashboard
+  - `/superadmin/*` - Superadmin panel
+  - `/auth/*` - Authentication pages
+  - `/signup/*` - Signup flow (post-conversion)
+
+**Implementation:**
+- Use `<PlausibleScript />` component from `src/components/analytics/PlausibleScript.component.tsx`
+- Component automatically checks pathname and only loads on marketing pages
+- No cookies, privacy-friendly by design
+
+**Example:**
+```tsx
+import PlausibleScript from '@/components/analytics/PlausibleScript.component';
+
+export default function MarketingPage() {
+  return (
+    <div>
+      <PlausibleScript />
+      {/* rest of page */}
+    </div>
+  );
+}
+```
+
+### Attribution Tracking
+
+**Capture first-touch attribution for new admin signups.**
+
+**What we track:**
+- `referrer` - Where visitor came from (e.g., "https://twitter.com" or "direct")
+- `utm_source` - Marketing source (e.g., "twitter", "facebook")
+- `utm_medium` - Marketing medium (e.g., "social", "cpc")
+- `utm_campaign` - Campaign name (e.g., "launch-week")
+- `landing_page` - First page visited (e.g., "/")
+- `first_visit` - Timestamp of first visit
+
+**Implementation:**
+1. **Marketing page capture:**
+   - Use `useAttribution()` hook on marketing pages
+   - Automatically captures attribution on first visit
+   - Stores in `localStorage` (key: `capo_attribution`)
+   - First-touch model: won't overwrite existing attribution
+
+2. **Signup persistence:**
+   - Read attribution from localStorage during admin signup
+   - Send to `/api/admin/create-club` endpoint
+   - Stored in `tenants.settings` JSON field as `{ attribution: {...} }`
+   - Clear localStorage after successful signup (prevents stale data)
+
+**Files:**
+- `src/lib/attribution.ts` - Core attribution utilities
+- `src/hooks/useAttribution.hook.ts` - React hook for capturing attribution
+- `src/components/analytics/PlausibleScript.component.tsx` - Plausible script loader
+
+**Querying attribution:**
+```sql
+SELECT 
+  name,
+  settings->>'attribution' as attribution_data
+FROM tenants
+WHERE settings->>'attribution' IS NOT NULL;
+```
+
+---
+
 # General Code Generation Rules
 
 ## SQL File Handling
