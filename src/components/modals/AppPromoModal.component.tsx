@@ -12,11 +12,7 @@
 import { useState, useEffect } from 'react';
 import { isInCapacitorApp } from '@/utils/platform-detection';
 
-interface AppPromoModalProps {
-  clubName?: string;
-}
-
-const AppPromoModal = ({ clubName }: AppPromoModalProps) => {
+const AppPromoModal = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -79,7 +75,7 @@ const AppPromoModal = ({ clubName }: AppPromoModalProps) => {
               <span className="text-4xl">📱</span>
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {clubName ? `Welcome to ${clubName}!` : 'You\'re all set!'}
+              You're all set!
             </h2>
             <p className="text-gray-600">
               Get the full experience with the Capo app

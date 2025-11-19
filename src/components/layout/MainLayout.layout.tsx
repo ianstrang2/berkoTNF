@@ -72,7 +72,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           </main>
           
           {/* App promo modal - shows on first web login, dismissible */}
-          {profile.isAuthenticated && <AppPromoModal clubName={profile.clubName} />}
+          {profile.isAuthenticated && <AppPromoModal />}
         </div>
       </ResponsiveNavigation>
     );
@@ -113,7 +113,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </main>
         
         {/* App promo modal - shows on first web login, dismissible */}
-        {profile.isAuthenticated && <AppPromoModal clubName={profile.clubName} />}
+        {profile.isAuthenticated && <AppPromoModal />}
       </div>
     </ResponsiveNavigation>
   );
