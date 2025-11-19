@@ -785,49 +785,274 @@ done
 
 ---
 
-## 7. Testing Checklist
+## 7. Testing Guide & Checklist
 
-### 7.1 Pre-Check Functionality
+### Pre-Testing Setup
 
-- [ ] Phone in DB → sends SMS normally
-- [ ] Phone NOT in DB → shows club code entry immediately
-- [ ] Invalid phone format (too short) → shows validation error (no pre-check call)
-- [ ] Invalid phone format (123) → shows validation error (no pre-check call)
-- [ ] Valid format but not in DB → pre-check runs, shows club code entry
-- [ ] Club code entry accepts 5-char alphanumeric
-- [ ] Club code lookup works (redirects to invite flow)
-- [ ] Invalid club code shows error
-- [ ] "Create Club" link works
-- [ ] Error handling for API failures
+**Supabase Test Mode Configuration:**
 
-### 7.2 Existing Flows (Regression Testing)
+Add test numbers to Supabase Dashboard:
+```
+Authentication → Providers → Phone → Test Phone Numbers and OTPs
 
-- [ ] `/auth/no-club` still works (reached after OTP verification)
-- [ ] `/join/[tenant]/[token]` unchanged (invite links)
-- [ ] `/signup/admin` unchanged (club creation)
+Format: 447949251277=123456,447912623101=123456,447765712156=123456
+```
+
+**Test phone numbers:**
+- Your number: `447949251277` (already in players table)
+- Friend's numbers: `447765712156`, `447912623101` (add to test list)
+- Fake number: `447777123456` (not in DB, not in test list)
+
+---
+
+### 7.1 Pre-Check Functionality Tests
+
+#### Test 1: Existing Player (Phone in Database) ✅
+
+**Scenario:** Player already added by admin
+
+**Steps:**
+1. Navigate to `http://localhost:3000/auth/login`
+2. Enter phone: `07949251277` (your number)
+3. Click "Send Verification Code"
+
+**Expected Behavior:**
+- ✅ Button shows "Checking phone..." briefly
+- ✅ Then shows "Sending..."
+- ✅ Screen changes to OTP entry
+- ✅ SMS delivered (use test code: `123456`)
+- ✅ After OTP verification → redirects to `/admin/matches`
+
+**What to Check:**
+- No club code entry UI shown
+- Pre-check API called (network tab: `/api/auth/check-phone`)
+- Response: `{ exists: true, clubName: "Berko TNF" }`
+
+---
+
+#### Test 2: New Player (Phone NOT in Database) ✅
+
+**Scenario:** Phone not registered to any club yet
+
+**Steps:**
+1. Navigate to `http://localhost:3000/auth/login`
+2. Enter phone: `07777123456` (fake number)
+3. Click "Send Verification Code"
+
+**Expected Behavior:**
+- ✅ Button shows "Checking phone..." briefly
+- ✅ Error message: "Phone not found in any club. Enter your club code below to continue."
+- ✅ Club code entry UI appears (5-char input, centered, monospace)
+- ✅ Help text shown: "Don't have a code? Ask your admin..."
+- ✅ "Create a New Club →" link shown
+- ❌ NO SMS sent (saves money!)
+- ❌ No OTP entry screen shown
+
+**What to Check:**
+- Pre-check API called (network tab)
+- Response: `{ exists: false, clubName: null }`
+- No Supabase OTP call made
+
+---
+
+#### Test 3: Invalid Phone Format (Client Validation) ✅
+
+**3a. Too short:**
+1. Enter phone: `123`
+2. Click "Send Verification Code"
+
+**Expected:**
+- ✅ Error: "Please enter a valid UK mobile number (07XXX XXXXXX)"
+- ❌ No pre-check API call (saves DB query)
+- ❌ No SMS sent
+
+**3b. Wrong format:**
+1. Enter phone: `12345`
+2. Click "Send Verification Code"
+
+**Expected:**
+- ✅ Same validation error
+- ❌ No API calls made
+
+---
+
+#### Test 4: State Reset When Phone Changes ✅
+
+**Scenario:** User sees club code entry, then changes phone
+
+**Steps:**
+1. Enter phone: `07777123456` (not in DB)
+2. Click "Send Verification Code"
+3. ✅ Club code entry appears
+4. Enter club code: `ABC` (3 chars, incomplete)
+5. **Go back and change phone** to: `07949251277`
+6. Observe UI
+
+**Expected Behavior:**
+- ✅ Club code entry UI disappears immediately
+- ✅ Club code input clears
+- ✅ Error message clears
+- ✅ Ready to submit new phone
+
+---
+
+#### Test 5: Club Code Lookup Flow ✅
+
+**Scenario:** User enters club code after phone not found
+
+**Steps:**
+1. Enter phone: `07777123456` (not in DB)
+2. Click "Send Verification Code"
+3. Club code entry appears
+4. Enter club code: `F8C65` (your actual club code)
+5. Click "Continue with Code"
+
+**Expected Behavior:**
+- ✅ Button shows "Looking up club..."
+- ✅ API call to `/api/join/by-code`
+- ✅ Returns: `{ success: true, join_url: "/join/berkotnf/token123..." }`
+- ✅ Redirects to invite flow: `/join/berkotnf/[token]`
+- ✅ Invite flow loads correctly
+
+---
+
+#### Test 6: Invalid Club Code ❌
+
+**Scenario:** User enters non-existent club code
+
+**Steps:**
+1. Enter phone: `07777123456` (not in DB)
+2. Click "Send Verification Code"
+3. Club code entry appears
+4. Enter club code: `XXXXX` (doesn't exist)
+5. Click "Continue with Code"
+
+**Expected Behavior:**
+- ✅ Button shows "Looking up club..."
+- ✅ API call to `/api/join/by-code`
+- ✅ Returns: `{ success: false, error: "Club code not found..." }`
+- ✅ Error shown: "Club code not found. Please check with your admin."
+- ❌ Does NOT redirect
+- ✅ Can try again with different code
+
+---
+
+#### Test 7: Pre-Check API Failure (Fallback Behavior) ✅
+
+**Scenario:** Pre-check API is down or returns error
+
+**To Simulate:**
+1. Stop Supabase (or modify `/api/auth/check-phone` to throw error)
+2. Enter phone: `07949251277`
+3. Click "Send Verification Code"
+
+**Expected Behavior:**
+- ✅ Console warning: "Pre-check failed, falling back to SMS"
+- ✅ Continues with SMS OTP (lenient fallback)
+- ✅ OTP screen shown
+- ✅ User not blocked
+
+**What to Check:**
+- Graceful degradation
+- No user-facing error (just console log)
+- SMS still sent (fallback working)
+
+---
+
+#### Test 8: Rate Limiting (Bot Protection) ✅
+
+**Scenario:** Attacker tries many phones rapidly
+
+**Steps:**
+1. Open browser console
+2. Run this JavaScript:
+```javascript
+// Simulate 15 rapid requests (should fail after 10)
+for (let i = 0; i < 15; i++) {
+  fetch('/api/auth/check-phone', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: `+44777700000${i}` })
+  }).then(r => r.json()).then(data => 
+    console.log(`Request ${i+1}:`, data)
+  );
+}
+```
+
+**Expected Behavior:**
+- ✅ First 10 requests succeed
+- ✅ Requests 11-15 return: `{ error: "Too many requests...", status: 429 }`
+- ✅ After 1 minute, limit resets
+
+---
+
+#### Test 9: "Create a New Club" Link ✅
+
+**Scenario:** User wants to start own club
+
+**Steps:**
+1. Enter phone: `07777123456` (not in DB)
+2. Click "Send Verification Code"
+3. Club code entry appears
+4. Click "Create a New Club →" link
+
+**Expected:**
+- ✅ Redirects to `/signup/admin`
+- ✅ Admin signup page loads correctly
+
+---
+
+### 7.2 Regression Testing (Other Auth Pages)
+
+#### Test 10: No-Club Page Still Works ✅
+
+**Scenario:** Edge case where user completes OTP but phone was deleted
+
+**Steps:**
+1. Use invite link: `/join/berkotnf/[token]`
+2. Complete OTP with phone NOT in database
+3. Enter name and submit
+
+**Expected:**
+- ✅ `/auth/no-club` page still accessible
+- ✅ Club code entry works
+- ✅ All existing functionality unchanged
+
+---
+
+#### Test 11: Invite Links Work ✅
+
+**Scenario:** Player uses invite link (primary onboarding flow)
+
+**Steps:**
+1. Navigate to: `/join/berkotnf/[your-token]`
+2. Complete full flow (phone → OTP → name)
+
+**Expected:**
+- ✅ No pre-check called (not needed, invite token is security)
+- ✅ SMS sent regardless of phone existence
+- ✅ All existing behavior unchanged
+
+---
+
+### 7.3 Quick Checklist (Summary)
+
+**Pre-Check Tests:**
+- [ ] Test 1: Existing player → SMS sent
+- [ ] Test 2: New player → club code shown (no SMS)
+- [ ] Test 3: Invalid phone → validation error
+- [ ] Test 4: State reset when phone changes
+- [ ] Test 5: Valid club code → redirects
+- [ ] Test 6: Invalid club code → error shown
+- [ ] Test 7: API failure → fallback to SMS
+- [ ] Test 8: Rate limiting → 11th request fails
+- [ ] Test 9: Create club link works
+
+**Regression Tests:**
+- [ ] Test 10: No-club page unchanged
+- [ ] Test 11: Invite links unchanged
+- [ ] `/signup/admin` still works
 - [ ] `/auth/pending-approval` still works
-
-### 7.3 Edge Cases
-
-- [ ] User enters phone → sees code entry → changes phone → club code UI clears ✅
-- [ ] User enters invalid phone (123) → sees validation error immediately
-- [ ] User enters phone → sees code entry → enters invalid code → error shown
-- [ ] User enters phone → sees code entry → enters valid code → redirects to join flow
-- [ ] Network failure during pre-check → falls back to SMS (lenient policy)
-- [ ] Pre-check API returns 500 → falls back to SMS
-- [ ] Pre-check timeout → falls back to SMS
-- [ ] Supabase test mode with whitelist → behavior correct
-- [ ] Multi-club player (phone in 2+ tenants) → returns first match
-
-### 7.4 Bot Protection & Rate Limiting
-
-- [ ] 100 random phones → 0 SMS sent (all fail pre-check)
-- [ ] Rate limiting triggers after 10 requests/minute from same IP
-- [ ] Rate limited request returns 429 status
-- [ ] Rate limit resets after 1 minute window
-- [ ] Different IPs have independent limits
-- [ ] No performance degradation with high load
-- [ ] Legitimate users not affected by rate limiting
 
 ---
 
