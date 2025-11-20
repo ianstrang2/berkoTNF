@@ -4,17 +4,12 @@ import { prisma } from '@/lib/prisma';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantFilter } from '@/lib/tenantFilter';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 export async function GET(request: NextRequest) {
-  // Simple auth check for admin access
-  const referer = request.headers.get('referer');
-  const isAdminRequest = referer?.includes('/admin') || referer?.includes('localhost');
-  
-  if (!isAdminRequest) {
-    return NextResponse.json({ error: 'Admin access only' }, { status: 401 });
-  }
-
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access (replacing insecure referer check)
+    await requireAdminRole(request);
     const healthData: any = {
       timestamp: new Date().toISOString(),
       status: 'healthy',

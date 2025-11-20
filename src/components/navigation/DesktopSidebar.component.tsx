@@ -83,10 +83,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
     }
   };
 
-  // Get navigation items based on CURRENT CONTEXT (URL), not just role
+  // Get navigation items based on USER PERMISSIONS (not URL)
   const getNavigationItems = () => {
-    // Superadmin context (on /superadmin/* pages)
-    if (isInSuperadminContext && profile.isSuperadmin) {
+    // Superadmin: Show superadmin menu ONLY if user has permission
+    if (profile.isSuperadmin && isInSuperadminContext) {
       const superadminConfig = NAVIGATION_CONFIG.superadmin.secondary;
       return Object.entries(superadminConfig).map(([key, config]) => ({
         key,
@@ -96,8 +96,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
       }));
     }
     
-    // Admin context (on /admin/* pages)
-    if (isInAdminContext && profile.isAdmin) {
+    // Admin: Show admin menu ONLY if user has permission
+    if (profile.isAdmin && isInAdminContext) {
       const adminConfig = NAVIGATION_CONFIG.admin.secondary;
       return Object.entries(adminConfig).map(([key, config]) => ({
         key,
@@ -107,7 +107,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
       }));
     }
 
-    // User mode: show main navigation
+    // Player mode: Show player navigation (default for all users)
     return [
       {
         key: 'dashboard',

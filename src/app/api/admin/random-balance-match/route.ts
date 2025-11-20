@@ -5,6 +5,7 @@ import { splitSizesFromPool, MIN_PLAYERS, MAX_PLAYERS } from '@/utils/teamSplit.
 // Multi-tenant imports - ensuring random balance is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // Define interface for player pool entries
 interface PoolPlayer {
@@ -30,6 +31,9 @@ const shuffleArray = <T>(array: T[]): T[] => {
 // POST: Randomly balance teams
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
+    
     // Get matchId from URL query parameters
     const url = new URL(request.url);
     const matchId = url.searchParams.get('matchId');

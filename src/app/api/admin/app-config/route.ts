@@ -3,10 +3,13 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring app config is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // GET: Fetch all app configuration settings
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const startTime = Date.now();
     
     // Get query parameters - support both 'group' and 'groups' for backward compatibility

@@ -3,10 +3,13 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team template operations are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // GET: Fetch team size templates
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const templateId = searchParams.get('templateId');

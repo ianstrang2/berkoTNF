@@ -76,11 +76,11 @@ export function useApproveJoinRequest() {
       return response.json();
     },
     onSuccess: () => {
-      // Invalidate join requests list
-      queryClient.invalidateQueries({ queryKey: queryKeys.joinRequests(tenantId) });
-      // Also invalidate players list (new player added)
-      queryClient.invalidateQueries({ queryKey: queryKeys.players(tenantId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.playersAdmin(tenantId, false, false) });
+      // Refetch join requests list immediately (don't just invalidate)
+      queryClient.refetchQueries({ queryKey: queryKeys.joinRequests(tenantId) });
+      // Also refetch players list (new player added)
+      queryClient.refetchQueries({ queryKey: queryKeys.players(tenantId) });
+      queryClient.refetchQueries({ queryKey: queryKeys.playersAdmin(tenantId, false, false) });
     },
   });
 }
@@ -106,8 +106,8 @@ export function useRejectJoinRequest() {
       return response.json();
     },
     onSuccess: () => {
-      // Invalidate join requests list
-      queryClient.invalidateQueries({ queryKey: queryKeys.joinRequests(tenantId) });
+      // Refetch join requests list immediately (don't just invalidate)
+      queryClient.refetchQueries({ queryKey: queryKeys.joinRequests(tenantId) });
     },
   });
 }

@@ -3,10 +3,13 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring performance settings are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // GET - Fetch current performance algorithm settings
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const configs = await prisma.app_config.findMany({
       where: {
         tenant_id: tenantId,

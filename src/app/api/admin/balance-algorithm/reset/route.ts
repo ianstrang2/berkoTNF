@@ -3,10 +3,13 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring balance algorithm reset is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // POST handler - reset balance algorithm weights to defaults
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     // Get the default values from team_balance_weights_defaults table
     const defaultWeights = await prisma.team_balance_weights_defaults.findMany();
     

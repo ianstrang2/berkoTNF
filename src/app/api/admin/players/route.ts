@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { toPlayerProfile } from '@/lib/transform/player.transform';
 // Phase 2: Using withTenantContext for automatic RLS setup
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantFilter } from '@/lib/tenantFilter';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 const serializeData = (data) => {
   return JSON.parse(JSON.stringify(data, (_, value) =>
@@ -13,8 +14,12 @@ const serializeData = (data) => {
 };
 
 // Phase 2: Get all players with automatic RLS context
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  // SECURITY: Verify admin access
+  await requireAdminRole(request);
+  
   return withTenantContext(request, async (tenantId) => {
+    
     // Middleware automatically sets RLS context
     
     const url = new URL(request.url);
@@ -90,8 +95,12 @@ export async function GET(request: Request) {
 }
 
 // Phase 2: Add a new player with automatic RLS context
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // SECURITY: Verify admin access
+  await requireAdminRole(request);
+  
   return withTenantContext(request, async (tenantId) => {
+    
     // Middleware automatically sets RLS context
     
     const body = await request.json();
@@ -149,8 +158,12 @@ export async function POST(request: Request) {
 }
 
 // Phase 2: Update a player with automatic RLS context
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  // SECURITY: Verify admin access
+  await requireAdminRole(request);
+  
   return withTenantContext(request, async (tenantId) => {
+    
     // Middleware automatically sets RLS context
     
     const body = await request.json();

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantFilter } from '@/lib/tenantFilter';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 /**
  * API route to fetch historical match data for a specific upcoming_match_id.
@@ -16,6 +17,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const upcomingMatchId = parseInt(params.id, 10);
 
     if (isNaN(upcomingMatchId)) {

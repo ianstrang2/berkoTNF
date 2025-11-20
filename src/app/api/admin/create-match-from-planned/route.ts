@@ -3,10 +3,13 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match creation is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // POST: Create a real match from a planned match
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const body = await request.json();
     // Accept either field name for compatibility
     const { match_id, upcoming_match_id } = body;

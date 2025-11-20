@@ -4,10 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     try {
+      // SECURITY: Verify admin access
+      await requireAdminRole(request);
       console.log(`[RESET_PROFILES] Starting for tenant ${tenantId}...`);
       
       // Check if user only wants to clear profiles without regenerating

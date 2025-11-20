@@ -5,6 +5,7 @@ import { splitSizesFromPool, getPoolValidation, MIN_PLAYERS, MAX_PLAYERS, MIN_TE
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 /**
  * API route to lock the player pool for an upcoming match.
@@ -16,6 +17,8 @@ export async function PATCH(
 ) {
   return withTenantContext(request, async (tenantId) => {
     try {
+      // SECURITY: Verify admin access
+      await requireAdminRole(request);
       const matchId = parseInt(params.id, 10);
       console.log(`[LOCK_POOL] Starting lock pool operation for match ${matchId}`);
       console.log(`[LOCK_POOL] Resolved tenant ID: ${tenantId}`);

@@ -5,6 +5,7 @@ import { toPlayerProfile } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring team generation is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 type PlayerWithSlot = PlayerProfile & { slot_number?: number };
 
@@ -133,6 +134,9 @@ const shuffleArray = <T>(array: T[]): T[] => {
 
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
+    
     // Get current slot assignments and create any missing slots
     const currentSlots = await prisma.team_slots.findMany({
       include: { players: true },

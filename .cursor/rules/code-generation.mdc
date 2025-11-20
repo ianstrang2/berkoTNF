@@ -57,27 +57,62 @@ src/
 
 **ALWAYS use `withTenantContext` wrapper + `withTenantFilter()` helper** for all tenant-scoped API routes.
 
-**Pattern:**
+### 🚨 CRITICAL: Authorization is MANDATORY for Admin/Superadmin Routes
+
+**ALL routes under `/api/admin/*` MUST call `requireAdminRole()`**  
+**ALL routes under `/api/superadmin/*` MUST call `requireSuperadmin()`**
+
+**Why:** UI protection is NOT enough - users can call APIs directly via tools like Postman, curl, or browser DevTools.
+
+**Admin Route Pattern:**
 ```typescript
+import { requireAdminRole } from '@/lib/auth/apiAuth';
+
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
-    try {
-      await requireAdminRole(request);
-      const data = await prisma.players.findMany({
-        where: withTenantFilter(tenantId)  // ⚠️ MANDATORY
-      });
-      return NextResponse.json({ success: true, data });
-    } catch (error) {
-      return handleTenantError(error);
-    }
+    // 🔒 MANDATORY: Check authorization FIRST
+    await requireAdminRole(request);
+    
+    // Now safe to proceed with admin operations
+    const data = await prisma.players.findMany({
+      where: withTenantFilter(tenantId)
+    });
+    return NextResponse.json({ success: true, data });
   });
 }
 ```
 
+**Superadmin Route Pattern:**
+```typescript
+import { requireSuperadmin } from '@/lib/auth/apiAuth';
+
+export async function GET(request: NextRequest) {
+  try {
+    // 🔒 MANDATORY: Check superadmin authorization FIRST
+    await requireSuperadmin(request);
+    
+    // Now safe to access cross-tenant data
+    const tenants = await supabaseAdmin.from('tenants').select('*');
+    return NextResponse.json({ success: true, data: tenants });
+  } catch (error) {
+    return handleTenantError(error);
+  }
+}
+```
+
 **Authentication Helpers:**
-- `requireAdminRole(request)` - Admin/superadmin access
-- `requirePlayerAccess(request)` - Player access
-- For public routes: Use `withTenantContext(request, handler, { allowUnauthenticated: true })`
+- `requireAdminRole(request)` - Verifies admin OR superadmin access (use for `/api/admin/*`)
+- `requireSuperadmin(request)` - Verifies ONLY superadmin access (use for `/api/superadmin/*`)
+- `requirePlayerAccess(request)` - Verifies player access (use for `/api/player/*`)
+- `requireAuth(request)` - Verifies authentication only (rarely needed)
+
+**For public routes:** Use `withTenantContext(request, handler, { allowUnauthenticated: true })`
+
+**❌ NEVER:**
+- Rely on UI checks alone (users can bypass UI)
+- Check `referer` header for authorization (easily spoofed)
+- Assume middleware handles authorization (it only checks authentication)
+- Skip auth checks because "it's an internal API" (still exploitable)
 
 ## React Query - Multi-Tenant Cache Isolation (MANDATORY)
 

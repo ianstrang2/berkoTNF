@@ -6,9 +6,12 @@ import { splitSizesFromPool } from '@/utils/teamSplit.util';
 // Multi-tenant imports - ensuring team balancing is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const body = await request.json();
     const { matchId, playerIds, method, state_version } = body;
 

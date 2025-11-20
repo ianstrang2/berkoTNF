@@ -8,6 +8,7 @@ import { CACHE_TAGS } from '@/lib/cache/constants';
 import { shouldUseBackgroundJobs, getFeatureFlagStatus } from '@/config/feature-flags';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 interface SystemHealthResponse {
   timestamp: string;
@@ -37,12 +38,9 @@ interface TestResult {
 }
 
 export async function GET(request: NextRequest) {
-  const referer = request.headers.get('referer');
-  const isAdminRequest = referer?.includes('/admin') || referer?.includes('localhost');
-  
-  if (!isAdminRequest) {
-    return NextResponse.json({ error: 'Admin access only' }, { status: 401 });
-  }
+  try {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
 
   const startTime = Date.now();
   const healthData: SystemHealthResponse = {
@@ -85,6 +83,9 @@ export async function GET(request: NextRequest) {
     health: healthData,
     test_duration: Date.now() - startTime
   });
+  } catch (error) {
+    return handleTenantError(error);
+  }
 }
 
 async function testBackgroundWorkerSystem(): Promise<SystemStatus> {

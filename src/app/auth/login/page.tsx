@@ -8,8 +8,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Capacitor } from '@capacitor/core';
 import { apiFetch } from '@/lib/apiConfig';
 
 function PlayerLoginForm() {
@@ -28,6 +29,8 @@ function PlayerLoginForm() {
   const [playerEmail, setPlayerEmail] = useState('');
   
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams?.get('returnUrl');
   const supabase = createClientComponentClient();
 
   // Check if user is already logged in - redirect to dashboard
@@ -37,9 +40,10 @@ function PlayerLoginForm() {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          // User is already logged in - redirect to dashboard
-          console.log('[LOGIN] User already authenticated, redirecting to dashboard');
-          router.push('/admin/matches');
+          // User is already logged in - redirect to returnUrl or dashboard
+          console.log('[LOGIN] User already authenticated, redirecting');
+          const destination = returnUrl || '/admin/matches';
+          router.push(destination);
           return;
         }
       } catch (error) {
@@ -168,11 +172,19 @@ function PlayerLoginForm() {
               // Linked! Clear cache and reload to refresh profile
               localStorage.removeItem('userProfile');
               
-              // Redirect based on role
-              if (linkData.player.is_admin) {
+              // Track app usage if in Capacitor (don't await - fire and forget)
+              if (Capacitor.isNativePlatform()) {
+                apiFetch('/auth/track-app-usage', { method: 'POST' })
+                  .catch(err => console.warn('[APP_TRACKING] Failed to track app usage:', err));
+              }
+              
+              // Redirect based on returnUrl or role
+              if (returnUrl) {
+                window.location.href = returnUrl;
+              } else if (linkData.player.is_admin) {
                 window.location.href = '/admin/matches';
               } else {
-                window.location.href = '/';
+                window.location.href = '/player/dashboard';
               }
             } else {
               // Shouldn't happen (pre-check said exists), but handle gracefully

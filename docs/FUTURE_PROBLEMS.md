@@ -93,3 +93,46 @@ This document tracks potential problems and limitations that may need to be addr
 **Effort estimate**: 2-3 hours implementation + 1 hour testing
 
 **Priority**: Low (edge case, workaround exists, wait for user demand)
+
+---
+
+## **Phone Number Changes (Player Switches Phones)**
+
+**Problem**: Players who get a new phone number cannot update it themselves - they're locked out of their account
+
+**Current State**:
+- Phone is immutable (cannot be changed by player or admin)
+- Phone is the authentication identity (`auth.users.phone` + `players.phone`)
+- Changing phone breaks authentication (player can't receive OTP on new number)
+- No self-service phone change flow
+
+**When to prioritize**:
+- First player reports getting new phone and being locked out
+- Support requests accumulate
+- Competitive apps offer easy phone updates
+
+**Impact if not addressed**:
+- Minor friction (rare - most people keep phones for 2+ years)
+- Workaround exists: Admin creates new player, marks old as retired
+- Manual intervention required (contact support for DB migration)
+
+**Solution approach**:
+1. **Build phone change verification flow:**
+   - Player initiates "Change Phone" in settings
+   - Verify OLD phone (send OTP to current number - proves they own account)
+   - Verify NEW phone (send OTP to new number - proves they own it)
+   - Update both `auth.users.phone` AND `players.phone`
+   - Preserve all historical stats (same player_id)
+2. **Or:** Contact-support approach (simpler for MVP)
+   - Player emails support with old + new phone
+   - Support manually updates in Supabase
+   - Low volume, acceptable for MVP
+
+**Expected outcome**:
+- Player keeps all historical stats
+- Can log in with new phone number
+- Auth remains secure (both phones verified)
+
+**Effort estimate**: 3-4 hours for self-service flow, or 0 hours for manual support approach
+
+**Priority**: Low (wait for first user request, then decide self-service vs manual)

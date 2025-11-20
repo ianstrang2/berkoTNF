@@ -419,11 +419,25 @@ const PlayerManager: React.FC = () => {
                   <th onClick={() => handleSort('status')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Active or Retired">
                     ● {getSortIndicator('status')}
                   </th>
-                  <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Phone number set">
-                    📱
-                  </th>
-                  <th className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="App access claimed">
+                  <th 
+                    className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-help" 
+                    title="Profile claimed?"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      alert('Profile Claimed?\n\nIndicates whether the player has claimed their profile and can log in to the app/web.');
+                    }}
+                  >
                     🔗
+                  </th>
+                  <th 
+                    className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-help" 
+                    title="App downloaded?"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      alert('App Downloaded?\n\nIndicates whether the player has downloaded and used the mobile app (can receive push notifications).');
+                    }}
+                  >
+                    📱
                   </th>
                   <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Guest status">
                     🎯 {getSortIndicator('ringer')}
@@ -500,22 +514,55 @@ const PlayerManager: React.FC = () => {
                       {/* Overview columns - Desktop always, Mobile only in overview mode */}
                       {(!isMobile || mobileView === 'overview') && (
                         <>
-                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.isRetired ? 'Retired player' : 'Active player'}>
+                          <td 
+                            className="p-2 text-center align-middle bg-transparent border-b cursor-help" 
+                            title={player.isRetired ? 'Retired player' : 'Active player'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const message = player.isRetired 
+                                ? `Retired Player\n\n${player.name} is retired and will not appear in match selection. Their historical stats are preserved.`
+                                : `Active Player\n\n${player.name} is active and available for match selection.`;
+                              alert(message);
+                            }}
+                          >
                             <span className={`text-lg ${player.isRetired ? 'text-red-500' : 'text-green-500'}`}>
                               ●
                             </span>
                           </td>
-                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.phone ? `Phone: ${player.phone}` : 'No phone number'}>
-                            <span className={`text-lg ${player.phone ? 'text-green-500' : 'text-gray-300'}`}>
-                              {player.phone ? '✓' : '○'}
-                            </span>
-                          </td>
-                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.authUserId ? 'Claimed - has app access' : 'Not claimed - cannot access app'}>
+                          <td 
+                            className="p-2 text-center align-middle bg-transparent border-b cursor-help" 
+                            title={player.authUserId ? 'Profile claimed' : 'Not claimed'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const message = player.authUserId 
+                                ? 'Profile Claimed\n\nThis player has claimed their profile and can log in to the web app or mobile app.'
+                                : 'Profile Not Claimed\n\nThis player has not claimed their profile yet. They cannot log in until they verify their phone number.';
+                              alert(message);
+                            }}
+                          >
                             <span className={`text-lg ${player.authUserId ? 'text-green-500' : 'text-gray-300'}`}>
-                              {player.authUserId ? '✓' : '○'}
+                              🔗
                             </span>
                           </td>
-                          <td className="p-2 text-center align-middle bg-transparent border-b" title={player.isRinger ? 'Guest player' : 'Regular player'}>
+                          <td 
+                            className="p-2 text-center align-middle bg-transparent border-b cursor-help" 
+                            title="Mobile app usage tracking coming soon"
+                          >
+                            <span className="text-lg text-gray-300">
+                              📱
+                            </span>
+                          </td>
+                          <td 
+                            className="p-2 text-center align-middle bg-transparent border-b cursor-help" 
+                            title={player.isRinger ? 'Guest player' : 'Regular player'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const message = player.isRinger 
+                                ? `Guest Player\n\n${player.name} is a guest. Their stats are not included in league tables or records.`
+                                : `Regular Player\n\n${player.name} is a regular club member whose stats count towards all league tables and records.`;
+                              alert(message);
+                            }}
+                          >
                             <span className={`text-lg ${player.isRinger ? 'text-blue-500' : 'text-gray-300'}`}>
                               ●
                             </span>

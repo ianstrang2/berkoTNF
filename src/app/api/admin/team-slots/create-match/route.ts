@@ -1,10 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match creation is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // SECURITY: Verify admin access
+  await requireAdminRole(request);
+  
   return withTenantContext(request, async (tenantId) => {
     const { match_date, team_a_score, team_b_score } = await request.json();
 

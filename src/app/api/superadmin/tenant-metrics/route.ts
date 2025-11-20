@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireSuperadmin } from '@/lib/auth/apiAuth';
 
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Only superadmins can access tenant-specific metrics
+    await requireSuperadmin(request);
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // DEPRECATED: This endpoint is deprecated in favor of /api/internal/cache/invalidate
 // The background job system uses the internal endpoint for batch cache invalidation
@@ -19,8 +20,12 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  // This is a server-to-server endpoint.
-  // We expect a secret key to be passed in the authorization header.
+  try {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
+  
+    // This is a server-to-server endpoint.
+    // We expect a secret key to be passed in the authorization header.
   const authToken = (request.headers.get('authorization') || '').split('Bearer ').at(1);
 
   if (authToken !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -57,6 +62,9 @@ export async function POST(request: NextRequest) {
       tag: cacheKey,
       now: Date.now(),
     });
+  } catch (error) {
+    return handleTenantError(error);
+  }
   } catch (error) {
     return handleTenantError(error);
   }

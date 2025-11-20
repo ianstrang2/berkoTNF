@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // GET: Fetch admin settings
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     // Return hardcoded settings
     return NextResponse.json({ 
       success: true, 
@@ -19,6 +22,8 @@ export async function GET(request: NextRequest) {
 // PUT: Update admin settings (this is a stub - no actual update happens)
 export async function PUT(request: NextRequest) {
   try {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const body = await request.json();
     const { days_between_matches } = body;
     

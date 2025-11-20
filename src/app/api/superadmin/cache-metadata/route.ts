@@ -4,9 +4,10 @@
  * This helps identify which cache keys need updating platform-wide
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireSuperadmin } from '@/lib/auth/apiAuth';
 
 // Superadmin routes use service role to bypass RLS for cross-tenant queries
 const supabaseAdmin = createClient(
@@ -17,8 +18,10 @@ const supabaseAdmin = createClient(
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Only superadmins can access cache metadata
+    await requireSuperadmin(request);
     // Get the oldest cache timestamp per cache_key across all tenants
     // Use service role to bypass RLS
     const { data: cacheMetadata, error: cacheError } = await supabaseAdmin

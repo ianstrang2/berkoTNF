@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { withTenantContext } from '@/lib/tenantContext';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 /**
  * API route to complete a match.
@@ -16,6 +17,8 @@ export async function POST(
 ) {
   return withTenantContext(request, async (tenantId) => {
     try {
+      // SECURITY: Verify admin access
+      await requireAdminRole(request);
       const matchId = parseInt(params.id, 10);
       const { state_version, score, own_goals, player_stats } = await request.json();
 

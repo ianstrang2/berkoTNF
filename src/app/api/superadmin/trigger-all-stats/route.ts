@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireSuperadmin } from '@/lib/auth/apiAuth';
 
 // Superadmin routes use service role to bypass RLS
 const supabaseAdmin = createClient(
@@ -16,6 +17,8 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Only superadmins can trigger cross-tenant operations
+    await requireSuperadmin(request);
     // Get all active tenants
     const { data: tenants, error: tenantsError } = await supabaseAdmin
       .from('tenants')

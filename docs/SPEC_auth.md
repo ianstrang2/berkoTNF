@@ -1138,6 +1138,78 @@ https://capo.app/join/berkotnf/abc123...
 
 **Note:** Invite links do NOT use pre-check - valid invite token is the security check. SMS sent regardless of phone existence.
 
+---
+
+### 1.5. Universal Entry Point (/open) - Smart Routing
+
+**Status:** ✅ Implemented (January 20, 2025)
+
+**Purpose:** Universal "Open Capo" link that works on any device and handles authentication state automatically.
+
+**Flow:**
+1. User clicks link: `/open?club=SLUG` (from email, bookmark, etc.)
+2. **Client checks authentication:**
+   - **IF logged in:** Redirect immediately to dashboard (admin or player)
+   - **IF not logged in:** Redirect to `/auth/login?returnUrl=/open?club=SLUG`
+3. User logs in via phone + SMS
+4. Returns to `/open?club=SLUG`
+5. Now authenticated → Redirects to dashboard
+
+**Use Cases:**
+- **Approval emails:** After admin approves join request
+- **Notification emails:** Match reminders, results, etc.
+- **Bookmarks:** Players can bookmark their club
+- **Multi-device:** Works on phone, tablet, laptop simultaneously
+- **Future:** Universal link for Capacitor app (opens app if installed)
+
+**Mental Model:**
+- **Phone number = Your authentication** (how you prove who you are)
+- **Email = Notifications** (tells you something happened + gives you link)
+- **Email is NOT a login method** (just a shortcut to open the app)
+
+**API Routes:**
+- `/app/open/page.tsx` - Smart routing based on auth state
+
+**Email Integration:**
+```typescript
+// Approval email uses /open instead of /join
+const openUrl = `${baseUrl}/open?club=${tenant.slug}`;
+
+await sendPlayerApprovedEmail({
+  toEmail: playerEmail,
+  playerName: playerName,
+  clubName: clubName,
+  loginUrl: openUrl, // User clicks "Open Capo" → /open route
+});
+```
+
+**Email Copy:**
+```
+Subject: You've been approved for [Club Name] 🎉
+
+Body:
+You're all set! Your account has been approved.
+
+[Button: Open Capo]
+
+On this device: If you're already logged in, we'll take you straight to your club.
+On a new device: We'll text your phone a quick verification code the first time.
+```
+
+**Benefits:**
+- ✅ Works on any device (creates new session each time)
+- ✅ No duplicate SMS if already logged in on that device
+- ✅ Secure (requires SMS on new devices)
+- ✅ Simple mental model (phone = auth, email = notification)
+- ✅ Future-proof (ready for mobile app universal links)
+
+**vs. Invite Links:**
+- `/join/[tenant]/[token]` = Onboarding flow (new players joining)
+- `/open?club=SLUG` = Access flow (approved players accessing)
+- Separate concerns, clearer purpose
+
+---
+
 #### Phone + SMS OTP Registration (Direct Login with Pre-Check)
 
 **See Section 1 above for complete pre-check flow.**
@@ -3020,6 +3092,225 @@ const AUTH_RATE_LIMITS = {
 - **API Route Protection**: Middleware validates tenant access via `admin_profiles.tenant_id`
 - **Cross-Tenant Prevention**: Explicit tenant checks in all API routes
 - **Player Data Access**: Players can only access own data (auth_user_id = auth.uid())
+
+### 🚨 API Security Requirements (MANDATORY)
+
+**CRITICAL: All admin and superadmin API routes MUST have authorization checks.**
+
+**Why This Matters:**
+- **UI protection is NOT enough** - users can call APIs directly (bypassing UI)
+- **Middleware only validates authentication** - it does NOT check admin/superadmin roles
+- **Defense in Depth** - multiple layers of security (middleware + API + UI)
+
+#### Required Authorization Patterns
+
+##### Pattern 1: Admin Routes (Club-Level)
+**Use:** For all routes under `/api/admin/*`
+
+```typescript
+import { requireAdminRole } from '@/lib/auth/apiAuth';
+import { withTenantContext } from '@/lib/tenantContext';
+
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    // 🔒 MANDATORY: Check admin permissions
+    await requireAdminRole(request);
+    
+    // Now safe to proceed with admin operations...
+    const data = await prisma.players.findMany({
+      where: { tenant_id: tenantId }
+    });
+    
+    return NextResponse.json({ success: true, data });
+  });
+}
+```
+
+**What `requireAdminRole()` checks:**
+1. User is authenticated (has valid session)
+2. User is either:
+   - A superadmin (`admin_profiles.user_role = 'superadmin'`)
+   - A club admin (`players.is_admin = true`)
+3. Throws `AuthorizationError` if unauthorized (returns 403)
+
+---
+
+##### Pattern 2: Superadmin Routes (Platform-Level)
+**Use:** For all routes under `/api/superadmin/*`
+
+```typescript
+import { requireSuperadmin } from '@/lib/auth/apiAuth';
+
+export async function GET(request: NextRequest) {
+  try {
+    // 🔒 MANDATORY: Check superadmin permissions
+    await requireSuperadmin(request);
+    
+    // Now safe to access cross-tenant data...
+    const tenants = await supabaseAdmin
+      .from('tenants')
+      .select('*');
+    
+    return NextResponse.json({ success: true, data: tenants });
+  } catch (error) {
+    return handleTenantError(error);
+  }
+}
+```
+
+**What `requireSuperadmin()` checks:**
+1. User is authenticated
+2. User has `admin_profiles.user_role = 'superadmin'`
+3. Throws `AuthorizationError` if unauthorized (returns 403)
+
+---
+
+##### Pattern 3: Player Routes
+**Use:** For routes that players should access (e.g., `/api/player/*`)
+
+```typescript
+import { requirePlayerAccess } from '@/lib/auth/apiAuth';
+
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    // 🔒 Check player access (can be direct player OR admin with linked player)
+    const { player } = await requirePlayerAccess(request);
+    
+    // Now safe to access player-specific data...
+    const stats = await prisma.player_matches.findMany({
+      where: {
+        player_id: player.player_id,
+        tenant_id: tenantId
+      }
+    });
+    
+    return NextResponse.json({ success: true, data: stats });
+  });
+}
+```
+
+---
+
+#### Authorization Helpers Reference
+
+**Location:** `src/lib/auth/apiAuth.ts`
+
+| Helper | Purpose | Returns | Throws |
+|--------|---------|---------|--------|
+| `requireAuth()` | Verify user is authenticated | `{ user, session }` | `AuthenticationError` |
+| `requireAdminRole()` | Verify admin or superadmin | `{ user, tenantId, userRole }` | `AuthorizationError` |
+| `requireSuperadmin()` | Verify superadmin only | `{ user, tenantId }` | `AuthorizationError` |
+| `requirePlayerAccess()` | Verify player or admin | `{ user, player }` | `AuthorizationError` |
+| `requireTenantAccess()` | Verify access to specific tenant | `{ user, tenantId }` | `AuthorizationError` |
+
+---
+
+#### Common Mistakes to Avoid
+
+❌ **WRONG: No authorization check**
+```typescript
+export async function GET(request: NextRequest) {
+  return withTenantContext(request, async (tenantId) => {
+    // ❌ Anyone authenticated can access this!
+    const players = await prisma.players.findMany({
+      where: { tenant_id: tenantId }
+    });
+    return NextResponse.json({ data: players });
+  });
+}
+```
+
+❌ **WRONG: Relying on middleware only**
+```typescript
+// Middleware validates authentication, NOT authorization!
+// Non-admins can still call admin APIs directly
+```
+
+❌ **WRONG: Checking referer header**
+```typescript
+const referer = request.headers.get('referer');
+if (!referer?.includes('/admin')) {
+  // ❌ Headers can be spoofed!
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+}
+```
+
+❌ **WRONG: UI-only protection**
+```typescript
+// ❌ Hiding UI buttons does NOT prevent API calls
+{profile.isAdmin && <button onClick={deletePlayer}>Delete</button>}
+// Attacker can still call /api/admin/players with DELETE method
+```
+
+---
+
+#### Security Checklist for New API Routes
+
+When creating a new API route:
+
+- [ ] **1. Choose the right auth helper:**
+  - `/api/admin/*` → `requireAdminRole()`
+  - `/api/superadmin/*` → `requireSuperadmin()`
+  - `/api/player/*` → `requirePlayerAccess()`
+
+- [ ] **2. Add auth check at the START of the handler:**
+  - Before any database operations
+  - Before any business logic
+  - Even before parameter validation
+
+- [ ] **3. Use `withTenantContext()` for tenant-scoped routes:**
+  - Automatically resolves tenant from session
+  - Sets up proper tenant context
+  - Use with `withTenantFilter()` for defense-in-depth
+
+- [ ] **4. Handle errors properly:**
+  - Use `handleTenantError()` for consistent error responses
+  - Let auth helpers throw errors (don't catch them)
+  - Return 401 for authentication errors, 403 for authorization errors
+
+- [ ] **5. Test with non-admin users:**
+  - Verify non-admins get 403 errors
+  - Test direct API calls (not just UI)
+  - Use tools like Postman or `curl` for verification
+
+---
+
+#### Verification Script
+
+**Run this to verify all routes are protected:**
+
+```bash
+# Check admin routes
+Get-ChildItem -Path "src\app\api\admin" -Recurse -Filter "route.ts" | 
+  Where-Object { (Get-Content $_.FullName -Raw) -notmatch "requireAdminRole|requireSuperadmin" } | 
+  Select-Object FullName
+
+# Check superadmin routes
+Get-ChildItem -Path "src\app\api\superadmin" -Recurse -Filter "route.ts" | 
+  Where-Object { (Get-Content $_.FullName -Raw) -notmatch "requireSuperadmin" } | 
+  Select-Object FullName
+
+# Should return no results if all routes are protected
+```
+
+---
+
+#### Historical Context: Sean's Bug (January 2025)
+
+**What happened:** Player Sean McKay (non-admin) could access admin UI and potentially admin APIs.
+
+**Root causes:**
+1. **Middleware** only checked authentication, not authorization
+2. **Navigation** rendered admin menus based on URL, not permissions  
+3. **API routes** had NO authorization checks (anyone could call them)
+
+**Fix applied:**
+- ✅ Middleware now checks `players.is_admin` for `/admin/*` routes
+- ✅ UI components check `profile.isAdmin` before rendering
+- ✅ ALL 48 admin routes now have `requireAdminRole()`
+- ✅ ALL 6 superadmin routes now have `requireSuperadmin()`
+
+**Lesson learned:** **Never assume UI protection is enough. Always validate at the API layer.**
 
 ---
 

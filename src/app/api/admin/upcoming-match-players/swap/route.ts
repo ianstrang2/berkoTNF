@@ -3,11 +3,14 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring player swaps are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // POST: Swap two players atomically in a single transaction
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     try {
+      // SECURITY: Verify admin access
+      await requireAdminRole(request);
       const body = await request.json();
       const { upcoming_match_id, playerA, playerB, state_version } = body;
 

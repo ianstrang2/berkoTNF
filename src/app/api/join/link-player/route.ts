@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
         name: true,
         phone: true,
         auth_user_id: true,
+        is_admin: true, // Needed for redirect logic
       },
     });
 
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
         player: {
           id: existingPlayer.player_id.toString(),
           name: existingPlayer.name,
+          is_admin: existingPlayer.is_admin || false, // Include admin status for redirect
         },
       });
     } else {

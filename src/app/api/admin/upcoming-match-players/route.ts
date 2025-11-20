@@ -3,11 +3,14 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring match player operations are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // GET: Fetch players for an upcoming match
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     try {
+      // SECURITY: Verify admin access
+      await requireAdminRole(request);
       const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('matchId');
     const upcomingMatchId = searchParams.get('upcoming_match_id');

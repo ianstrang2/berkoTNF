@@ -59,23 +59,30 @@ export async function sendPlayerApprovedEmail(params: {
               <p style="font-size: 16px; margin-bottom: 20px;">Hi ${playerName},</p>
               
               <p style="font-size: 16px; margin-bottom: 20px;">
-                Great news! Your request to join ${clubName} has been approved. 🎉
+                You're all set! Your account for ${clubName} has been approved. 🎉
               </p>
               
               <div style="background: #f9fafb; border-left: 4px solid #7c3aed; padding: 15px; margin: 25px 0;">
                 <p style="margin: 0; font-size: 14px; color: #4b5563;">
                   <strong>You can now:</strong><br>
-                  • Login and view your stats<br>
+                  • View your stats and performance<br>
                   • RSVP to upcoming matches<br>
-                  • Track your performance<br>
-                  • See team leaderboards
+                  • Track your progress over time<br>
+                  • See team leaderboards and records
                 </p>
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                  Login to Capo
+                  Open Capo
                 </a>
+              </div>
+              
+              <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 15px; margin: 25px 0;">
+                <p style="margin: 0; font-size: 13px; color: #0369a1;">
+                  <strong>📱 On this device:</strong> If you're already logged in, we'll take you straight to your club.<br>
+                  <strong>🔐 On a new device:</strong> We'll text your phone a quick verification code the first time you log in.
+                </p>
               </div>
               
               <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">

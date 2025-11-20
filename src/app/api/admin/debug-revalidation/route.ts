@@ -2,18 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 export async function GET(request: NextRequest) {
-  // Allow access from admin interface (simplified for debugging)
-  // In production, you might want stricter authentication
-  const referer = request.headers.get('referer');
-  const isAdminRequest = referer?.includes('/admin/info') || referer?.includes('localhost');
-  
-  if (!isAdminRequest) {
-    return NextResponse.json({ error: 'Unauthorized - Admin access only' }, { status: 401 });
-  }
-
   try {
+    // SECURITY: Verify admin access (replacing insecure referer check)
+    await requireAdminRole(request);
     // Environment debugging
     const environmentInfo = {
       NODE_ENV: process.env.NODE_ENV,

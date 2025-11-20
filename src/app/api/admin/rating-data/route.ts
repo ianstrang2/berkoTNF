@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
 import { withTenantFilter } from '@/lib/tenantFilter';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // Get player rating data for admin debugging - EWMA only
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  // SECURITY: Verify admin access
+  await requireAdminRole(request);
+  
   return withTenantContext(request, async (tenantId) => {
     try {
       const { searchParams } = new URL(request.url);

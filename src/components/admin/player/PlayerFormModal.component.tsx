@@ -228,29 +228,44 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
 
             <div className="mb-4">
               <label className="block text-slate-700 text-sm font-medium mb-2">
-                Phone Number <span className="text-slate-400 font-normal">(Recommended)</span>
+                Phone Number
               </label>
-              <input
-                type="tel"
-                value={formData.phone || ''}
-                onChange={(e) => {
-                  setFormData({ ...formData, phone: e.target.value });
-                  setPhoneError(null);
-                }}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none text-sm ${
-                  phoneError 
-                    ? 'border-red-300 focus:border-red-500' 
-                    : 'border-gray-300 focus:border-fuchsia-300'
-                }`}
-                placeholder="07XXX XXXXXX or +447XXX XXXXXX"
-              />
-              <div className="text-xs mt-1">
-                {phoneError ? (
-                  <span className="text-red-500">{phoneError}</span>
-                ) : (
-                  <span className="text-slate-500">Needed for the player to access the app</span>
-                )}
-              </div>
+              {initialData?.phone ? (
+                // Editing existing player - show phone as read-only
+                <>
+                  <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-slate-600">
+                    {formData.phone || 'Not set'}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Phone cannot be changed (authentication identity)
+                  </p>
+                </>
+              ) : (
+                // Creating new player - allow phone entry
+                <>
+                  <input
+                    type="tel"
+                    value={formData.phone || ''}
+                    onChange={(e) => {
+                      setFormData({ ...formData, phone: e.target.value });
+                      setPhoneError(null);
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none text-sm ${
+                      phoneError 
+                        ? 'border-red-300 focus:border-red-500' 
+                        : 'border-gray-300 focus:border-fuchsia-300'
+                    }`}
+                    placeholder="07XXX XXXXXX or +447XXX XXXXXX"
+                  />
+                  <div className="text-xs mt-1">
+                    {phoneError ? (
+                      <span className="text-red-500">{phoneError}</span>
+                    ) : (
+                      <span className="text-slate-500">Needed for the player to access the app</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="mb-4">

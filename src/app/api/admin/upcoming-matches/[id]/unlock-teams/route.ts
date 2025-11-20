@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 export async function PATCH(
   request: NextRequest,
@@ -11,6 +12,8 @@ export async function PATCH(
 ) {
   return withTenantContext(request, async (tenantId) => {
     try {
+      // SECURITY: Verify admin access
+      await requireAdminRole(request);
       const matchId = parseInt(params.id, 10);
       const { state_version } = await request.json();
 

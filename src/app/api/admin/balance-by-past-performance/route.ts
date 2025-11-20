@@ -5,10 +5,13 @@ import { createClient } from '@supabase/supabase-js'; // Import createClient
 // Multi-tenant imports - ensuring balance by past performance is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // POST handler for API route
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     // Use SUPABASE_SERVICE_ROLE_KEY consistent with personal-bests/route.ts
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 

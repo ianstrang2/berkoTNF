@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // Multi-tenant imports - ensuring background jobs include tenant context
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 interface StatsUpdateJobPayload {
   triggeredBy: 'post-match' | 'admin' | 'cron';
@@ -29,6 +30,9 @@ interface EnqueueResponse {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
+    
     console.log('📥 Stats job enqueue request received');
 
     // Parse request body

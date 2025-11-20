@@ -116,15 +116,19 @@ export async function POST(request: NextRequest) {
         const playerEmail = joinRequest.email || linkedPlayer.email;
         const tenant = await prisma.tenants.findUnique({
           where: { tenant_id: tenantId },
-          select: { name: true },
+          select: { name: true, slug: true },
         });
 
         if (playerEmail && tenant) {
+          // Use universal entry point - routes based on auth state
+          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.caposport.com';
+          const openUrl = `${baseUrl}/open?club=${tenant.slug}`;
+          
           const emailResult = await sendPlayerApprovedEmail({
             toEmail: playerEmail,
             playerName: linkedPlayer.name,
             clubName: tenant.name,
-            loginUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://app.caposport.com'}/auth/login`,
+            loginUrl: openUrl,
           });
 
           if (emailResult.success) {

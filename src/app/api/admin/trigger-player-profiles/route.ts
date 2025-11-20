@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // Main profile generation logic that can be called by both GET (cron) and POST (manual)
 async function triggerProfileGeneration(tenantId: string) {
@@ -68,6 +69,9 @@ async function triggerProfileGeneration(tenantId: string) {
 // GET handler for Vercel cron jobs
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
+    
     console.log(`📅 Cron job triggered profile generation for tenant ${tenantId}`);
     return triggerProfileGeneration(tenantId);
   });
@@ -76,6 +80,9 @@ export async function GET(request: NextRequest) {
 // POST handler for manual admin triggers
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
+    
     console.log(`👤 Manual admin triggered profile generation for tenant ${tenantId}`);
     return triggerProfileGeneration(tenantId);
   });

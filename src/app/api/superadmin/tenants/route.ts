@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireSuperadmin } from '@/lib/auth/apiAuth';
 
 // Superadmin routes use service role to access cross-tenant data
 const supabaseAdmin = createClient(
@@ -11,6 +12,8 @@ const supabaseAdmin = createClient(
 
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Only superadmins can access cross-tenant data
+    await requireSuperadmin(request);
     // Get all tenants with enhanced metrics (using service role to bypass RLS)
     const { data: tenants, error: tenantsError } = await supabaseAdmin
       .from('tenants')

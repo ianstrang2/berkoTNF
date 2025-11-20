@@ -3,6 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useNavigation, NAVIGATION_CONFIG } from '@/contexts/NavigationContext';
 import { useCurrentNavigation } from '@/hooks/useNavigationSync.hook';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 interface BottomNavItemProps {
   section: 'dashboard' | 'upcoming' | 'table' | 'records' | 'admin';
@@ -66,6 +67,7 @@ const AdminBottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon,
 export const BottomNavigation: React.FC = () => {
   const { isAdminMode, secondarySection } = useNavigation();
   const { primarySection, isActive } = useCurrentNavigation();
+  const { profile } = useAuthContext();
 
   // Navigation icons
   const getIcon = (iconType: string) => {
@@ -145,9 +147,10 @@ export const BottomNavigation: React.FC = () => {
     }
   };
 
-  // Get navigation items based on mode
+  // Get navigation items based on USER PERMISSIONS (not just mode)
   const getNavigationItems = () => {
-    if (isAdminMode) {
+    // SECURITY: Only show admin navigation if user actually has admin permissions
+    if (isAdminMode && profile.isAdmin) {
       // Admin mode - show admin sections as primary navigation
       const adminConfig = NAVIGATION_CONFIG.admin.secondary;
       return Object.entries(adminConfig).map(([key, config]) => ({
@@ -158,7 +161,7 @@ export const BottomNavigation: React.FC = () => {
         isActive: secondarySection === key
       }));
     } else {
-      // User mode - show main navigation
+      // Player mode - show main navigation (default for all users)
       return [
         {
           section: 'dashboard' as const,

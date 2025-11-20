@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring background jobs include tenant context
 import { withTenantContext, getCurrentTenantId } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // Define the list of Edge Functions to call and their associated cache tags
 // UPDATED: EWMA system has no execution order dependencies
@@ -290,6 +291,9 @@ export async function GET() {
 // POST handler for manual admin triggers
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
+    
     console.log('👤 Manual stats update triggered');
     console.log(`👤 Manual stats update triggered for tenant: ${tenantId}`);
     return triggerStatsUpdate();

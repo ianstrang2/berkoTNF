@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { differenceInDays, startOfYear, endOfYear } from 'date-fns';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // Helper to serialize data (especially for BigInt and Date types if needed)
 const serializeData = (data: any) => {
@@ -17,6 +18,8 @@ const serializeData = (data: any) => {
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     try {
+      // SECURITY: Verify admin access
+      await requireAdminRole(request);
       const allPlayers = await prisma.players.findMany({
         where: { tenant_id: tenantId },
       include: {

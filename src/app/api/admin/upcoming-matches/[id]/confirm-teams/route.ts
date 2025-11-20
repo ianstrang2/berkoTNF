@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team confirmation is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 /**
  * API route to confirm balanced teams for an upcoming match.
@@ -14,6 +15,8 @@ export async function PATCH(
 ) {
   return withTenantContext(request, async (tenantId) => {
     try {
+      // SECURITY: Verify admin access
+      await requireAdminRole(request);
       const matchId = parseInt(params.id, 10);
       const { state_version } = await request.json();
 

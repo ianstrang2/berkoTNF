@@ -1,7 +1,7 @@
 # Capo Authentication Flow Diagrams
 
-**Date:** 2025-01-08  
-**Current Implementation:** Phase 6.5 (with phone pre-check)
+**Date:** 2025-01-20  
+**Current Implementation:** Phase 6.6 (with phone pre-check + universal entry point)
 
 ---
 
@@ -11,18 +11,99 @@
 graph TD
     Start([User Wants Access]) --> Decision1{How did they arrive?}
     
+    Decision1 -->|Approval Email / Notification| OpenFlow[Universal Entry Point /open]
     Decision1 -->|Invite Link from Admin| InviteFlow[Invite Link Flow]
     Decision1 -->|Direct to Login Page| DirectLogin[Direct Login Flow]
     Decision1 -->|Want to Create Club| AdminSignup[Admin Signup Flow]
     
-    InviteFlow --> Dashboard[Dashboard Access]
+    OpenFlow --> SessionCheck{Already<br/>Logged In?}
+    SessionCheck -->|Yes| Dashboard[Dashboard Access]
+    SessionCheck -->|No| DirectLogin
+    
+    InviteFlow --> Dashboard
     DirectLogin --> Dashboard
     AdminSignup --> AdminDash[Admin Dashboard]
     
+    style OpenFlow fill:#DDA0DD
     style InviteFlow fill:#90EE90
     style DirectLogin fill:#FFE4B5
     style AdminSignup fill:#87CEEB
 ```
+
+**Key Distinction:**
+- **Purple** (/open): Smart router - notification emails, bookmarks, multi-device
+- **Green** (/join): Onboarding flow - invite links for new members
+- **Tan** (/auth/login): Direct login - existing players
+- **Blue** (Admin signup): Platform-level club creation
+
+---
+
+## Flow 0: Universal Entry Point (`/open?club=SLUG`) - Smart Routing ✅
+
+**Status:** ✅ Implemented (January 20, 2025)
+
+**Purpose:** Universal "Open Capo" link that works on any device. Checks authentication state and routes accordingly.
+
+**Use Cases:**
+- Approval notification emails
+- Match reminder emails  
+- Bookmarked links
+- Multi-device access
+- Future: Universal link for mobile app
+
+```mermaid
+graph TD
+    Start([User Clicks Link<br/>/open?club=SLUG]) --> CheckAuth{User Authenticated<br/>on This Device?}
+    
+    CheckAuth -->|YES - Has Session| ValidateAccess{Has Access<br/>to This Club?}
+    CheckAuth -->|NO - No Session| RedirectLogin[Redirect to<br/>/auth/login?returnUrl=/open?club=SLUG]
+    
+    ValidateAccess -->|YES| CheckRole{What Role?}
+    ValidateAccess -->|NO - Wrong Club| ErrorWrongClub[Show Error:<br/>Wrong Club]
+    
+    CheckRole -->|Admin| AdminDash[/admin/matches]
+    CheckRole -->|Player| PlayerDash[/player/dashboard]
+    
+    RedirectLogin --> PhoneLogin[Phone + SMS Login]
+    PhoneLogin --> Success{Login Success?}
+    Success -->|YES| ReturnToOpen[Return to /open?club=SLUG]
+    Success -->|NO| LoginError[Show Login Error]
+    
+    ReturnToOpen --> CheckRole
+    
+    style CheckAuth fill:#DDA0DD
+    style CheckRole fill:#90EE90
+    style AdminDash fill:#FFE4B5
+    style PlayerDash fill:#87CEEB
+```
+
+**Mental Model:**
+- **Phone number = Authentication** (your key to Capo)
+- **Email = Notification + Deep Link** (tells you something + takes you there)
+- **Email is NOT authentication** (just a shortcut)
+
+**Key Benefits:**
+1. **Same Device:** Instant redirect if already logged in
+2. **New Device:** Clear UX - "We'll text you once to verify"
+3. **Multi-Device:** Each device has independent session
+4. **Future-Proof:** Ready for mobile app universal links
+
+**Email Copy:**
+```
+Subject: You've been approved for [Club Name] 🎉
+
+You're all set! Your account has been approved.
+
+[Button: Open Capo]
+Link: /open?club=SLUG
+
+On this device: If you're already logged in, we'll take you straight to your club.
+On a new device: We'll text your phone a quick verification code the first time.
+```
+
+**vs. Invite Links:**
+- `/join/[tenant]/[token]` = Onboarding (new players joining club)
+- `/open?club=SLUG` = Access (approved players opening app)
 
 ---
 
@@ -69,9 +150,14 @@ graph TD
     ValidateCode -->|Yes| CreateRequest[Create player_join_requests<br/>WITH auth_user_id]
     CreateRequest --> PendingApproval[Redirect to /auth/pending-approval]
     PendingApproval --> AdminApproves[Admin Approves]
-    AdminApproves --> SendEmail[📧 Email: Welcome!]
-    SendEmail --> PlayerLogsIn[Player Logs In<br/>Phone Now in DB]
-    PlayerLogsIn --> Dashboard[Dashboard + App Promo Modal]
+    AdminApproves --> SendEmail[📧 Email with /open Link]
+    SendEmail --> EmailReceived[Player Gets Email<br/>on Any Device]
+    EmailReceived --> ClickOpen[Clicks: Open Capo]
+    ClickOpen --> OpenRoute[/open?club=SLUG]
+    OpenRoute --> CheckSession{Logged In<br/>on This Device?}
+    CheckSession -->|YES| Dashboard[Dashboard + App Promo Modal]
+    CheckSession -->|NO| PhoneLogin[Phone + SMS]
+    PhoneLogin --> Dashboard
     
     PreCheck -->|API Failed| Fallback[Lenient Fallback: Continue with SMS]
     Fallback --> SendSMS
@@ -178,8 +264,10 @@ graph TD
     JoinRequest --> Pending[/auth/pending-approval]
     Pending --> Poll[Poll Every 5s + Wait for Email]
     Poll --> AdminApproves[Admin Approves]
-    AdminApproves --> SendEmail[📧 Send Approval Email]
-    SendEmail --> Dashboard[Redirect to Dashboard]
+    AdminApproves --> SendEmail[📧 Email with /open Link]
+    SendEmail --> EmailClick[Player Clicks Email]
+    EmailClick --> OpenFlow[→ /open Flow]
+    OpenFlow --> Dashboard[Dashboard Access]
     
     style SkipLanding fill:#90EE90
     style JoinRequest fill:#90EE90
@@ -272,41 +360,57 @@ graph TD
 
 ---
 
-## Flow 6: Pending Approval (`/auth/pending-approval`) - Passive Waiting
+## Flow 6: Pending Approval + Email Notification ✅
 
-**Status:** ✅ Working (passive polling only)
+**Status:** ✅ Updated (January 20, 2025) - Now includes email notification
 
 ```mermaid
 graph TD
     Start([User Submitted Join Request]) --> PendingPage[/auth/pending-approval]
     
     PendingPage --> ShowMessage[Shows: Almost There!<br/>Pending Admin Approval]
-    ShowMessage --> StartPolling[Start Polling Loop]
+    ShowMessage --> TwoTracks{User has two ways<br/>to know approval:}
+    
+    TwoTracks -->|Track 1: Active Polling| StartPolling[Poll Every 5 Seconds]
+    TwoTracks -->|Track 2: Email Notification| WaitForEmail[📧 Wait for Email]
     
     StartPolling --> Wait[Wait 5 Seconds]
     Wait --> CheckAPI[Call /api/auth/profile]
-    
-    CheckAPI --> HasPlayer{profile.linkedPlayerId<br/>Exists?}
+    CheckAPI --> HasPlayer{linkedPlayerId<br/>Exists?}
     HasPlayer -->|No| Wait
     HasPlayer -->|Yes| Approved[Admin Approved! ✅]
-    
     Approved --> Dashboard[Redirect to Dashboard]
+    
+    WaitForEmail --> AdminApproves[Admin Clicks Approve]
+    AdminApproves --> SendEmail[📧 Send Email with /open Link]
+    SendEmail --> PlayerGetsEmail[Player Opens Email<br/>on Any Device]
+    PlayerGetsEmail --> ClickOpen[Clicks: Open Capo]
+    ClickOpen --> OpenRoute[/open?club=SLUG]
+    OpenRoute --> SessionCheck{Already Logged In<br/>on This Device?}
+    SessionCheck -->|YES| Dashboard
+    SessionCheck -->|NO| PhoneLogin[Phone + SMS Login]
+    PhoneLogin --> Dashboard
     
     PendingPage --> UserAction[User Can: Try Different Number]
     UserAction --> Logout[Sign Out]
     Logout --> BackToLogin[→ /auth/login]
     
     style PendingPage fill:#FFE4B5
-    style Wait fill:#D3D3D3
+    style SendEmail fill:#DDA0DD
+    style OpenRoute fill:#DDA0DD
     style Approved fill:#90EE90
     style Dashboard fill:#87CEEB
 ```
 
-**Limitations:**
-- ⚠️ No push notifications (user must keep page open)
-- ⚠️ No email notification when approved
-- ⚠️ If user closes browser, they must login again to see approval
-- ✅ Polls every 5 seconds (acceptable for MVP)
+**Multi-Device Support:**
+- ✅ **Same Device (Polling):** User keeps page open → Auto-redirects on approval
+- ✅ **Different Device (Email):** User clicks email link → Phone verification → Dashboard
+- ✅ **Multiple Sessions:** Each device has independent session (all valid simultaneously)
+
+**Email Mental Model:**
+- **Phone = Authentication** (proves who you are)
+- **Email = Notification** (tells you when approved + gives shortcut)
+- **NOT:** Email as authentication method
 
 ---
 
@@ -478,4 +582,90 @@ useEffect(() => {
 ---
 
 **Want me to implement Option C?** It's a 1-line change that fixes the UX bug for everyone! 🚀
+
+---
+
+## Architecture Decision: Route Separation (January 20, 2025)
+
+### Clean Separation of Concerns
+
+**Key Insight:** Email is notification, not authentication.
+
+| Route | Purpose | Auth Method | Audience |
+|-------|---------|-------------|----------|
+| `/open?club=SLUG` | Access club | Phone + SMS (if needed) | Approved members |
+| `/join/[tenant]/[token]` | Onboarding | Phone + SMS | New members |
+| `/auth/login` | Direct login | Phone + SMS | Existing players |
+
+### Mental Model for Users
+
+**Phone Number = Your Key to Capo**
+- Phone + SMS is how you authenticate
+- Works on any device (creates new session)
+- Required once per device
+
+**Email = Notification + Shortcut**
+- Tells you when something happened
+- Gives you quick link to open app
+- NOT an authentication method
+
+**The /open Route**
+- Universal entry point
+- Smart: checks if you're logged in
+- If yes → dashboard immediately
+- If no → phone login → then dashboard
+- Works for: emails, bookmarks, deep links, universal links
+
+### Why This is Better Than Magic Links
+
+**Magic Links Would:**
+- ❌ Make email a second auth factor (confusing)
+- ❌ Weaken security (email compromise = account takeover)
+- ❌ Clash with "phone is your key" mental model
+- ❌ Add complexity (token generation, expiry, revocation)
+
+**Current /open Route:**
+- ✅ Keeps phone as single auth factor (clear)
+- ✅ Strong security (requires SMS on new devices)
+- ✅ Consistent mental model
+- ✅ Simple architecture (no new systems)
+
+### Multi-Device Support
+
+**Supabase Sessions:**
+- Each device gets independent session
+- Multiple sessions active simultaneously
+- Example:
+  - Phone: Session 1 (from invite link)
+  - Laptop: Session 2 (from email click)
+  - Tablet: Session 3 (from bookmark)
+  - **All valid at once** ✅
+
+**Why SMS on New Device is Good:**
+- ✅ Verifies user has phone access
+- ✅ Prevents account takeover
+- ✅ Creates secure session
+- ✅ Only happens once per device
+
+### Future: Mobile App Universal Links
+
+When Capacitor app ships:
+
+**Universal Link:** `https://capo.app/open?club=SLUG`
+- If app installed → Opens app, routes internally
+- If not installed → Opens web browser
+- Same URL works everywhere (no platform detection needed)
+
+**Email stays the same:**
+```
+[Button: Open Capo]
+Link: /open?club=SLUG
+```
+
+**User experience:**
+- Has app: Opens in app (seamless)
+- No app: Opens in browser (works fine)
+- Email template never changes
+
+---
 

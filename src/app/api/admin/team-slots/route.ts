@@ -4,10 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantFilter } from '@/lib/tenantFilter';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // Get all slots with their assigned players
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const slots = await prisma.team_slots.findMany({
       where: withTenantFilter(tenantId),
       orderBy: {
@@ -26,7 +29,10 @@ export async function GET(request: NextRequest) {
 }
 
 // Update a slot's player assignment
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  // SECURITY: Verify admin access
+  await requireAdminRole(request);
+  
   return withTenantContext(request, async (tenantId) => {
     const { slot_number, player_id } = await request.json();
 

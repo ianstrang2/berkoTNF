@@ -4,9 +4,12 @@ import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring player profile metadata is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     // Get profile generation statistics
     const profileStats = await prisma.$queryRaw`
       SELECT 

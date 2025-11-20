@@ -1,10 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Multi-tenant imports - ensuring team template reset is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // SECURITY: Verify admin access
+  await requireAdminRole(request);
+  
   return withTenantContext(request, async (tenantId) => {
     // Get templateId from the query parameters
     const { searchParams } = new URL(request.url);

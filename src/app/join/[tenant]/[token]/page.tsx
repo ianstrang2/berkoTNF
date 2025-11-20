@@ -168,7 +168,12 @@ function JoinForm() {
       if (linkData.success) {
         if (linkData.autoLinked) {
           // Successfully auto-linked to existing player
-          router.push('/');
+          // Redirect based on role
+          if (linkData.player?.is_admin) {
+            router.push('/admin/matches');
+          } else {
+            router.push('/player/dashboard');
+          }
         } else {
           // Created join request - pending admin approval
           router.push('/auth/pending-approval');

@@ -10,6 +10,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { normalizeToE164 } from '@/utils/phone.util';
+import { requireSuperadmin } from '@/lib/auth/apiAuth';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -18,6 +19,8 @@ export async function POST(request: NextRequest) {
   // NOTE: This route DOES NOT use withTenantContext because we're CREATING a new tenant
   // There's no tenant_id to set in context yet (chicken-and-egg problem)
   try {
+    // SECURITY: Only superadmins can create new clubs
+    await requireSuperadmin(request);
     const supabase = createRouteHandlerClient({ cookies });
     
     // Verify user is authenticated

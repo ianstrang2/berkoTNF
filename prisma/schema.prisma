@@ -489,6 +489,7 @@ model players {
   phone                                                                                             String?
   is_admin                                                                                          Boolean?                          @default(false)
   email                                                                                             String?
+  has_used_app                                                                                      Boolean?                          @default(false)
   tenant_id                                                                                         String                            @db.Uuid
   aggregated_all_time_stats                                                                         aggregated_all_time_stats[]
   aggregated_half_season_stats                                                                      aggregated_half_season_stats[]

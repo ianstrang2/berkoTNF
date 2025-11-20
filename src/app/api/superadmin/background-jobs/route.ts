@@ -2,9 +2,10 @@
  * API route for fetching background job status across ALL tenants (superadmin only)
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { handleTenantError } from '@/lib/api-helpers';
+import { requireSuperadmin } from '@/lib/auth/apiAuth';
 
 // Superadmin routes use service role to bypass RLS for cross-tenant queries
 const supabaseAdmin = createClient(
@@ -13,8 +14,10 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Only superadmins can access cross-tenant job status
+    await requireSuperadmin(request);
     // Fetch background job status across ALL tenants with tenant names
     // Use service role to bypass RLS
     const { data: jobs, error: jobsError } = await supabaseAdmin

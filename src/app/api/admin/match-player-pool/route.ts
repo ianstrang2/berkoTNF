@@ -4,10 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantFilter } from '@/lib/tenantFilter';
+import { requireAdminRole } from '@/lib/auth/apiAuth';
 
 // GET: Fetch player pool for a match
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
+    // SECURITY: Verify admin access
+    await requireAdminRole(request);
     const searchParams = request.nextUrl.searchParams;
     const matchId = searchParams.get('match_id');
     const activeOnly = searchParams.get('active') === 'true';

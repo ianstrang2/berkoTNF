@@ -76,7 +76,6 @@ export const PendingJoinRequests: React.FC = () => {
       // Success - mutation automatically refetches lists
       setShowApprovalModal(false);
       setApprovingRequest(null);
-      alert('Player approved successfully!');
     } catch (err: any) {
       console.error('Error approving request:', err);
       alert(`Error: ${err.message}`);

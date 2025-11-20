@@ -146,6 +146,10 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
   }, [isHydrated]);
   
   // URL parsing and navigation sync
+  // NOTE: isAdminMode is UI state derived from URL, NOT a permission check.
+  // Actual permission checks happen in:
+  // 1. Middleware (redirects unauthorized users)
+  // 2. Navigation components (check profile.isAdmin before rendering)
   const setNavigationFromUrl = (pathname: string) => {
     if (pathname.startsWith('/superadmin')) {
       setPrimarySection('superadmin');
