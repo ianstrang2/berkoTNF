@@ -41,13 +41,14 @@
 | 10 | **AttributeGuide** | `admin/player/` | Info | ❌ None | ⚠️ Unknown | Custom | ❌ No | Player attribute help |
 | 11 | **FantasyPointsTooltip** | `ui-kit/` | Info | ❌ None | ⚠️ Unknown | Custom | ❌ No | Fantasy points explainer |
 
-### Category B: Reusable Modal Systems (4 components)
+### Category B: Reusable Modal Systems (5 components)
 
 | # | Component | File | Type | Usage Count | Standard | Notes |
 |---|-----------|------|------|-------------|----------|-------|
 | 12 | **SoftUIConfirmationModal** | `ui-kit/` | Confirm | 11 locations | ✅ Primary | SweetAlert2 wrapper |
-| 13 | **ConfirmationDialog** | `ui-kit/` | Confirm | Unknown | ⚠️ Legacy | Old pattern, needs audit |
-| 14 | **ConfirmationModal** | `ui-kit/` | Confirm | Unknown | ⚠️ Legacy | Adapter for above |
+| 13 | **SimpleTooltip** | `ui-kit/` | Info | 1 location | ✅ New | Lightweight click tooltip (mobile) |
+| 14 | **ConfirmationDialog** | `ui-kit/` | Confirm | Unknown | ⚠️ Legacy | Old pattern, needs audit |
+| 15 | **ConfirmationModal** | `ui-kit/` | Confirm | Unknown | ⚠️ Legacy | Adapter for above |
 | 15 | **ConfirmDialog** | `team/modals/` | Confirm | Unknown | ⚠️ Legacy | Simple confirm, old styling |
 
 ### Category C: Inline Modals (5+ instances)
@@ -518,6 +519,60 @@ const [isProcessing, setIsProcessing] = useState(false);
   </div>
 )}
 ```
+
+---
+
+### Template C: Simple Tooltip (Mobile Click Hints)
+
+**When to use:** Small informational tooltips for table headers or icons (mobile click alternative to hover)
+
+**Use case:** Column header explanations, icon meanings, brief help text
+
+```typescript
+import SimpleTooltip from '@/components/ui-kit/SimpleTooltip.component';
+
+const [showTooltip, setShowTooltip] = useState(false);
+const [tooltipMessage, setTooltipMessage] = useState('');
+
+{/* Header with tooltip (works on desktop hover + mobile click) */}
+<th 
+  className="cursor-help" 
+  title="Profile Claimed?"  // Desktop: native browser tooltip on hover
+  onClick={(e) => {
+    e.stopPropagation();
+    setTooltipMessage('Profile Claimed?');  // Mobile: styled tooltip on click
+    setShowTooltip(true);
+  }}
+>
+  🔗
+</th>
+
+{/* SimpleTooltip component */}
+<SimpleTooltip
+  isOpen={showTooltip}
+  onClose={() => setShowTooltip(false)}
+  message={tooltipMessage}
+/>
+```
+
+**Design Specs:**
+- **Size:** Small white card (`max-w-xs` = ~320px)
+- **Text:** Normal size (`text-sm`), medium weight
+- **Close Button:** Small X with purple-pink gradient SVG
+- **Backdrop:** Transparent, click to close
+- **Position:** Centered on screen
+- **Shadow:** `shadow-soft-xl` (Soft UI standard)
+- **Border:** `border-gray-200` (subtle)
+
+**When NOT to use:**
+- ❌ Confirmations (use SoftUIConfirmationModal)
+- ❌ Forms (use Template B)
+- ❌ Long explanations (use dedicated info modal)
+- ❌ Desktop-only (just use native `title` attribute)
+
+**Replace these patterns with SimpleTooltip:**
+- ❌ `alert('Message')` - Ugly browser popup
+- ❌ Large modals for tiny messages - Overkill
 
 ---
 

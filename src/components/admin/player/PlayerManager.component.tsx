@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PlayerFormModal from './PlayerFormModal.component';
 import { PendingJoinRequests } from './PendingJoinRequests.component';
 import { ClubInviteLinkButton } from './ClubInviteLinkButton.component';
+import SimpleTooltip from '@/components/ui-kit/SimpleTooltip.component';
 
 import { Club, PlayerProfile } from '@/types/player.types';
 // React Query hook for automatic deduplication
@@ -64,6 +65,8 @@ const PlayerManager: React.FC = () => {
   const [mobileView, setMobileView] = useState<'overview' | 'stats'>('overview');
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [codeCopied, setCodeCopied] = useState<boolean>(false);
+  const [showTooltip, setShowTooltip] = useState<boolean>(false);
+  const [tooltipMessage, setTooltipMessage] = useState<string>('');
   
   // Force refetch when tenantId becomes available (fixes cache race condition)
   useEffect(() => {
@@ -416,31 +419,69 @@ const PlayerManager: React.FC = () => {
               {/* Overview columns - Desktop always, Mobile only in overview mode */}
               {(!isMobile || mobileView === 'overview') && (
                 <>
-                  <th onClick={() => handleSort('status')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Active or Retired">
-                    ● {getSortIndicator('status')}
+                  <th 
+                    onClick={(e) => {
+                      // Handle sort on regular click
+                      if (e.target === e.currentTarget || !(e.target as HTMLElement).closest('.tooltip-trigger')) {
+                        handleSort('status');
+                      }
+                    }}
+                    className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" 
+                    title="Active Player?"
+                  >
+                    <span 
+                      className="tooltip-trigger cursor-help"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTooltipMessage('Active Player?');
+                        setShowTooltip(true);
+                      }}
+                    >
+                      ●
+                    </span> {getSortIndicator('status')}
                   </th>
                   <th 
                     className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-help" 
-                    title="Profile claimed?"
+                    title="Profile Claimed?"
                     onClick={(e) => {
                       e.stopPropagation();
-                      alert('Profile Claimed?\n\nIndicates whether the player has claimed their profile and can log in to the app/web.');
+                      setTooltipMessage('Profile Claimed?');
+                      setShowTooltip(true);
                     }}
                   >
                     🔗
                   </th>
                   <th 
                     className="px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70 cursor-help" 
-                    title="App downloaded?"
+                    title="App Downloaded?"
                     onClick={(e) => {
                       e.stopPropagation();
-                      alert('App Downloaded?\n\nIndicates whether the player has downloaded and used the mobile app (can receive push notifications).');
+                      setTooltipMessage('App Downloaded?');
+                      setShowTooltip(true);
                     }}
                   >
                     📱
                   </th>
-                  <th onClick={() => handleSort('ringer')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" title="Guest status">
-                    🎯 {getSortIndicator('ringer')}
+                  <th 
+                    onClick={(e) => {
+                      // Handle sort on regular click
+                      if (e.target === e.currentTarget || (e.target as HTMLElement).tagName !== 'SPAN') {
+                        handleSort('ringer');
+                      }
+                    }}
+                    className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70" 
+                    title="Is Guest?"
+                  >
+                    <span 
+                      className="cursor-help"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTooltipMessage('Is Guest?');
+                        setShowTooltip(true);
+                      }}
+                    >
+                      🎯
+                    </span> {getSortIndicator('ringer')}
                   </th>
                   <th onClick={() => handleSort('played')} className="cursor-pointer px-1 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                     Played {getSortIndicator('played')}
@@ -529,40 +570,17 @@ const PlayerManager: React.FC = () => {
                               ●
                             </span>
                           </td>
-                          <td 
-                            className="p-2 text-center align-middle bg-transparent border-b cursor-help" 
-                            title={player.authUserId ? 'Profile claimed' : 'Not claimed'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const message = player.authUserId 
-                                ? 'Profile Claimed\n\nThis player has claimed their profile and can log in to the web app or mobile app.'
-                                : 'Profile Not Claimed\n\nThis player has not claimed their profile yet. They cannot log in until they verify their phone number.';
-                              alert(message);
-                            }}
-                          >
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
                             <span className={`text-lg ${player.authUserId ? 'text-green-500' : 'text-gray-300'}`}>
-                              🔗
+                              ●
                             </span>
                           </td>
-                          <td 
-                            className="p-2 text-center align-middle bg-transparent border-b cursor-help" 
-                            title="Mobile app usage tracking coming soon"
-                          >
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
                             <span className="text-lg text-gray-300">
-                              📱
+                              ●
                             </span>
                           </td>
-                          <td 
-                            className="p-2 text-center align-middle bg-transparent border-b cursor-help" 
-                            title={player.isRinger ? 'Guest player' : 'Regular player'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const message = player.isRinger 
-                                ? `Guest Player\n\n${player.name} is a guest. Their stats are not included in league tables or records.`
-                                : `Regular Player\n\n${player.name} is a regular club member whose stats count towards all league tables and records.`;
-                              alert(message);
-                            }}
-                          >
+                          <td className="p-2 text-center align-middle bg-transparent border-b">
                             <span className={`text-lg ${player.isRinger ? 'text-blue-500' : 'text-gray-300'}`}>
                               ●
                             </span>
@@ -674,6 +692,13 @@ const PlayerManager: React.FC = () => {
         } : undefined}
         title={selectedPlayer ? "Edit Player" : "Add New Player"}
         submitButtonText={selectedPlayer ? "Save Changes" : "Create Player"}
+      />
+      
+      {/* Simple Tooltip for Column Headers (Mobile) */}
+      <SimpleTooltip
+        isOpen={showTooltip}
+        onClose={() => setShowTooltip(false)}
+        message={tooltipMessage}
       />
       </div>
     </>
