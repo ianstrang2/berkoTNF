@@ -60,10 +60,18 @@ export const PendingJoinRequests: React.FC = () => {
     setProcessing(approvingRequest.id);
     
     try {
-      await approveMutation.mutateAsync({
+      // Build request based on approval mode
+      const requestData: any = {
         requestId: approvingRequest.id, // id is already a UUID string
-        clubOverride: approvalMode === 'new' ? { playerName: newPlayerName } : { existingPlayerId: selectedExistingPlayer }
-      });
+      };
+      
+      if (approvalMode === 'new') {
+        requestData.playerName = newPlayerName;
+      } else {
+        requestData.existingPlayerId = selectedExistingPlayer;
+      }
+      
+      await approveMutation.mutateAsync(requestData);
 
       // Success - mutation automatically refetches lists
       setShowApprovalModal(false);
