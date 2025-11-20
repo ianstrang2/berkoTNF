@@ -107,9 +107,9 @@ const SeasonFormModal: React.FC<SeasonFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      {/* Background overlay */}
-      <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true"></div>
-      
+        {/* Background overlay */}
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true"></div>
+        
       {/* Modal panel - mobile friendly with keyboard support */}
       <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6 my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
         <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>

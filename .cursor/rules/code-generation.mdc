@@ -28,19 +28,6 @@ alwaysApply: true
 - Use TypeScript interfaces for props
 - Prefer explicit prop types over `React.FC<Props>`
 
-## Supabase Client (MANDATORY)
-
-**ALWAYS use the configured singleton client:**
-```typescript
-import { supabase } from '@/lib/supabaseClient';
-```
-
-**NEVER use:**
-- ❌ `createClientComponentClient()` - Creates new instances, conflicts
-- ❌ `createBrowserClient()` directly - Bypasses configuration
-
-**Why:** Multiple client instances corrupt sessions and cause logout bugs.
-
 ## Directory Structure
 ```
 src/
@@ -126,7 +113,7 @@ export function usePlayers() {
 
 **Required Headers:**
 ```typescript
-headers: {
+      headers: {
   'Cache-Control': 'no-store, must-revalidate',
   'Pragma': 'no-cache',
   'Vary': 'Cookie',

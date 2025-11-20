@@ -322,29 +322,29 @@ const FantasyPointsSetup: React.FC = () => {
 
       {/* Save Confirmation Modal */}
       <SoftUIConfirmationModal
-        isOpen={showConfirmation}
+          isOpen={showConfirmation}
         onClose={() => setShowConfirmation(false)}
         onConfirm={handleSave}
-        title="Save Changes"
-        message="Are you sure you want to save these changes? This will affect all historical fantasy points calculations."
-        confirmText="Save Changes"
-        cancelText="Cancel"
-        isConfirming={isLoading}
+          title="Save Changes"
+          message="Are you sure you want to save these changes? This will affect all historical fantasy points calculations."
+          confirmText="Save Changes"
+          cancelText="Cancel"
+          isConfirming={isLoading}
         icon="question"
-      />
+        />
 
       {/* Reset Confirmation Modal */}
       <SoftUIConfirmationModal
-        isOpen={showResetConfirmation}
+          isOpen={showResetConfirmation}
         onClose={() => setShowResetConfirmation(false)}
         onConfirm={handleResetToDefaults}
-        title="Reset to Defaults"
-        message="Are you sure you want to reset all fantasy points settings to their default values? This will affect all historical fantasy points calculations."
-        confirmText="Reset to Defaults"
-        cancelText="Cancel"
-        isConfirming={isLoading}
+          title="Reset to Defaults"
+          message="Are you sure you want to reset all fantasy points settings to their default values? This will affect all historical fantasy points calculations."
+          confirmText="Reset to Defaults"
+          cancelText="Cancel"
+          isConfirming={isLoading}
         icon="warning"
-      />
+        />
     </Card>
   );
 };

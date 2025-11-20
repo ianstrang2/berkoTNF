@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useAuthProfile } from './queries/useAuthProfile.hook';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
@@ -31,6 +31,7 @@ export interface UserProfile {
 }
 
 export function useAuth() {
+  const supabase = createClientComponentClient();
   const queryClient = useQueryClient();
   
   // Use React Query hook for profile fetching - automatic deduplication!

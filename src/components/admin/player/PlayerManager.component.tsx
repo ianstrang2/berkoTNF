@@ -298,8 +298,8 @@ const PlayerManager: React.FC = () => {
                       ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md border-0'
                       : 'text-slate-500 bg-white border border-slate-200 hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs shadow-none'
                   }`}
-                disabled={codeCopied}
-              >
+                  disabled={codeCopied}
+                >
                 {codeCopied ? (
                   <span className="flex items-center gap-1">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -308,7 +308,7 @@ const PlayerManager: React.FC = () => {
                     Copied!
                   </span>
                 ) : 'Copy Code'}
-              </button>
+                </button>
                 <ClubInviteLinkButton />
               </div>
             </div>

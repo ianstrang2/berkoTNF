@@ -34,7 +34,7 @@ const AppPromoModal = () => {
     const dismissedAt = parseInt(dismissed);
     const now = Date.now();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-    
+
     if ((now - dismissedAt) > thirtyDays) {
       // Been more than 30 days - show again
       setTimeout(() => setIsVisible(true), 1000);

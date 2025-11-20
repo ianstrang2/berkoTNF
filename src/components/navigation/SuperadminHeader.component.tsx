@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { apiFetch } from '@/lib/apiConfig';
 
 interface Tenant {
@@ -31,6 +31,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(false);
   const router = useRouter();
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
     fetchTenants();

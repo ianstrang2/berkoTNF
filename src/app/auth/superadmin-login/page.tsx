@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { apiFetch } from '@/lib/apiConfig';
 
 function SuperadminLoginForm() {
@@ -19,6 +19,7 @@ function SuperadminLoginForm() {
   const [error, setError] = useState('');
   
   const router = useRouter();
+  const supabase = createClientComponentClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

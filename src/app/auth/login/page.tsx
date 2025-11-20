@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { apiFetch } from '@/lib/apiConfig';
 
 function PlayerLoginForm() {
@@ -28,6 +28,7 @@ function PlayerLoginForm() {
   const [playerEmail, setPlayerEmail] = useState('');
   
   const router = useRouter();
+  const supabase = createClientComponentClient();
 
   // Check if user is already logged in - redirect to dashboard
   useEffect(() => {
@@ -372,14 +373,14 @@ function PlayerLoginForm() {
               </label>
               <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
                 {phone}
-            </div>
+              </div>
             <p className="mt-2 text-xs text-gray-500 flex items-center justify-center gap-1">
               <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               Verified via SMS
-            </p>
-          </div>
+              </p>
+            </div>
 
             {/* Club Code */}
             <div className="mb-6">
