@@ -163,9 +163,17 @@ const PlayerManager: React.FC = () => {
         throw new Error(data.error || (isEditing ? 'Failed to update player' : 'Failed to add player'));
       }
 
+      // Don't clear selectedPlayer until modal animation completes
+      // This keeps form data stable during fade-out
       setShowPlayerModal(false);
-      setSelectedPlayer(null);
-      refetch(); // React Query refetch
+      
+      // Wait for modal animation to complete (usually 200-300ms)
+      setTimeout(() => {
+        setSelectedPlayer(null);
+      }, 300);
+      
+      // Refetch in background
+      refetch();
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

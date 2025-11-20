@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PlayerFormData } from '@/types/team-algorithm.types';
 import ClubSelector from './ClubSelector.component';
 import { Club } from '@/types/player.types';
 
 // Define attribute descriptions for tooltips
 const attributeDescriptions: Record<string, string> = {
-  isAdmin: 'Club admin with full management access. Player must have claimed profile (phone verified) first.',
+  isAdmin: 'Club admin with full management access. Can be set before player claims profile.',
   isRinger: 'Guest players not shown in any stats',
   isRetired: 'Player who is no longer actively playing but whose historical data is preserved.',
   goalscoring: 'Ability to score goals and convert chances.',
@@ -79,9 +79,12 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     club: initialData?.club || null
   });
 
-  // Effect to update form data when initialData changes (for editing)
+  // Effect to update form data when modal opens with initialData
+  // Use ref to track if we've already initialized to prevent re-renders during submit
+  const initializedRef = useRef(false);
+  
   useEffect(() => {
-    if (initialData) {
+    if (isOpen && initialData && !initializedRef.current) {
       setFormData({
         name: initialData?.name || '',
         phone: initialData?.phone || '',
@@ -96,8 +99,14 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
         resilience: initialData?.resilience || 3,
         club: initialData?.club || null
       });
+      initializedRef.current = true;
     }
-  }, [initialData]);
+    
+    // Reset ref when modal closes
+    if (!isOpen) {
+      initializedRef.current = false;
+    }
+  }, [initialData, isOpen]);
 
   // Effect to clear nameError when formData.name changes
   useEffect(() => {
@@ -146,21 +155,9 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     
     try {
       await onSubmit(formData);
-      // Reset form after submission only on success
-      setFormData({
-        name: '',
-        phone: '',
-        isAdmin: false,
-        isRinger: false,
-        isRetired: false,
-        goalscoring: 3,
-        defending: 3,
-        staminaPace: 3,
-        control: 3,
-        teamwork: 3,
-        resilience: 3,
-        club: null
-      });
+      
+      // Don't reset form here - parent will handle cleanup
+      // Resetting causes visual snap-back during modal close animation
       // On successful submission, onClose should be called by the parent component if needed.
     } catch (error: any) {
       console.error('Error submitting player form:', error);
@@ -230,14 +227,14 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               <label className="block text-slate-700 text-sm font-medium mb-2">
                 Phone Number
               </label>
-              {initialData?.phone ? (
-                // Editing existing player - show phone as read-only
+              {initialData ? (
+                // Editing existing player - show phone as read-only (even if empty)
                 <>
                   <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-slate-600">
                     {formData.phone || 'Not set'}
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    Phone cannot be changed (authentication identity)
+                    Phone cannot be changed after player creation
                   </p>
                 </>
               ) : (
@@ -347,8 +344,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                       type="checkbox"
                       checked={formData.isAdmin || false}
                       onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked })}
-                      disabled={!(initialData?.authUserId || formData.authUserId)}
-                      className="mt-0.5 rounded-10 duration-250 ease-soft-in-out after:rounded-circle after:shadow-soft-2xl after:duration-250 checked:after:translate-x-5.3 h-5 relative float-left w-10 cursor-pointer appearance-none border border-solid border-gray-200 bg-slate-800/10 bg-none bg-contain bg-left bg-no-repeat align-top transition-all after:absolute after:top-px after:h-4 after:w-4 after:translate-x-px after:bg-white after:content-[''] checked:border-slate-800/95 checked:bg-slate-800/95 checked:bg-none checked:bg-right disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="mt-0.5 rounded-10 duration-250 ease-soft-in-out after:rounded-circle after:shadow-soft-2xl after:duration-250 checked:after:translate-x-5.3 h-5 relative float-left w-10 cursor-pointer appearance-none border border-solid border-gray-200 bg-slate-800/10 bg-none bg-contain bg-left bg-no-repeat align-top transition-all after:absolute after:top-px after:h-4 after:w-4 after:translate-x-px after:bg-white after:content-[''] checked:border-slate-800/95 checked:bg-slate-800/95 checked:bg-none checked:bg-right"
                       id="isAdmin"
                     />
                     {activeTooltip === 'isAdmin' && (
