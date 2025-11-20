@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Capacitor } from '@capacitor/core';
@@ -473,7 +473,17 @@ function PlayerLoginForm() {
 }
 
 export default function PlayerLoginPage() {
-  // Removed Suspense - not needed for client component, was causing hydration errors
-  return <PlayerLoginForm />;
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-white border-r-transparent" />
+          <p className="mt-4 text-white">Loading...</p>
+        </div>
+      </div>
+    }>
+      <PlayerLoginForm />
+    </Suspense>
+  );
 }
 

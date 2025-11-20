@@ -12,6 +12,8 @@ import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
 import { sendPlayerApprovedEmail } from '@/lib/notifications/email.service';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     try {
