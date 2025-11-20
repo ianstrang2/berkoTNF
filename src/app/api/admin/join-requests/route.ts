@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         id: true,
         phone_number: true,
         display_name: true,
+        email: true, // Include email for admin visibility
         created_at: true,
       },
     });
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
         phone_number: req.phone_number,
         name: req.display_name,
         display_name: req.display_name,
+        email: req.email, // Include email for display/notifications
         selected_club: null,
         created_at: req.created_at,
       }));

@@ -49,7 +49,7 @@ const BalanceOptionsModal: React.FC<BalanceOptionsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity">
-      <div className="bg-white rounded-xl shadow-soft-xl p-6 w-full max-w-md">
+      <div className="bg-white rounded-xl shadow-soft-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-slate-700 font-sans mb-4">Team Building Options</h2>
         <p className="text-xs text-slate-500 mb-3">Choose how to build the teams:</p>
         

@@ -57,8 +57,10 @@ function AdminSignupForm() {
               // Force sign out and redirect after 3 seconds
               setTimeout(async () => {
                 await supabase.auth.signOut();
-                // Clear all local storage
-                localStorage.clear();
+                // Clear only non-auth storage items (preserve other app state)
+                localStorage.removeItem('adminAuth');
+                localStorage.removeItem('userProfile');
+                localStorage.removeItem('capo_attribution');
                 sessionStorage.clear();
                 // Force reload to clear all state
                 window.location.href = '/auth/login';
@@ -73,8 +75,10 @@ function AdminSignupForm() {
           console.log('[ADMIN_SIGNUP] Signing out existing session (no player linked)');
           await supabase.auth.signOut();
           
-          // Clear all storage to ensure clean state
-          localStorage.clear();
+          // Clear only non-auth storage items (Supabase signOut already cleared auth tokens)
+          localStorage.removeItem('adminAuth');
+          localStorage.removeItem('userProfile');
+          localStorage.removeItem('capo_attribution');
           sessionStorage.clear();
           
           // Wait a moment for signout to propagate

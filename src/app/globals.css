@@ -108,3 +108,68 @@ html {
 .animate-scale-in {
   animation: scale-in 0.3s ease-out;
 }
+
+/* SweetAlert2 gradient icon styling for modals */
+.swal2-icon.swal2-icon-custom-gradient {
+  border-color: transparent !important;
+}
+
+/* Gradient for warning icon (exclamation mark) */
+.swal2-icon.swal2-warning.swal2-icon-custom-gradient {
+  background: linear-gradient(135deg, rgb(239, 68, 68) 0%, rgb(220, 38, 38) 100%) !important;
+  color: white !important;
+}
+
+.swal2-icon.swal2-warning.swal2-icon-custom-gradient .swal2-icon-content {
+  color: white !important;
+}
+
+/* Gradient for error icon */
+.swal2-icon.swal2-error.swal2-icon-custom-gradient {
+  background: linear-gradient(135deg, rgb(239, 68, 68) 0%, rgb(220, 38, 38) 100%) !important;
+  border-color: transparent !important;
+}
+
+.swal2-icon.swal2-error.swal2-icon-custom-gradient .swal2-x-mark {
+  background-color: transparent !important;
+}
+
+.swal2-icon.swal2-error.swal2-icon-custom-gradient [class^='swal2-x-mark-line'] {
+  background-color: white !important;
+}
+
+/* Gradient for success icon */
+.swal2-icon.swal2-success.swal2-icon-custom-gradient {
+  background: linear-gradient(135deg, rgb(126, 34, 206) 0%, rgb(236, 72, 153) 100%) !important;
+  border-color: transparent !important;
+}
+
+.swal2-icon.swal2-success.swal2-icon-custom-gradient [class^='swal2-success-line'] {
+  background-color: white !important;
+}
+
+.swal2-icon.swal2-success.swal2-icon-custom-gradient .swal2-success-ring {
+  border-color: white !important;
+}
+
+/* Gradient for question icon */
+.swal2-icon.swal2-question.swal2-icon-custom-gradient {
+  background: linear-gradient(135deg, rgb(126, 34, 206) 0%, rgb(236, 72, 153) 100%) !important;
+  border-color: transparent !important;
+  color: white !important;
+}
+
+.swal2-icon.swal2-question.swal2-icon-custom-gradient .swal2-icon-content {
+  color: white !important;
+}
+
+/* Gradient for info icon */
+.swal2-icon.swal2-info.swal2-icon-custom-gradient {
+  background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(37, 99, 235) 100%) !important;
+  border-color: transparent !important;
+  color: white !important;
+}
+
+.swal2-icon.swal2-info.swal2-icon-custom-gradient .swal2-icon-content {
+  color: white !important;
+}

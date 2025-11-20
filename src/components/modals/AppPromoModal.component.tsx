@@ -21,19 +21,25 @@ const AppPromoModal = () => {
       return;
     }
 
-    // Check if user has dismissed modal
+    // Check if user has dismissed or seen modal recently
     const dismissed = localStorage.getItem('appPromoModalDismissed');
-    const dismissedAt = dismissed ? parseInt(dismissed) : 0;
+    
+    if (!dismissed) {
+      // Never seen before - show it once
+      setTimeout(() => setIsVisible(true), 1000);
+      return;
+    }
+    
+    // Check if dismissed more than 30 days ago
+    const dismissedAt = parseInt(dismissed);
     const now = Date.now();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-
-    // Show modal if:
-    // 1. Never dismissed, OR
-    // 2. Dismissed more than 30 days ago
-    if (!dismissed || (now - dismissedAt) > thirtyDays) {
-      // Small delay so user sees dashboard first
+    
+    if ((now - dismissedAt) > thirtyDays) {
+      // Been more than 30 days - show again
       setTimeout(() => setIsVisible(true), 1000);
     }
+    // Otherwise, stay hidden (dismissed recently)
   }, []);
 
   const handleDismiss = () => {

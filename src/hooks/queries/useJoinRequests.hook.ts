@@ -17,6 +17,7 @@ export interface JoinRequest {
   phone_number: string; // Alias for component compatibility
   name: string;
   display_name: string; // Alias for component compatibility
+  email?: string; // Optional: player email for notifications
   selected_club: any;
   created_at: string;
 }
@@ -37,7 +38,8 @@ async function fetchJoinRequests(tenantId: string | null): Promise<JoinRequest[]
   return requests.map((req: any) => ({
     ...req,
     phone_number: req.phone,
-    display_name: req.name
+    display_name: req.name,
+    email: req.email // Pass through email field
   }));
 }
 

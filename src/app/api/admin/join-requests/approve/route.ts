@@ -29,6 +29,15 @@ export async function POST(request: NextRequest) {
     // Get the join request (requestId is UUID string)
     const joinRequest = await prisma.player_join_requests.findUnique({
       where: { id: requestId }, // UUID string, not number
+      select: {
+        id: true,
+        tenant_id: true,
+        phone_number: true,
+        display_name: true,
+        email: true, // Needed for email notification
+        auth_user_id: true,
+        status: true,
+      },
     });
 
     if (!joinRequest || joinRequest.tenant_id !== tenantId) {
@@ -103,7 +112,8 @@ export async function POST(request: NextRequest) {
 
       // Send approval notification to player
       try {
-        const playerEmail = (joinRequest as any).email || linkedPlayer.email;
+        // Email can come from join request or player record
+        const playerEmail = joinRequest.email || linkedPlayer.email;
         const tenant = await prisma.tenants.findUnique({
           where: { tenant_id: tenantId },
           select: { name: true },
@@ -121,11 +131,11 @@ export async function POST(request: NextRequest) {
             console.log('[APPROVAL] Email notification sent to:', playerEmail);
           } else {
             console.warn('[APPROVAL] Email notification failed:', emailResult.error);
-            // TODO Phase 3: Try SMS fallback here
+            // Graceful degradation: Approval succeeded even if email fails
           }
         } else {
           console.log('[APPROVAL] No email available for notification (phone:', joinRequest.phone_number, ')');
-          // TODO Phase 3: Send SMS fallback
+          console.log('[APPROVAL] Player approved successfully, will be notified on next login');
         }
       } catch (notificationError) {
         // Log error but don't fail approval

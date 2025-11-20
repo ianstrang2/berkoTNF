@@ -178,8 +178,8 @@ export const PendingJoinRequests: React.FC = () => {
               setApprovingRequest(null);
             }}></div>
             
-            {/* Modal panel */}
-            <div className="relative bg-white rounded-2xl max-w-md w-full shadow-soft-xl p-6">
+            {/* Modal panel - mobile responsive */}
+            <div className="relative bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-soft-xl p-6">
               {/* Header */}
               <h3 className="text-lg font-semibold text-slate-700 mb-4">Approve Join Request</h3>
               

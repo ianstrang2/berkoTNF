@@ -26,6 +26,14 @@ export async function POST(request: NextRequest) {
     // Get the join request
     const joinRequest = await prisma.player_join_requests.findUnique({
       where: { id: requestId },
+      select: {
+        id: true,
+        tenant_id: true,
+        phone_number: true,
+        display_name: true,
+        email: true, // For future: rejection notification emails
+        status: true,
+      },
     });
 
     if (!joinRequest || joinRequest.tenant_id !== tenantId) {
