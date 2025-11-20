@@ -10,7 +10,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import { apiFetch } from '@/lib/apiConfig';
@@ -34,7 +34,6 @@ export const ProfileDropdown: React.FC = () => {
   const pathname = usePathname() || '';
   const router = useRouter();
   const { profile } = useAuthContext();
-  const supabase = createClientComponentClient();
   const queryClient = useQueryClient();
 
   // Close dropdown when clicking outside
@@ -140,7 +139,6 @@ export const ProfileDropdown: React.FC = () => {
         console.log('✅ Tenant switched to:', tenantId);
         
         // CRITICAL: Refresh session to get new JWT with updated app_metadata
-        const supabase = createClientComponentClient();
         const { data, error } = await supabase.auth.refreshSession();
         
         if (error) {

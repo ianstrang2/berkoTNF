@@ -9,12 +9,11 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabaseClient';
 import { apiFetch } from '@/lib/apiConfig';
 
 function NoClubForm() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

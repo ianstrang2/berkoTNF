@@ -9,7 +9,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabaseClient';
 import { isMobileUserAgent } from '@/utils/platform-detection';
 import { apiFetch } from '@/lib/apiConfig';
 import { getStoredAttribution, clearAttribution } from '@/lib/attribution';
@@ -32,7 +32,6 @@ function AdminSignupForm() {
   const [showAppPrompt, setShowAppPrompt] = useState(false);
   
   const router = useRouter();
-  const supabase = createClientComponentClient();
 
   // Force logout any existing session on mount (clean slate for signup)
   useEffect(() => {

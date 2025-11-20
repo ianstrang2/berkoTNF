@@ -13,7 +13,7 @@ import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Capacitor } from '@capacitor/core';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabaseClient';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import { apiFetch } from '@/lib/apiConfig';
 
@@ -24,7 +24,6 @@ export const MobileHeader: React.FC = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [platform, setPlatform] = useState<'ios' | 'android' | 'web'>('web');
-  const supabase = createClientComponentClient();
 
   const isInAdminView = pathname.startsWith('/admin');
   const showAuthContent = !loading;
