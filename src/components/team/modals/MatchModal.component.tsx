@@ -31,8 +31,9 @@ const MatchModal: React.FC<MatchModalProps> = ({
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity p-4">
-      <div className="bg-white rounded-xl shadow-soft-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 transition-opacity p-4 pt-8 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-soft-xl p-6 w-full max-w-md my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
         <h2 className="text-xl font-bold text-slate-700 font-sans mb-4">
           {isEditing ? 'Edit Match' : 'Create New Match'}
         </h2>
@@ -91,6 +92,7 @@ const MatchModal: React.FC<MatchModalProps> = ({
             </Button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );

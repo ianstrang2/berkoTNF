@@ -129,15 +129,15 @@
 **Usage:** 5 modals (PlayerForm, SeasonForm, Match, Approve, etc.)  
 **When:** Complex forms, multi-step flows, custom layouts
 
-**✅ MOBILE-SAFE PATTERN (Post-January 2025 Fix):**
+**✅ MOBILE-SAFE PATTERN (Verified Working - January 2025):**
 ```typescript
-<div className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-8 overflow-y-auto">
+<div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto">
   {/* Background overlay */}
   <div className="fixed inset-0 bg-gray-900 bg-opacity-75" onClick={onClose}></div>
   
   {/* Modal panel */}
   <div 
-    className="relative bg-white rounded-2xl max-w-md w-full shadow-soft-xl p-6 my-auto" 
+    className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6 my-auto" 
     style={{ maxHeight: 'calc(100vh - 4rem)' }}
     onClick={(e) => e.stopPropagation()}
   >
@@ -160,12 +160,15 @@
 </div>
 ```
 
-**Key Features:**
-- ✅ `items-start` - Starts from top (not forced center)
-- ✅ `my-auto` - Centers when there's space
-- ✅ `calc(100vh - 4rem)` - Dynamic height with padding
-- ✅ Inner scroll wrapper - Content scrolls independently
-- ✅ Keyboard-friendly - Adapts when keyboard appears
+**Critical Features (ALL Required):**
+- ✅ `flex items-start` - NOT `items-center` (that causes shunting off-screen!)
+- ✅ `justify-center` - Horizontal centering only
+- ✅ `my-auto` - Vertical centering when space available
+- ✅ `p-4 pt-8` - Padding on container
+- ✅ Outer div: `maxHeight: calc(100vh - 4rem)`
+- ✅ Inner scroll wrapper: `maxHeight: calc(100vh - 8rem)`
+- ✅ `overflow-y-auto` on both container and scroll wrapper
+- ❌ **AVOID `autoFocus`** - Let user tap input (prevents instant keyboard)
 
 **Button Standard:**
 ```typescript

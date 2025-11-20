@@ -170,16 +170,16 @@ export const PendingJoinRequests: React.FC = () => {
 
       {/* Approval Modal */}
       {showApprovalModal && approvingRequest && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto">
-            {/* Background overlay */}
-            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => {
-              setShowApprovalModal(false);
-              setApprovingRequest(null);
-            }}></div>
-            
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto">
+          {/* Background overlay */}
+          <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => {
+            setShowApprovalModal(false);
+            setApprovingRequest(null);
+          }}></div>
+          
           {/* Modal panel - mobile friendly with keyboard support */}
-          <div className="relative bg-white rounded-2xl max-w-md w-full shadow-soft-xl m-4 mt-8" style={{ maxHeight: 'calc(100vh - 5rem)' }}>
-            <div className="overflow-y-auto p-6" style={{ maxHeight: 'calc(100vh - 5rem)' }}>
+          <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6 my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
               {/* Header */}
               <h3 className="text-lg font-semibold text-slate-700 mb-4">Approve Join Request</h3>
               
@@ -244,7 +244,6 @@ export const PendingJoinRequests: React.FC = () => {
                   onChange={(e) => setNewPlayerName(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm transition-all"
                   placeholder="Enter player name"
-                  autoFocus
                 />
               </div>
             ) : (
@@ -270,8 +269,8 @@ export const PendingJoinRequests: React.FC = () => {
               </div>
             )}
 
-            {/* Action buttons - Standardized to match SoftUI pattern */}
-            <div className="flex justify-center gap-3 mt-6">
+              {/* Action buttons - Standardized to match SoftUI pattern */}
+              <div className="flex justify-center gap-3 mt-6">
               <button
                 onClick={handleApprove}
                 disabled={processing === approvingRequest.id}
