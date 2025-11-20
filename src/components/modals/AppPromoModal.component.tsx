@@ -78,7 +78,9 @@ const AppPromoModal = () => {
           {/* Header */}
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-gradient-to-br from-purple-700 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-4xl">📱</span>
+              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               You're all set!

@@ -35,32 +35,56 @@ const RealLife: React.FC = () => {
             <p className="text-lg text-neutral-700 leading-relaxed mb-6">
               Your pitch-side command centre. One screen showing your player pool, the teams, the score entry, the finish button. When you mark the match done, Capo updates everything instantly:
             </p>
-            <ul className="grid md:grid-cols-2 gap-3 text-neutral-700">
-              <li className="flex items-center gap-2">
-                <span className="text-purple-500">✓</span> Tables
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-purple-500">✓</span> Streaks
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-purple-500">✓</span> Points
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-purple-500">✓</span> Records
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-purple-500">✓</span> Chemistry
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-purple-500">✓</span> Performance graphs
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-purple-500">✓</span> Every player's AI profile
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-purple-500">✓</span> The AI match report
-              </li>
-            </ul>
+          <ul className="grid md:grid-cols-2 gap-3 text-neutral-700">
+            <li className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Tables
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Streaks
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Points
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Records
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Chemistry
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Performance graphs
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Every player's AI profile
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              The AI match report
+            </li>
+          </ul>
             <p className="text-lg text-neutral-700 leading-relaxed mt-6">
               Your post-game admin fits inside a single tap.
             </p>

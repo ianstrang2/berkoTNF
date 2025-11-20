@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Card from '@/components/ui-kit/Card.component';
 import Button from '@/components/ui-kit/Button.component';
-import ConfirmationDialog from '@/components/ui-kit/ConfirmationDialog.component';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import { apiFetch } from '@/lib/apiConfig';
 
 type TeamTemplate = {
@@ -453,15 +453,16 @@ const TeamTemplates = () => {
       )}
 
       {/* Reset Confirmation Dialog */}
-      <ConfirmationDialog
+      <SoftUIConfirmationModal
         isOpen={resetConfirmation.isOpen}
+        onClose={closeResetConfirmation}
+        onConfirm={handleResetToDefault}
         title="Reset to Default"
         message="Are you sure you want to reset this template to its default values? This action cannot be undone."
         confirmText="Reset"
         cancelText="Cancel"
-        onConfirm={handleResetToDefault}
-        onCancel={closeResetConfirmation}
         isConfirming={isResetting !== null}
+        icon="warning"
       />
     </div>
   );

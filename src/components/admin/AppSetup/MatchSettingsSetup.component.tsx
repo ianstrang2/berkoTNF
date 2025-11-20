@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
-import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import { apiFetch } from '@/lib/apiConfig';
 
 interface ConfigItem {
@@ -299,33 +299,30 @@ const MatchSettingsSetup: React.FC = () => {
       </div>
 
       {/* Save Confirmation Modal */}
-      {showConfirmation && (
-        <ConfirmationModal
-          isOpen={showConfirmation}
-          title="Update Match Settings?"
-          message="Are you sure you want to update the match settings? Changing these values will only affect future matches."
-          confirmText="Update Settings"
-          cancelText="Cancel"
-          onConfirm={handleSave}
-          onClose={() => setShowConfirmation(false)}
-          isConfirming={isLoading}
-        />
-      )}
+      <SoftUIConfirmationModal
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={handleSave}
+        title="Update Match Settings?"
+        message="Are you sure you want to update the match settings? Changing these values will only affect future matches."
+        confirmText="Update Settings"
+        cancelText="Cancel"
+        isConfirming={isLoading}
+        icon="question"
+      />
 
       {/* Reset Confirmation Modal */}
-      {showResetConfirmation && (
-        <ConfirmationModal
-          isOpen={showResetConfirmation}
-          title="Reset Match Settings?"
-          message="Are you sure you want to reset match settings to their default values? This will only affect future matches."
-          confirmText="Reset Settings"
-          cancelText="Cancel"
-          onConfirm={handleResetToDefaults}
-          onClose={() => setShowResetConfirmation(false)}
-          isConfirming={isLoading}
-          confirmButtonClass="bg-red-500 hover:bg-red-600"
-        />
-      )}
+      <SoftUIConfirmationModal
+        isOpen={showResetConfirmation}
+        onClose={() => setShowResetConfirmation(false)}
+        onConfirm={handleResetToDefaults}
+        title="Reset Match Settings?"
+        message="Are you sure you want to reset match settings to their default values? This will only affect future matches."
+        confirmText="Reset Settings"
+        cancelText="Cancel"
+        isConfirming={isLoading}
+        icon="warning"
+      />
     </Card>
   );
 };

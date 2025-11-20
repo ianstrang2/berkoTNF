@@ -185,13 +185,13 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-[9999] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div className="flex items-center justify-center min-h-screen p-4">
-        {/* Background overlay */}
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true"></div>
-        
-        {/* Modal panel */}
-        <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      {/* Background overlay */}
+      <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true"></div>
+      
+      {/* Modal panel - mobile friendly with keyboard support */}
+      <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6 my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
           {/* Header with close button */}
           <div className="flex justify-between items-center mb-5">
             <h3 className="text-lg font-semibold text-slate-700" id="modal-title">

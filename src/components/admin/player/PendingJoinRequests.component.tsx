@@ -170,16 +170,16 @@ export const PendingJoinRequests: React.FC = () => {
 
       {/* Approval Modal */}
       {showApprovalModal && approvingRequest && (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen p-4">
-            {/* Background overlay */}
-            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => {
-              setShowApprovalModal(false);
-              setApprovingRequest(null);
-            }}></div>
-            
-            {/* Modal panel - mobile responsive */}
-            <div className="relative bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-soft-xl p-6">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto">
+          {/* Background overlay */}
+          <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => {
+            setShowApprovalModal(false);
+            setApprovingRequest(null);
+          }}></div>
+          
+          {/* Modal panel - mobile friendly with keyboard support */}
+          <div className="relative bg-white rounded-2xl max-w-md w-full shadow-soft-xl p-6 my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
               {/* Header */}
               <h3 className="text-lg font-semibold text-slate-700 mb-4">Approve Join Request</h3>
               
@@ -270,27 +270,27 @@ export const PendingJoinRequests: React.FC = () => {
               </div>
             )}
 
-            {/* Action buttons - Standardized to match SoftUI pattern */}
-            <div className="flex justify-center gap-3 mt-6">
-              <button
-                onClick={handleApprove}
-                disabled={processing === approvingRequest.id}
-                className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase rounded-lg transition-all bg-gradient-to-tl from-purple-700 to-pink-500 hover:scale-102 active:opacity-85 shadow-soft-md disabled:opacity-50 disabled:cursor-not-allowed leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
-              >
-                {processing === approvingRequest.id ? 'Processing...' : 'Confirm'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowApprovalModal(false);
-                  setApprovingRequest(null);
-                }}
-                disabled={processing === approvingRequest.id}
-                className="inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase rounded-lg transition-all bg-gradient-to-tl from-slate-100 to-slate-200 hover:scale-102 active:opacity-85 shadow-soft-md leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 ml-3"
-              >
-                Cancel
-              </button>
+              {/* Action buttons - Standardized to match SoftUI pattern */}
+              <div className="flex justify-center gap-3 mt-6">
+                <button
+                  onClick={handleApprove}
+                  disabled={processing === approvingRequest.id}
+                  className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase rounded-lg transition-all bg-gradient-to-tl from-purple-700 to-pink-500 hover:scale-102 active:opacity-85 shadow-soft-md disabled:opacity-50 disabled:cursor-not-allowed leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
+                >
+                  {processing === approvingRequest.id ? 'Processing...' : 'Confirm'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowApprovalModal(false);
+                    setApprovingRequest(null);
+                  }}
+                  disabled={processing === approvingRequest.id}
+                  className="inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase rounded-lg transition-all bg-gradient-to-tl from-slate-100 to-slate-200 hover:scale-102 active:opacity-85 shadow-soft-md leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 ml-3"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
           </div>
         </div>
       )}

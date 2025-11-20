@@ -202,11 +202,13 @@ function JoinForm() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-4xl">❌</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Invalid Link</h1>
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Invalid Link</h1>
             <p className="text-gray-600 mb-6">{error}</p>
             <a
               href="/auth/login"
@@ -258,23 +260,39 @@ function JoinForm() {
             <div className="space-y-6">
               <div className="border border-slate-200 rounded-xl p-6">
                 <h3 className="font-semibold text-slate-700 mb-4 text-sm">Instant access to:</h3>
-                <div className="space-y-2 text-sm text-slate-700">
-                  <div className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">✓</span>
-                    <span>Priority match notifications</span>
+              <div className="space-y-2 text-sm text-slate-700">
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 bg-gradient-to-br from-purple-700 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">✓</span>
-                    <span>Easily RSVP to matches</span>
+                  <span>Priority match notifications</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 bg-gradient-to-br from-purple-700 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">✓</span>
-                    <span>Your profile and fantasy points</span>
+                  <span>Easily RSVP to matches</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 bg-gradient-to-br from-purple-700 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">✓</span>
-                    <span>Leaderboards and match reports</span>
+                  <span>Your profile and fantasy points</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 bg-gradient-to-br from-purple-700 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
+                  <span>Leaderboards and match reports</span>
+                </div>
                 </div>
               </div>
 

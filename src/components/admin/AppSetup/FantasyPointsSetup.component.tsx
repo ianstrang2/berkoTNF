@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
-import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import { apiFetch } from '@/lib/apiConfig';
 
 interface ConfigItem {
@@ -321,33 +321,30 @@ const FantasyPointsSetup: React.FC = () => {
       </div>
 
       {/* Save Confirmation Modal */}
-      {showConfirmation && (
-        <ConfirmationModal
-          isOpen={showConfirmation}
-          title="Save Changes"
-          message="Are you sure you want to save these changes? This will affect all historical fantasy points calculations."
-          confirmText="Save Changes"
-          cancelText="Cancel"
-          onConfirm={handleSave}
-          onClose={() => setShowConfirmation(false)}
-          isConfirming={isLoading}
-        />
-      )}
+      <SoftUIConfirmationModal
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={handleSave}
+        title="Save Changes"
+        message="Are you sure you want to save these changes? This will affect all historical fantasy points calculations."
+        confirmText="Save Changes"
+        cancelText="Cancel"
+        isConfirming={isLoading}
+        icon="question"
+      />
 
       {/* Reset Confirmation Modal */}
-      {showResetConfirmation && (
-        <ConfirmationModal
-          isOpen={showResetConfirmation}
-          title="Reset to Defaults"
-          message="Are you sure you want to reset all fantasy points settings to their default values? This will affect all historical fantasy points calculations."
-          confirmText="Reset to Defaults"
-          cancelText="Cancel"
-          onConfirm={handleResetToDefaults}
-          onClose={() => setShowResetConfirmation(false)}
-          isConfirming={isLoading}
-          confirmButtonClass="bg-red-500 hover:bg-red-600"
-        />
-      )}
+      <SoftUIConfirmationModal
+        isOpen={showResetConfirmation}
+        onClose={() => setShowResetConfirmation(false)}
+        onConfirm={handleResetToDefaults}
+        title="Reset to Defaults"
+        message="Are you sure you want to reset all fantasy points settings to their default values? This will affect all historical fantasy points calculations."
+        confirmText="Reset to Defaults"
+        cancelText="Cancel"
+        isConfirming={isLoading}
+        icon="warning"
+      />
     </Card>
   );
 };

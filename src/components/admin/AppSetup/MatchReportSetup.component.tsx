@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
-import ConfirmationModal from '@/components/ui-kit/ConfirmationModal.component';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import { apiFetch } from '@/lib/apiConfig';
 
 interface MatchReportSetting {
@@ -199,33 +199,30 @@ const MatchReportSetup: React.FC = () => {
       </div>
 
       {/* Save Confirmation Modal */}
-      {showConfirmation && (
-        <ConfirmationModal
-          isOpen={showConfirmation}
-          title="Update Match Report Settings?"
-          message="Changing these values will affect how streaks and milestones are highlighted in future match reports. Are you sure you want to update these settings?"
-          confirmText="Update Settings"
-          cancelText="Cancel"
-          onConfirm={saveSettings}
-          onClose={() => setShowConfirmation(false)}
-          isConfirming={isLoading}
-        />
-      )}
+      <SoftUIConfirmationModal
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={saveSettings}
+        title="Update Match Report Settings?"
+        message="Changing these values will affect how streaks and milestones are highlighted in future match reports. Are you sure you want to update these settings?"
+        confirmText="Update Settings"
+        cancelText="Cancel"
+        isConfirming={isLoading}
+        icon="question"
+      />
 
       {/* Reset Confirmation Modal */}
-      {showResetConfirmation && (
-        <ConfirmationModal
-          isOpen={showResetConfirmation}
-          title="Reset to Defaults"
-          message="Are you sure you want to reset all match report settings to their default values?"
-          confirmText="Reset to Defaults"
-          cancelText="Cancel"
-          onConfirm={resetToDefaults}
-          onClose={() => setShowResetConfirmation(false)}
-          isConfirming={isLoading}
-          confirmButtonClass="bg-red-500 hover:bg-red-600"
-        />
-      )}
+      <SoftUIConfirmationModal
+        isOpen={showResetConfirmation}
+        onClose={() => setShowResetConfirmation(false)}
+        onConfirm={resetToDefaults}
+        title="Reset to Defaults"
+        message="Are you sure you want to reset all match report settings to their default values?"
+        confirmText="Reset to Defaults"
+        cancelText="Cancel"
+        isConfirming={isLoading}
+        icon="warning"
+      />
     </Card>
   );
 };

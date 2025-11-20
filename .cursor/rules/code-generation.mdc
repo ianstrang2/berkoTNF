@@ -53,28 +53,19 @@ src/
 
 **Every tenant-scoped query MUST include `where: { tenant_id }`**
 
-### API Routes - Phase 2 Pattern (MANDATORY - October 2025)
+### API Routes - Phase 2 Pattern (MANDATORY)
 
 **ALWAYS use `withTenantContext` wrapper + `withTenantFilter()` helper** for all tenant-scoped API routes.
 
-**✅ CORRECT PATTERN (Phase 2):**
+**Pattern:**
 ```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { withTenantContext } from '@/lib/tenantContext';
-import { withTenantFilter } from '@/lib/tenantFilter';
-import { requireAdminRole } from '@/lib/auth/apiAuth';
-import { prisma } from '@/lib/prisma';
-import { handleTenantError } from '@/lib/api-helpers';
-
 export async function GET(request: NextRequest) {
   return withTenantContext(request, async (tenantId) => {
     try {
-      await requireAdminRole(request);  // Verify admin access
-      
+      await requireAdminRole(request);
       const data = await prisma.players.findMany({
-        where: withTenantFilter(tenantId)  // ⚠️ MANDATORY - type-safe tenant isolation
+        where: withTenantFilter(tenantId)  // ⚠️ MANDATORY
       });
-      
       return NextResponse.json({ success: true, data });
     } catch (error) {
       return handleTenantError(error);
@@ -83,39 +74,10 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-**❌ DEPRECATED PATTERN - DO NOT USE:**
-```typescript
-// This pattern is from PRE-Phase 2 (missing tenant context wrapper)
-export async function GET(request: NextRequest) {
-  const { tenantId } = await requireAdminRole(request);  // ❌ Old pattern
-  const data = await prisma.players.findMany({
-    where: { tenant_id: tenantId }  // ❌ Manual filtering
-  });
-  return NextResponse.json({ data });
-}
-```
-
-**Why withTenantContext + withTenantFilter are required:**
-- ✅ Sets tenant context via AsyncLocalStorage (enables consistent logging)
-- ✅ Type-safe tenant filtering (impossible to forget tenant_id)
-- ✅ Consistent error handling via `handleTenantError()`
-- ✅ Defense-in-depth security model
-
-**NOTE:** Some older routes may use inline error handling instead of `handleTenantError()`. 
-When editing these routes, migrate to `handleTenantError()` for consistency.
-
 **Authentication Helpers:**
-- `requireAdminRole(request)` - Admin/superadmin access (returns `{ user, userRole, tenantId, linkedPlayerId }`)
-- `requirePlayerAccess(request)` - Player access (returns `{ user, player, tenantId }`)
+- `requireAdminRole(request)` - Admin/superadmin access
+- `requirePlayerAccess(request)` - Player access
 - For public routes: Use `withTenantContext(request, handler, { allowUnauthenticated: true })`
-
-**Edge Functions** - Use Supabase Client
-- Supabase Edge Functions in `supabase/functions/` should use Supabase client
-- SQL scripts in `sql/` use direct PostgreSQL
-
-**Type Safety:**
-- Use `as any` for Prisma selects with newer schema fields not yet in generated types
-- Follow existing working API patterns (see `src/app/api/playerprofile/route.ts`)
 
 ## React Query - Multi-Tenant Cache Isolation (MANDATORY)
 
@@ -123,121 +85,43 @@ When editing these routes, migrate to `handleTenantError()` for consistency.
 
 **React Query caches data globally** - without tenant_id in keys, Tenant A's data can be served to Tenant B!
 
-**✅ CORRECT PATTERN:**
+**Pattern:**
 ```typescript
-import { useAuth } from '@/hooks/useAuth.hook';
-import { queryKeys } from '@/lib/queryKeys';
-
-async function fetchPlayers(tenantId: string | null): Promise<PlayerProfile[]> {
-  // Gracefully handle missing tenantId - return empty data
-  if (!tenantId) return [];
-  
-  const response = await fetch('/api/players', { credentials: 'include' });
-  if (!response.ok) throw new Error(`API returned ${response.status}`);
-  const result = await response.json();
-  return result.data || [];
-}
-
 export function usePlayers() {
   const { profile } = useAuth();
-  const tenantId = profile.tenantId;
-  
   return useQuery({
-    queryKey: queryKeys.players(tenantId),  // ✅ Includes tenant_id
-    queryFn: () => fetchPlayers(tenantId),  // ✅ Pass tenantId to fetch
-    staleTime: 10 * 60 * 1000,
-    // ✅ NO enabled condition - queryFn handles missing tenantId gracefully
+    queryKey: queryKeys.players(profile.tenantId),  // ✅ MUST include tenantId
+    queryFn: () => fetchPlayers(profile.tenantId),
+    // NO enabled condition - causes race conditions
   });
 }
 ```
 
-**❌ BROKEN PATTERNS - CAUSES DATA LEAKS:**
-```typescript
-// Pattern 1: No tenant_id in query key
-export function usePlayers() {
-  return useQuery({
-    queryKey: queryKeys.players(),  // ❌ No tenant_id - cache shared across ALL tenants!
-    queryFn: fetchPlayers,
-  });
-}
+**Key Rules:**
+1. Include `tenantId` in query key (isolates cache per tenant)
+2. Pass `tenantId` to fetchFn (graceful handling if null)
+3. NO `enabled` condition (avoids permanent disable race)
+4. Early return empty data if tenantId is null
 
-// Pattern 2: Using enabled condition (causes race condition)
-export function usePlayers() {
-  const { profile } = useAuth();
-  return useQuery({
-    queryKey: queryKeys.players(profile.tenantId),
-    queryFn: fetchPlayers,
-    enabled: !!profile.tenantId,  // ❌ Query stays disabled if checked before auth loads!
-  });
-}
-```
-
-**Why this matters:**
-- ✅ Isolates cached data per tenant
-- ✅ Prevents showing Tenant A's data to Tenant B
-- ✅ Fixes "No Data Available" issues during tenant switching
-- ✅ Prevents race conditions (query always runs when tenantId becomes available)
-- ✅ Security: Prevents cross-tenant data leaks in browser cache
-
-**Key Points:**
-1. **Include `tenantId` in query key** - Isolates cache per tenant
-2. **Pass `tenantId` to fetchFn** - Allows graceful handling of missing auth
-3. **NO `enabled` condition** - Avoids permanent disable race condition
-4. **Early return in fetchFn** - Returns empty data if `tenantId` is null
-
-**Exception:** `authProfile()` query key does NOT need tenant_id (auth is global)
+**Exception:** `authProfile()` key does NOT need tenant_id (auth is global)
 
 ## API Response Headers - HTTP Cache (MANDATORY)
 
 ### 🚨 CRITICAL: Disable HTTP Caching for Tenant-Scoped Data
 
-**NEVER use HTTP caching for tenant-scoped data** - browser cache persists stale data across page reloads and tenant switches!
+**NEVER use HTTP caching for tenant-scoped data** - browser cache persists stale data across tenant switches!
 
-**✅ CORRECT PATTERN (All tenant-scoped APIs):**
+**Required Headers:**
 ```typescript
-export async function GET(request: NextRequest) {
-  return withTenantContext(request, async (tenantId) => {
-    const data = await prisma.players.findMany({
-      where: { tenant_id: tenantId }
-    });
-    
-    return NextResponse.json({ data }, {
-      headers: {
-        'Cache-Control': 'no-store, must-revalidate',  // ✅ No HTTP cache
-        'Pragma': 'no-cache',  // ✅ Legacy browser support
-        'Vary': 'Cookie',  // ✅ Tenant context varies by cookie
-      }
-    });
-  });
+headers: {
+  'Cache-Control': 'no-store, must-revalidate',
+  'Pragma': 'no-cache',
+  'Vary': 'Cookie',
 }
 ```
 
-**❌ BROKEN PATTERN - CAUSES STALE DATA:**
-```typescript
-export async function GET(request: NextRequest) {
-  return withTenantContext(request, async (tenantId) => {
-    const data = await prisma.players.findMany({
-      where: { tenant_id: tenantId }
-    });
-    
-    return NextResponse.json({ data }, {
-      headers: {
-        'Cache-Control': 'private, max-age=300',  // ❌ Browser caches for 5 min!
-        'Vary': 'Cookie',
-      }
-    });
-  });
-}
-```
-
-**Why this matters:**
-- ❌ HTTP cache persists across page reloads (stale data bug)
-- ❌ Tenant A's cached data can appear briefly for Tenant B
-- ❌ Database changes don't reflect until cache expires (5 min lag)
-- ✅ React Query handles caching correctly (in-memory, tenant-aware)
-- ✅ Disabling HTTP cache doesn't hurt performance (React Query deduplicates)
-
-**Exception:** Auth profile can use short cache (1 min max)
+**Why:** HTTP cache persists across reloads, React Query handles in-memory caching correctly.  
+**Exception:** Auth profile can use 1 min cache max.
 
 ## Multi-Tenant Security: RLS Strategy (MANDATORY - October 2025)
 
@@ -265,119 +149,20 @@ queries return 0 rows even with explicit `WHERE tenant_id = ...` filters.
 
 ### MANDATORY: Use `withTenantFilter()` Helper
 
-**ALL queries to tables with RLS disabled MUST use `withTenantFilter()` helper:**
+**ALL queries MUST use `withTenantFilter()` for tenant isolation:**
 
-**✅ CORRECT PATTERN:**
 ```typescript
 import { withTenantFilter } from '@/lib/tenantFilter';
 
-// Simple query
-const players = await prisma.players.findMany({
-  where: withTenantFilter(tenantId)
-});
-
-// With additional filters
-const activePlayers = await prisma.players.findMany({
-  where: withTenantFilter(tenantId, {
-    is_retired: false,
-    is_active: true
-  })
-});
-
-// With complex filters (OR/AND)
-const matches = await prisma.matches.findMany({
-  where: withTenantFilter(tenantId, {
-    OR: [
-      { upcoming_match_id: null },
-      { upcoming_matches: { state: 'Completed' } }
-    ]
-  })
-});
-
-// With composite keys (findUnique)
-const stats = await prisma.aggregated_player_profile_stats.findUnique({
-  where: { 
-    ...withTenantFilter(tenantId), 
-    player_id: playerId 
-  }
-});
+// Simple: withTenantFilter(tenantId)
+// With filters: withTenantFilter(tenantId, { is_retired: false })
+// With OR/AND: withTenantFilter(tenantId, { OR: [...] })
+// With composite keys: { ...withTenantFilter(tenantId), player_id }
 ```
 
-**❌ FORBIDDEN PATTERNS:**
-```typescript
-// Pattern 1: Missing tenant filter - SECURITY RISK!
-const players = await prisma.players.findMany({
-  where: { is_retired: false }  // ❌ No tenant_id! DATA LEAK!
-});
+**❌ NEVER use manual `tenant_id: tenantId` filtering** - use helper for type safety.
 
-// Pattern 2: Manual tenant_id - Less safe, no type checking
-const players = await prisma.players.findMany({
-  where: { 
-    tenant_id: tenantId,  // ❌ Use withTenantFilter() instead
-    is_retired: false 
-  }
-});
-
-// Pattern 3: Spreading tenant_id manually
-const players = await prisma.players.findMany({
-  where: { 
-    ...{ tenant_id: tenantId },  // ❌ Use withTenantFilter() instead
-    is_retired: false 
-  }
-});
-```
-
-**Why `withTenantFilter()` is mandatory:**
-- ✅ Type-safe (throws error if tenantId is null/undefined)
-- ✅ Compile-time enforcement (impossible to forget tenant filtering)
-- ✅ Consistent pattern across entire codebase
-- ✅ Development logging helps debugging
-- ✅ Single source of truth for tenant filtering logic
-
-### Special Cases
-
-**Raw SQL Queries:**
-When using `prisma.$queryRaw`, always include explicit tenant filtering:
-```typescript
-const seasons = await prisma.$queryRaw`
-  SELECT * FROM seasons
-  WHERE tenant_id = ${tenantId}::uuid
-  ORDER BY start_date DESC
-`;
-```
-
-**Nested Relations:**
-Apply `withTenantFilter()` to all nested `where` clauses:
-```typescript
-const match = await prisma.upcoming_matches.findFirst({
-  where: withTenantFilter(tenantId, { is_active: true }),
-  include: {
-    upcoming_match_players: {
-      where: withTenantFilter(tenantId),  // ✅ Filter nested relation
-      include: { players: true }
-    }
-  }
-});
-```
-
-### Migration Guide: Converting Manual Filters
-
-**Before (Manual filtering):**
-```typescript
-const data = await prisma.players.findMany({
-  where: { tenant_id: tenantId, is_retired: false }
-});
-```
-
-**After (Using withTenantFilter):**
-```typescript
-const data = await prisma.players.findMany({
-  where: withTenantFilter(tenantId, { is_retired: false })
-});
-```
-
-**Remaining Work:** 51 instances of manual `tenant_id: tenantId` filtering exist across 29 files. 
-Gradually migrate these to use `withTenantFilter()` as files are edited for other reasons.
+**Special cases:** Raw SQL and nested relations - see `docs/SPEC_multi_tenancy.md`
 
 ## App Router Flow
 - Pages in `/app` should be minimal - just import and render components
@@ -430,78 +215,13 @@ To ensure consistency and type safety, all player-related data across the applic
 
 ## Marketing Pages - Analytics & Attribution
 
-### Plausible Analytics Integration
+**ONLY track marketing pages** (`/`, `/pricing`), **NOT authenticated app** (`/admin/*`, `/player/*`).
 
-**ONLY track public marketing pages, NOT the authenticated app.**
+- Use `<PlausibleScript />` on marketing pages (auto-detects pathname)
+- Use `useAttribution()` hook to capture first-touch attribution
+- Attribution stored in `tenants.settings` JSON field on signup
 
-- **Marketing pages** (track with Plausible):
-  - `/` - Homepage/landing page
-  - Future public pages: `/pricing`, `/about`, `/contact`, etc.
-
-- **Authenticated app** (do NOT track):
-  - `/admin/*` - Admin dashboard
-  - `/player/*` - Player dashboard
-  - `/superadmin/*` - Superadmin panel
-  - `/auth/*` - Authentication pages
-  - `/signup/*` - Signup flow (post-conversion)
-
-**Implementation:**
-- Use `<PlausibleScript />` component from `src/components/analytics/PlausibleScript.component.tsx`
-- Component automatically checks pathname and only loads on marketing pages
-- No cookies, privacy-friendly by design
-
-**Example:**
-```tsx
-import PlausibleScript from '@/components/analytics/PlausibleScript.component';
-
-export default function MarketingPage() {
-  return (
-    <div>
-      <PlausibleScript />
-      {/* rest of page */}
-    </div>
-  );
-}
-```
-
-### Attribution Tracking
-
-**Capture first-touch attribution for new admin signups.**
-
-**What we track:**
-- `referrer` - Where visitor came from (e.g., "https://twitter.com" or "direct")
-- `utm_source` - Marketing source (e.g., "twitter", "facebook")
-- `utm_medium` - Marketing medium (e.g., "social", "cpc")
-- `utm_campaign` - Campaign name (e.g., "launch-week")
-- `landing_page` - First page visited (e.g., "/")
-- `first_visit` - Timestamp of first visit
-
-**Implementation:**
-1. **Marketing page capture:**
-   - Use `useAttribution()` hook on marketing pages
-   - Automatically captures attribution on first visit
-   - Stores in `localStorage` (key: `capo_attribution`)
-   - First-touch model: won't overwrite existing attribution
-
-2. **Signup persistence:**
-   - Read attribution from localStorage during admin signup
-   - Send to `/api/admin/create-club` endpoint
-   - Stored in `tenants.settings` JSON field as `{ attribution: {...} }`
-   - Clear localStorage after successful signup (prevents stale data)
-
-**Files:**
-- `src/lib/attribution.ts` - Core attribution utilities
-- `src/hooks/useAttribution.hook.ts` - React hook for capturing attribution
-- `src/components/analytics/PlausibleScript.component.tsx` - Plausible script loader
-
-**Querying attribution:**
-```sql
-SELECT 
-  name,
-  settings->>'attribution' as attribution_data
-FROM tenants
-WHERE settings->>'attribution' IS NOT NULL;
-```
+See `docs/SPEC_Marketing.md` for implementation details (if needed).
 
 ---
 
@@ -534,6 +254,40 @@ WHERE settings->>'attribution' IS NOT NULL;
 - Rate limiting
 - Session management
 - API orchestration
+
+## Modal & Dialog Standards
+
+**MANDATORY:** All modals must follow standardized patterns for consistency. See `docs/SPEC_Modals.md` for complete specification.
+
+### When to Use Which Pattern
+
+**Simple Confirmations (90% of cases):**
+- Use: `SoftUIConfirmationModal` (SweetAlert2 wrapper)
+- For: Delete confirmations, save confirmations, logout, alerts, success messages
+- Never use: Legacy ConfirmationDialog, ConfirmationModal, ConfirmDialog (deleted)
+
+**Complex Forms:**
+- Use: Mobile-safe custom modal pattern (see template in SPEC_Modals.md Template B)
+- For: Add/edit forms, multi-step flows, custom layouts
+- Must: Test with mobile keyboard
+
+### Design Standards (MANDATORY)
+
+**Icons:** SVG only (no emojis in UI), gradient backgrounds (see SPEC_Modals.md)  
+**Buttons:** Context-dependent order - safe action on LEFT for destructive (see spec)  
+**Mobile:** Form modals MUST use keyboard-safe pattern (see SPEC_Modals.md Template B)  
+**Z-Index:** All modals use `z-50` (standard)
+
+### Modal Creation Checklist
+
+When creating a new modal:
+1. [ ] Choose pattern: SoftUIConfirmationModal OR custom form
+2. [ ] Use SVG icons (never emojis)
+3. [ ] Apply gradient button styling
+4. [ ] Use context-appropriate button order (constructive vs destructive)
+5. [ ] Test on mobile (with keyboard if has inputs)
+6. [ ] Add `role="dialog"` + `aria-modal="true"`
+7. [ ] Add entry to `docs/SPEC_Modals.md` inventory table
 
 ## File Creation
 - Only create new files when explicitly requested by the user.
