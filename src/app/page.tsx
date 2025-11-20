@@ -1,6 +1,8 @@
 'use client';
 import React, { useState } from 'react';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 import MarketingNav from './marketing/components/MarketingNav.component';
 import Hero from './marketing/components/Hero.component';
 import ForPlayers from './marketing/components/ForPlayers.component';
@@ -15,6 +17,31 @@ import PlausibleScript from '@/components/analytics/PlausibleScript.component';
 import { useAttribution } from '@/hooks/useAttribution.hook';
 
 export default function MarketingPage() {
+  const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  
+  // Check if user is already logged in - redirect to dashboard
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // User is logged in - redirect to dashboard
+          console.log('[HOMEPAGE] User already logged in, redirecting to admin/matches');
+          router.push('/admin/matches');
+          return;
+        }
+      } catch (error) {
+        console.error('[HOMEPAGE] Error checking session:', error);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    
+    checkSession();
+  }, [router]);
+  
   // Capture marketing attribution on first visit
   useAttribution();
   
@@ -86,6 +113,18 @@ export default function MarketingPage() {
   }, []);
   
   const [showModal, setShowModal] = useState(false);
+
+  // Show loading state while checking auth
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+          <p className="mt-4 text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">

@@ -170,7 +170,7 @@ export const PendingJoinRequests: React.FC = () => {
 
       {/* Approval Modal */}
       {showApprovalModal && approvingRequest && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto">
           {/* Background overlay */}
           <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => {
             setShowApprovalModal(false);
@@ -178,8 +178,8 @@ export const PendingJoinRequests: React.FC = () => {
           }}></div>
           
           {/* Modal panel - mobile friendly with keyboard support */}
-          <div className="relative bg-white rounded-2xl max-w-md w-full shadow-soft-xl p-6 my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+          <div className="relative bg-white rounded-2xl max-w-md w-full shadow-soft-xl m-4 mt-8" style={{ maxHeight: 'calc(100vh - 5rem)' }}>
+            <div className="overflow-y-auto p-6" style={{ maxHeight: 'calc(100vh - 5rem)' }}>
               {/* Header */}
               <h3 className="text-lg font-semibold text-slate-700 mb-4">Approve Join Request</h3>
               
@@ -311,6 +311,7 @@ export const PendingJoinRequests: React.FC = () => {
                 <div class="space-y-1">
                   ${rejectingRequest.display_name ? `<p class="text-sm text-slate-700"><strong>Name:</strong> ${rejectingRequest.display_name}</p>` : ''}
                   <p class="text-sm text-slate-700"><strong>Phone:</strong> ${rejectingRequest.phone_number}</p>
+                  ${rejectingRequest.email ? `<p class="text-sm text-slate-700"><strong>Email:</strong> ${rejectingRequest.email}</p>` : ''}
                 </div>
               </div>
               <p class="text-xs text-slate-500 mt-2">

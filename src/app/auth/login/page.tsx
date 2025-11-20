@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { apiFetch } from '@/lib/apiConfig';
@@ -20,6 +20,7 @@ function PlayerLoginForm() {
   const [error, setError] = useState('');
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [phoneExists, setPhoneExists] = useState(false); // Track if phone was found in pre-check
+  const [checkingAuth, setCheckingAuth] = useState(true);
   
   // Join form fields (shown after OTP for new phones)
   const [clubCode, setClubCode] = useState('');
@@ -28,6 +29,28 @@ function PlayerLoginForm() {
   
   const router = useRouter();
   const supabase = createClientComponentClient();
+
+  // Check if user is already logged in - redirect to dashboard
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // User is already logged in - redirect to dashboard
+          console.log('[LOGIN] User already authenticated, redirecting to dashboard');
+          router.push('/admin/matches');
+          return;
+        }
+      } catch (error) {
+        console.error('[LOGIN] Error checking session:', error);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    
+    checkSession();
+  }, [router, supabase]);
 
   const formatPhoneNumber = (value: string) => {
     // Remove all non-numeric characters
@@ -174,6 +197,18 @@ function PlayerLoginForm() {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking auth
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+          <p className="mt-4 text-slate-600">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">

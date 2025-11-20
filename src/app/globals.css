@@ -112,22 +112,28 @@ html {
 /* SweetAlert2 gradient icon styling for modals */
 .swal2-icon.swal2-icon-custom-gradient {
   border-color: transparent !important;
+  width: 48px !important;
+  height: 48px !important;
 }
 
-/* Gradient for warning icon (exclamation mark) */
+/* Gradient for warning icon (exclamation mark) - Purple-Pink for questions/warnings */
 .swal2-icon.swal2-warning.swal2-icon-custom-gradient {
-  background: linear-gradient(135deg, rgb(239, 68, 68) 0%, rgb(220, 38, 38) 100%) !important;
+  background: linear-gradient(135deg, rgb(126, 34, 206) 0%, rgb(236, 72, 153) 100%) !important;
   color: white !important;
 }
 
 .swal2-icon.swal2-warning.swal2-icon-custom-gradient .swal2-icon-content {
   color: white !important;
+  font-size: 24px !important;
+  line-height: 48px !important;
 }
 
-/* Gradient for error icon */
+/* Gradient for error icon - Red for actual errors */
 .swal2-icon.swal2-error.swal2-icon-custom-gradient {
   background: linear-gradient(135deg, rgb(239, 68, 68) 0%, rgb(220, 38, 38) 100%) !important;
   border-color: transparent !important;
+  width: 48px !important;
+  height: 48px !important;
 }
 
 .swal2-icon.swal2-error.swal2-icon-custom-gradient .swal2-x-mark {
@@ -136,12 +142,16 @@ html {
 
 .swal2-icon.swal2-error.swal2-icon-custom-gradient [class^='swal2-x-mark-line'] {
   background-color: white !important;
+  width: 24px !important;
+  height: 2px !important;
 }
 
 /* Gradient for success icon */
 .swal2-icon.swal2-success.swal2-icon-custom-gradient {
   background: linear-gradient(135deg, rgb(126, 34, 206) 0%, rgb(236, 72, 153) 100%) !important;
   border-color: transparent !important;
+  width: 48px !important;
+  height: 48px !important;
 }
 
 .swal2-icon.swal2-success.swal2-icon-custom-gradient [class^='swal2-success-line'] {
@@ -157,10 +167,14 @@ html {
   background: linear-gradient(135deg, rgb(126, 34, 206) 0%, rgb(236, 72, 153) 100%) !important;
   border-color: transparent !important;
   color: white !important;
+  width: 48px !important;
+  height: 48px !important;
 }
 
 .swal2-icon.swal2-question.swal2-icon-custom-gradient .swal2-icon-content {
   color: white !important;
+  font-size: 24px !important;
+  line-height: 48px !important;
 }
 
 /* Gradient for info icon */
@@ -168,8 +182,12 @@ html {
   background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(37, 99, 235) 100%) !important;
   border-color: transparent !important;
   color: white !important;
+  width: 48px !important;
+  height: 48px !important;
 }
 
 .swal2-icon.swal2-info.swal2-icon-custom-gradient .swal2-icon-content {
   color: white !important;
+  font-size: 24px !important;
+  line-height: 48px !important;
 }

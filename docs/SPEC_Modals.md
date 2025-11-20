@@ -261,10 +261,17 @@ bg-gray-900 bg-opacity-75
   </svg>
 </div>
 
-{/* Warning/Delete Icon - Red Gradient */}
-<div className="w-12 h-12 mx-auto mb-4 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center">
+{/* Warning Icon - Purple-Pink Gradient (not red!) */}
+<div className="w-12 h-12 mx-auto mb-4 bg-gradient-to-br from-purple-700 to-pink-500 rounded-full flex items-center justify-center">
   <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  </svg>
+</div>
+
+{/* Error Icon - Red Gradient (only for actual errors) */}
+<div className="w-12 h-12 mx-auto mb-4 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center">
+  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 </div>
 
