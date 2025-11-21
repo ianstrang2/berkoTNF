@@ -27,7 +27,7 @@ const MatchCompletedModal: React.FC<MatchCompletedModalProps> = ({
 
   const handleMatchReport = () => {
     onClose();
-    router.push('/');
+    router.push('/player/dashboard');
   };
 
   const handleHistory = () => {
