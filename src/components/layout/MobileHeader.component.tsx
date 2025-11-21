@@ -46,7 +46,7 @@ export const MobileHeader: React.FC = () => {
       await supabase.auth.signOut();
       localStorage.removeItem('adminAuth');
       localStorage.removeItem('userProfile');
-      window.location.href = '/auth/login';
+      window.location.href = '/';
     } finally {
       setLoggingOut(false);
     }
@@ -71,7 +71,7 @@ export const MobileHeader: React.FC = () => {
       {profile.isAdmin && profile.linkedPlayerId && (
         <>
           {isInAdminView ? (
-            <a href="/" className="block px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors">
+            <a href="/player/dashboard" className="block px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

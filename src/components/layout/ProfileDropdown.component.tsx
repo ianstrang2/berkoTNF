@@ -66,7 +66,7 @@ export const ProfileDropdown: React.FC = () => {
       await supabase.auth.signOut();
       localStorage.removeItem('adminAuth');
       localStorage.removeItem('userProfile');
-      window.location.href = '/auth/login';
+      window.location.href = '/';
     } finally {
       setLoggingOut(false);
     }
