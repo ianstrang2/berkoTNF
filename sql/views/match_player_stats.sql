@@ -7,7 +7,8 @@ SELECT
     pm.player_match_id,
     pm.player_id,
     pm.match_id,
-    pm.team,
+    pm.team,                  -- Planned team (from team balancing)
+    pm.actual_team,           -- Actual team played for (if swapped on match day)
     pm.goals,
     pm.clean_sheet,
     pm.result,
@@ -15,7 +16,7 @@ SELECT
     m.match_date,
     m.team_a_score,
     m.team_b_score,
-    -- Calculate goal_difference from team perspective
+    -- Calculate goal_difference from ACTUAL team perspective (critical for stats)
     CASE 
         WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score
         WHEN COALESCE(pm.actual_team, pm.team) = 'B' THEN m.team_b_score - m.team_a_score

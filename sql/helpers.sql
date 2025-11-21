@@ -4,12 +4,14 @@
 -- Function to calculate fantasy points based on match result and config
 -- Fetches configuration values directly from app_config table.
 -- UPDATED: Now calculates heavy_win/heavy_loss on-the-fly from goal_difference
+-- UPDATED: Added attendance parameter for attendance points
 CREATE OR REPLACE FUNCTION calculate_match_fantasy_points(
     result TEXT,
     goal_difference INT,           -- CHANGED: from heavy_win/heavy_loss booleans
     clean_sheet BOOLEAN,
     goals_scored INT DEFAULT 0,    -- NEW: goals scored by player
-    target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID
+    target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID,
+    attendance BOOLEAN DEFAULT true -- NEW: attendance bonus (true for all players in player_matches)
 )
 RETURNS INT LANGUAGE plpgsql STABLE AS $$
 DECLARE
@@ -22,6 +24,7 @@ DECLARE
     v_cs_draw_bonus INT;
     v_heavy_cs_win_bonus INT;
     v_goals_scored_points INT;
+    v_attendance_points INT;
     v_heavy_win_threshold INT;
     heavy_win BOOLEAN;
     heavy_loss BOOLEAN;
@@ -40,6 +43,7 @@ BEGIN
     v_cs_draw_bonus            := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_clean_sheet_draw_points' AND tenant_id = target_tenant_id LIMIT 1), v_draw_points + 10) - v_draw_points;
     v_heavy_cs_win_bonus       := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_clean_sheet_win_points' AND tenant_id = target_tenant_id LIMIT 1), v_win_points + 20) - v_win_points - v_heavy_win_bonus - v_cs_win_bonus;
     v_goals_scored_points      := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_goals_scored_points' AND tenant_id = target_tenant_id LIMIT 1), 0);
+    v_attendance_points        := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_attendance_points' AND tenant_id = target_tenant_id LIMIT 1), 10);
     v_heavy_win_threshold      := COALESCE((SELECT config_value::int FROM app_config WHERE config_key = 'fantasy_heavy_win_threshold' AND tenant_id = target_tenant_id LIMIT 1), 4);
     
     -- Calculate heavy_win/heavy_loss from goal_difference and threshold
@@ -60,8 +64,13 @@ BEGIN
         IF heavy_loss THEN points := points + v_heavy_loss_penalty; END IF;
     END IF;
 
-    -- NEW: Add points for goals scored
+    -- Add points for goals scored
     points := points + (goals_scored * v_goals_scored_points);
+
+    -- NEW: Add attendance points
+    IF attendance THEN
+        points := points + v_attendance_points;
+    END IF;
 
     RETURN points;
 END;

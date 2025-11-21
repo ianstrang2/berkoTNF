@@ -42,6 +42,7 @@ BEGIN
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_clean_sheet_draw_points' THEN config_value::int END), 20) as cs_draw_points,
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_clean_sheet_win_points' THEN config_value::int END), 40) as heavy_cs_win_points,
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_goals_scored_points' THEN config_value::int END), 0) as goals_scored_points,
+        COALESCE(MAX(CASE WHEN config_key = 'fantasy_attendance_points' THEN config_value::int END), 10) as attendance_points,
         COALESCE(MAX(CASE WHEN config_key = 'fantasy_heavy_win_threshold' THEN config_value::int END), 4) as heavy_win_threshold
     FROM app_config 
     WHERE tenant_id = target_tenant_id;
@@ -73,15 +74,18 @@ BEGIN
                         + CASE WHEN COALESCE(pm.clean_sheet, false) AND ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
                                THEN (c.heavy_cs_win_points - c.win_points - (c.heavy_win_points - c.win_points) - (c.cs_win_points - c.win_points)) ELSE 0 END
                         + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                        + c.attendance_points
                     WHEN pm.result = 'draw' THEN
                         c.draw_points
                         + CASE WHEN COALESCE(pm.clean_sheet, false) THEN (c.cs_draw_points - c.draw_points) ELSE 0 END
                         + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                        + c.attendance_points
                     WHEN pm.result = 'loss' THEN
                         c.loss_points
                         + CASE WHEN ABS(CASE WHEN COALESCE(pm.actual_team, pm.team) = 'A' THEN m.team_a_score - m.team_b_score ELSE m.team_b_score - m.team_a_score END) >= c.heavy_win_threshold
                                THEN (c.heavy_loss_points - c.loss_points) ELSE 0 END
                         + (COALESCE(pm.goals, 0) * c.goals_scored_points)
+                        + c.attendance_points
                     ELSE 0
                 END
             ) as fantasy_points

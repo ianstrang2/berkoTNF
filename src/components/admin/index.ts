@@ -1,4 +1,4 @@
-export { FantasyPointsSetup, MatchReportSetup, MatchSettingsSetup } from './AppSetup';
+export { MatchReportSetup, MatchSettingsSetup } from './AppSetup';
 export { default as PlayerSlot } from './player/PlayerSlot.component';
 export { default as AttributeGuide } from './player/AttributeGuide.component';
 

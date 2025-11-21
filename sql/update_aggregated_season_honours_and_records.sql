@@ -109,7 +109,7 @@ BEGIN
     RAISE NOTICE 'Updating aggregated_records...';
     DELETE FROM aggregated_records WHERE tenant_id = target_tenant_id;
     WITH game_goals AS (
-         SELECT p.name, m.match_date, pm.goals, m.team_a_score, m.team_b_score, pm.team,
+         SELECT p.name, m.match_date, pm.goals, m.team_a_score, m.team_b_score, pm.team, pm.actual_team,
          -- Use DENSE_RANK to get all tied records, ROW_NUMBER would cut off ties
          DENSE_RANK() OVER (ORDER BY pm.goals DESC, m.match_date DESC) as rnk
          FROM players p JOIN player_matches pm ON p.player_id = pm.player_id JOIN matches m ON pm.match_id = m.match_id
@@ -118,7 +118,7 @@ BEGIN
     ),
     limited_game_goals AS (
         -- Select only the top records based on rank (all tied first place records)
-        SELECT name, match_date, goals, team_a_score, team_b_score, team, rnk
+        SELECT name, match_date, goals, team_a_score, team_b_score, team, actual_team, rnk
         FROM game_goals
         WHERE rnk = 1 -- Get all joint record holders
     ),
