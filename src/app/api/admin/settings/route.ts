@@ -13,6 +13,12 @@ export async function GET(request: NextRequest) {
       data: {
         days_between_matches: 7  // Default value
       }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      },
     });
   } catch (error) {
     return handleTenantError(error);

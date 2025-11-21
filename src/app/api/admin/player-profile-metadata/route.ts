@@ -54,6 +54,12 @@ export async function GET(request: NextRequest) {
         active_without_profiles: Number(stats.active_without_profiles)
       },
       players_list: playersList
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      },
     });
   }).catch(handleTenantError);
 }

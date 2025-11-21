@@ -41,6 +41,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: result
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      },
     });
   }).catch(handleTenantError);
 }

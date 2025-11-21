@@ -26,6 +26,12 @@ export async function GET(request: NextRequest) {
         description: w.position_group,
         weight: Number(w.weight)
       }))
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      },
     });
   }).catch(handleTenantError);
 }

@@ -90,7 +90,13 @@ export async function GET(request: NextRequest) {
           absentees,
           showOnStatsPlayers: ringersToAdd, // Still using this key for response
         },
-      }));
+      }), {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        },
+      });
 
     } catch (error) {
       return handleTenantError(error);

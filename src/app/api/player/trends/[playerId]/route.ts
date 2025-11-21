@@ -59,7 +59,13 @@ export async function GET(
       if (!data) {
         return NextResponse.json({ success: false, error: 'Player trend data not found' }, { status: 404 });
       }
-      return NextResponse.json({ success: true, data });
+      return NextResponse.json({ success: true, data }, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        },
+      });
     } catch (error) {
       console.error(`Database Error fetching trends for player ${playerId}:`, error);
       return NextResponse.json(

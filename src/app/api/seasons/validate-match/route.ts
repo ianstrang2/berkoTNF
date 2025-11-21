@@ -57,6 +57,12 @@ export async function POST(request: NextRequest) {
         endDate: seasonData.end_date.toISOString().split('T')[0],
         displayName: seasonData.display_name
       }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      },
     });
   }).catch(handleTenantError);
 }

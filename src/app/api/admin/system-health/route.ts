@@ -82,6 +82,12 @@ export async function GET(request: NextRequest) {
     success: true,
     health: healthData,
     test_duration: Date.now() - startTime
+  }, {
+    headers: {
+      'Cache-Control': 'no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Vary': 'Cookie',
+    },
   });
   } catch (error) {
     return handleTenantError(error);

@@ -80,6 +80,12 @@ export async function GET(request: NextRequest) {
             half_life_days: parseInt(appConfig?.config_value || '730')
           } : null
         }
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        },
       });
     } catch (error) {
       console.error(`[RATING_DATA] Error:`, error);

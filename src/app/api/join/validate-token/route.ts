@@ -63,6 +63,12 @@ export async function GET(request: NextRequest) {
       success: true,
       clubName: tenant.name,
       tenantId: tenant.tenant_id,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      },
     });
   } catch (error: any) {
     console.error('Error validating invite token:', error);

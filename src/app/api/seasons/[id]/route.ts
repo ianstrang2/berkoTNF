@@ -64,6 +64,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         createdAt: seasonData.created_at.toISOString(),
         updatedAt: seasonData.updated_at.toISOString()
       }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      },
     });
   }).catch(handleTenantError);
 }

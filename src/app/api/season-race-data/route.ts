@@ -62,6 +62,12 @@ export async function GET(request: Request) {
         lastUpdated: raceData.last_updated,
         periodType: raceData.period_type
       }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Vary': 'Cookie',
+      },
     });
   }).catch(handleTenantError);
 } 
