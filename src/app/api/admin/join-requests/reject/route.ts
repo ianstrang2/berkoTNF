@@ -56,6 +56,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Join request rejected',
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        },
       });
     } catch (error) {
       return handleTenantError(error);

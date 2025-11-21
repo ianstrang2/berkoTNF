@@ -155,6 +155,12 @@ export async function POST(request: NextRequest) {
           id: linkedPlayer.player_id.toString(),
           name: linkedPlayer.name,
         },
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        },
       });
     } catch (error) {
       return handleTenantError(error);
