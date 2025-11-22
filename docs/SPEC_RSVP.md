@@ -1,8 +1,29 @@
 # Capo RSVP & Player Invitation System — Consolidated Implementation Specification
 
-**Version 4.3.0-updated • Updated January 2025**
+**Version 4.5.0 • Updated January 2025**
 
-**UPDATE NOTES (v4.3.0):**
+**UPDATE NOTES (v4.5.0 - RSVP Mode Toggle Architecture):**
+- **CLARIFIED** RSVP mode is a per-match toggle (booking_enabled) that can only change in Draft state
+- **ADDED** Section 12.5: RSVP Mode State Machine with explicit toggle behavior
+- **UNIFIED** UI component architecture: Single PlayersStep.component.tsx with mode switching
+- **ADDED** auto_balanced_at timestamp for UI messaging ("Teams auto-constructed")
+- **ADDED** Activity feed as separate tab in Players step (Players | Activity)
+- **ORGANIZED** UI hierarchy: Compact settings visible, Advanced settings collapsible
+- **ADDED** toggle-rsvp API endpoint with state guards
+- **ADDED** error codes: ERR_STATE_LOCKED, ERR_PAYMENTS_LOCKED (future)
+- **CLARIFIED** 4-step Match Control Centre flow with RSVP integration points
+
+**PREVIOUS UPDATE (v4.4.0 - Schema Reconciliation):**
+- **RECONCILED** with Match Control Centre spec (uneven teams, no-shows, own goals)
+- **RECONCILED** with Auth spec v6.6 (phone-only, verified OTP, email notifications)
+- Fixed schema drift: `upcoming_match_id` non-nullable, added missing columns
+- Clarified concurrency: completion bypasses `state_version` (intentional)
+- Updated TornadoChart rules: reflects uneven team constraints
+- Documented ghost fields: `locked_for_payments` (future), `is_no_show` (unused)
+- Removed legacy flags: `is_completed`, `is_active` deprecated (use `state`)
+- Clarified `Cancelled` state: defined but unused (deletion is destructive)
+
+**PREVIOUS UPDATE (v4.3.0):**
 - Updated to align with completed multi-tenancy implementation (Phase 2 patterns)
 - Updated to align with auth implementation (v6.0 - Phone-Only + Club Creation)
 - Replaced RLS enforcement with `withTenantFilter()` helper pattern
@@ -34,14 +55,24 @@ This specification builds on **fully implemented infrastructure**:
 **Authentication (COMPLETE ✅):**
 - Phone-only auth via Supabase (all users)
 - Players table has: `phone`, `email`, `auth_user_id`, `is_admin`
-- Auto-linking via phone number matching
+- Auto-linking via phone number matching with OTP verification
+- Email notifications via Resend (approval, teams released, etc.)
 - Deep links configured (`capo://match/123`)
-- See `SPEC_auth.md` v6.0 for authentication patterns
+- See `SPEC_auth.md` v6.6 for authentication patterns
+
+**Match Control Centre (COMPLETE ✅):**
+- Unified match lifecycle: Draft → PoolLocked → TeamsBalanced → Completed
+- Uneven teams: 4v4 to 11v11 (8-22 total players)
+- No-show handling: Checkbox controls `player_matches` row creation
+- Team swaps: `actual_team` field tracks match-day changes
+- Own goals: `team_a_own_goals`, `team_b_own_goals` persisted
+- See `SPEC_match-control-centre.md` for complete implementation
 
 **Dependencies:** 
-- `SPEC_auth.md` (v6.0) - Phone authentication, admin privileges, auto-linking
+- `SPEC_auth.md` (v6.6) - Phone authentication, admin privileges, auto-linking, email notifications
 - `SPEC_multi_tenancy.md` (v2.1.0) - Tenant isolation, security patterns
-- All authentication and tenant logic is defined in those specs
+- `SPEC_match-control-centre.md` - Match lifecycle, uneven teams, no-shows
+- All authentication, match lifecycle, and tenant logic is defined in those specs
 - This spec focuses **only** on RSVP booking logic
 
 ---
@@ -152,6 +183,35 @@ Add RSVP functionality to keep matches full with minimal admin effort.
 
 **Self-serve booking:** Toggle "Allow self-serve booking" → generates public link. Optional tier open times. Admin can still add players manually.
 
+### **RSVP Mode Toggle Rules (v4.5.0)**
+
+**RSVP mode (booking_enabled) is a per-match setting with strict state guards:**
+
+- **Can ONLY toggle in Draft state**
+  - Once PoolLocked or later: RSVP mode becomes READ-ONLY
+  - UI shows disabled toggle with 🔒 icon and tooltip: "Can only change RSVP mode in Draft"
+
+- **Toggle ON (Draft only):**
+  - Opens self-serve booking link
+  - Generates invite token if not exists
+  - Preserves ALL manually-added players
+  - Sets response_status = 'PENDING' for existing pool players
+  - Admin retains full control (can still add/remove players)
+
+- **Toggle OFF (Draft only):**
+  - Closes booking link (returns ERR_BOOKING_CLOSED)
+  - Blocks player self-updates
+  - **PRESERVES** all match_player_pool data (statuses, timestamps, waitlist positions)
+  - **PRESERVES** invite_token_hash (for audit trail)
+  - Expires all active waitlist offers immediately
+  - Admin retains full control over pool
+
+- **Future (Payment Phase):**
+  - When `locked_for_payments = TRUE`: Toggle disabled regardless of state
+  - Prevents disrupting financial records
+
+**Design Principle:** Toggle affects WHO can modify the pool, not WHAT data exists or match lifecycle state.
+
 ---
 
 ## **3) Database Schema Changes**
@@ -160,13 +220,14 @@ Multi-tenancy foundation complete. All 33+ tables have `tenant_id`, RLS policies
 
 ### **3.1 Players Table**
 
-**Fields Already Added by Auth Implementation (v6.0):**
-- ✅ `phone` (TEXT) - Phone number in E.164 format
-- ✅ `email` (TEXT, nullable) - Email address for notifications
-- ✅ `auth_user_id` (UUID, nullable) - Link to Supabase auth.users
+**Fields Already Added by Auth Implementation (v6.6):**
+- ✅ `phone` (TEXT) - Phone number in E.164 format (required for all users)
+- ✅ `email` (TEXT, nullable) - Email address for notifications (optional for players, required for admins)
+- ✅ `auth_user_id` (UUID, nullable) - Link to Supabase auth.users (set after OTP verification)
 - ✅ `is_admin` (BOOLEAN, default false) - Admin privilege flag
 - ✅ `tenant_id` (UUID) - Tenant isolation (multi-tenancy)
 - ✅ `idx_players_phone` index already exists
+- ✅ `idx_players_auth_user` index already exists
 
 **RSVP-Specific Fields to Add:**
 
@@ -181,6 +242,8 @@ CREATE INDEX IF NOT EXISTS idx_players_tenant_tier ON players(tenant_id, tier);
 ```
 
 **Phone Normalization:** Use E.164 utilities from Auth Specification (`normalizeToE164`, `isValidUKPhone`).
+
+**Note:** Auth v6.6 implements OTP-before-join: all phones are verified via SMS before join requests are created, so `last_verified_at` will track most recent RSVP phone verification (distinct from initial signup verification).
 
 ### **3.2 Upcoming Matches**
 
@@ -202,8 +265,18 @@ ALTER TABLE upcoming_matches
   ADD COLUMN auto_balance_method TEXT NOT NULL DEFAULT 'performance'
     CHECK (auto_balance_method IN ('ability','performance','random')),
   ADD COLUMN auto_lock_when_full BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN auto_balanced_at TIMESTAMPTZ NULL,
   ADD COLUMN last_call_12_sent_at TIMESTAMPTZ NULL,
   ADD COLUMN last_call_3_sent_at TIMESTAMPTZ NULL;
+
+COMMENT ON COLUMN upcoming_matches.booking_enabled IS 
+  'RSVP self-serve mode toggle. Can only be modified in Draft state. 
+   OFF = admin-only pool management. ON = players can self-book via link.
+   Toggling OFF preserves all match_player_pool data but deactivates link.';
+
+COMMENT ON COLUMN upcoming_matches.auto_balanced_at IS 
+  'Timestamp when auto-balance last ran. Used for UI messaging in Teams step.
+   Cleared when match drops below capacity or admin manually rebalances.';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_upcoming_matches_tenant_token_hash
   ON upcoming_matches(tenant_id, invite_token_hash)
@@ -214,6 +287,33 @@ CREATE INDEX IF NOT EXISTS idx_upcoming_matches_tenant_tier_opens
 ```
 
 **Auto-balance integration:** Uses existing system at `/api/admin/balance-teams`. Method mapping: `'ability'` → `'balanceByRating'`, `'performance'` → `'balanceByPerformance'`, `'random'` → `'random'`.
+
+**Related Tables (No RSVP Changes Required):**
+
+These tables are fully implemented in Match Control Centre and work with RSVP system:
+
+```sql
+-- matches: Historical match records (linked from upcoming_matches)
+-- ✅ IMPLEMENTED: upcoming_match_id INT NOT NULL (non-nullable, migration complete)
+-- ✅ IMPLEMENTED: team_a_own_goals INT DEFAULT 0, team_b_own_goals INT DEFAULT 0
+-- ✅ LEGACY REMOVED: is_completed (use upcoming_matches.state instead)
+
+-- player_matches: Player participation records
+-- ✅ IMPLEMENTED: result TEXT ('win'|'loss'|'draw'), heavy_win BOOLEAN, heavy_loss BOOLEAN, clean_sheet BOOLEAN
+-- ✅ IMPLEMENTED: actual_team TEXT (for match-day swaps)
+-- ✅ COLUMN EXISTS BUT UNUSED: is_no_show BOOLEAN (absence of row = no-show)
+-- Note: Checkbox controls row creation; no row = player did not attend
+
+-- upcoming_matches state management
+-- ✅ IMPLEMENTED: state ENUM (Draft, PoolLocked, TeamsBalanced, Completed, Cancelled)
+-- ✅ LEGACY DEPRECATED: is_completed BOOLEAN, is_active BOOLEAN (use state instead)
+-- Note: Active tab filtering = state IN ('Draft', 'PoolLocked', 'TeamsBalanced')
+-- Note: History tab filtering = state = 'Completed'
+-- Note: Cancelled state defined but currently UNUSED (deletion is destructive instead)
+-- Note: If Cancelled is implemented: should appear in History tab, not Active
+```
+
+See `SPEC_match-control-centre.md` sections 2, 10, 11 for complete schema details.
 
 ### **3.3 Match Player Pool**
 
@@ -284,7 +384,7 @@ CREATE TABLE IF NOT EXISTS notification_ledger (
     CHECK (kind IN (
       'invite','dropout','waitlist_offer','last_call','cancellation',
       'audit/admin_add_player','audit/admin_remove_player','audit/admin_capacity_change',
-      'audit/admin_override_grace','audit/admin_manual_offer',
+      'audit/admin_override_grace','audit/admin_manual_offer','audit/admin_booking_disabled',
       'waitlist_offer_claimed','autobalance.balanced','teams.published'
     )),
   batch_key TEXT NULL,
@@ -417,6 +517,10 @@ export const RSVP_ERROR_CODES = {
   // Policy errors
   GUEST_BOOKING_DISABLED: 'ERR_GUEST_BOOKING_DISABLED',
   UNKNOWN_PLAYER_BLOCKED: 'ERR_UNKNOWN_PLAYER_BLOCKED',
+  
+  // State/Lock errors (v4.5.0)
+  STATE_LOCKED: 'ERR_STATE_LOCKED', // Can't toggle RSVP after Draft
+  PAYMENTS_LOCKED: 'ERR_PAYMENTS_LOCKED', // FUTURE: Can't change when payments processed
 } as const;
 
 // Usage example
@@ -799,7 +903,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// PATCH /api/admin/upcoming-matches/[id]/enable-booking
+// PATCH /api/admin/matches/[id]/toggle-rsvp (v4.5.0)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -808,28 +912,119 @@ export async function PATCH(
     try {
       await requireAdminRole(request);
       
-      const { inviteMode, tierWindows, autoBalance } = await request.json();
+      const { enabled, config } = await request.json();
       const matchId = parseInt(params.id);
       
-      await prisma.upcoming_matches.update({
+      // State guard: only Draft state
+      const match = await prisma.upcoming_matches.findUnique({
         where: withTenantFilter(tenantId, {
           upcoming_match_id: matchId
-        }),
-        data: {
-          booking_enabled: true,
-          invite_mode: inviteMode,
-          a_open_at: tierWindows?.a_open_at,
-          b_open_at: tierWindows?.b_open_at,
-          c_open_at: tierWindows?.c_open_at,
-          auto_balance_enabled: autoBalance?.enabled || false,
-          auto_balance_method: autoBalance?.method || 'performance',
-          auto_lock_when_full: autoBalance?.autoLockWhenFull || false
-        }
+        })
       });
+      
+      if (!match) {
+        return NextResponse.json(
+          fail('Match not found', RSVP_ERROR_CODES.MATCH_NOT_FOUND),
+          { status: 404 }
+        );
+      }
+      
+      if (match.state !== 'Draft') {
+        return NextResponse.json(
+          fail(
+            'RSVP mode can only be changed in Draft state',
+            RSVP_ERROR_CODES.STATE_LOCKED
+          ),
+          { status: 400 }
+        );
+      }
+      
+      // FUTURE: Check payment lock
+      // if (match.locked_for_payments) {
+      //   return NextResponse.json(
+      //     fail(
+      //       'Cannot change RSVP settings - payments have been processed',
+      //       RSVP_ERROR_CODES.PAYMENTS_LOCKED
+      //     ),
+      //     { status: 403 }
+      //   );
+      // }
+      
+      if (enabled) {
+        // Enable RSVP: set config, generate token if needed
+        const inviteToken = match.invite_token_hash || generateInviteToken();
+        
+        await prisma.upcoming_matches.update({
+          where: withTenantFilter(tenantId, {
+            upcoming_match_id: matchId
+          }),
+          data: {
+            booking_enabled: true,
+            invite_token_hash: hashInviteToken(inviteToken),
+            invite_mode: config?.inviteMode || 'all',
+            a_open_at: config?.tierWindows?.a_open_at,
+            b_open_at: config?.tierWindows?.b_open_at,
+            c_open_at: config?.tierWindows?.c_open_at,
+            auto_balance_enabled: config?.autoBalance?.enabled || false,
+            auto_balance_method: config?.autoBalance?.method || 'performance',
+            auto_lock_when_full: config?.autoBalance?.autoLockWhenFull || false
+          }
+        });
+        
+        // Set existing pool players to PENDING if not already set
+        await prisma.match_player_pool.updateMany({
+          where: withTenantFilter(tenantId, {
+            upcoming_match_id: matchId,
+            response_status: null
+          }),
+          data: { response_status: 'PENDING' }
+        });
+        
+      } else {
+        // Disable RSVP: preserve data, close link, expire active offers
+        await prisma.upcoming_matches.update({
+          where: withTenantFilter(tenantId, {
+            upcoming_match_id: matchId
+          }),
+          data: {
+            booking_enabled: false
+            // NOTE: Preserve invite_token_hash for audit trail
+          }
+        });
+        
+        // Expire all active waitlist offers
+        await prisma.match_player_pool.updateMany({
+          where: withTenantFilter(tenantId, {
+            upcoming_match_id: matchId,
+            response_status: 'WAITLIST',
+            offer_expires_at: { gt: new Date() }
+          }),
+          data: {
+            offer_expires_at: new Date() // Expire immediately
+          }
+        });
+        
+        // Log to activity feed
+        await prisma.notification_ledger.create({
+          data: {
+            tenant_id: tenantId,
+            upcoming_match_id: matchId,
+            player_id: null,
+            kind: 'audit/admin_booking_disabled',
+            details: { timestamp: new Date().toISOString() }
+          }
+        });
+      }
       
       return NextResponse.json({ 
         success: true, 
-        message: 'RSVP enabled for match' 
+        message: enabled ? 'RSVP enabled' : 'RSVP disabled' 
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        }
       });
     } catch (error) {
       return handleTenantError(error);
@@ -865,6 +1060,7 @@ export async function GET(
 ```
 
 **Additional admin endpoints:**
+- `PATCH /api/admin/matches/[id]/toggle-rsvp` - Enable/disable RSVP mode (Draft only)
 - `POST /api/admin/invites/[matchId]/send` - Send tier invitations
 - `POST /api/admin/matches/[id]/autobalance` - Manual auto-balance trigger
 - `POST /api/admin/waitlist/reissue` - Re-issue waitlist offers
@@ -889,6 +1085,18 @@ export async function POST(request: NextRequest) {
     try {
       const { user, player } = await requirePlayerAccess(request);
       const { matchId, action, outFlexible } = await request.json();
+      
+      // Validate RSVP is enabled (v4.5.0)
+      const match = await prisma.upcoming_matches.findUnique({
+        where: withTenantFilter(tenantId, { upcoming_match_id: matchId })
+      });
+      
+      if (!match?.booking_enabled) {
+        return NextResponse.json(
+          fail('Booking is closed for this match', RSVP_ERROR_CODES.BOOKING_CLOSED),
+          { status: 403 }
+        );
+      }
       
       // Process RSVP with tenant-aware lock
       await withTenantMatchLock(tenantId, matchId, async (tx) => {
@@ -934,6 +1142,18 @@ export async function POST(request: NextRequest) {
     try {
       const { user, player } = await requirePlayerAccess(request);
       const { matchId } = await request.json();
+      
+      // Validate RSVP is enabled (v4.5.0)
+      const match = await prisma.upcoming_matches.findUnique({
+        where: withTenantFilter(tenantId, { upcoming_match_id: matchId })
+      });
+      
+      if (!match?.booking_enabled) {
+        return NextResponse.json(
+          fail('Booking is closed for this match', RSVP_ERROR_CODES.BOOKING_CLOSED),
+          { status: 403 }
+        );
+      }
       
       await withTenantMatchLock(tenantId, matchId, async (tx) => {
         // Find valid offer with SELECT FOR UPDATE
@@ -1086,6 +1306,12 @@ First to claim wins (transactional). Others get "spot filled", remain on waitlis
   - Sends "capacity reduced" notification to affected players
   - Waitlist positions recalculated from scratch
   - Activity feed logs `audit/admin_capacity_change` event
+- **RSVP toggled OFF (v4.5.0):**
+  - Expire ALL active waitlist offers immediately (set offer_expires_at = now())
+  - Preserve all waitlist positions and queue data
+  - Block new waitlist claims (API returns ERR_BOOKING_CLOSED)
+  - Do NOT notify waitlist players (admin-initiated closure)
+  - Log to activity feed: `audit/admin_booking_disabled`
 - **Near kick-off offers:** Auto-expire all offers at kickoff−15m with countdown
 - **Manual admin add:** Consumes capacity and supersedes outstanding offers (logged in activity feed)
 - **Instant claim mode:** When <15min to kick-off, switch to instant claim (no hold period)
@@ -1101,31 +1327,141 @@ Integration with existing Capo soft-UI styling and component patterns.
 
 ### **8.1 Admin Interface**
 
-**Match Control Centre enhancements:**
+**Match Control Centre: 4-Step Architecture (v4.5.0)**
+
+The Match Control Centre maintains its existing 4-step flow. RSVP integrates into Step 1 (Players) only:
+
+```
+Step 1: PLAYERS → Step 2: TEAMS → Step 3: RESULT → Step 4: DONE
+(RSVP here)      (Auto-balance)    (Unchanged)      (Unchanged)
+```
+
+**Step 1: Players - Unified Component with Mode Switching**
 
 ```typescript
-// src/components/admin/matches/RSVPBookingPane.component.tsx
-// New pane in Match Control Centre for RSVP management
-// Follows existing BalanceTeamsPane.component.tsx patterns
+// src/components/admin/matches/PlayersStep.component.tsx
+// Single unified component that switches between Manual and RSVP modes
 
-// Features:
-// - Toggle "Enable RSVP" with soft-UI switch
-// - Tier window configuration (A/B/C open times)
-// - Booking link generation with copy button
-// - Share to WhatsApp integration
-// - Capacity counters: "Booked 12/20, Waitlist 3"
-// - Player lists with status badges (IN/OUT/WAITLIST)
-// - Auto-balance controls: method dropdown + enable checkbox
-// - RSVP Activity showing invitations, responses, offers
+interface PlayersStepProps {
+  matchId: number;
+  matchState: MatchState;
+}
+
+export function PlayersStep({ matchId, matchState }: PlayersStepProps) {
+  const { data: match } = useMatch(matchId);
+  const rsvpEnabled = match?.booking_enabled ?? false;
+  const canToggleRSVP = matchState === 'Draft'; // State guard
+  
+  return (
+    <div>
+      {/* Header: Always visible */}
+      <PlayersStepHeader 
+        matchId={matchId}
+        rsvpEnabled={rsvpEnabled}
+        canToggle={canToggleRSVP}
+        onToggleRSVP={handleToggleRSVP}
+      />
+      
+      {/* Dynamic content based on mode */}
+      {rsvpEnabled ? (
+        <RSVPModeView matchId={matchId} />
+      ) : (
+        <ManualModeView matchId={matchId} />
+      )}
+    </div>
+  );
+}
+```
+
+**Manual Mode (booking_enabled = OFF):**
+
+```typescript
+// src/components/admin/matches/ManualModeView.component.tsx
+// Identical to current PlayerPoolPane - no changes needed
+
+export function ManualModeView({ matchId }: { matchId: number }) {
+  return (
+    <>
+      <AddPlayerButton matchId={matchId} />
+      <PlayerPoolTable matchId={matchId} />
+      {/* Standard manual pool management */}
+    </>
+  );
+}
+```
+
+**RSVP Mode (booking_enabled = ON):**
+
+```typescript
+// src/components/admin/matches/RSVPModeView.component.tsx
+
+export function RSVPModeView({ matchId }: { matchId: number }) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [activeTab, setActiveTab] = useState<'players' | 'activity'>('players');
+  
+  return (
+    <>
+      {/* Primary RSVP controls (always visible) */}
+      <RSVPStatusPanel matchId={matchId} />
+      {/* - Booking link + copy button */}
+      {/* - Live counters: IN (15/20), OUT (3), WAITLIST (2) */}
+      {/* - Share to WhatsApp button */}
+      
+      {/* Tab navigation */}
+      <Tabs value={activeTab} onChange={setActiveTab}>
+        <Tab value="players" label="Players" />
+        <Tab value="activity" label="Activity" />
+      </Tabs>
+      
+      {/* Tab content */}
+      {activeTab === 'players' ? (
+        <>
+          <RSVPPlayerList matchId={matchId} />
+          {/* - Player cards with status badges */}
+          {/* - Source icons (📱 App, 🌐 Web, 👤 Admin, 🎯 Guest) */}
+          {/* - Quick actions per player */}
+          
+          <WaitlistCard matchId={matchId} />
+          {/* - Queue positions */}
+          {/* - Active offers with countdown */}
+          {/* - Manual "Send offers now" button */}
+          
+          {/* Compact RSVP settings (always visible) */}
+          <RSVPSettingsCompact matchId={matchId}>
+            {/* - Invite mode: "All at once" | "Tiered" */}
+            {/* - Auto-balance when full: checkbox + method dropdown */}
+            {/* - Auto-lock when full: checkbox */}
+          </RSVPSettingsCompact>
+          
+          {/* Advanced settings (collapsible) */}
+          <CollapsibleSection 
+            title="Advanced Settings"
+            isOpen={showAdvanced}
+            onToggle={() => setShowAdvanced(!showAdvanced)}
+          >
+            <TierWindowConfig matchId={matchId} />
+            {/* - A/B/C open times (only if invite_mode = 'tiered') */}
+            
+            <RSVPPolicyFlags matchId={matchId} />
+            {/* - Include guests in invites */}
+            {/* - Block unknown players */}
+            {/* - Allow guest self-booking */}
+          </CollapsibleSection>
+        </>
+      ) : (
+        <ActivityFeed matchId={matchId} />
+        {/* - Reverse-chronological event timeline */}
+        {/* - No filters/search (minimal) */}
+        {/* - Shows: timestamp, emoji, action, masked player names */}
+      )}
+    </>
+  );
+}
 ```
 
 **New Admin Components:**
 
 ```typescript
-// src/components/admin/matches/RSVPConfigModal.component.tsx
-// Modal for configuring RSVP settings
-// Follows SeasonFormModal.component.tsx patterns
-
 // src/components/admin/matches/ActivityFeed.component.tsx  
 // Minimal reverse-chronological activity timeline (no filters/search)
 // Props: events: ActivityEvent[] from GET /api/admin/matches/{id}/activity
@@ -1137,6 +1473,54 @@ Integration with existing Capo soft-UI styling and component patterns.
 // Integrates with existing player management
 // Tooltip: "Tier C = casual/default. All players start here unless assigned A or B."
 ```
+
+**Toggle Button Behavior:**
+
+```typescript
+// Header component shows RSVP toggle
+<Button
+  onClick={handleToggle}
+  disabled={!canToggleRSVP}
+  variant={rsvpEnabled ? 'secondary' : 'primary'}
+>
+  {!canToggleRSVP && <LockIcon className="mr-2" />}
+  {rsvpEnabled ? 'Disable RSVP' : 'Enable RSVP'}
+</Button>
+
+{!canToggleRSVP && (
+  <Tooltip>Can only change RSVP mode in Draft state</Tooltip>
+)}
+```
+
+**Step 2: Teams Integration**
+
+```typescript
+// src/components/admin/matches/TeamsStep.component.tsx
+
+export function TeamsStep({ matchId }: { matchId: number }) {
+  const { data: match } = useMatch(matchId);
+  const wasAutoBalanced = match?.auto_balanced_at !== null;
+  
+  return (
+    <>
+      {wasAutoBalanced && (
+        <InfoBanner variant="info">
+          ⚖️ Teams were auto-constructed when match reached capacity
+          at {formatTime(match.auto_balanced_at)}.
+          Review and adjust if needed before confirming.
+        </InfoBanner>
+      )}
+      
+      {/* Existing BalanceTeamsPane content */}
+      <BalanceTeamsPane matchId={matchId} />
+    </>
+  );
+}
+```
+
+**Steps 3-4: No Changes**
+
+Result and Done steps remain unchanged - they are not affected by RSVP mode.
 
 ### **8.2 Mobile App**
 
@@ -1257,8 +1641,18 @@ export async function processAutoBalanceJob(jobId: string, payload: AutoBalanceJ
       upcoming_match_id: matchId,
       player_id: null, // System action (no specific player)
       kind: 'autobalance.balanced',
-      batch_key: `autobalance:${matchId}:${Date.now()}`
+      batch_key: `autobalance:${matchId}:${Date.now()}`,
+      details: { 
+        triggered_by: 'capacity_reached', 
+        timestamp: new Date().toISOString() 
+      }
     }
+  });
+  
+  // Set auto_balanced_at for UI messaging in Teams step (v4.5.0)
+  await prisma.upcoming_matches.update({
+    where: { upcoming_match_id: matchId },
+    data: { auto_balanced_at: new Date() }
   });
   
   await updateJobStatus(jobId, 'completed');
@@ -1267,10 +1661,11 @@ export async function processAutoBalanceJob(jobId: string, payload: AutoBalanceJ
 
 **Trigger logic:**
 - When IN count reaches capacity: Enqueue AUTO_BALANCE_PROCESSOR
-- On dropout below capacity: Set `is_balanced=false`, clear team assignments
-- On refill to capacity: Auto-balance triggers again
+- On dropout below capacity: Set `is_balanced=false`, clear team assignments, **clear `auto_balanced_at`**
+- On refill to capacity: Auto-balance triggers again, **sets new `auto_balanced_at`**
 - Teams can be balanced multiple times during dropout/refill churn
 - Admin can manually lock pool to finalize
+- Admin manual rebalance: **clears `auto_balanced_at`** (not auto-constructed)
 
 **State handling:**
 - `auto_lock_when_full=false` (default): Keep Draft, balance & publish teams
@@ -1499,6 +1894,7 @@ cancellation → "🛑 Match cancelled"
 audit/admin_add_player → "👤 Admin added {player}"
 audit/admin_remove_player → "➖ Admin removed {player}"
 audit/admin_capacity_change → "📏 Capacity changed {old}→{new}"
+audit/admin_booking_disabled → "🔒 RSVP disabled" (v4.5.0)
 autobalance.balanced → "⚖️ Teams auto-balanced"
 teams.published → "📝 Teams published"
 ```
@@ -1548,11 +1944,74 @@ teams.published → "📝 Teams published"
 
 ## **12) Integration with Existing System**
 
-### **Match Lifecycle**
+### **Match Lifecycle & 4-Step Architecture (v4.5.0)**
 
-**Current:** Draft → PoolLocked → TeamsBalanced → Completed
+The Match Control Centre maintains its established 4-step architecture. RSVP integrates cleanly into Step 1 without requiring structural changes:
 
-**RSVP integration:** Available in Draft only, data persists through all states
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: PLAYERS (Draft state only)                         │
+├─────────────────────────────────────────────────────────────┤
+│ Two modes (toggleable only in Draft):                      │
+│                                                             │
+│ Mode A: Manual (booking_enabled = OFF)                     │
+│   - Admin adds/removes players                             │
+│   - No public booking link                                 │
+│   - Standard PlayerPoolTable UI                            │
+│                                                             │
+│ Mode B: RSVP (booking_enabled = ON)                        │
+│   - Players self-book via link                             │
+│   - Admin can still add/remove                             │
+│   - Shows: link, counters, waitlist, activity             │
+│   - Compact settings + collapsible advanced                │
+│                                                             │
+│ Lock Pool → State: PoolLocked                              │
+│ (booking_enabled becomes READ-ONLY after this)             │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: TEAMS (PoolLocked or TeamsBalanced)                │
+├─────────────────────────────────────────────────────────────┤
+│ - Balance teams (manual or via existing balance API)       │
+│ - If auto-balanced: show banner with timestamp             │
+│ - Review and adjust team assignments                       │
+│ - Confirm Teams → State: TeamsBalanced                     │
+│                                                             │
+│ RSVP integration:                                           │
+│   - Player source badges visible (App/Web/Admin/Guest)     │
+│   - Banner if auto_balanced_at is set                      │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3: RESULT (TeamsBalanced only)                        │
+├─────────────────────────────────────────────────────────────┤
+│ - No-show checkboxes (uncheck = don't save)               │
+│ - Team swap arrows (actual_team field)                     │
+│ - Enter scores                                             │
+│ - Complete Match → State: Completed                        │
+│                                                             │
+│ RSVP integration:                                           │
+│   - FUTURE: Auto-uncheck players with status='OUT'         │
+│   - NO other RSVP-specific changes                         │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 4: DONE (Completed state)                             │
+├─────────────────────────────────────────────────────────────┤
+│ - Match archived to history                                │
+│ - Stats calculated and aggregated                          │
+│ - NO RSVP-specific behavior                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Lifecycle Rules:**
+
+1. **RSVP mode (booking_enabled) can ONLY toggle in Draft state**
+2. **Toggle does NOT affect match lifecycle state** (Draft remains Draft)
+3. **Toggle OFF preserves ALL match_player_pool data** (no deletion)
+4. **Once PoolLocked: RSVP mode becomes read-only** (UI shows locked toggle)
+5. **RSVP data persists through all states** (available for audit/reporting)
+6. **FUTURE: locked_for_payments will also prevent toggling** (payment phase)
 
 ### **Player Pool Extension**
 
@@ -1571,14 +2030,140 @@ interface PlayerInPool extends PlayerProfile {
 
 ### **UI Component Flow**
 
-- Draft + RSVP OFF: PlayerPoolPane (unchanged)
-- Draft + RSVP ON: RSVPBookingPane (new, with player pool integration)
-- PoolLocked: BalanceTeamsPane (unchanged, shows RSVP source data)
-- TeamsBalanced: CompleteMatchForm (unchanged)
+See Section 8.1 for complete component architecture (v4.5.0).
 
 ### **Background Job System**
 
 Extend existing worker with RSVP job types. Use existing database connection, error handling, retry patterns.
+
+---
+
+## **12.5) RSVP Mode State Machine (v4.5.0)**
+
+This section defines the explicit behavior of the `booking_enabled` toggle and its state guards.
+
+### **State Transition Guards**
+
+```typescript
+// State guard: Can only toggle in Draft state
+function canToggleRSVP(match: UpcomingMatch): boolean {
+  // ONLY allowed in Draft state
+  if (match.state !== 'Draft') return false;
+  
+  // FUTURE: Check payment lock (not yet implemented)
+  // if (match.locked_for_payments) return false;
+  
+  return true;
+}
+```
+
+### **Toggle ON Behavior (Draft only)**
+
+```typescript
+async function enableRSVP(matchId: number, config: RSVPConfig) {
+  // 1. Set booking_enabled = true
+  // 2. Generate invite_token_hash if not exists
+  // 3. Set invite_mode, tier windows, auto-balance settings from config
+  // 4. Preserve ALL existing match_player_pool rows
+  // 5. Set response_status = 'PENDING' for manually-added players (if null)
+  // 6. Admin retains full control (can still add/remove players)
+}
+```
+
+### **Toggle OFF Behavior (Draft only)**
+
+```typescript
+async function disableRSVP(matchId: number) {
+  // 1. Set booking_enabled = false
+  // 2. PRESERVE invite_token_hash (for audit trail)
+  // 3. PRESERVE all match_player_pool data:
+  //    - response_status values (IN/OUT/WAITLIST/PENDING)
+  //    - timestamps (invited_at, response_timestamp)
+  //    - waitlist_position values
+  //    - All source, tier, and metadata fields
+  // 4. Expire ALL active waitlist offers (set offer_expires_at = now())
+  // 5. Block player self-updates (API returns ERR_BOOKING_CLOSED)
+  // 6. Link becomes inactive (token validation fails)
+  // 7. Admin retains full control over pool
+  // 8. Log to activity feed: audit/admin_booking_disabled
+}
+```
+
+### **State Transition Diagram**
+
+```
+Draft state RSVP toggle rules:
+┌─────────────────────────────────────┐
+│ booking_enabled = OFF (default)     │
+│ - Admin adds/removes players        │
+│ - No public link active             │
+│ - Standard manual pool management   │
+└──────────────┬──────────────────────┘
+               │ Admin clicks "Enable RSVP"
+               │ (only if state = Draft)
+               ▼
+┌─────────────────────────────────────┐
+│ booking_enabled = ON                │
+│ - Players can self-book via link    │
+│ - Admin can still add/remove        │
+│ - Manually-added players preserved  │
+│ - RSVP interface shown in UI        │
+└──────────────┬──────────────────────┘
+               │ Admin clicks "Disable RSVP"
+               │ (only if state = Draft)
+               ▼
+┌─────────────────────────────────────┐
+│ booking_enabled = OFF               │
+│ - Link deactivated                  │
+│ - All player data PRESERVED         │
+│ - Players cannot update status      │
+│ - Admin has full control            │
+│ - Back to manual mode UI            │
+└─────────────────────────────────────┘
+
+❌ Once PoolLocked: booking_enabled becomes READ-ONLY
+⏳ Future: locked_for_payments also prevents toggling
+```
+
+### **API Error Responses**
+
+```typescript
+// When player tries to RSVP while booking_enabled = false
+return NextResponse.json(
+  fail('Booking is closed for this match', RSVP_ERROR_CODES.BOOKING_CLOSED),
+  { status: 403 }
+);
+
+// When admin tries to toggle after Draft state
+return NextResponse.json(
+  fail('RSVP mode can only be changed in Draft state', RSVP_ERROR_CODES.STATE_LOCKED),
+  { status: 400 }
+);
+
+// FUTURE: When payments have been processed
+return NextResponse.json(
+  fail('Cannot change RSVP settings - payments have been processed', RSVP_ERROR_CODES.PAYMENTS_LOCKED),
+  { status: 403 }
+);
+```
+
+### **Key Architectural Principles**
+
+1. **Toggle affects WHO can modify pool, not WHAT data exists**
+   - Toggling OFF preserves all RSVP data for audit trail
+   - No data loss when switching modes
+
+2. **RSVP mode is independent of match lifecycle state**
+   - Toggle doesn't change Draft/PoolLocked/etc status
+   - Match state transitions are unaffected by RSVP mode
+
+3. **State guard prevents disruption**
+   - Once PoolLocked: teams are being constructed, RSVP locked
+   - Future payment lock: financial records immutable
+
+4. **Admin always retains control**
+   - RSVP ON: Admin can still manually add/remove players
+   - RSVP OFF: Admin has exclusive control
 
 ---
 
@@ -1606,6 +2191,43 @@ Extend existing worker with RSVP job types. Use existing database connection, er
 ## **14) Security & Reliability**
 
 ### **Concurrency Protection**
+
+**State Version Strategy (Mixed Approach):**
+
+RSVP operations use `state_version` for optimistic concurrency control with one critical exception:
+
+```typescript
+// Most RSVP operations: Enforce state_version
+await tx.upcoming_matches.update({
+  where: {
+    upcoming_match_id: matchId,
+    state_version: currentVersion  // ✅ Enforced
+  },
+  data: { 
+    state: newState,
+    state_version: { increment: 1 }
+  }
+});
+
+// Exception: Match completion (intentionally bypasses state_version)
+await tx.upcoming_matches.update({
+  where: {
+    upcoming_match_id: matchId  // ⚠️ No state_version check
+  },
+  data: {
+    state: 'Completed',
+    state_version: { increment: 1 }
+  }
+});
+```
+
+**Rationale for Exception:**
+- Match completion was causing orphaned matches (data saved but not marked complete)
+- Overly strict concurrency checks caused partial failures
+- Since completion is final state (can't be overridden), version conflicts are acceptable
+- See `SPEC_match-control-centre.md` "Critical Production Bug Fixes" for full analysis
+
+**Advisory Lock Protection:**
 
 All critical operations use tenant-aware advisory locks:
 
@@ -1647,7 +2269,34 @@ export async function processAutoBalance(tenantId: string, matchId: number) {
 
 ### **Data Integrity**
 
-Tenant consistency triggers prevent cross-tenant data corruption. All queries include `tenant_id` in WHERE clauses. RLS policies enforce tenant isolation.
+**Single-Layer Security Model (Application-Level):**
+
+Tenant consistency triggers prevent cross-tenant data corruption. All queries MUST include `tenant_id` via `withTenantFilter()` helper:
+
+```typescript
+// ✅ CORRECT: Explicit tenant filtering (MANDATORY)
+const players = await prisma.match_player_pool.findMany({
+  where: withTenantFilter(tenantId, {
+    response_status: 'WAITLIST'
+  })
+});
+
+// ❌ SECURITY VULNERABILITY: Missing tenant filter
+const players = await prisma.match_player_pool.findMany({
+  where: { response_status: 'WAITLIST' }  // Cross-tenant leak!
+});
+```
+
+**RLS Policy Reality:**
+- RLS policies exist but postgres role bypasses them (rolbypassrls = true)
+- Application-level `withTenantFilter()` is the ONLY security layer
+- Missing filter = security vulnerability
+- See `SPEC_multi_tenancy.md` Section Q for architecture decision
+
+**Tenant Consistency Triggers:**
+- `enforce_tenant_match_pool()` validates tenant_id matches across related tables
+- Prevents accidental cross-tenant data insertion
+- Complements explicit filtering for defense-in-depth
 
 ### **Error Handling**
 
@@ -1739,26 +2388,68 @@ players.forEach(player => {
 });
 ```
 
-**2. Backwards Navigation Locking:**
+**2. Backwards Navigation Locking (⏳ FUTURE - Payment Phase):**
+
+**⚠️ NOT YET IMPLEMENTED - This is proposed behavior for when payments are added:**
+
 ```sql
--- Add to upcoming_matches when RSVP implemented
+-- Add payment lock flag and constraint
 ALTER TABLE upcoming_matches
   ADD COLUMN locked_for_payments BOOLEAN DEFAULT FALSE;
+
+-- Prevent returning to Draft when payments locked
+ALTER TABLE upcoming_matches
+  ADD CONSTRAINT no_draft_unlock_when_payments_locked
+  CHECK (NOT (locked_for_payments = true AND state = 'Draft'));
 ```
 
-**UI Changes:**
-```typescript
-// Disable unlock buttons once payments are enabled
-const canUnlock = !matchData.locked_for_payments;
+**When locked_for_payments = TRUE (v4.5.0 Forward Compatibility):**
 
-{canUnlock ? (
-  <button onClick={actions.unlockPool}>← Back to Pool</button>
-) : (
-  <div className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded">
-    🔒 Teams locked for payments - use Match Day adjustments for changes
-  </div>
-)}
-```
+1. **Prevents RSVP mode toggle:**
+   ```typescript
+   // In /api/admin/matches/[id]/toggle-rsvp
+   if (match.locked_for_payments) {
+     return fail(
+       'Cannot change RSVP settings - payments have been processed',
+       RSVP_ERROR_CODES.PAYMENTS_LOCKED
+     );
+   }
+   ```
+
+2. **Prevents backwards navigation:**
+   - Cannot unlock from PoolLocked → Draft
+   - Cannot unlock from TeamsBalanced → PoolLocked
+   - UI shows 🔒 "Locked for payments" badge
+
+3. **UI Changes:**
+   ```typescript
+   // Disable unlock buttons once payments are enabled
+   const canUnlock = !matchData.locked_for_payments;
+   const canToggleRSVP = matchData.state === 'Draft' && !matchData.locked_for_payments;
+   
+   {canUnlock ? (
+     <button onClick={actions.unlockPool}>← Back to Pool</button>
+   ) : (
+     <div className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded">
+       🔒 Teams locked for payments - use Match Day adjustments for changes
+     </div>
+   )}
+   
+   {/* RSVP toggle button */}
+   <Button disabled={!canToggleRSVP}>
+     {!canToggleRSVP && <LockIcon />}
+     {rsvpEnabled ? 'Disable RSVP' : 'Enable RSVP'}
+   </Button>
+   ```
+
+**Current Reality:**
+- `locked_for_payments` column does NOT exist yet
+- Backwards navigation (unlock pool/teams) is always available
+- RSVP toggle only checked against `state = 'Draft'`
+- When RSVP+Payments are implemented together:
+  - Payment lock prevents RSVP toggle (financial stability)
+  - Payment lock prevents Draft unlock (prevent pool disruption)
+  - Match-day adjustments remain flexible (Result step unchanged)
 
 **3. Payment vs Participation Separation:**
 
@@ -1805,14 +2496,20 @@ player_matches {
 - Cross-reference restoration for re-editing
 - `actual_team` column for team swaps
 - Stats integrity maintained
+- **Works TODAY without RSVP** - admins manually check/uncheck players
 
-**⏳ Phase 2 (When RSVP Implemented):**
-- Auto-mark no-shows from RSVP status
-- Add `locked_for_payments` column
+**⏳ Phase 2 (When RSVP + Payments Implemented Together):**
+- Auto-mark no-shows from RSVP status (if player marked OUT in pool)
+- Add `locked_for_payments` column to prevent post-payment disruption
 - Disable backwards navigation when locked
-- Connect to payment records
+- Connect to payment records for financial stability
 
-See `SPEC_match-control-centre.md` for complete implementation details of Phase 1.
+**Integration Path:**
+- Phase 1 provides the foundation (checkbox = player attendance)
+- RSVP adds automation (auto-uncheck based on OUT status)
+- Payments add locking (prevent changing pool after money collected)
+
+See `SPEC_match-control-centre.md` for complete Phase 1 implementation details.
 
 ---
 
@@ -2059,7 +2756,33 @@ The specification maintains **backward compatibility** throughout. Teams using m
 
 ---
 
-## **21) Implementation Guidance (v4.3.0 Updates)**
+## **21) Implementation Guidance (v4.5.0 Updates)**
+
+### **Key Architectural Changes from v4.4.0**
+
+**v4.5.0 adds explicit RSVP mode toggle architecture:**
+
+1. **RSVP Mode Toggle (booking_enabled):**
+   - Can ONLY change in Draft state
+   - Toggle OFF preserves all data (no deletion)
+   - New endpoint: `PATCH /api/admin/matches/[id]/toggle-rsvp`
+   - New error codes: ERR_STATE_LOCKED, ERR_PAYMENTS_LOCKED
+
+2. **Unified Component Architecture:**
+   - Single `PlayersStep.component.tsx` with mode switching
+   - Replaces separate PlayerPoolPane + RSVPBookingPane pattern
+   - Activity feed as separate tab (Players | Activity)
+   - Advanced settings in collapsible section
+
+3. **Auto-Balance Tracking:**
+   - New field: `auto_balanced_at` timestamp
+   - UI shows "Teams auto-constructed" banner in Teams step
+   - Cleared when teams unbalanced or manually rebalanced
+
+4. **State Machine Documentation:**
+   - New Section 12.5 with explicit toggle behavior
+   - State transition guards documented
+   - Forward compatibility with payment lock prepared
 
 ### **Key Pattern Changes from v4.2.0**
 
@@ -2193,4 +2916,80 @@ Study these existing files before implementing RSVP:
 
 ---
 
-**End of Consolidated Specification v4.3.0**
+## **22) Schema Reconciliation Summary (v4.4.0)**
+
+This section documents all schema and behavioral changes made during reconciliation with Match Control Centre and Auth specs.
+
+### **Schema Corrections Applied**
+
+**1. matches table (referenced, not modified by RSVP):**
+- ✅ `upcoming_match_id INT NOT NULL` (migration complete, no longer nullable)
+- ✅ `team_a_own_goals INT DEFAULT 0, team_b_own_goals INT DEFAULT 0` (added)
+- ❌ `is_completed BOOLEAN` (deprecated, use `upcoming_matches.state` instead)
+
+**2. player_matches table (referenced, not modified by RSVP):**
+- ✅ `result TEXT`, `heavy_win BOOLEAN`, `heavy_loss BOOLEAN`, `clean_sheet BOOLEAN` (exist)
+- ✅ `actual_team TEXT` (for match-day team swaps)
+- ⚠️ `is_no_show BOOLEAN` (column exists but UNUSED, absence of row = no-show)
+
+**3. upcoming_matches table (RSVP adds fields to existing table):**
+- ✅ `state` is source of truth (Draft, PoolLocked, TeamsBalanced, Completed, Cancelled)
+- ✅ `actual_size_a INT`, `actual_size_b INT` (uneven teams support)
+- ❌ `is_completed BOOLEAN`, `is_active BOOLEAN` (deprecated, use `state` instead)
+- ⏳ `locked_for_payments BOOLEAN` (FUTURE - not yet implemented)
+
+**4. players table (RSVP adds 2 fields only):**
+- ✅ `phone`, `email`, `auth_user_id`, `is_admin` already exist from Auth v6.6
+- ⭕ `tier TEXT` (RSVP adds for booking priority)
+- ⭕ `last_verified_at TIMESTAMPTZ` (RSVP adds for RSVP phone verification)
+
+### **Behavioral Clarifications**
+
+**Concurrency:**
+- Most operations enforce `state_version` for optimistic concurrency
+- Match completion intentionally bypasses `state_version` (prevents orphaned matches)
+- See Section 14 for full details
+
+**Security:**
+- RLS policies exist but postgres role bypasses them (rolbypassrls = true)
+- Application-level `withTenantFilter()` is the ONLY security layer
+- Missing filter = security vulnerability
+
+**Match Lifecycle:**
+- Active tab: `state IN ('Draft', 'PoolLocked', 'TeamsBalanced')`
+- History tab: `state = 'Completed'`
+- Cancelled state: defined but currently UNUSED (deletion is destructive)
+
+**No-Show Handling:**
+- Checkbox controls `player_matches` row creation
+- No row = player did not attend (no filtering needed)
+- `is_no_show` column exists but is NOT used
+
+**Future Features Documented:**
+- `locked_for_payments` for payment stability (not yet implemented)
+- Auto-mark no-shows from RSVP status (Phase 2)
+- Backwards navigation locking (Phase 2 with payments)
+
+### **Cross-Spec Dependencies**
+
+This spec now correctly references:
+- **Auth v6.6**: Phone-only auth, OTP-before-join, email notifications
+- **Match Control Centre**: Uneven teams, no-shows, own goals, state lifecycle
+- **Multi-Tenancy v2.1**: `withTenantFilter()` security model, explicit filtering
+
+### **Implementation Status**
+
+**Ready to Implement:**
+- All RSVP-specific schema additions (players.tier, match_player_pool enhancements)
+- All API endpoints as documented
+- All background jobs and notification systems
+- All UI components for booking and waitlist
+
+**No Breaking Changes:**
+- RSVP is purely additive to existing match system
+- Manual match workflow unchanged
+- Phase 1 no-show/swap features work independently
+
+---
+
+**End of Consolidated Specification v4.4.0-reconciled**

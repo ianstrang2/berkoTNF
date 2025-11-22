@@ -65,6 +65,12 @@ const Footer: React.FC = () => {
               >
                 Contact
               </a>
+              <a 
+                href="/privacy" 
+                className="text-base text-white/70 hover:text-white transition-colors hover:translate-x-1 inline-block"
+              >
+                Privacy Policy
+              </a>
             </div>
           </div>
         </div>
