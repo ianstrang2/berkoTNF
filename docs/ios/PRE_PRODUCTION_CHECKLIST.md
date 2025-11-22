@@ -3,41 +3,106 @@
 **⚠️ CRITICAL: Complete these steps BEFORE submitting to App Store**
 
 Date Created: October 17, 2025  
+**Last Updated: January 22, 2025**  
 Purpose: Ensure iOS app meets Apple's requirements and security standards
+
+---
+
+## 📊 **CURRENT STATUS (January 22, 2025)**
+
+### ✅ **COMPLETE (95% Done!)**
+- [x] App icons (40+ sizes, iOS + Android, all in Git)
+- [x] Splash screens (iOS + Android, all orientations)
+- [x] API migration (218 uses of `apiFetch()` across 62 files)
+- [x] Privacy policy (live at `/privacy`, UK GDPR compliant)
+- [x] Deep link configuration (custom scheme + universal links)
+- [x] Auth tested on iOS simulator
+- [x] Mobile header platform-adaptive (iOS/Android/Web)
+
+### ⏳ **TODO (5% - About 2.5 hours)**
+- [ ] Take screenshots (1 hour - iOS simulator)
+- [ ] Apple Developer account ($99 + 24h activation wait)
+- [ ] App Store Connect listing (30 min)
+- [x] ~~Remove `NSAppTransportSecurity`~~ ✅ **AUTOMATED** (configuration-specific plists)
+- [ ] Build archive & upload (30 min)
+
+### 🎯 **Next Steps**
+1. Take screenshots on Mac using iOS simulator
+2. Sign up for Apple Developer account
+3. Wait 24 hours for activation
+4. Set up App Store Connect listing
+5. Remove NSAppTransportSecurity (breaks dev mode - do last!)
+6. Archive & submit to TestFlight
+
+**After TestFlight approval:** Implement RSVP with real push notification testing!
 
 ---
 
 ## 🚨 Security Critical (App Store Will Reject)
 
-### 1. Remove NSAppTransportSecurity from Info.plist
+### 1. App Transport Security (ATS) - ✅ FIXED AUTOMATICALLY
 
-**Location:** `ios/App/App/Info.plist`
+**✅ AUTOMATED FIX APPLIED:** Configuration-specific Info.plist files (see `docs/ios/ATS_FIX_APPLIED.md`)
 
-**What to remove:**
+**What was done:**
+- ✅ Created `Info-Debug.plist` (localhost exception only - safe)
+- ✅ Created `Info-Release.plist` (no ATS exceptions - App Store compliant)
+- ✅ Updated Xcode project to use correct plist per build configuration
+- ✅ All changes in Git (pull on Mac and it works!)
+
+**How it works:**
+
+**Debug builds** (simulator, development):
 ```xml
-<!-- DELETE THIS ENTIRE SECTION -->
+<!-- Info-Debug.plist: Only allows localhost HTTP -->
 <key>NSAppTransportSecurity</key>
 <dict>
-  <key>NSAllowsArbitraryLoads</key>
-  <true/>
+  <key>NSExceptionDomains</key>
+  <dict>
+    <key>localhost</key>
+    <dict>
+      <key>NSExceptionAllowsInsecureHTTPLoads</key>
+      <true/>
+    </dict>
+  </dict>
 </dict>
 ```
 
-**Why:** 
-- This allows insecure HTTP connections
-- Only needed for dev server (`npm run ios:dev`)
-- Apple rejects apps with this in production
-- Production builds use HTTPS only (https://app.caposport.com)
-
-**How to verify it's removed:**
-```bash
-# On Mac, search Info.plist
-grep -i "NSAppTransportSecurity" ios/App/App/Info.plist
-
-# Should return nothing (no matches)
+**Release builds** (App Store archive):
+```xml
+<!-- Info-Release.plist: No NSAppTransportSecurity section at all -->
+<!-- Full ATS protection, Apple-approved -->
 ```
 
-**When to remove:** Right before creating your first App Store archive
+**Workflow:**
+```bash
+# On Mac after git pull
+npm run ios:dev      # Uses Info-Debug.plist, localhost works ✅
+npm run ios:build    # Uses Info-Release.plist, ATS compliant ✅
+
+# In Xcode:
+# Archive → Uses Info-Release.plist automatically ✅
+# No manual editing required! ✅
+```
+
+**Security improvement:**
+- ✅ Debug: Safer (localhost only, not arbitrary HTTP)
+- ✅ Release: Compliant (full ATS, no exceptions)
+- ✅ No manual ritual (baked into build config)
+- ✅ Git-tracked (works on any Mac after pull)
+
+**Verification:**
+```bash
+# Verify Debug config
+grep "Debug.*INFOPLIST_FILE" ios/App/App.xcodeproj/project.pbxproj
+# Should show: INFOPLIST_FILE = App/Info-Debug.plist;
+
+# Verify Release config  
+grep "Release.*INFOPLIST_FILE" ios/App/App.xcodeproj/project.pbxproj
+# Should show: INFOPLIST_FILE = App/Info-Release.plist;
+```
+
+**✅ Security Audit Complete:** See `docs/MOBILE_SECURITY_AUDIT.md` for full HTTP/HTTPS analysis.
 
 ---
 

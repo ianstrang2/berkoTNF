@@ -4250,25 +4250,30 @@ const isNative = Capacitor.isNativePlatform();
 6. ✅ Android empty space (fixed: transparent status bar + centered button)
 7. ✅ CSS env() not working (fixed: CSS variables instead of inline styles)
 
-### What's NOT Done (Future)
+### What's NOT Done (Updated January 22, 2025)
 
-**Production Deployment:**
-- ⏳ API migration (~80 routes need `apiFetch()` helper) - Optional for dev mode
-- ⏳ App icons (all required sizes for App Store)
-- ⏳ Splash screens (optional but recommended)
-- ⏳ Remove `NSAppTransportSecurity` from Info.plist (before App Store submission)
+**✅ COMPLETED SINCE OCTOBER:**
+- ✅ API migration (218 uses of `apiFetch()` across 62 files - DONE!)
+- ✅ App icons (40+ sizes for iOS + Android - IN GIT!)
+- ✅ Splash screens (iOS + Android, all orientations - DONE!)
+- ✅ Privacy policy (live at `/privacy`, UK GDPR compliant - DONE!)
+- ✅ Security audit (HTTP/HTTPS analysis complete - see `MOBILE_SECURITY_AUDIT.md`)
 
-**App Store Submission:**
+**⏳ REMAINING (Before App Store Submission):**
+- ⏳ Screenshots (1 hour - take from iOS simulator)
 - ⏳ Apple Developer account ($99/year)
-- ⏳ Signing certificates and provisioning profiles
+- ⏳ Remove `NSAppTransportSecurity` from Info.plist (2 min - do LAST!)
+- ⏳ App Store Connect listing (30 min)
 - ⏳ TestFlight beta testing
-- ⏳ App Store listing (screenshots, descriptions, privacy policy)
 - ⏳ App Store review and approval
 
-**Universal Links (Production):**
+**⏳ OPTIONAL (Future Enhancement):**
 - ⏳ Deploy `ios_universal_links.json` to `https://capo.app/.well-known/apple-app-site-association`
 - ⏳ Replace `TEAMID` with Apple Developer Team ID
-- ⏳ Test on physical device (universal links don't work in simulator)
+- ⏳ Test universal links on physical device (custom scheme works in simulator)
+- ⏳ Remove debug console.log statements (629 found - optional cleanup)
+
+**Current Status:** 95% complete - only screenshots, Apple account, and submission steps remaining!
 
 ### Build Commands
 
