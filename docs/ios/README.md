@@ -1,6 +1,12 @@
 # 📱 iOS Setup - Start Here
 
-**Welcome to your iOS mobile app setup!** This guide gets you from zero to App Store submission.
+**⚠️ UPDATED JANUARY 2025:** New consolidated documentation available!
+
+**For quick commands:** See `docs/MOBILE_USER_GUIDE.md` (vibe coder friendly!)  
+**For technical details:** See `docs/MOBILE_SPEC.md` (architecture reference)  
+**For submission:** See `MOBILE_APP_STATUS.md` (what's done/not done)
+
+**This document remains for first-time iOS setup only.**
 
 ---
 

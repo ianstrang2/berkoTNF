@@ -324,6 +324,42 @@ When creating a new modal:
 6. [ ] Add `role="dialog"` + `aria-modal="true"`
 7. [ ] Add entry to `docs/SPEC_Modals.md` inventory table
 
+## Mobile API Pattern (MANDATORY for New Code)
+
+**For mobile app compatibility, always use `apiFetch()` helper:**
+
+```typescript
+import { apiFetch } from '@/lib/apiConfig';
+
+// ✅ CORRECT: Works in web, iOS, Android (dev & prod)
+const response = await apiFetch('/players');
+const response = await apiFetch('/admin/matches', { method: 'POST', body: JSON.stringify(data) });
+
+// ❌ WRONG: Only works in web
+const response = await fetch('/api/players');
+```
+
+**Why:** `apiFetch()` automatically routes to correct API endpoint:
+- Web: `/api/*` (relative)
+- Mobile dev: `http://localhost:3000/api/*` (live reload)
+- Mobile prod: `https://app.caposport.com/api/*` (remote API)
+
+**Migration Status:** ✅ 218 uses across 62 files (existing code migrated)
+
+**See:** `docs/MOBILE_SPEC.md` for architecture details
+
+## Documentation Standards
+
+**ALL documentation MUST live in `/docs` folder:**
+- Spec documents: `docs/SPEC_*.md`
+- Feature docs: `docs/feature-name.md`
+- Mobile docs: `docs/MOBILE_*.md`, `docs/ios/`, `docs/mobile/`
+- Implementation plans: `docs/PLAN_*.md`
+
+**NEVER create documentation in root directory.**
+
+**Exception:** `README.md` only (project overview)
+
 ## File Creation
 - Only create new files when explicitly requested by the user.
 - Prefer editing existing files over creating new ones.

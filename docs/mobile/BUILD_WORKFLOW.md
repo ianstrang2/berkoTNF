@@ -1,5 +1,14 @@
 # Capacitor Build Workflow
 
+**⚠️ UPDATED JANUARY 2025:** Consolidated mobile documentation available!
+
+**Quick reference:** See `docs/MOBILE_USER_GUIDE.md` (simple commands)  
+**Current status:** See `MOBILE_APP_STATUS.md` (97% ready for submission!)
+
+**This document contains technical deep-dive.** For most tasks, use the user guide above.
+
+---
+
 **Platform:** iOS & Android  
 **Framework:** Next.js 14 + Capacitor 7  
 **Dev Environment:** Windows PC (Cursor) + MacBook (Xcode for iOS builds)

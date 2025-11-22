@@ -88,11 +88,12 @@
 ## 📚 **Documentation Map**
 
 **For New Agent Sessions:**
-1. **Current Status:** This file (`MOBILE_APP_STATUS.md`)
-2. **Pre-Production Checklist:** `docs/ios/PRE_PRODUCTION_CHECKLIST.md`
-3. **Security Audit:** `docs/MOBILE_SECURITY_AUDIT.md`
-4. **iOS Setup:** `docs/ios/README.md`
-5. **Build Workflow:** `docs/mobile/BUILD_WORKFLOW.md`
+1. **Documentation Index:** `docs/MOBILE_DOCS_INDEX.md` (start here!)
+2. **Current Status:** This file (`docs/MOBILE_APP_STATUS.md`)
+3. **User Guide:** `docs/MOBILE_USER_GUIDE.md` (commands & workflows)
+4. **Technical Spec:** `docs/MOBILE_SPEC.md` (architecture)
+5. **Pre-Production:** `docs/ios/PRE_PRODUCTION_CHECKLIST.md`
+6. **Security Audit:** `docs/MOBILE_SECURITY_AUDIT.md`
 
 ---
 
