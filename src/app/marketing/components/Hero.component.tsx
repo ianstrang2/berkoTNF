@@ -8,7 +8,13 @@ interface HeroProps {
 
 const Hero: React.FC<HeroProps> = ({ onGetApp }) => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-safe">
+    <section 
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      style={{ 
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        WebkitPaddingTop: 'env(safe-area-inset-top, 0px)'
+      }}
+    >
       {/* Background Image */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
