@@ -22,22 +22,14 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
   }, []);
 
   return (
-    <>
-      {/* DEBUG: Show platform info */}
-      <div className="fixed top-0 left-0 z-[100] bg-yellow-300 text-black p-2 text-xs">
-        Platform: {typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() || 'web'}<br/>
-        HTML classes: {typeof document !== 'undefined' && document.documentElement.className}<br/>
-        Safe top: [check computed style]
-      </div>
-      
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pt-safe ${
-          isScrolled
-            ? 'bg-white/95 backdrop-blur-md shadow-md'
-            : 'bg-transparent'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pt-safe ${
+        isScrolled
+          ? 'bg-white/95 backdrop-blur-md shadow-md'
+          : 'bg-transparent'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center">
