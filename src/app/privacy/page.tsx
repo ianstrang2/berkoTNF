@@ -13,7 +13,7 @@ export default function PrivacyPolicyPage() {
       <MarketingNav onGetApp={() => {}} />
       
       {/* Privacy Policy Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 pt-safe" style={{ paddingTop: 'calc(var(--safe-top, 0px) + 80px)' }}>
         <h1 className="text-4xl font-bold text-neutral-900 mb-4">Privacy Policy for Capo</h1>
         <p className="text-neutral-600 mb-12">Last updated: {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 

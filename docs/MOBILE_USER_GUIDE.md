@@ -325,22 +325,16 @@ npm run android:build
 
 **All docs in `/docs` folder:**
 
-**Status & Checklist:**
+**Essential (Read These):**
 - `MOBILE_APP_STATUS.md` - What's done/not done
-- `ios/PRE_PRODUCTION_CHECKLIST.md` - Step-by-step submission
+- `MOBILE_USER_GUIDE.md` - This file (commands)
+- `MOBILE_SPEC.md` - Architecture
 
-**Technical Setup:**
-- `MOBILE_SPEC.md` - How everything is configured
-- `mobile/BUILD_WORKFLOW.md` - Deep dive on build process
-
-**Specific Issues:**
-- `MOBILE_SECURITY_AUDIT.md` - HTTP/HTTPS analysis
-- `ios/ATS_FIX_APPLIED.md` - Info.plist security fix
-
-**Quick References:**
-- `mobile/CAPACITOR_7_CHANGES.md` - CLI syntax changes
-- `ios/SETUP_CHECKLIST.md` - First-time Mac setup
-- `MOBILE_DOCS_INDEX.md` - Master index (finding anything)
+**Reference (When Needed):**
+- `ios/PRE_PRODUCTION_CHECKLIST.md` - Pre-submission steps
+- `MOBILE_SECURITY_AUDIT.md` - Security audit
+- `ios/ATS_FIX_APPLIED.md` - Info.plist fix details
+- `mobile/BUILD_WORKFLOW.md` - Build process details
 
 ---
 

@@ -360,6 +360,38 @@ const response = await fetch('/api/players');
 
 **Exception:** `README.md` only (project overview)
 
+## Marketing Pages - Mobile Safe Area (MANDATORY)
+
+**All marketing pages MUST respect iOS notch/Android status bar.**
+
+### Pattern for New Marketing Pages
+
+**Navigation:**
+```tsx
+<MarketingNav onGetApp={() => {}} />
+// Already has pt-safe class built-in ✅
+```
+
+**Hero section:**
+```tsx
+<section className="min-h-screen pt-safe ...">
+  {/* Hero content */}
+</section>
+```
+
+**Content pages (privacy, terms, etc.):**
+```tsx
+<div style={{ paddingTop: 'calc(var(--safe-top, 0px) + 80px)' }} className="...">
+  {/* Page content */}
+</div>
+```
+
+**CSS Classes Available:**
+- `.pt-safe` - Auto-adjusts for iOS notch, Android status bar, Web (none)
+- Works across ALL platforms automatically!
+
+**See:** `docs/MARKETING_PAGE_TEMPLATE.md` for complete guide
+
 ## File Creation
 - Only create new files when explicitly requested by the user.
 - Prefer editing existing files over creating new ones.

@@ -6,6 +6,45 @@
 
 ---
 
+## Mobile-Safe Layout Pattern (MANDATORY)
+
+**All marketing pages MUST respect iOS notch/Android status bar.**
+
+### Implementation
+
+**Navigation Component:**
+```tsx
+<nav className="fixed top-0 left-0 right-0 z-50 pt-safe ...">
+  {/* Navigation content */}
+</nav>
+```
+
+**Hero/First Section:**
+```tsx
+<section className="relative min-h-screen pt-safe ...">
+  {/* Content */}
+</section>
+```
+
+**Content Pages (Privacy, Terms, etc.):**
+```tsx
+<div className="px-4 py-16" style={{ paddingTop: 'calc(var(--safe-top, 0px) + 80px)' }}>
+  {/* Page content */}
+</div>
+```
+
+**CSS Classes Available (globals.css):**
+- `.pt-safe` - Padding top (iOS notch height, Android 24px, Web 0px)
+- `.pb-safe` - Padding bottom (iOS home indicator)
+
+**How it works:**
+- **iOS:** Adds ~47px for notch/Dynamic Island
+- **Android:** Adds 24px for status bar  
+- **Web:** Adds 0px (no notch)
+- **Automatic** - no platform detection needed!
+
+---
+
 ## Plausible Analytics Integration
 
 **ONLY track public marketing pages, NOT the authenticated app.**
