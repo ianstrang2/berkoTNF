@@ -28,6 +28,7 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
           ? 'bg-white/95 backdrop-blur-md shadow-md'
           : 'bg-transparent'
       }`}
+      style={{ paddingTop: '50px' }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
