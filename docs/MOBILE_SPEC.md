@@ -772,26 +772,22 @@ adb logcat | grep -i capo
 
 **All documentation in `/docs` folder:**
 
-**Status & Guides:**
-- `MOBILE_DOCS_INDEX.md` - Master index (start here!)
-- `MOBILE_APP_STATUS.md` - Current status, what's done/not done
-- `MOBILE_USER_GUIDE.md` - Vibe coder friendly commands
-- `mobile/BUILD_WORKFLOW.md` - Complete build process
+**Core Docs:**
+- `MOBILE_APP_STATUS.md` - Current status (97% complete)
+- `MOBILE_USER_GUIDE.md` - Commands and workflows
+- `MOBILE_SPEC.md` - This file (architecture)
+- `MOBILE_SECURITY_AUDIT.md` - Security audit
 
-**Security & Compliance:**
-- `MOBILE_SECURITY_AUDIT.md` - HTTP/HTTPS analysis
+**Pre-Submission:**
+- `ios/PRE_PRODUCTION_CHECKLIST.md` - 18-step checklist
 - `ios/ATS_FIX_APPLIED.md` - Info.plist security fix
-- `ios/PRE_PRODUCTION_CHECKLIST.md` - Pre-submission steps
 
-**Setup & Configuration:**
-- `ios/SETUP_CHECKLIST.md` - First-time Mac setup
-- `ios/README.md` - iOS quick start
-- `mobile/CAPACITOR_7_CHANGES.md` - CLI syntax reference
-
-**Technical Deep Dives:**
+**Reference:**
+- `mobile/BUILD_WORKFLOW.md` - Build process details
 - `mobile/API_GUIDE.md` - API migration patterns
+- `ios/SETUP_CHECKLIST.md` - First-time Mac setup
 - `SPEC_auth.md` Phase 7 - Auth on mobile
-- This document (`MOBILE_SPEC.md`) - Architecture reference
+- `SPEC_Marketing.md` - Marketing pages (includes safe area pattern)
 
 ---
 

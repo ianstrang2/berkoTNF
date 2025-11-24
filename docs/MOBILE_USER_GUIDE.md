@@ -54,32 +54,78 @@ npm run dev
 
 ---
 
-### **2. Test iOS Changes (When Needed)**
+### **2. Test iOS Changes (Pick ONE Method)**
 
+**On PC - make changes and push:**
 ```bash
-# On PC - make changes and push
 git add .
 git commit -m "feat: update feature"
 git push origin main
+```
 
-# On Mac - pull and test
+**On Mac - pull and test:**
+```bash
 cd ~/Developer/capo
 git pull origin main
+```
 
-# Terminal 1
+**Now choose ONE of these two methods:**
+
+---
+
+#### **Method A: Terminal Only (Faster, Simpler)**
+
+**For:** Quick testing, live reload, no Xcode needed
+
+```bash
+# Terminal 1 - Dev server
 npm run dev
 
-# Terminal 2
+# Terminal 2 - iOS simulator
 npm run ios:dev
 ```
 
-**What this does:**
-- Launches iOS simulator
-- Connects to your dev server at `localhost:3000`
-- Live reload - changes appear instantly
-- Same as web dev but in simulator!
+**Logs:**
+- JS/TS logs: Terminal 2
+- Network logs: Safari Web Inspector (Develop → Simulator)
+- Native logs: Terminal 2
 
-**🎯 Pro tip:** Keep Terminal 1 running, only restart Terminal 2 when needed.
+**When to use:** Daily development, quick testing
+
+---
+
+#### **Method B: Xcode (Full Native Logs)**
+
+**For:** Debugging native issues, seeing detailed Xcode console
+
+```bash
+# Terminal 1 - Dev server
+npm run dev
+
+# Terminal 2 - Open in Xcode (once)
+npx cap sync ios
+npx cap open ios
+
+# In Xcode:
+# 1. Select simulator at top (iPhone 17 Pro)
+# 2. Press ▶️ Run button
+# 3. View logs: Cmd+Shift+Y (debug area)
+```
+
+**Logs:**
+- Everything in Xcode console (JS + native)
+- Better stack traces
+- More debug info
+
+**When to use:** Debugging crashes, native plugin issues
+
+---
+
+**🚨 DON'T mix methods!** Pick one:
+- Use `npm run ios:dev` OR Xcode Run, not both
+- Only one can "own" the app at a time
+
+**🎯 Recommendation:** Use Method A (Terminal) for 95% of dev work. It's faster!
 
 ---
 

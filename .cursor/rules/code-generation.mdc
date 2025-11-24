@@ -390,7 +390,7 @@ const response = await fetch('/api/players');
 - `.pt-safe` - Auto-adjusts for iOS notch, Android status bar, Web (none)
 - Works across ALL platforms automatically!
 
-**See:** `docs/MARKETING_PAGE_TEMPLATE.md` for complete guide
+**See:** `docs/SPEC_Marketing.md` for complete guide
 
 ## File Creation
 - Only create new files when explicitly requested by the user.
