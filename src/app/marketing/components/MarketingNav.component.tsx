@@ -130,6 +130,7 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
         )}
       </div>
     </nav>
+    </>
   );
 };
 
