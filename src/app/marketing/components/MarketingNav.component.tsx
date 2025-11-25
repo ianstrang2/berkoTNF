@@ -29,6 +29,14 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
           : 'bg-transparent'
       }`}
     >
+      {/* DEBUG: Safe Area Indicator - Remove after fixing */}
+      <div 
+        className="fixed top-0 left-0 right-0 bg-red-500/50 z-[100] text-[10px] text-white pointer-events-none flex justify-center items-center"
+        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+      >
+        Safe Area: env(safe-area-inset-top)
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
