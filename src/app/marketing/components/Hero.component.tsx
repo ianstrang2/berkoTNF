@@ -9,11 +9,7 @@ interface HeroProps {
 const Hero: React.FC<HeroProps> = ({ onGetApp }) => {
   return (
     <section 
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
-      style={{ 
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        WebkitPaddingTop: 'env(safe-area-inset-top, 0px)'
-      }}
+      className="relative min-h-screen flex items-center justify-center overflow-hidden pt-safe"
     >
       {/* Background Image */}
       <div 

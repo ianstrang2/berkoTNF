@@ -8,7 +8,7 @@
 
 ## 🎯 **Quick Status**
 
-**You are 95% ready to submit to TestFlight/App Stores!**
+**You are 98% ready to submit to TestFlight/App Stores!**
 
 ### ✅ **COMPLETE (Hard Work Done!)**
 
@@ -50,7 +50,14 @@
    - Tested on iOS, Android, Web
    - Admin and player flows complete
 
-### ⏳ **TODO (About 2.5 Hours Total)**
+### ✅ **RECENTLY FIXED**
+
+**Marketing page safe area (iOS):** ✅ RESOLVED (Jan 24, 2025)
+- Issue: Navigation overlapped with iOS notch
+- Fix: Removed inline `env()` styles, used `pt-safe` class instead
+- See `docs/MOBILE_SAFE_AREA_ISSUE.md` for technical details
+
+### ⏳ **TODO (About 1.5 Hours Total)**
 
 1. **Screenshots** (1 hour)
    - Need: 6.7" iPhone (1290 x 2796)
