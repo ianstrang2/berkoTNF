@@ -242,26 +242,28 @@ This caused:
 2. **Safe area not working:** `env()` doesn't work in React inline styles
 
 ### **The Fix**
-Use the `pt-safe` **class** instead of inline styles (like MobileHeader.component.tsx does):
-
-```tsx
-// ✅ CORRECT (now applied)
-<nav className="fixed top-0 left-0 right-0 z-50 pt-safe ...">
-<section className="relative min-h-screen pt-safe ...">
-```
+1. Use `pt-safe` class (already done)
+2. **Add iOS fallback in globals.css:**
+   ```css
+   html.platform-ios.capacitor .pt-safe {
+     padding-top: max(var(--safe-top), 50px) !important;
+   }
+   ```
+   This ensures that even if `env()` returns 0px (which it was doing in the debug session), we get a safe 50px padding.
 
 ### **Files Fixed**
 1. `src/app/marketing/components/MarketingNav.component.tsx` - Removed inline styles, added `pt-safe` class
 2. `src/app/marketing/components/Hero.component.tsx` - Removed inline styles, added `pt-safe` class  
-3. `src/app/privacy/page.tsx` - Removed conflicting `pt-safe` class (uses calc style for nav height)
+3. `src/app/privacy/page.tsx` - Removed conflicting `pt-safe` class
+4. `src/app/globals.css` - Added robust iOS fallback using `max()`
 
 ### **Why This Works**
-- `pt-safe` class uses `var(--safe-top)` which IS supported in CSS
-- CSS variable is defined in globals.css using `env(safe-area-inset-top, 0px)`
-- Class approach matches working MobileHeader.component.tsx
-- Build error eliminated (no more TypeScript issues)
+- The debug session proved `env(safe-area-inset-top)` was evaluating to ~0px on the marketing page.
+- The new CSS rule forces a minimum of 50px on iOS devices running in Capacitor.
+- 50px covers standard notches (47px) and Dynamic Island (59px is ideal, but 50px prevents overlap).
+- `max()` ensures that if `env()` *does* work correctly (e.g. 59px), it will take precedence.
 
 ---
 
-**Status:** ✅ RESOLVED - Build passes, safe area should work correctly
+**Status:** ✅ RESOLVED - CSS fallback implemented
 

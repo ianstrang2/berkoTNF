@@ -30,6 +30,12 @@ html.platform-android.capacitor .pt-safe {
   padding-top: 24px !important;
 }
 
+/* iOS-specific fallback: Ensure minimum padding if env() fails or is 0 */
+/* Dynamic Island is ~59px, older notches ~47px. 50px is a safe minimum. */
+html.platform-ios.capacitor .pt-safe {
+  padding-top: max(var(--safe-top), 50px) !important;
+}
+
 /* Additional styles for Soft UI */
 body {
   background-color: #fafafa; /* Tailwind's neutral-50 */
