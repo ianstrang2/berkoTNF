@@ -74,40 +74,65 @@
    - Saved to Desktop, ready for App Store Connect
    - Shows: Dashboard, Match Report, Leaderboard, Player Profile
 
-### ⏳ **TODO (About 1 Hour Total)**
+2. **TestFlight Submission Guides** ✅ (November 26, 2025)
+   - Complete step-by-step guide created
+   - Quick reference card for lookups
+   - Printable checklist for tracking progress
+   - All questions answered, ready to start!
 
-2. **Apple Developer Account** ($99 + 24h wait)
+### ⏳ **TODO (About 2 Hours Active Time)**
+
+**✅ Submission Guide Ready:** `docs/TESTFLIGHT_SUBMISSION_GUIDE.md` - Complete step-by-step walkthrough!
+
+2. **Apple Developer Account** (15 min + 24h wait) - **START HERE**
    - Sign up at https://developer.apple.com/programs/
-   - Required for App Store submission
-   - Activation takes ~24 hours
+   - Cost: $99/year
+   - Approval: ~24 hours
+   - **See guide Phase 1 for details**
 
 3. **App Store Connect Setup** (30 min)
    - Create app listing
-   - Upload screenshots
+   - Upload screenshots (ready on Desktop!)
    - Add description, keywords
    - Privacy policy URL: `https://app.caposport.com/privacy`
    - Age rating: 4+
+   - **See guide Phase 2 for step-by-step**
 
-4. ~~**Remove NSAppTransportSecurity**~~ ✅ **NOT NEEDED**
-   - Webview architecture handles this automatically
-   - Dev mode: Capacitor allows localhost in config
-   - Prod mode: Full HTTPS to app.caposport.com
-   - **No manual steps required!**
+4. ~~**Remove NSAppTransportSecurity**~~ ✅ **AUTOMATED**
+   - Configuration-specific Info.plist handles this
+   - No manual steps needed!
 
-5. **Build & Upload** (30 min)
+5. **Build & Upload** (45 min)
    - `git pull origin main` on Mac
    - `npm run ios:build` (opens Xcode)
    - Archive in Xcode
    - Validate
    - Upload to App Store Connect
    - Wait for TestFlight processing
+   - **See guide Phase 3 for detailed instructions**
+
+6. **TestFlight Configuration** (15 min)
+   - Add internal testers
+   - Configure test info
+   - Enable builds
+   - **See guide Phase 4 for setup**
 
 ---
 
 ## 📚 **Documentation Map**
 
-**For New Agent Sessions:**
-1. **Current Status:** This file (`docs/MOBILE_APP_STATUS.md`) - Start here!
+**For TestFlight Submission (NEW - Nov 26, 2025):**
+
+**🎯 START HERE:** `docs/TESTFLIGHT_START_HERE.md` - **Navigation hub for all guides!**
+
+**Complete Set:**
+1. **📖 Complete Guide:** `docs/TESTFLIGHT_SUBMISSION_GUIDE.md` - Detailed walkthrough
+2. **⚡ Quick Reference:** `docs/TESTFLIGHT_QUICK_REFERENCE.md` - One-page cheat sheet
+3. **✅ Checklist:** `docs/TESTFLIGHT_CHECKLIST.md` - Print and track progress
+4. **❓ FAQ:** `docs/TESTFLIGHT_FAQ.md` - All your questions answered
+
+**For General Mobile Development:**
+1. **Current Status:** This file (`docs/MOBILE_APP_STATUS.md`) - Overview
 2. **User Guide:** `docs/MOBILE_USER_GUIDE.md` (commands & workflows)
 3. **Technical Spec:** `docs/MOBILE_SPEC.md` (architecture)
 4. **Security Audit:** `docs/MOBILE_SECURITY_AUDIT.md`
@@ -119,30 +144,35 @@
 
 ### **This Week: Submit to TestFlight**
 
-**Day 1:** Take screenshots (1 hour on Mac) - **DO THIS NOW!**
-- Run: `npm run ios:build`
-- In Xcode: Select iPhone 17 Pro Max → Run
-- Navigate to key screens (dashboard, matches, players, stats)
-- Press `Cmd+S` to save screenshots (saves to Desktop)
-- Screenshots are correct size automatically (1320 x 2868)
+**📖 FOLLOW THE GUIDE:** `docs/TESTFLIGHT_SUBMISSION_GUIDE.md`
 
-**Day 2:** Apple Developer Account
+The guide contains EVERYTHING you need with detailed steps, screenshots, troubleshooting, and timelines.
+
+**Quick Timeline:**
+
+**Day 1 (15 min):** Apple Developer Account
 - Sign up at https://developer.apple.com/programs/
-- Pay $99/year
+- Pay $99/year  
 - Wait 24 hours for activation
+- **→ See guide Phase 1**
 
-**Day 3:** App Store Connect
+**Day 2 (1 hour):** App Store Connect Setup
 - Create app listing
-- Upload screenshots
-- Add metadata (description, keywords, privacy URL)
-- Complete age rating (4+)
+- Upload screenshots (ready on Desktop!)
+- Add description, keywords, metadata
+- **→ See guide Phase 2**
 
-**Day 4:** Archive & Submit
-- `git pull` on Mac (get latest code)
+**Day 2-3 (45 min):** Archive & Upload
+- `git pull` on Mac
 - `npm run ios:build`
-- Archive in Xcode
-- Validate & upload
-- Submit for TestFlight
+- Archive, validate, upload
+- **→ See guide Phase 3**
+
+**Day 3 (15 min):** TestFlight Configuration
+- Add internal testers
+- Enable builds
+- Test on real device!
+- **→ See guide Phase 4**
 
 **Week 2:** Beta Testing
 - Test on real devices via TestFlight
