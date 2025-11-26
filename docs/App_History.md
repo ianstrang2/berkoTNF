@@ -1448,12 +1448,62 @@ When you launch, here are the key narrative beats:
 
 ---
 
-**Document Version:** 1.0.0  
-**Last Updated:** October 21, 2025  
-**Status:** Complete development history  
+---
+
+## Phase 10: Documentation Overhaul (November 2025)
+
+**Timeline:** November 26, 2025  
+**Motivation:** Specs had grown too large, eating tokens and slowing Cursor
+
+### The Problem
+
+**Specification Bloat:**
+- 7 major specs exceeded 500+ lines (auth: 4432, multi-tenancy: 2508, match centre: 1906)
+- Implementation history mixed with current design
+- No central index - had to remember what's in each file
+- Token costs mounting every time Cursor needed context
+
+### The Solution
+
+**Systematic Tidying:**
+- Created `/docs/README.md` as comprehensive doc map (39 files inventoried)
+- Tidied 7 major specs: focused on current design, removed implementation history
+- Deleted 2 duplicate files (MOBILE_ARCHITECTURE, marketing_spec)
+- Archived old implementation docs (ARCHIVE_heavy_wins_implementation)
+- Established maintenance standards in coding rules
+
+**Token Savings:**
+- Before: 11,780 lines across 7 major specs
+- After: 3,653 lines across 7 major specs  
+- Reduction: 69% (8,127 lines removed from active context)
+
+**New Standards:**
+- Spec structure: Overview → Current Design → Key Decisions → Archive
+- Prefix naming: SPEC_, MOBILE_, TEMP_, ARCHIVE_
+- TEMP_ cleanup mandate (prevent doc sprawl)
+- Target: < 500 lines per spec
+
+**Vibe Coding Insight:**
+```
+Good specs = Better AI code generation
+Focused specs = Lower token costs
+Doc map = Faster context loading
+
+This tidying saves ~8000 tokens per Cursor session
+```
+
+**Time Taken:** ~4 hours (systematic review and restructuring)
+
+**Outcome:** Sustainable documentation system ready for RSVP implementation and beyond
+
+---
+
+**Document Version:** 1.1.0  
+**Last Updated:** November 26, 2025  
+**Status:** Complete development history through Phase 10  
 **Next Update:** After RSVP/Billing implementation
 
 ---
 
-*This document was itself created through vibe coding, synthesizing 2,500+ lines of specifications, analyzing 500+ files of code, and organizing 9 months of development history into a coherent narrative. Meta.* 🚀
+*This document was itself created through vibe coding, synthesizing 2,500+ lines of specifications, analyzing 500+ files of code, and organizing 9 months of development history into a coherent narrative. And now it includes the story of tidying that very documentation. Meta on meta.* 🚀
 

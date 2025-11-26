@@ -121,6 +121,10 @@
 
 ## 📚 **Documentation Map**
 
+**For Mobile Architecture & Development:**
+- **Architecture:** `docs/MOBILE_SPEC.md` - Complete technical architecture
+- **Commands:** `docs/MOBILE_USER_GUIDE.md` - Daily development workflows
+
 **For TestFlight Submission (NEW - Nov 26, 2025):**
 
 **🎯 START HERE:** `docs/TESTFLIGHT_START_HERE.md` - **Navigation hub for all guides!**

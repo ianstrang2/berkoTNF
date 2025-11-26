@@ -48,6 +48,16 @@
 
 ---
 
+## 📱 **Before You Start: Mobile App Status**
+
+**Check readiness:** `docs/MOBILE_APP_STATUS.md` - Current implementation status (97% complete)
+- Icons ✅ | Splash screens ✅ | Security audit ✅ | Screenshots ✅
+- **Ready to submit!**
+
+**Architecture reference:** `docs/MOBILE_SPEC.md` - Technical architecture details
+
+---
+
 ## 🎯 **Quick Start (If You Know What You're Doing)**
 
 **Already familiar with iOS submission? Here's the express version:**

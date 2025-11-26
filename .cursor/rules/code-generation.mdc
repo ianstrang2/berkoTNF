@@ -350,15 +350,90 @@ const response = await fetch('/api/players');
 
 ## Documentation Standards
 
-**ALL documentation MUST live in `/docs` folder:**
-- Spec documents: `docs/SPEC_*.md`
-- Feature docs: `docs/feature-name.md`
-- Mobile docs: `docs/MOBILE_*.md`, `docs/ios/`, `docs/mobile/`
-- Implementation plans: `docs/PLAN_*.md`
+**ALL documentation MUST live in `/docs` folder with standard prefixes:**
 
-**NEVER create documentation in root directory.**
+### Doc Naming Conventions
 
-**Exception:** `README.md` only (project overview)
+**Use standard prefixes:**
+- `SPEC_[feature].md` - Technical specifications (e.g., `SPEC_auth.md`, `SPEC_multi_tenancy.md`)
+- `MOBILE_[topic].md` - Mobile platform docs (e.g., `MOBILE_SPEC.md`, `MOBILE_USER_GUIDE.md`)
+- `TESTFLIGHT_[topic].md` - TestFlight submission guides
+- `PLAN_[feature].md` - Implementation plans
+- `ARCHIVE_[name].md` - Deprecated content (moved from specs)
+- `TEMP_[feature]_[date].md` - Temporary exploration docs (DELETE after feature complete)
+
+**Subdirectories OK for related sets:**
+- `ios/` - iOS-specific guides
+- `mobile/` - Cross-platform mobile
+- Keep sets small (< 10 files per directory)
+
+### For Cursor: Temp Doc Cleanup (MANDATORY)
+
+**During feature work, you may create exploration docs:**
+1. Create as `TEMP_[feature]_[date].md` in `/docs`
+2. Use for: breakdowns, spike notes, current status tracking
+3. **After feature complete (MANDATORY):**
+   - Extract valuable insights
+   - Merge into relevant `SPEC_*.md`
+   - **DELETE the temp file** (don't let them accumulate)
+
+**Why:** Cursor creates MANY temp docs during complex features - discipline prevents doc sprawl
+
+### Spec Maintenance Standards
+
+**Goal:** Keep specs focused and efficient (target < 500 lines if possible)
+
+**Standard spec structure:**
+```markdown
+# [Feature] Specification
+
+**Last Updated:** [Date]
+**Status:** Current / In Development / Deprecated
+
+## Overview
+[One paragraph - what this system does]
+
+## Current Design
+[How it works NOW - this is what Cursor reads most]
+
+## Key Decisions & Rationale
+- 2025-10: Why we chose X over Y
+- 2025-09: Major architecture refactor
+
+## Implementation Notes
+[Gotchas, edge cases, important patterns]
+
+---
+## Archive
+[Anything deprecated - OR move to ARCHIVE_*.md if huge]
+```
+
+**When to split a spec:**
+Only if BOTH conditions met:
+1. File exceeds 1000 lines
+2. Has clearly separable concerns
+
+**Don't overdo it:** Only split when genuinely needed for clarity/token efficiency
+
+### Token Efficiency for Cursor Context
+
+**When including specs:**
+- Include ONLY the sections you need (not entire file)
+- Use line ranges if possible: `@SPEC_auth.md:1-400`
+- Archive sections (below `---`) are low priority - exclude unless investigating history
+- Use `/docs/README.md` doc map to find the right spec quickly
+
+**Why:** Large specs eat context windows - focused inclusion saves tokens
+
+### Doc Map (Navigation Hub)
+
+**Reference:** `/docs/README.md` - Complete inventory of all documentation
+- Lists all specs with line counts and purposes
+- "When to include" guidance for each spec
+- Quick reference for finding the right doc
+- **Keep this updated** when adding/removing docs
+
+**NEVER create documentation in root directory** (exception: `README.md` only)
 
 ## Marketing Pages - Mobile Safe Area (MANDATORY)
 
