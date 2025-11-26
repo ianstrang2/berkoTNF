@@ -1484,15 +1484,15 @@ The `/api/admin/trigger-stats-update` route was failing due to URL construction 
 
 **Problem**: 
 ```javascript
-// Failed when NEXT_PUBLIC_SITE_URL was undefined
-const revalidateUrl = new URL('/api/admin/revalidate-cache', process.env.NEXT_PUBLIC_SITE_URL);
+// Failed when NEXT_PUBLIC_APP_URL was undefined
+const revalidateUrl = new URL('/api/admin/revalidate-cache', process.env.NEXT_PUBLIC_APP_URL);
 // TypeError: Invalid URL
 ```
 
 **Solution**:
 ```javascript
 // Added fallback for development
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 const revalidateUrl = new URL('/api/admin/revalidate-cache', baseUrl);
 ```
 

@@ -1,14 +1,16 @@
 # 📱 Mobile App Submission Status
 
-**Last Updated:** January 22, 2025  
-**Current Phase:** Pre-Production (95% Complete)  
+**Last Updated:** November 26, 2025  
+**Current Phase:** Ready for Screenshots & TestFlight  
 **Target:** TestFlight Beta → App Store/Play Store Submission
 
 ---
 
 ## 🎯 **Quick Status**
 
-**You are 98% ready to submit to TestFlight/App Stores!**
+**You are ready to take screenshots and submit to TestFlight!**
+
+**Architecture:** Webview wrapper loading your Vercel deployment (simple & reliable)
 
 ### ✅ **COMPLETE (Hard Work Done!)**
 
@@ -21,10 +23,12 @@
    - iOS: Launch storyboard configured
    - Android: All orientations (portrait/landscape, all densities)
 
-3. **API Migration** ✅
+3. **Mobile Architecture** ✅
+   - Webview wrapper (loads Vercel URL)
+   - No static export complexity
+   - Dev mode: loads localhost:3000
+   - Prod mode: loads app.caposport.com
    - 218 uses of `apiFetch()` across 62 files
-   - Production builds will work correctly
-   - Mobile app calls `https://app.caposport.com/api/*`
 
 4. **Privacy Policy** ✅
    - Live at `https://app.caposport.com/privacy`
@@ -52,18 +56,21 @@
 
 ### ✅ **RECENTLY FIXED**
 
-**Marketing page safe area (iOS):** ✅ RESOLVED (Jan 24, 2025)
-- Issue: Navigation overlapped with iOS notch
-- Fix: Removed inline `env()` styles, used `pt-safe` class instead
-- See `docs/MOBILE_SAFE_AREA_ISSUE.md` for technical details
+**Architecture Simplified:** ✅ COMPLETED (Nov 26, 2025)
+- Switched to webview wrapper architecture
+- Removed static export complexity
+- No more Next.js build errors
+- Simple: Dev loads localhost, Prod loads Vercel
+- See updated `docs/MOBILE_USER_GUIDE.md` for details
 
 ### ⏳ **TODO (About 1.5 Hours Total)**
 
-1. **Screenshots** (1 hour)
-   - Need: 6.7" iPhone (1290 x 2796)
-   - Need: 5.5" iPhone (1242 x 2208)
-   - 3-10 screenshots showing key features
-   - Take from iOS simulator with `Cmd+S`
+1. **Screenshots** (1 hour) - **READY NOW!**
+   - Run: `npm run ios:build` on Mac
+   - In Xcode: Select iPhone 17 Pro Max → Run
+   - Take 5-8 screenshots with `Cmd+S`
+   - Required: 6.9" iPhone (1320 x 2868) - auto-scales to smaller devices
+   - See screenshot guide in this chat for which screens to capture
 
 2. **Apple Developer Account** ($99 + 24h wait)
    - Sign up at https://developer.apple.com/programs/
@@ -77,15 +84,16 @@
    - Privacy policy URL: `https://app.caposport.com/privacy`
    - Age rating: 4+
 
-4. ~~**Remove NSAppTransportSecurity**~~ ✅ **AUTOMATED** (see `docs/ios/ATS_FIX_APPLIED.md`)
-   - Fixed with configuration-specific plist files
-   - Debug builds: localhost exception only
-   - Release builds: Full ATS compliance automatically
+4. ~~**Remove NSAppTransportSecurity**~~ ✅ **NOT NEEDED**
+   - Webview architecture handles this automatically
+   - Dev mode: Capacitor allows localhost in config
+   - Prod mode: Full HTTPS to app.caposport.com
    - **No manual steps required!**
 
 5. **Build & Upload** (30 min)
-   - `git pull origin main` on Mac (get new plist files)
-   - Archive in Xcode (automatically uses Info-Release.plist)
+   - `git pull origin main` on Mac
+   - `npm run ios:build` (opens Xcode)
+   - Archive in Xcode
    - Validate
    - Upload to App Store Connect
    - Wait for TestFlight processing
@@ -107,11 +115,12 @@
 
 ### **This Week: Submit to TestFlight**
 
-**Day 1:** Take screenshots (1 hour on Mac)
-- Launch iOS simulator: `npm run ios:dev`
+**Day 1:** Take screenshots (1 hour on Mac) - **DO THIS NOW!**
+- Run: `npm run ios:build`
+- In Xcode: Select iPhone 17 Pro Max → Run
 - Navigate to key screens (dashboard, matches, players, stats)
-- Press `Cmd+S` to save screenshots
-- Resize to App Store sizes (online tool or Preview)
+- Press `Cmd+S` to save screenshots (saves to Desktop)
+- Screenshots are correct size automatically (1320 x 2868)
 
 **Day 2:** Apple Developer Account
 - Sign up at https://developer.apple.com/programs/
@@ -125,8 +134,8 @@
 - Complete age rating (4+)
 
 **Day 4:** Archive & Submit
-- Remove NSAppTransportSecurity from Info.plist
-- Clean build: `npm run ios:build`
+- `git pull` on Mac (get latest code)
+- `npm run ios:build`
 - Archive in Xcode
 - Validate & upload
 - Submit for TestFlight
@@ -165,8 +174,12 @@
 
 **Development Mode** (Works NOW):
 ```bash
-npm run ios:dev      # iOS simulator with live reload
-npm run android:dev  # Android emulator with live reload
+# Dev mode (loads localhost)
+npm run dev           # Terminal 1: Start dev server
+npm run ios:dev       # Terminal 2: Launch simulator
+
+# Prod mode (loads Vercel)
+npm run ios:build     # Opens Xcode, loads app.caposport.com
 ```
 
 **What works:**
@@ -175,6 +188,7 @@ npm run android:dev  # Android emulator with live reload
 - ✅ Admin match management
 - ✅ Player profiles
 - ✅ All existing features
+- ✅ Webview loads your full web app
 
 **What needs TestFlight:**
 - ⏳ Push notifications testing

@@ -3613,7 +3613,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_JWT_SECRET=your-jwt-secret
 
 # Auth Configuration
-NEXT_PUBLIC_SITE_URL=https://your-domain.com
+NEXT_PUBLIC_APP_URL=https://app.caposport.com
 AUTH_REDIRECT_URL=https://your-domain.com/auth/callback
 
 # Security Settings

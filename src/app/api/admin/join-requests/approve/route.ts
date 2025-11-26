@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
 
         if (playerEmail && tenant) {
           // Use universal entry point - routes based on auth state
-          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://app.caposport.com';
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.caposport.com';
           const openUrl = `${baseUrl}/open?club=${tenant.slug}`;
           
           const emailResult = await sendPlayerApprovedEmail({

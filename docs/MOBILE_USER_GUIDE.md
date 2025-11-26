@@ -2,7 +2,7 @@
 
 **Purpose:** Human-language guide for common mobile dev tasks  
 **Audience:** Future you who forgot the commands  
-**Last Updated:** January 22, 2025
+**Last Updated:** November 26, 2025
 
 ---
 
@@ -11,11 +11,11 @@
 | What I want to do | Command |
 |-------------------|---------|
 | **Test on web** | `npm run dev` |
-| **Test on iOS simulator** | `npm run dev` → `npm run ios:dev` (on Mac) |
-| **Test on Android emulator** | `npm run dev` → `npm run android:dev` |
-| **Build for App Store** | `npm run ios:build` (on Mac) |
+| **Test on iOS simulator (dev)** | `npm run dev` → `npm run ios:dev` (on Mac) |
+| **Test on iOS simulator (prod)** | `npm run ios:build` (on Mac, loads from Vercel) |
+| **Take App Store screenshots** | `npm run ios:build` → Run in Xcode → Cmd+S |
+| **Archive for App Store** | `npm run ios:build` → Archive in Xcode |
 | **Build for Play Store** | `npm run android:build` |
-| **Just rebuild static files** | `npm run build:mobile` |
 
 ---
 
@@ -129,10 +129,30 @@ npx cap open ios
 
 ---
 
-### **3. Submit to App Store (Once)**
+### **3. Take Screenshots for App Store**
 
 ```bash
 # On Mac
+cd /developer/capo
+git pull origin main
+npm run ios:build
+
+# Xcode opens automatically
+# 1. Select "iPhone 17 Pro Max" (for 6.9" screenshots)
+# 2. Press ▶️ Run button
+# 3. App loads from https://app.caposport.com
+# 4. Navigate to screens, press Cmd+S to save screenshots
+```
+
+**Screenshots save to Desktop automatically!**
+
+---
+
+### **4. Submit to App Store (Once)**
+
+```bash
+# On Mac
+cd /developer/capo
 git pull origin main
 npm run ios:build
 
@@ -150,7 +170,7 @@ npm run ios:build
 
 ---
 
-### **4. Submit to Play Store (Once)**
+### **5. Submit to Play Store (Once)**
 
 ```bash
 # On PC
@@ -169,32 +189,36 @@ npm run android:build
 ## 🧩 **How Capacitor Works (Simple Explanation)**
 
 ```
-Your App = Web App in Native Wrapper
+Your App = Native Webview Loading Your Website
 
 ┌─────────────────────────────────────┐
-│  Capacitor (iOS/Android Shell)      │
+│  Native iOS/Android Shell          │
 │  ┌───────────────────────────────┐  │
-│  │  Your Web App (Next.js UI)   │  │
-│  │  - All your React components │  │
-│  │  - Tailwind CSS styling      │  │
-│  │  - Your forms, dashboards    │  │
+│  │  Safari/Chrome WebView        │  │
+│  │                               │  │
+│  │  Loads from:                  │  │
+│  │  • Dev: localhost:3000        │  │
+│  │  • Prod: app.caposport.com    │  │
+│  │                               │  │
+│  │  Shows your full Next.js app │  │
 │  └───────────────────────────────┘  │
-│               ↕                      │
-│  API calls to: app.caposport.com    │
 └─────────────────────────────────────┘
 ```
+
+**Think of it as:** A native app frame around your website!
 
 **Two modes:**
 
 1. **Dev mode** (`npm run ios:dev`):
-   - Loads from `http://localhost:3000`
+   - Webview loads `http://localhost:3000`
    - Live reload (instant updates)
    - Perfect for development
+   - Needs dev server running
 
 2. **Prod mode** (`npm run ios:build`):
-   - UI bundled in app (`out/` folder)
-   - Calls remote API (`https://app.caposport.com`)
-   - Fast, offline-capable
+   - Webview loads `https://app.caposport.com`
+   - No local server needed
+   - Perfect for screenshots/archiving
    - App Store ready
 
 ---
@@ -290,36 +314,49 @@ Tap it on your iPhone → should open app (not Safari)
 
 ## 🆘 **Common Problems**
 
-### **"White screen on iOS"**
+### **"White screen in dev mode"**
 
 **Fix:**
 ```bash
 # On Mac
-npm run build:mobile  # Rebuild static files
-npx cap sync ios      # Copy to iOS project
-npm run ios:dev       # Relaunch
+# 1. Check Terminal 1: Is `npm run dev` running?
+# 2. Kill simulator
+# 3. Try again:
+npm run ios:dev
+```
+
+### **"White screen in prod mode"**
+
+**Fix:**
+```bash
+# Check if Vercel is working
+# Open in browser: https://app.caposport.com
+# If browser works but simulator doesn't:
+npx cap sync ios
+npm run ios:build
+# Try again in Xcode
 ```
 
 ### **"Can't connect to localhost in dev mode"**
 
 **Fix:**
 1. Check Terminal 1: Is `npm run dev` running?
-2. Check Terminal 2: Did you run `npm run ios:dev`?
-3. Still broken? Close simulator, try again
+2. Wait for "Ready on http://localhost:3000"
+3. Then run Terminal 2: `npm run ios:dev`
+4. Still broken? Restart dev server and try again
 
-### **"API calls fail in production build"**
+### **"API calls fail"**
 
-**Probably:**
-- API not deployed: Check https://app.caposport.com/api/players works
-- CORS issue: API needs to allow `capacitor://localhost` origin
+**Dev mode:** Check localhost:3000 is running
+**Prod mode:** Check https://app.caposport.com works in browser
 
 **Already fixed in your app** (218 API migrations done!)
 
 ### **"Archive fails validation"**
 
 **Check:**
-1. Did you pull latest from Git? (should have Info-Release.plist now)
-2. Is scheme set to "Release"? (should be automatic)
+1. Did you pull latest from Git?
+2. Is Vercel deployment working?
 3. Any errors in Xcode? Read carefully!
 
 ---
@@ -353,8 +390,19 @@ npm run ios:dev       # Relaunch
 # Daily dev (PC)
 npm run dev
 
-# iOS testing (Mac)
-git pull && npm run ios:dev
+# iOS testing - dev mode (Mac)
+# Terminal 1:
+npm run dev
+# Terminal 2:
+npm run ios:dev
+
+# iOS testing - prod mode (Mac)
+git pull && npm run ios:build
+# Then: Run in Xcode
+
+# iOS screenshots (Mac)
+git pull && npm run ios:build
+# Then: Run in Xcode → Cmd+S on each screen
 
 # iOS release (Mac)
 git pull && npm run ios:build
@@ -386,21 +434,25 @@ npm run android:build
 
 ## 🧠 **Mental Model: Dev vs Prod**
 
-**Dev Mode** (what you use 95% of the time):
-- Run: `npm run ios:dev` or `npm run android:dev`
-- Loads: From your local dev server
+**Dev Mode** (for development):
+- Run: Terminal 1: `npm run dev` + Terminal 2: `npm run ios:dev`
+- Loads: From your local dev server (localhost:3000)
 - Speed: Instant updates (live reload)
-- Network: Needs WiFi to dev machine
+- Network: Needs localhost connection
 - Use for: Development, testing, iteration
 
-**Prod Mode** (what users get):
-- Build: `npm run ios:build` creates archive
-- Loads: Static files bundled in app
-- Speed: Fast (no network needed for UI)
-- Network: Only for API calls
-- Use for: App Store submission, TestFlight
+**Prod Mode** (for screenshots/submission):
+- Run: `npm run ios:build` (no server needed!)
+- Loads: From your live Vercel deployment (app.caposport.com)
+- Speed: Fast (loads from production)
+- Network: Needs internet
+- Use for: Screenshots, App Store submission, TestFlight
 
-**Rule of thumb:** If you're coding, use dev mode. If you're submitting, use prod mode.
+**Rule of thumb:** 
+- Coding/testing → Dev mode (with localhost)
+- Screenshots/archiving → Prod mode (with Vercel)
+
+**Key insight:** In prod mode, you don't need to build anything locally! The app just loads your live website. 🎯
 
 ---
 
@@ -423,23 +475,33 @@ npm run android:build
 
 ---
 
-## 🚨 **Important: ATS Security (Already Fixed!)**
+## 🚨 **Important: Architecture (Webview Wrapper)**
 
-**What it was:**
-- Info.plist had `NSAllowsArbitraryLoads = true`
-- Needed for dev mode
-- Apple rejects for App Store
+**How it works:**
+- Mobile app = Native shell with a webview
+- Webview loads your website (like Safari, but in an app)
+- No static export, no complex builds
+- Just point the webview at the right URL
 
-**What we did:**
-- ✅ Created Info-Debug.plist (dev builds, localhost only)
-- ✅ Created Info-Release.plist (App Store builds, no HTTP)
-- ✅ Xcode automatically uses correct one
-- ✅ **No manual steps required!**
+**Two URLs:**
+- Dev: `http://localhost:3000` (your local dev server)
+- Prod: `https://app.caposport.com` (your Vercel deployment)
 
 **What you do:**
-- Nothing! Just `git pull` on Mac and it works.
+- Nothing! Scripts handle this automatically.
+- `npm run ios:dev` → loads localhost
+- `npm run ios:build` → loads Vercel
 
-See `docs/ios/ATS_FIX_APPLIED.md` for details.
+**Benefits:**
+- ✅ Simple architecture (no export drama)
+- ✅ All features work (API routes, Prisma, etc.)
+- ✅ Easy debugging (Safari Web Inspector)
+- ✅ Fast iteration (change code, reload)
+
+**Trade-off:**
+- ❌ Needs internet to use app (that's fine - football app needs connection anyway!)
+
+See `docs/MOBILE_SPEC.md` for technical details.
 
 ---
 

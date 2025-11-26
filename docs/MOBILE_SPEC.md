@@ -465,7 +465,7 @@ SUPABASE_SERVICE_ROLE_KEY="..."
 
 # API URLs
 NEXT_PUBLIC_APP_URL="https://app.caposport.com"
-NEXT_PUBLIC_SITE_URL="https://app.caposport.com"
+NEXT_PUBLIC_APP_URL="https://app.caposport.com"
 
 # Email
 RESEND_API_KEY="re_..."

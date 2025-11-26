@@ -91,13 +91,13 @@ Found 8 instances of `'http://localhost:3000'` as fallback values:
 
 #### **API Routes (Server-Side Only):**
 
-1. **`src/app/api/admin/system-health/route.ts`** (lines 126, 276)
+1. **`src/app/api/admin/system-health/route.ts`** (lines 123, 273)
    ```typescript
-   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
                     'http://localhost:3000';
    ```
    - **Context:** Health check endpoint fallback
-   - **Production:** Uses `NEXT_PUBLIC_SITE_URL` (HTTPS)
+   - **Production:** Uses `NEXT_PUBLIC_APP_URL` (HTTPS)
    - **Risk:** ✅ None (server-side only, not in mobile app)
 
 2. **`src/app/api/admin/club-invite/route.ts`** (lines 46, 103)

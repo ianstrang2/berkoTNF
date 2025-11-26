@@ -355,7 +355,7 @@ export async function DELETE(request: NextRequest) {
     });
     
     // Trigger stats recalculation since we deleted historical data (fire and forget)
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
       method: 'POST',
     }).catch(statsError => {

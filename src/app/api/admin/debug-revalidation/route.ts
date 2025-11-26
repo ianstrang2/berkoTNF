@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       VERCEL: process.env.VERCEL,
       VERCEL_ENV: process.env.VERCEL_ENV,
       VERCEL_URL: process.env.VERCEL_URL,
-      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
       hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       hasInternalApiKey: !!process.env.INTERNAL_API_KEY,
       timestamp: new Date().toISOString(),
@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
       let baseUrl: string;
       let urlSource: string;
       
-      if (process.env.NEXT_PUBLIC_SITE_URL) {
-        baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-        urlSource = 'NEXT_PUBLIC_SITE_URL';
+      if (process.env.NEXT_PUBLIC_APP_URL) {
+        baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+        urlSource = 'NEXT_PUBLIC_APP_URL';
       } else if (process.env.VERCEL_URL) {
         baseUrl = process.env.VERCEL_URL;
         urlSource = 'VERCEL_URL';

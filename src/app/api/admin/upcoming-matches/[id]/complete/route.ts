@@ -207,7 +207,7 @@ export async function POST(
 
       // Trigger stats recalculation after successful completion (non-blocking)
       console.log(`TRIGGERING STATS UPDATE for completed match ${matchId}`);
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       
       // ✅ Fire and forget - don't await this
       fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
