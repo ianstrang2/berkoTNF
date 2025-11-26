@@ -38,7 +38,8 @@
 - `.pb-safe` - Padding bottom (iOS home indicator)
 
 **How it works:**
-- **iOS:** Adds ~47px for notch/Dynamic Island
+- **iOS:** Adds ~47px-59px (Dynamic Island)
+  - *Note: Uses `max(env(), 50px)` fallback if env() returns 0px*
 - **Android:** Adds 24px for status bar  
 - **Web:** Adds 0px (no notch)
 - **Automatic** - no platform detection needed!

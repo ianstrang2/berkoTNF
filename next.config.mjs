@@ -1,26 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove appDir which is deprecated in Next.js 13.4+
-  experimental: {
-    // Removed appDir option which is now enabled by default
-    // Other experimental features as needed
-  },
+  // ===================================================================
+  // STANDARD NEXT.JS CONFIGURATION
+  // ===================================================================
+  // This is a normal Next.js app that runs on Vercel with full API routes.
+  // Mobile app (Capacitor) loads this app via webview - no static export.
+  // ===================================================================
   
-  // ===================================================================
-  // CAPACITOR MOBILE BUILD CONFIGURATION
-  // ===================================================================
-  // Enable static export for Capacitor builds (exports to out/ directory)
-  // API routes are NOT included in static export - mobile app calls them
-  // via HTTPS to production server (https://app.caposport.com/api/*)
-  // ===================================================================
-  output: process.env.CAPACITOR_BUILD === 'true' ? 'export' : undefined,
-  
-  // Disable image optimization for static export (Capacitor compatibility)
+  // Disable image optimization for Capacitor (optional, improves compatibility)
   images: {
     unoptimized: process.env.CAPACITOR_BUILD === 'true' ? true : false,
   },
   
-  // Add this to help with module resolution
+  // Webpack config for module resolution
   webpack: (config, { isServer }) => {
     // Fixes npm packages that depend on `fs` module
     if (!isServer) {

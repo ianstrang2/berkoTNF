@@ -1,20 +1,34 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
+// ===================================================================
+// CAPACITOR CONFIGURATION - WEBVIEW WRAPPER ARCHITECTURE
+// ===================================================================
+// Mobile app loads the web app via webview (no static export).
+// 
+// Two modes controlled by CAP_SERVER_ENV:
+// - DEV:  Loads http://localhost:3000 (for simulator testing)
+// - PROD: Loads https://app.caposport.com (for App Store builds)
+// ===================================================================
+
+const isDev = process.env.CAP_SERVER_ENV === 'dev';
+
 const config: CapacitorConfig = {
   appId: 'com.caposport.capo',
   appName: 'Capo',
-  webDir: 'out', // Next.js static export directory
+  webDir: 'public', // Not used in webview mode, but required by Capacitor
   
-  // ===================================================================
-  // SERVER CONFIGURATION FOR DEVELOPMENT
-  // ===================================================================
-  // For live reload during development, use:
-  //   npm run ios:dev      (or: npx cap run ios --live-reload)
-  //   npm run android:dev  (or: npx cap run android --live-reload)
-  // 
-  // Capacitor 7 automatically detects your dev server at localhost:3000.
-  // DO NOT hardcode server config here - it breaks production builds.
-  // ===================================================================
+  // Server configuration based on environment
+  ...(isDev ? {
+    server: {
+      url: 'http://localhost:3000',
+      cleartext: true, // Allow HTTP for local dev
+    }
+  } : {
+    server: {
+      url: 'https://app.caposport.com',
+      cleartext: false, // HTTPS only for production
+    }
+  }),
   
   // Deep link configuration
   // - Custom scheme: capo://

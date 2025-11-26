@@ -10,11 +10,10 @@
     "clean": "rimraf .next && rimraf node_modules && rimraf package-lock.json",
     "generate:main": "npx prisma generate --schema=prisma/schema.prisma",
     "generate:edge": "cd supabase/functions/update-recent-performance && npx prisma generate",
-    "build:mobile": "CAPACITOR_BUILD=true npm run build && npx cap sync",
-    "ios:dev": "npx cap run ios --live-reload",
-    "ios:build": "npm run build:mobile && npx cap open ios",
-    "android:dev": "npx cap run android --live-reload",
-    "android:build": "npm run build:mobile && npx cap open android"
+    "ios:dev": "CAP_SERVER_ENV=dev npx cap run ios",
+    "ios:build": "CAP_SERVER_ENV=prod npx cap sync ios && npx cap open ios",
+    "android:dev": "CAP_SERVER_ENV=dev npx cap run android",
+    "android:build": "CAP_SERVER_ENV=prod npx cap sync android && npx cap open android"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
