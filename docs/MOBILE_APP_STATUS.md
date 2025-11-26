@@ -1,8 +1,10 @@
 # 📱 Mobile App Submission Status
 
 **Last Updated:** November 26, 2025  
-**Current Phase:** Ready for Screenshots & TestFlight  
+**Current Phase:** Ready for TestFlight Submission  
 **Target:** TestFlight Beta → App Store/Play Store Submission
+
+**Screenshots:** ✅ Complete (November 26, 2025)
 
 ---
 
@@ -61,16 +63,18 @@
 - Removed static export complexity
 - No more Next.js build errors
 - Simple: Dev loads localhost, Prod loads Vercel
-- See updated `docs/MOBILE_USER_GUIDE.md` for details
+- Standardized on `NEXT_PUBLIC_APP_URL` (removed `NEXT_PUBLIC_SITE_URL`)
+- Domain: `app.caposport.com` configured and working
+- See `docs/ARCHITECTURE_DECISION_RECORD.md` for details
 
-### ⏳ **TODO (About 1.5 Hours Total)**
+### ✅ **RECENTLY COMPLETED**
 
-1. **Screenshots** (1 hour) - **READY NOW!**
-   - Run: `npm run ios:build` on Mac
-   - In Xcode: Select iPhone 17 Pro Max → Run
-   - Take 5-8 screenshots with `Cmd+S`
-   - Required: 6.9" iPhone (1320 x 2868) - auto-scales to smaller devices
-   - See screenshot guide in this chat for which screens to capture
+1. **Screenshots** ✅ (November 26, 2025)
+   - Captured 5-7 key screenshots at 1320 x 2868
+   - Saved to Desktop, ready for App Store Connect
+   - Shows: Dashboard, Match Report, Leaderboard, Player Profile
+
+### ⏳ **TODO (About 1 Hour Total)**
 
 2. **Apple Developer Account** ($99 + 24h wait)
    - Sign up at https://developer.apple.com/programs/
