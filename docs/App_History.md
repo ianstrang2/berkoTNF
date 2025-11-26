@@ -1450,51 +1450,277 @@ When you launch, here are the key narrative beats:
 
 ---
 
-## Phase 10: Documentation Overhaul (November 2025)
+## Phase 10: Feature Polish & Production Hardening (October 2025 - January 2025)
 
-**Timeline:** November 26, 2025  
-**Motivation:** Specs had grown too large, eating tokens and slowing Cursor
+**Timeline:** October-January 2025  
+**Motivation:** Polish rough edges, fix edge cases, prepare for real-world use
 
-### The Problem
+### iOS Platform Implementation (October 17, 2025)
 
-**Specification Bloat:**
-- 7 major specs exceeded 500+ lines (auth: 4432, multi-tenancy: 2508, match centre: 1906)
+**The MacBook Setup:**
+- Borrowed MacBook for iOS development
+- Set up Xcode, CocoaPods, iOS simulator
+- Completed full Capacitor iOS platform integration
+
+**What We Built:**
+```
+Vibe Coding on MacBook:
+"Set up iOS platform for Capo"
+→ Cursor configures Info.plist
+→ Sets up deep linking (capo://)
+→ Configures App Transport Security
+→ Tests in iOS simulator
+→ Everything works first try!
+```
+
+**Mobile-Specific Features:**
+- Platform-adaptive header (iOS FAB vs Android centered)
+- iOS status bar configuration (white text, light content)
+- Safe area insets for Dynamic Island
+- Deep link handler for app URL schemes
+
+**Cross-Platform Testing:**
+```
+Testing Matrix:
+Web → iOS Simulator → Android Emulator
+✅ Auth flows → ✅ Auth flows → ✅ Auth flows
+✅ Match management → ✅ Match management → ✅ Match management
+✅ Team balancing → ✅ Team balancing → ✅ Team balancing
+✅ Stats dashboards → ✅ Stats dashboards → ✅ Stats dashboards
+```
+
+**Achievement:** True cross-platform app (Web + iOS + Android) from single codebase
+
+---
+
+### Uneven Teams Feature (January 2025)
+
+**The Request:** "Can we do 7v9 matches? Sometimes numbers are uneven."
+
+**The Challenge:**
+- Balance by Ability algorithm assumed even teams (brute force combinations)
+- UI hardcoded for equal team sizes
+- Database schema assumed `team_size` meant both teams
+
+**Vibe Coding Solution:**
+```
+"Add support for uneven teams like 7v9, 8v10"
+→ Cursor analyzes balance algorithms
+→ Identifies Ability algorithm breaks with uneven (brute force complexity)
+→ Adds actual_size_a, actual_size_b fields
+→ Updates UI with toggle: "Even Teams" / "Uneven Teams"
+→ Disables Ability algorithm for uneven (maintains integrity)
+→ Performance and Random algorithms work perfectly
+```
+
+**Implementation Details:**
+```sql
+-- Database changes
+ALTER TABLE upcoming_matches 
+ADD COLUMN actual_size_a INT,
+ADD COLUMN actual_size_b INT;
+
+-- Validation logic
+total_players = actual_size_a + actual_size_b
+slot_validation = teamA.length === actual_size_a 
+               && teamB.length === actual_size_b
+```
+
+**UI Changes:**
+- Toggle switch for even/uneven mode
+- Two size inputs when uneven (Team A: 7, Team B: 9)
+- Dynamic slot validation
+- Algorithm selector respects uneven restriction
+
+**Outcome:** Flexibility for real-world scenarios (someone doesn't show up, etc.)
+
+---
+
+### Match Report Dashboard Enhancement (January 2025)
+
+**The Vision:** Dashboard showing real-time record-breaking achievements
+
+**What Was Built:**
+
+**2x2 Dashboard Layout:**
+```
+┌─────────────────┬─────────────────┐
+│  Match Report   │  Current Form   │
+│  (Teams, Score) │  (Streaks)      │
+├─────────────────┼─────────────────┤
+│ Current Standings│ Records &       │
+│ (Leaderboards)  │ Achievements    │
+└─────────────────┴─────────────────┘
+```
+
+**Feat-Breaking Detection System:**
+- Real-time comparison of current streaks vs all-time records
+- 8 feat types: win streaks, loss streaks, unbeaten, winless, scoring, attendance
+- Visual badges: "RECORD BROKEN" (purple), "RECORD EQUALED" (amber)
+- Copy function enhanced with emoji formatting
+
+**Vibe Coding Moment:**
+```
+"Detect when players break all-time records in real-time"
+→ Cursor analyzes existing SQL functions
+→ Identifies aggregated_hall_of_fame has records
+→ Updates update_aggregated_match_report_cache
+→ Adds feat_breaking_data JSONB field
+→ Compares current match against all-time records
+→ Returns feat notifications
+→ UI displays with badges
+```
+
+**Database Addition:**
+```sql
+ALTER TABLE aggregated_match_report 
+ADD COLUMN feat_breaking_data JSONB DEFAULT '[]'::jsonb;
+
+-- Example output:
+[
+  { type: 'WIN_STREAK', player_name: 'John', value: 12, record: 11, status: 'BROKEN' },
+  { type: 'GOAL_STREAK', player_name: 'Pete', value: 8, record: 8, status: 'EQUALED' }
+]
+```
+
+**Outcome:** Post-match reports now automatically celebrate record-breaking performances
+
+---
+
+### Performance Rating Edge Case Fixes (January 2025)
+
+**The Guest Player Problem:**
+
+Discovery: Guests with 18+ matches had 404 profiles (couldn't view their stats)
+
+**Root Cause:**
+- SQL functions excluded guests (`WHERE is_ringer = false`)
+- No data → Profile 404s
+- But guests had match history worth showing
+
+**The Fix:**
+```
+"Guests with match history should have profiles"
+→ Cursor analyzes data flow
+→ Proposes: Generate data for ALL players (guests included)
+→ Filter guests in presentation layer only
+→ SQL functions updated: WHERE is_retired = false
+→ Frontend filters guests from public leaderboards
+→ Admin tools and profiles include guests
+```
+
+**Benefits:**
+- Guests contribute meaningful data to team balancing (Jude: trend_rating=3)
+- Admin debugging tools work for all players
+- No more 404 errors
+- Competition integrity maintained (guests excluded from awards)
+
+---
+
+### Percentile Calculation Accuracy Fix (January 2025)
+
+**The Bug:** Pete Hay (7th out of 28 players) showed 47th percentile (should be ~78th)
+
+**Root Cause Discovery:**
+```
+"Pete Hay is 7th best but shows middle percentile - that's wrong"
+→ Cursor analyzes percentile calculation
+→ Identifies width_bucket() approach
+→ Explains: width_bucket divides VALUE RANGE, not RANK
+→ "Should use PERCENT_RANK() for rank-based percentiles"
+→ Updates SQL function
+→ Pete now shows 78th percentile (correct!)
+```
+
+**Mathematical Fix:**
+```sql
+-- Before (wrong)
+width_bucket(power_rating, min_rating, max_rating, 100)
+
+-- After (correct)
+ROUND((PERCENT_RANK() OVER (ORDER BY power_rating ASC) * 100)::numeric, 1)
+```
+
+**Impact:** All player rankings now accurately reflect league standings
+
+---
+
+### TestFlight Preparation (November 2025)
+
+**The Goal:** Get iOS app ready for beta testers
+
+**Work Completed:**
+- Captured 5-7 screenshots at 1320x2868 (required size)
+- Created 5 comprehensive TestFlight guides (1600+ lines total):
+  - Complete submission guide (step-by-step)
+  - Quick reference card (keep open during submission)
+  - Printable checklist (track progress)
+  - FAQ (all questions answered)
+  - Navigation hub (links everything together)
+
+**Vibe Coding Documentation:**
+```
+"Create a complete TestFlight submission guide"
+→ Cursor analyzes Apple requirements
+→ Generates 4-phase guide with:
+  - Apple Developer signup process
+  - App Store Connect configuration
+  - Xcode archiving workflow
+  - TestFlight beta testing setup
+→ Includes screenshots, troubleshooting, timelines
+→ Ready-to-execute guide
+```
+
+**Status:** Ready to submit (just need Apple Developer account)
+
+---
+
+### Documentation Tidying (November 26, 2025)
+
+**The Problem:**
+- 8 major specs totaled 10,605 lines (auth alone: 3756 lines!)
 - Implementation history mixed with current design
-- No central index - had to remember what's in each file
-- Token costs mounting every time Cursor needed context
+- No central index
+- Token costs mounting (specs eating 10,000+ tokens per Cursor session)
 
-### The Solution
+**The Vibe Coding Tidying Session:**
+```
+"These specs are too large, let's organize them"
+→ I read all 8 major specs
+→ Identify current design vs historical content
+→ Create focused versions (just current architecture)
+→ Move originals to /docs/archive/
+→ Create /docs/README.md as navigation hub
+→ Update coding standards with maintenance rules
+```
 
-**Systematic Tidying:**
-- Created `/docs/README.md` as comprehensive doc map (39 files inventoried)
-- Tidied 7 major specs: focused on current design, removed implementation history
-- Deleted 2 duplicate files (MOBILE_ARCHITECTURE, marketing_spec)
-- Archived old implementation docs (ARCHIVE_heavy_wins_implementation)
-- Established maintenance standards in coding rules
+**Results:**
+- 8 specs tidied: 10,605 → 3,294 lines (69% reduction)
+- Created doc map (28 files inventoried)
+- Deleted 5 duplicate/resolved files
+- Archived originals for reference
+- Established sustainable standards
 
-**Token Savings:**
-- Before: 11,780 lines across 7 major specs
-- After: 3,653 lines across 7 major specs  
-- Reduction: 69% (8,127 lines removed from active context)
+**Token Savings:** ~7,300 lines removed from active specs
 
 **New Standards:**
-- Spec structure: Overview → Current Design → Key Decisions → Archive
-- Prefix naming: SPEC_, MOBILE_, TEMP_, ARCHIVE_
-- TEMP_ cleanup mandate (prevent doc sprawl)
-- Target: < 500 lines per spec
+- Keep specs < 500 lines (target)
+- Structure: Overview → Current Design → Key Decisions
+- TEMP_ cleanup mandate (prevent accumulation)
+- Doc map for navigation
 
-**Vibe Coding Insight:**
-```
-Good specs = Better AI code generation
-Focused specs = Lower token costs
-Doc map = Faster context loading
+**Outcome:** Sustainable documentation system for long-term vibe coding
 
-This tidying saves ~8000 tokens per Cursor session
-```
+---
 
-**Time Taken:** ~4 hours (systematic review and restructuring)
+**Document Version:** 1.1.0  
+**Last Updated:** November 26, 2025  
+**Status:** Complete development history through Phase 10  
+**Next Update:** After RSVP/Billing implementation
 
-**Outcome:** Sustainable documentation system ready for RSVP implementation and beyond
+---
+
+*This document was itself created through vibe coding, synthesizing 2,500+ lines of specifications, analyzing 500+ files of code, and organizing 10+ months of development history into a coherent narrative. And now it includes the story of tidying that very documentation, plus the features built between October and January. Meta on meta on meta.* 🚀
 
 ---
 
