@@ -123,6 +123,7 @@ export interface NewMatchData {
 export interface PlayerFormData {
   name: string;
   phone?: string;
+  email?: string;
   authUserId?: string | null;
   isAdmin?: boolean;
   isRinger: boolean;

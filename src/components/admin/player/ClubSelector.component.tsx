@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import clubsData from '../../../../data/clubs.json'; // Adjust path as necessary
 import { Club } from '@/types/player.types';
 
@@ -11,6 +11,7 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [clubs, setClubs] = useState<Club[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Transform the raw data to match the canonical Club type
@@ -20,6 +21,33 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
     }));
     setClubs(transformedClubs);
   }, []);
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isOpen]);
 
   const filteredClubs = clubs.filter(club =>
     club.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -38,7 +66,7 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <div 
         className="block w-full appearance-none rounded-md border border-gray-300 bg-white px-2 py-1 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-sm cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}

@@ -32,7 +32,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "Is it complicated to set up?",
-      answer: "No. Most captains can organise their first game in a few minutes. Create your group, drop in your pitch, set your usual time and invite the squad. After that, Capo becomes your weekly football attendance tracker and team picker – you mostly just create new matches and hit \"Finish\" at full-time."
+      answer: "No. Most captains can organise their first game in a few minutes. Create your group, set up a season and invite the squad. After that, Capo becomes your weekly football attendance tracker and team picker – you mostly just create new matches and hit \"Finish\" at full-time."
     },
     {
       question: "What if someone doesn't pay?",
@@ -45,10 +45,6 @@ const FAQ: React.FC = () => {
     {
       question: "Can Capo track goals and streaks?",
       answer: "It can — that's half the fun. Capo is a proper football stats app for casual players: it tracks goals, appearances, wins, losses, streaks, form and records over time. If you like the idea of fantasy-football-style stats but for your actual five-a-side performances, this is exactly that. All the organiser needs to do is enter who scored — Capo updates all the stats, streaks, tables and profiles automatically."
-    },
-    {
-      question: "Can I use Capo for leagues, or just one-off games?",
-      answer: "You can do both. Capo works great for a single weekly kickabout, but it also doubles as a light football league tracking app – keeping a running table, points, streaks and history for your group across the season."
     },
     {
       question: "What platforms is Capo on?",

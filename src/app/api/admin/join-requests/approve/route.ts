@@ -79,12 +79,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Link auth_user_id and update phone
+      // Link auth_user_id and update phone/email
       linkedPlayer = await prisma.players.update({
         where: { player_id: parseInt(existingPlayerId) },
         data: {
           auth_user_id: joinRequest.auth_user_id || undefined,
           phone: joinRequest.phone_number,
+          email: joinRequest.email || undefined,
         },
       });
     } else {
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
           tenant_id: tenantId,
           name: playerName,
           phone: joinRequest.phone_number,
+          email: joinRequest.email || undefined,
           auth_user_id: joinRequest.auth_user_id || undefined,
           is_ringer: false,
           is_retired: false,

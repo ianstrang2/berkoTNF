@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
     const {
       name,
       phone,
+      email,
       isAdmin,
       is_ringer,
       is_retired,
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
     const createData: any = {
       name,
       phone: phone || null,
+      email: email || null,
       is_admin: isAdmin || false,
       is_ringer: is_ringer !== undefined ? is_ringer : false, // Default for new player
       is_retired: is_retired !== undefined ? is_retired : false, // Default for new player
@@ -171,6 +173,7 @@ export async function PUT(request: NextRequest) {
       player_id, 
       name,
       phone,
+      email,
       isAdmin,
       is_ringer, 
       is_retired,
@@ -198,6 +201,7 @@ export async function PUT(request: NextRequest) {
     const updateData: {
       name?: string;
       phone?: string | null;
+      email?: string | null;
       auth_user_id?: string | null;
       is_admin?: boolean;
       is_ringer?: boolean;
@@ -221,6 +225,7 @@ export async function PUT(request: NextRequest) {
         console.log(`[PLAYERS] Phone changed for ${currentPlayer.name} - auth_user_id cleared. Player must re-claim with new number.`);
       }
     }
+    if (email !== undefined) updateData.email = email || null;
     if (isAdmin !== undefined) updateData.is_admin = isAdmin;
     if (is_ringer !== undefined) updateData.is_ringer = is_ringer;
     if (is_retired !== undefined) updateData.is_retired = is_retired;

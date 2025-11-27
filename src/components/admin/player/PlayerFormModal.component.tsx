@@ -67,6 +67,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   const [formData, setFormData] = useState<PlayerFormData>({
     name: initialData?.name || '',
     phone: initialData?.phone || '',
+    email: initialData?.email || '',
     isAdmin: initialData?.isAdmin || false,
     isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : false,
     isRetired: initialData?.isRetired || false,
@@ -88,6 +89,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
       setFormData({
         name: initialData?.name || '',
         phone: initialData?.phone || '',
+        email: initialData?.email || '',
         isAdmin: initialData?.isAdmin || false,
         isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : false,
         isRetired: initialData?.isRetired || false,
@@ -207,7 +209,10 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
           
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
-              <label className="block text-slate-700 text-sm font-medium mb-2">Player Name</label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-slate-700 text-sm font-medium">Player Name</label>
+                <span className="text-xs text-slate-500">{formData.name.length} / 14</span>
+              </div>
               <input
                 type="text"
                 value={formData.name}
@@ -217,10 +222,9 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 maxLength={14}
                 required
               />
-              <div className="text-xs text-slate-500 mt-1 flex justify-between">
-                <span>{nameError && <span className="text-red-500">{nameError}</span>}</span>
-                <span>{formData.name.length} / 14</span>
-              </div>
+              {nameError && (
+                <p className="text-xs text-red-500 mt-1">{nameError}</p>
+              )}
             </div>
 
             <div className="mb-4">
@@ -228,15 +232,10 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 Phone Number
               </label>
               {initialData ? (
-                // Editing existing player - show phone as read-only (even if empty)
-                <>
-                  <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-slate-600">
-                    {formData.phone || 'Not set'}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Phone cannot be changed after player creation
-                  </p>
-                </>
+                // Editing existing player - phone is read-only
+                <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-slate-600">
+                  {formData.phone || 'Not set'}
+                </div>
               ) : (
                 // Creating new player - allow phone entry
                 <>
@@ -254,15 +253,24 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                     }`}
                     placeholder="07XXX XXXXXX or +447XXX XXXXXX"
                   />
-                  <div className="text-xs mt-1">
-                    {phoneError ? (
-                      <span className="text-red-500">{phoneError}</span>
-                    ) : (
-                      <span className="text-slate-500">Needed for the player to access the app</span>
-                    )}
-                  </div>
+                  {phoneError && (
+                    <p className="text-xs text-red-500 mt-1">{phoneError}</p>
+                  )}
                 </>
               )}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-slate-700 text-sm font-medium mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
+                placeholder="player@email.com"
+              />
             </div>
 
             <div className="mb-4">

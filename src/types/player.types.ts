@@ -17,6 +17,7 @@ export interface PlayerProfile {
   id: string;
   name: string;
   phone?: string | null;
+  email?: string | null;
   authUserId?: string | null;
   isAdmin?: boolean;
   isRinger: boolean;

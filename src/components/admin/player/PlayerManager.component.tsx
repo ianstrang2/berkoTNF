@@ -686,6 +686,7 @@ const PlayerManager: React.FC = () => {
         initialData={selectedPlayer ? {
           name: selectedPlayer.name,
           phone: selectedPlayer.phone ?? undefined,
+          email: selectedPlayer.email ?? undefined,
           isAdmin: selectedPlayer.isAdmin,
           authUserId: selectedPlayer.authUserId,
           isRinger: selectedPlayer.isRinger,
