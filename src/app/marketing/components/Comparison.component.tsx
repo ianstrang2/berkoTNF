@@ -61,14 +61,17 @@ const Comparison: React.FC = () => {
         </div>
 
         {/* Comparison Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          {/* Scroll hint for mobile */}
+          <p className="text-xs text-gray-400 text-center mb-2 sm:hidden">← Swipe to compare →</p>
+          
+          <table className="w-full border-collapse min-w-[500px]">
             <thead>
               <tr className="border-b-2 border-gray-300">
-                <th className="text-left p-4 text-gray-700 font-bold text-lg w-1/4">Feature</th>
-                <th className="p-4 text-center text-gray-700 font-bold text-lg w-1/4">WhatsApp</th>
-                <th className="p-4 text-center text-gray-700 font-bold text-lg w-1/4">Spond</th>
-                <th className="p-4 text-center bg-purple-50 text-purple-900 font-bold text-lg w-1/4 rounded-t-lg">
+                <th className="text-left p-2 sm:p-4 text-gray-700 font-bold text-sm sm:text-lg w-1/4">Feature</th>
+                <th className="p-2 sm:p-4 text-center text-gray-700 font-bold text-sm sm:text-lg w-1/4">WhatsApp</th>
+                <th className="p-2 sm:p-4 text-center text-gray-700 font-bold text-sm sm:text-lg w-1/4">Spond</th>
+                <th className="p-2 sm:p-4 text-center bg-purple-50 text-purple-900 font-bold text-sm sm:text-lg w-1/4 rounded-t-lg">
                   Capo
                   <div className="text-xs font-normal text-purple-700 mt-1">← Built for this</div>
                 </th>
@@ -80,61 +83,26 @@ const Comparison: React.FC = () => {
                   key={index} 
                   className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
                 >
-                  <td className="p-4 font-semibold text-gray-900">{row.feature}</td>
+                  <td className="p-2 sm:p-4 font-semibold text-gray-900 text-xs sm:text-base">{row.feature}</td>
                   
-                  <td className="p-4 text-center">
-                    <div className="text-2xl mb-1">{row.whatsapp.icon}</div>
-                    <div className="text-sm text-gray-600">{row.whatsapp.text}</div>
+                  <td className="p-2 sm:p-4 text-center">
+                    <div className="text-xl sm:text-2xl mb-1">{row.whatsapp.icon}</div>
+                    <div className="text-xs sm:text-sm text-gray-600">{row.whatsapp.text}</div>
                   </td>
                   
-                  <td className="p-4 text-center">
-                    <div className="text-2xl mb-1">{row.spond.icon}</div>
-                    <div className="text-sm text-gray-600">{row.spond.text}</div>
+                  <td className="p-2 sm:p-4 text-center">
+                    <div className="text-xl sm:text-2xl mb-1">{row.spond.icon}</div>
+                    <div className="text-xs sm:text-sm text-gray-600">{row.spond.text}</div>
                   </td>
                   
-                  <td className="p-4 text-center bg-purple-50">
-                    <div className="text-2xl mb-1">{row.capo.icon}</div>
-                    <div className="text-sm text-purple-900 font-medium">{row.capo.text}</div>
+                  <td className="p-2 sm:p-4 text-center bg-purple-50">
+                    <div className="text-xl sm:text-2xl mb-1">{row.capo.icon}</div>
+                    <div className="text-xs sm:text-sm text-purple-900 font-medium">{row.capo.text}</div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* Mobile-friendly Cards (shown on small screens) */}
-        <div className="lg:hidden mt-8 space-y-6">
-          {features.map((row, index) => (
-            <div key={index} className="bg-white border-2 border-gray-200 rounded-lg p-4 shadow-sm">
-              <h3 className="font-bold text-gray-900 text-lg mb-4">{row.feature}</h3>
-              
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">{row.whatsapp.icon}</div>
-                  <div>
-                    <div className="font-semibold text-sm text-gray-700">WhatsApp</div>
-                    <div className="text-sm text-gray-600">{row.whatsapp.text}</div>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">{row.spond.icon}</div>
-                  <div>
-                    <div className="font-semibold text-sm text-gray-700">Spond</div>
-                    <div className="text-sm text-gray-600">{row.spond.text}</div>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3 bg-purple-50 -m-4 mt-2 p-4 rounded-b-lg">
-                  <div className="text-2xl">{row.capo.icon}</div>
-                  <div>
-                    <div className="font-semibold text-sm text-purple-900">Capo</div>
-                    <div className="text-sm text-purple-900 font-medium">{row.capo.text}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </section>
