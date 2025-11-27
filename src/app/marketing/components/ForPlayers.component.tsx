@@ -1,123 +1,115 @@
 'use client';
-import React from 'react';
-import { useScrollReveal } from '../hooks/useScrollReveal';
-import ImageCarousel from './ImageCarousel.component';
+import React, { useState } from 'react';
 
 const ForPlayers: React.FC = () => {
-  const sectionRef = useScrollReveal();
+  const [activeSlide, setActiveSlide] = useState(0);
 
-  // Player profile carousel images
-  const playerProfileImages = [
-    {
-      src: '/img/marketing/player-profile/2-player-profile.png',
-      alt: 'Capo football stats app interface showing streaks, goals and 5-a-side performance charts',
-      caption: 'AI-written biography that tells your football story'
+  const screens = [
+    { 
+      id: 'profile', 
+      label: 'AI Profile', 
+      image: '/img/marketing/player-ai-profile.png',
+      alt: 'football stats app showing AI-written player profile for casual 5-a-side players'
     },
-    {
-      src: '/img/marketing/player-profile/1-match-report.png',
-      alt: 'Capo 5-a-side football app showing player stats and match report',
-      caption: 'Post-match reports showing streaks, form, and performance'
+    { 
+      id: 'stats', 
+      label: 'Stats & Form', 
+      image: '/img/marketing/player-stats.png',
+      alt: 'football performance tracker showing goals, assists and stats over time'
     },
-    {
-      src: '/img/marketing/player-profile/3-season-race.png',
-      alt: 'Capo 5-a-side football app weekly match flow showing season race progression',
-      caption: 'Track your rise through the season leaderboard'
+    { 
+      id: 'streaks', 
+      label: 'Streaks', 
+      image: '/img/marketing/player-streaks.png',
+      alt: 'football streak tracker showing attendance runs and scoring streaks'
     },
-    {
-      src: '/img/marketing/player-profile/6-league-tables.png',
-      alt: 'Capo football stats app showing league tables and season standings',
-      caption: 'Half-season and full-season standings with points and performance'
-    },
-    {
-      src: '/img/marketing/player-profile/4-chemistry.png',
-      alt: 'Capo 5-a-side performance charts showing player chemistry and partnerships',
-      caption: 'Who you play best with - the data proves it'
-    },
-    {
-      src: '/img/marketing/player-profile/5-records.png',
-      alt: 'Capo football stats app showing club records, milestones, and achievements',
-      caption: 'All-time records, milestones, and club legends'
-    },
+    { 
+      id: 'report', 
+      label: 'Match Report', 
+      image: '/img/marketing/player-match-report.png',
+      alt: 'football match report showing goals, assists and streaks for casual players in Capo'
+    }
   ];
 
   return (
-    <section ref={sectionRef} className="py-20 md:py-32 bg-white scroll-reveal">
+    <section className="py-20 lg:py-32 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-neutral-900 mb-4">
-            FOR PLAYERS
-          </h2>
-          <h3 className="text-2xl md:text-3xl font-semibold text-neutral-700">
+          <p className="text-sm font-bold text-purple-600 uppercase tracking-wider mb-4">For Players</p>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
             Your football story, told properly.
-          </h3>
-        </div>
-
-        <div className="max-w-4xl mx-auto mb-16">
-          <p className="text-lg md:text-xl text-neutral-700 leading-relaxed text-center">
-            Capo turns your casual football game into a proper mini-league — the kind people actually care about.
-            Every match counts. Every stat matters. Every streak becomes lore. It's the football stats app for casual players — a proper 5-a-side stats tracker that finally treats your weeknight games like they matter.
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Capo turns your casual five-a-side into something everyone actually cares about — stats, streaks, match reports and AI-written profiles that make every game part of a bigger story.
           </p>
         </div>
 
-        {/* Image Carousel */}
-        <div className="mb-16">
-          <ImageCarousel images={playerProfileImages} autoPlayInterval={5000} accentColor="purple" />
-        </div>
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Phone Carousel */}
+          <div className="relative">
+            <div className="relative w-72 aspect-[9/19] mx-auto">
+              <img 
+                src={screens[activeSlide].image}
+                alt={screens[activeSlide].alt}
+                className="w-full h-full object-contain drop-shadow-2xl"
+              />
+            </div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
-          <div>
-            <h4 className="text-xl font-bold text-neutral-900 mb-3">
-              Your AI-written player biography
-            </h4>
-            <p className="text-neutral-700 leading-relaxed">
-              Capo watches your performances — games, goals, wins, losses, scoring runs, attendance, form, seasons — and turns them into a living football narrative. It updates as you play. It remembers everything. It becomes the story of your career at the club.
-            </p>
+            {/* Carousel Navigation */}
+            <div className="flex justify-center gap-3 mt-6">
+              {screens.map((screen, index) => (
+                <button
+                  key={screen.id}
+                  onClick={() => setActiveSlide(index)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    activeSlide === index
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {screen.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div>
-            <h4 className="text-xl font-bold text-neutral-900 mb-3">
-              Streaks & form badges to spark the post-match chat
-            </h4>
-            <p className="text-neutral-700 leading-relaxed">
-              Attendance runs. Unbeaten patches. Win streaks. Scoring streaks. Winless droughts. Capo tracks them all and shows your current heat with bold icons and simple visuals. You know exactly who's on fire and who's gone missing.
-            </p>
-          </div>
+          {/* Right: Feature Bullets */}
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">AI-written player profiles</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Capo watches your games, goals, wins, losses, streaks and form, and turns them into a living player bio. It updates every week. It remembers everything. It becomes the story of your kickabout career.
+              </p>
+            </div>
 
-          <div>
-            <h4 className="text-xl font-bold text-neutral-900 mb-3">
-              Fantasy-style scoring — but from real football
-            </h4>
-            <p className="text-neutral-700 leading-relaxed">
-              Every game feeds your season points: goals, wins, appearance points, clean sheets, and heavy-win or heavy-loss rewards. Leaderboards shift every week. Suddenly everyone starts checking where they stand.
-            </p>
-          </div>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Streaks & form badges for banter</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Attendance runs, scoring streaks, unbeaten patches, grim winless droughts — Capo tracks it all and shows your current "heat" with simple badges. Everyone knows who's flying and who's gone missing.
+              </p>
+            </div>
 
-          <div>
-            <h4 className="text-xl font-bold text-neutral-900 mb-3">
-              Performance graphs that show your rise (or wobble)
-            </h4>
-            <p className="text-neutral-700 leading-relaxed">
-              Your games, goals, minutes and points-per-game evolve across the season in clean, simple visuals. You can see your improvement — and everyone else's.
-            </p>
-          </div>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Fantasy-style scoring – but it's actually you</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Every match feeds your season points: appearances, goals, wins, clean sheets, big results. Leaderboards shift every week. Suddenly, everyone checks where they stand.
+              </p>
+            </div>
 
-          <div>
-            <h4 className="text-xl font-bold text-neutral-900 mb-3">
-              Chemistry that exposes the truth
-            </h4>
-            <p className="text-neutral-700 leading-relaxed">
-              Capo reveals who you play best with, who you struggle with, and which combinations always deliver. Some partnerships just click. Some… don't. Now you've got the data to prove it.
-            </p>
-          </div>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Graphs & charts that show your rise (or wobble)</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Clean visuals of your minutes, goals and points-per-game over time. You can literally see your form curve — and everyone else's.
+              </p>
+            </div>
 
-          <div>
-            <h4 className="text-xl font-bold text-neutral-900 mb-3">
-              Records, milestones & club legends
-            </h4>
-            <p className="text-neutral-700 leading-relaxed">
-              Longest streaks, biggest scoring nights, heaviest defeats, milestone matches. Capo keeps the folklore straight. Your group stops being "just a chat" and starts to feel like it has real history.
-            </p>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Legends, records & lore</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Biggest nights, longest streaks, wildest defeats, weird milestones — all logged. Your group stops being "just a chat" and starts to feel like it has history.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -126,4 +118,3 @@ const ForPlayers: React.FC = () => {
 };
 
 export default ForPlayers;
-

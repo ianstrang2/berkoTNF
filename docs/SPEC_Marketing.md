@@ -138,5 +138,31 @@ WHERE settings->>'attribution' IS NOT NULL;
 
 ---
 
+## SEO Target Keywords
+
+**Primary SEO phrases Capo aims to rank for:**
+
+These should be used naturally across meta tags, headings, and supporting technical SEO content.
+
+**Target Keywords:**
+- 5-a-side football app
+- 5-a-side organiser app
+- football team management app
+- football team organiser app
+- app to organise casual football
+- casual football app
+- football stats app for casual players
+- 5-a-side stats tracker
+- football team picker app
+- collect football match payments
+
+**Current Implementation:**
+- Meta keywords: `src/app/layout.tsx` (line 24)
+- Page title: "Capo — The 5-a-side football app for organising casual football"
+- Meta description: "Capo is the 5-a-side football app that organises your casual football game..."
+- App Store keywords: See `TESTFLIGHT_FAQ.md` for app store submission copy
+
+---
+
 **Note:** This is a simple first-touch attribution model suitable for small-scale marketing. For advanced analytics, consider integrating with PostHog or Mixpanel.
 

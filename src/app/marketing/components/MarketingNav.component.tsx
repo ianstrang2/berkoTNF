@@ -38,7 +38,7 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
               alt="Capo - 5-a-side football app"
               width={580}
               height={160}
-              className="h-10 w-auto md:h-12"
+              className="h-7 w-auto md:h-8"
               priority
             />
           </Link>

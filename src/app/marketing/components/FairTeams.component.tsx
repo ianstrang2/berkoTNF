@@ -1,64 +1,64 @@
 'use client';
 import React from 'react';
-import { useScrollReveal } from '../hooks/useScrollReveal';
 
 const FairTeams: React.FC = () => {
-  const sectionRef = useScrollReveal();
-
   return (
-    <section ref={sectionRef} className="py-20 md:py-32 bg-white scroll-reveal">
+    <section className="py-20 lg:py-32 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-neutral-900 mb-4">
-            FAIR TEAMS
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+            Fair teams. Better games. Zero effort.
           </h2>
-          <h3 className="text-2xl md:text-3xl font-semibold text-neutral-700">
-            Balanced matches. Less moaning. More football.
-          </h3>
-        </div>
-
-        <div className="max-w-4xl mx-auto mb-16">
-          <p className="text-lg md:text-xl text-neutral-700 leading-relaxed text-center">
-            Stacked teams ruin a good night. Capo builds fair sides using ratings and real performance — and shows you exactly why the teams are balanced.
+          <p className="text-2xl text-purple-600 font-semibold mb-4">
+            Team selection that takes seconds — not arguments.
+          </p>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Capo automatically builds balanced teams using everyone's recent performances. No sliders. No spreadsheets. No long chats. It just works — and it feels fair.
           </p>
         </div>
 
-        {/* Team Balancing Image */}
-        <div className="max-w-4xl mx-auto mb-16">
-          <img
-            src="/img/marketing/fair-teams.png"
-            alt="Capo football team picker app showing Balance Score and fair team creation"
-            className="w-full rounded-2xl shadow-2xl"
-          />
-        </div>
-
-        {/* Features */}
-        <div className="max-w-4xl mx-auto space-y-12">
-          <div className="bg-neutral-50 p-8 md:p-12 rounded-2xl">
-            <h4 className="text-2xl font-bold text-neutral-900 mb-4">
-              AI team balancing with sliders
-            </h4>
-            <p className="text-lg text-neutral-700 leading-relaxed">
-              Adjust the importance of things like pace, technique, goalscoring, teamwork and resilience. Use fixed ratings or let Capo lean on live form. The teams feel right before you even kick off.
-            </p>
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Phone showing balanced teams */}
+          <div className="relative">
+            <div className="relative w-72 aspect-[9/19] mx-auto">
+              <img 
+                src="/img/marketing/team-balance.png"
+                alt="AI team balancer for small-sided football – balanced 5-a-side teams in Capo"
+                className="w-full h-full object-contain drop-shadow-2xl"
+              />
+            </div>
           </div>
 
-          <div className="bg-neutral-50 p-8 md:p-12 rounded-2xl">
-            <h4 className="text-2xl font-bold text-neutral-900 mb-4">
-              Balance Score with full breakdown
-            </h4>
-            <p className="text-lg text-neutral-700 leading-relaxed">
-              When you generate teams, Capo shows a clear Balance Score and a breakdown across defence, midfield, attack, teamwork and resilience. If someone complains, you've got the evidence.
-            </p>
-          </div>
+          {/* Right: Feature Bullets */}
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Balanced automatically</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Players' form and performances feed into a simple balancing engine that gives you fair sides out of the box.
+              </p>
+            </div>
 
-          <div className="bg-neutral-50 p-8 md:p-12 rounded-2xl">
-            <h4 className="text-2xl font-bold text-neutral-900 mb-4">
-              Total control when you want it
-            </h4>
-            <p className="text-lg text-neutral-700 leading-relaxed">
-              Drag players between teams. Re-run the balance. Lock the sides. Automatic when you want simple. Tweaker-friendly when you want control.
-            </p>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Better football for everyone</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Close, competitive games are more fun — and they keep people coming back.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Tweak when you want</h3>
+              <p className="text-gray-700 leading-relaxed">
+                Move players between teams or nudge things manually if you fancy it. Capo stays simple by default, powerful if you need it.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Friendly transparency</h3>
+              <p className="text-gray-700 leading-relaxed">
+                See a light "balance at a glance" score. No nerdy breakdowns. No need to justify anything. Just confidence that the game feels right.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -67,4 +67,3 @@ const FairTeams: React.FC = () => {
 };
 
 export default FairTeams;
-

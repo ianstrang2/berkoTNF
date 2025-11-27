@@ -17,7 +17,7 @@
     if (document.querySelectorAll(".overflow-auto")[0]) {
       var sidebar = document.querySelectorAll(".overflow-auto");
       var i = 0;
-      var ps;
+      var ps = {};
       sidebar.forEach((element) => {
         ps[i++] = new PerfectScrollbar(element);
       });
@@ -25,7 +25,7 @@
     if (document.querySelectorAll(".overflow-y-auto")[0]) {
       var sidebar = document.querySelectorAll(".overflow-y-auto");
       var i = 0;
-      var ps;
+      var ps = {};
       sidebar.forEach((element) => {
         ps[i++] = new PerfectScrollbar(element);
       });
@@ -33,7 +33,7 @@
     if (document.querySelectorAll(".overflow-x-auto")[0]) {
       var sidebar = document.querySelectorAll(".overflow-x-auto");
       var i = 0;
-      var ps;
+      var ps = {};
       sidebar.forEach((element) => {
         ps[i++] = new PerfectScrollbar(element);
       });
