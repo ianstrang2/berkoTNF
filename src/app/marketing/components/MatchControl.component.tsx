@@ -40,7 +40,7 @@ const MatchControl: React.FC = () => {
             Built for the chaos around the game.
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Capo isn't just a pretty stats app. It's built for all the messy stuff before and after a match — the WhatsApp noise, the last-minute guests, the final score, the post-game chat.
+            Capo isn't just a pretty stats app. It's built for all the messy stuff around a match — the WhatsApp noise, the last-minute guests, the final score, the post-game chat.
           </p>
         </div>
 

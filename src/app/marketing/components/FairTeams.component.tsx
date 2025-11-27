@@ -14,7 +14,7 @@ const FairTeams: React.FC = () => {
             Team selection that takes seconds — not arguments.
           </p>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Capo automatically builds balanced teams using everyone's recent performances. No sliders. No spreadsheets. No long chats. It just works — and it feels fair.
+            Capo automatically builds balanced teams using everyone's recent performances. No spreadsheets. No long chats. It just works — and it feels fair.
           </p>
         </div>
 
