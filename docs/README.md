@@ -34,6 +34,7 @@
 | `SPEC_balance_by_performance_algorithm.md` | 313 | ✅ Clean | Team balancing (EWMA power ratings) | Performance-based team balancing |
 | `SPEC_Marketing.md` | 142 | ✅ Clean | Marketing pages, analytics, safe areas | Marketing pages, Plausible, attribution |
 | `SPEC_balance_by_rating_algorithm.md` | 98 | ✅ Clean | Team balancing (position-based) | Position-based team balancing |
+| `SPEC_PlayerSettings.md` | 380 | ✅ Ready | Player settings page (name, email, club) | Implementing player profile management |
 | `SPEC_RSVP.md` | 2473 | 📋 Design only | RSVP system (NOT BUILT) | Future RSVP implementation (detailed design reference) |
 
 ### Key Patterns
@@ -218,6 +219,7 @@ Only if BOTH conditions met:
 | **Team balancing** | `SPEC_balance_by_performance_algorithm.md` | `SPEC_balance_by_rating_algorithm.md` |
 | **Match management** | `SPEC_match-control-centre.md` | `SPEC_match-report.md` |
 | **Player ratings** | `SPEC_performance_rating_system.md` | `SPEC_balance_by_performance_algorithm.md` |
+| **Player settings** | `SPEC_PlayerSettings.md` | `SPEC_auth.md` (roles) |
 | **Creating modals** | `SPEC_Modals.md` | - |
 | **Background jobs** | `SPEC_background_jobs.md` | - |
 | **Mobile development** | `MOBILE_SPEC.md` | `MOBILE_USER_GUIDE.md`, `ios/`, `mobile/` |

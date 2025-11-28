@@ -136,3 +136,38 @@ This document tracks potential problems and limitations that may need to be addr
 **Effort estimate**: 3-4 hours for self-service flow, or 0 hours for manual support approach
 
 **Priority**: Low (wait for first user request, then decide self-service vs manual)
+
+**Note (Nov 2025)**: Player Settings page implemented with placeholder for phone changes. Security tab shows "Contact admin to update phone number" with explanatory text about why phone changes require verification. When this becomes a priority, implement the two-factor verification flow above.
+
+---
+
+## **Player Settings Page - Security Tab Phone Change Flow**
+
+**Status**: Placeholder added, full implementation deferred
+
+**Current Implementation**:
+- Settings page: `/player/settings` with secondary tabs (Profile, Security, Notifications, Referrals, Billing)
+- Profile tab: Name, email, club (editable via `PUT /api/player/profile`)
+- Security tab: Shows current phone (read-only) with "Contact admin" message
+- Navigation: Hamburger menu on mobile, sidebar on desktop
+
+**When to implement full phone change**:
+- User requests start coming in
+- Competitive advantage needed
+- Self-service becomes worth the complexity
+
+**Implementation checklist** (when ready):
+1. Add "Change Phone Number" button in Security tab
+2. Build two-step verification modal:
+   - Step 1: Verify current phone (OTP)
+   - Step 2: Verify new phone (OTP)
+3. Create `POST /api/player/update-phone` route
+4. Update `auth.users.phone` via Supabase Admin API
+5. Update `players.phone` + keep `player_id` (preserve stats)
+6. Force logout all sessions
+7. Redirect to login with success message
+8. Test edge cases: duplicate phone, failed OTP, mid-flow abandonment
+
+**Complexity**: Medium-High (Supabase auth integration + session invalidation)  
+**Effort**: 6-8 hours  
+**Risk**: Breaking auth flow if not tested thoroughly
