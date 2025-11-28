@@ -1,0 +1,54 @@
+# Allow major AI crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: xai-crawler
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# Allow major search engine crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# Default rules for all other crawlers
+# Allow everything by default (marketing pages), then explicitly block authenticated/internal routes
+User-agent: *
+Disallow: /admin
+Disallow: /player
+Disallow: /superadmin
+Disallow: /auth
+Disallow: /signup
+Disallow: /join
+Disallow: /api
+Disallow: /unauthorized
+Disallow: /open
+
+# Sitemap
+Sitemap: https://caposport.com/sitemap.xml
+
