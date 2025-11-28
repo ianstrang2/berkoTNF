@@ -205,23 +205,9 @@ export async function POST(
         }
       });
 
-      // Trigger stats recalculation after successful completion (non-blocking)
-      console.log(`TRIGGERING STATS UPDATE for completed match ${matchId}`);
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      
-      // ✅ Fire and forget - don't await this
-      fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }).then(statsResponse => {
-        if (statsResponse.ok) {
-          console.log('STATS UPDATE triggered successfully');
-        } else {
-          console.warn('STATS UPDATE failed to trigger');
-        }
-      }).catch(statsError => {
-        console.warn('STATS UPDATE trigger error (non-critical):', statsError);
-      });
+      // Note: Stats update is triggered by the frontend hook (useMatchState.hook.ts)
+      // which uses the feature flag system and modern background job infrastructure
+      console.log(`Match ${matchId} completed - stats will be triggered by frontend hook`);
 
       return NextResponse.json({ success: true, data: completedMatch });
     } catch (error: any) {

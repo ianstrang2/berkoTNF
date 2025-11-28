@@ -59,7 +59,7 @@ export async function balanceByPerformance(
   }
 
   // Use the sophisticated performance balancing algorithm
-  const result = await balanceByPastPerformance(null, playerIdsInt, performanceWeights, sizes);
+  const result = await balanceByPastPerformance(null, playerIdsInt, performanceWeights, sizes, tenantId);
 
   // Convert to assignment format - both teams use 1-N slot numbering
   const assignments = [

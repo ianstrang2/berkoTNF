@@ -51,6 +51,7 @@ interface BalanceTeamsPaneProps {
   clearTeamsAction: () => Promise<void>;
   onShowToast: (message: string, type: 'success' | 'error') => void;
   markAsUnbalanced: () => Promise<void>;
+  onPlayersUpdated?: () => Promise<void>;
 }
 
 const useTeamDragAndDrop = (
@@ -58,10 +59,12 @@ const useTeamDragAndDrop = (
   markAsUnbalanced: () => Promise<void>,
   matchId: string,
   onTeamModified?: () => void,
-  currentPlayers?: PlayerInPool[]
+  currentPlayers?: PlayerInPool[],
+  onPlayersUpdated?: () => Promise<void>
 ) => {
   const [draggedPlayer, setDraggedPlayer] = useState<PlayerInPool | null>(null);
   const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [draggedElement, setDraggedElement] = useState<HTMLElement | null>(null);
 
   const updatePlayerAssignment = async (player: PlayerInPool, targetTeam: Team, targetSlot?: number) => {
     // Store original state for potential reversion
@@ -172,6 +175,8 @@ const useTeamDragAndDrop = (
       await markAsUnbalanced();
       // Track team modification
       onTeamModified?.();
+      // Notify parent component that players have been updated
+      onPlayersUpdated?.();
     } catch (error) {
       console.error("Failed to update player assignment:", error);
       // Revert the optimistic UI update on failure
@@ -197,20 +202,57 @@ const useTeamDragAndDrop = (
     const touch = e.touches[0];
     setTouchStartPos({ x: touch.clientX, y: touch.clientY });
     setDraggedPlayer(player);
+    setDraggedElement(e.currentTarget as HTMLElement);
+    
+    // Add visual feedback
+    (e.currentTarget as HTMLElement).style.opacity = '0.5';
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (!draggedPlayer) return;
     e.preventDefault(); // Prevent scrolling while dragging
+    
+    // Update dragged element position for visual feedback
+    if (draggedElement) {
+      const touch = e.touches[0];
+      draggedElement.style.opacity = '0.5';
+    }
   };
 
-  const handleTouchEnd = (targetTeam: Team, targetSlot?: number) => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (!draggedPlayer) return;
 
-    // Call the new update function
-    updatePlayerAssignment(draggedPlayer, targetTeam, targetSlot);
+    // Reset visual feedback
+    if (draggedElement) {
+      draggedElement.style.opacity = '1';
+    }
+
+    // Get the element at the touch end position
+    const touch = e.changedTouches[0];
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    if (!targetElement) {
+      setDraggedPlayer(null);
+      setTouchStartPos(null);
+      setDraggedElement(null);
+      return;
+    }
+
+    // Find the closest drop zone element (could be the element itself or a parent)
+    const dropZone = targetElement.closest('[data-drop-zone]');
+    
+    if (dropZone) {
+      const team = dropZone.getAttribute('data-team') as Team;
+      const slot = dropZone.getAttribute('data-slot');
+      
+      if (team) {
+        updatePlayerAssignment(draggedPlayer, team, slot ? parseInt(slot) : undefined);
+      }
+    }
 
     setDraggedPlayer(null);
     setTouchStartPos(null);
+    setDraggedElement(null);
   };
 
   return { 
@@ -233,7 +275,8 @@ const BalanceTeamsPane = ({
   balanceTeamsAction, 
   clearTeamsAction, 
   onShowToast, 
-  markAsUnbalanced 
+  markAsUnbalanced,
+  onPlayersUpdated
 }: BalanceTeamsPaneProps) => {
   // React Query hooks - automatic deduplication and caching!
   const { data: teamTemplate = null } = useTeamTemplate(teamSize);
@@ -313,7 +356,8 @@ const BalanceTeamsPane = ({
     markAsUnbalanced,
     matchId,
     () => setIsTeamsModified(true),
-    players
+    players,
+    onPlayersUpdated
   );
 
   const { teamA, teamB, unassigned } = useMemo(() => {
@@ -463,6 +507,7 @@ const BalanceTeamsPane = ({
         onDragStart={() => handleDragStart(player)}
         onTouchStart={(e) => handleTouchStart(player, e)}
         onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="inline-flex items-center justify-between bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-3 py-2 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing w-[170px] touch-none"
       >
           <span className="text-sm font-medium truncate flex-1">{displayName}</span>
@@ -479,9 +524,11 @@ const BalanceTeamsPane = ({
     return (
       <div 
         key={actualSlotNumber} 
+        data-drop-zone="true"
+        data-team={team}
+        data-slot={actualSlotNumber}
         onDragOver={handleDragOver} 
         onDrop={() => handleDrop(team, actualSlotNumber)}
-        onTouchEnd={() => handleTouchEnd(team, actualSlotNumber)}
         className={`h-[44px] w-[170px] flex items-center justify-center rounded-lg transition-all duration-200 ease-in-out mx-auto ${
           playerInSlot 
             ? 'bg-transparent' 
@@ -546,7 +593,13 @@ const BalanceTeamsPane = ({
             <div className="p-3 border-b border-gray-200">
                 <h2 className="font-bold text-slate-700 text-lg">Player Pool</h2>
             </div>
-            <div className="p-4" onDragOver={handleDragOver} onDrop={() => handleDrop('Unassigned')} onTouchEnd={() => handleTouchEnd('Unassigned')}>
+            <div 
+              className="p-4" 
+              data-drop-zone="true"
+              data-team="Unassigned"
+              onDragOver={handleDragOver} 
+              onDrop={() => handleDrop('Unassigned')}
+            >
                 <div className="flex flex-wrap gap-2 min-h-[120px] content-start">
                     {unassigned.length > 0 
                         ? unassigned.map(p => renderPlayer(p)) 

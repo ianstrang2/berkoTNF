@@ -78,7 +78,13 @@ export async function POST(request: NextRequest) {
     const playersForBalancing = playerIds.slice(0, totalPlayersNeeded);
 
 
-    const result = await balanceByPastPerformance(supabase, playersForBalancing.map(id => Number(id)));
+    const result = await balanceByPastPerformance(
+      supabase, 
+      playersForBalancing.map(id => Number(id)),
+      undefined, // performanceWeights - will fetch from DB or use fallback
+      { a: teamSize, b: teamSize }, // targetSizes for even teams
+      tenantId // Multi-tenant: Pass tenant context
+    );
 
     // Delete existing slot assignments
     await prisma.upcoming_match_players.deleteMany({
