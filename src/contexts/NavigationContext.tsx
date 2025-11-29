@@ -199,6 +199,16 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       if (pathParts.length >= 4) {
         setSecondarySection(pathParts[3]);
       }
+    } else if (pathname.startsWith('/player/settings')) {
+      setPrimarySection('settings' as any);
+      setIsAdminMode(false);
+      // Parse settings secondary section (profile, security, etc)
+      const pathParts = pathname.split('/');
+      if (pathParts.length >= 4) {
+        setSecondarySection(pathParts[3]);
+      } else {
+        setSecondarySection(undefined);
+      }
     } else {
       setPrimarySection('dashboard');
       setIsAdminMode(false);

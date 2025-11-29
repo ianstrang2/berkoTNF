@@ -5,9 +5,10 @@ import { Club } from '@/types/player.types';
 interface ClubSelectorProps {
   value: Club | null;
   onChange: (selectedClub: Club | null) => void;
+  disabled?: boolean;
 }
 
-const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
+const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange, disabled = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [clubs, setClubs] = useState<Club[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -68,8 +69,10 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
   return (
     <div className="relative" ref={dropdownRef}>
       <div 
-        className="block w-full appearance-none rounded-md border border-gray-300 bg-white px-2 py-1 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-sm cursor-pointer"
-        onClick={() => setIsOpen(!isOpen)}
+        className={`block w-full appearance-none rounded-md border border-gray-300 px-2 py-1 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-sm ${
+          disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : 'bg-white cursor-pointer'
+        }`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         {value ? (
           <div className="flex items-center">
@@ -79,13 +82,15 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({ value, onChange }) => {
               className="h-5 w-5 mr-2" 
             />
             <span>{value.name}</span>
-            <button 
-              onClick={handleClearSelection} 
-              className="ml-auto text-gray-400 hover:text-gray-600"
-              aria-label="Clear selection"
-            >
-              &times;
-            </button>
+            {!disabled && (
+              <button 
+                onClick={handleClearSelection} 
+                className="ml-auto text-gray-400 hover:text-gray-600"
+                aria-label="Clear selection"
+              >
+                &times;
+              </button>
+            )}
           </div>
         ) : (
           <span className="text-gray-500">Select a club (optional)</span>

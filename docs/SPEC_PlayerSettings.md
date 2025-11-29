@@ -78,10 +78,9 @@ Before implementation, confirm:
 
 **Secondary Tabs** (horizontal tabs at top):
 1. **Profile** (active, implemented)
-2. **Security** (disabled, placeholder)
+2. **Security** (implemented, placeholder content)
 3. **Notifications** (disabled, placeholder)
-4. **Referrals** (disabled, placeholder)
-5. **Billing** (disabled, placeholder)
+4. **Billing** (disabled, placeholder)
 
 **Disabled tab pattern:**
 ```tsx
