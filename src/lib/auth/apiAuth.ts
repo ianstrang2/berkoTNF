@@ -113,15 +113,15 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
     }
   );
   
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
   
-  if (error || !session) {
+  if (error || !user) {
     throw new AuthenticationError('Authentication required');
   }
   
   return {
-    user: session.user,
-    session,
+    user,
+    session: null, // Session not needed - use user object directly
     supabase,
   };
 }

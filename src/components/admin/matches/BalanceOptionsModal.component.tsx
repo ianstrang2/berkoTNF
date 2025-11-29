@@ -50,7 +50,7 @@ const BalanceOptionsModal: React.FC<BalanceOptionsModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 transition-opacity p-4 pt-8 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-soft-xl p-6 w-full max-w-md my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+        <div className="overflow-y-auto pb-4" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
         <h2 className="text-lg font-bold text-slate-700 font-sans mb-4">Team Building Options</h2>
         <p className="text-xs text-slate-500 mb-3">Choose how to build the teams:</p>
         

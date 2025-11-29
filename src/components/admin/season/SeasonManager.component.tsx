@@ -255,10 +255,10 @@ const SeasonManager: React.FC = () => {
                 <button
                   onClick={handleCreateSeason}
                   disabled={!!currentSeason}
-                  className={`inline-block px-4 py-2 mb-0 text-xs font-medium text-center uppercase align-middle transition-all border-0 rounded-lg cursor-pointer leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 ${
+                  className={`inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 bg-gradient-to-tl from-purple-700 to-pink-500 ${
                     currentSeason 
-                      ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-50' 
-                      : 'text-white bg-gradient-to-tl from-purple-700 to-pink-500 hover:scale-102 active:opacity-85'
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'hover:scale-102 active:opacity-85'
                   }`}
                   title={currentSeason ? 'Cannot create new season while one is active' : 'Create new season'}
                 >
@@ -331,7 +331,7 @@ const SeasonManager: React.FC = () => {
                               <div className="flex justify-center space-x-2">
                                 <button
                                   onClick={() => handleEditSeason(season)}
-                                  className="inline-block px-3 py-1 text-xs font-medium text-center text-slate-700 uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-slate-100 to-slate-200 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25"
+                                  className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-transparent border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25"
                                   title="Edit season"
                                 >
                                   Edit

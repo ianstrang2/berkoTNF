@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
       }
     );
     
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     console.log('[LINK-BY-PHONE] Found player:', matchingPlayer.name, 'in tenant:', matchingPlayer.tenant_id);
 
     // Check if already claimed by someone else
-    if (matchingPlayer.auth_user_id && matchingPlayer.auth_user_id !== session.user.id) {
+    if (matchingPlayer.auth_user_id && matchingPlayer.auth_user_id !== user.id) {
       return NextResponse.json({
         success: false,
         error: 'This player profile is already claimed by another user',
@@ -131,10 +131,10 @@ export async function POST(request: NextRequest) {
           player_id: matchingPlayer.player_id,
           tenant_id: matchingPlayer.tenant_id  // Explicit tenant filter
         },
-        data: { auth_user_id: session.user.id },
+        data: { auth_user_id: user.id },
       });
       
-      console.log('[LINK-BY-PHONE] Linked player', matchingPlayer.player_id, 'to user', session.user.id);
+      console.log('[LINK-BY-PHONE] Linked player', matchingPlayer.player_id, 'to user', user.id);
     }
 
     return NextResponse.json({

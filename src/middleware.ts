@@ -98,14 +98,14 @@ export async function middleware(req: NextRequest) {
     }
   );
   
-  // Get current session
+  // Get current user (validates JWT with server)
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
   
-  // Admin routes - require session AND admin role
+  // Admin routes - require user AND admin role
   if (pathname.startsWith('/admin/')) {
-    if (!session) {
+    if (!user) {
       // Phone auth for all club-level users
       return redirectToLogin(req, pathname, 'player');
     }
@@ -126,7 +126,7 @@ export async function middleware(req: NextRequest) {
     const { data: superadminProfile } = await supabaseAdmin
       .from('admin_profiles')
       .select('user_role')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .eq('user_role', 'superadmin')
       .maybeSingle();
     
@@ -139,7 +139,7 @@ export async function middleware(req: NextRequest) {
     const { data: playerProfile } = await supabaseAdmin
       .from('players')
       .select('is_admin')
-      .eq('auth_user_id', session.user.id)
+      .eq('auth_user_id', user.id)
       .maybeSingle();
     
     if (!playerProfile || !playerProfile.is_admin) {
@@ -152,13 +152,13 @@ export async function middleware(req: NextRequest) {
   
   // Superadmin routes - require superadmin (still email auth)
   if (pathname.startsWith('/superadmin/')) {
-    if (!session) {
+    if (!user) {
       // Superadmin uses email auth
       return redirectToLogin(req, pathname, 'admin');
     }
     
     // Check for superadmin role in app_metadata
-    const userRole = session.user.app_metadata?.user_role;
+    const userRole = user.app_metadata?.user_role;
     
     if (userRole !== 'superadmin') {
       return redirectToUnauthorized(req);
@@ -167,7 +167,7 @@ export async function middleware(req: NextRequest) {
   
   // Player routes - require player profile (phone auth OR admin with linked player)
   if (pathname.startsWith('/player')) {
-    if (!session) {
+    if (!user) {
       return redirectToLogin(req, pathname, 'player');
     }
     

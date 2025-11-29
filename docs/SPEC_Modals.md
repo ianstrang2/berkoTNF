@@ -107,8 +107,8 @@ import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal
       style={{ maxHeight: 'calc(100vh - 4rem)' }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Content wrapper - scrollable */}
-      <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+      {/* Content wrapper - scrollable with bottom padding for hover effects */}
+      <div className="overflow-y-auto pb-4" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
         
         {/* Header */}
         <h3 className="text-lg font-semibold text-slate-700 mb-4">

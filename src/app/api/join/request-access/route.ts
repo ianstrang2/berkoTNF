@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
     );
     
     // Verify user is authenticated (just completed OTP)
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated. Please verify your phone first.' },
         { status: 401 }
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
         phone_number: normalizedPhone,
         display_name: name.trim(),
         email: email ? email.trim() : null,
-        auth_user_id: session.user.id,
+        auth_user_id: user.id,
         status: 'pending',
       },
     });

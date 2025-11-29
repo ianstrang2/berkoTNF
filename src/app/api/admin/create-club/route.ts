@@ -46,26 +46,26 @@ export async function POST(request: NextRequest) {
     );
     
     // Verify user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    console.log('[CREATE_CLUB] Session user:', {
-      id: session.user.id,
-      phone: session.user.phone,
-      email: session.user.email,
-      app_metadata: session.user.app_metadata
+    console.log('[CREATE_CLUB] Authenticated user:', {
+      id: user.id,
+      phone: user.phone,
+      email: user.email,
+      app_metadata: user.app_metadata
     });
 
     const { email, name, club_name, attribution } = await request.json();
 
-    // Get phone from authenticated session (already verified via OTP)
-    const phone = session.user.phone;
+    // Get phone from authenticated user (already verified via OTP)
+    const phone = user.phone;
 
     if (!phone) {
       return NextResponse.json(
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Check if user already has a club (is already a player)
     const existingPlayerByAuth = await prisma.players.findFirst({
       where: {
-        auth_user_id: session.user.id,
+        auth_user_id: user.id,
       },
       select: {
         player_id: true,
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
         data: {
           tenant_id: tenant.tenant_id,
           invite_code: inviteCode,
-          created_by: session.user.id,
+          created_by: user.id,
           is_active: true,
           expires_at: null, // Permanent invite link
         },
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
       console.log('[CREATE_CLUB] Created invite token:', inviteCode);
 
       // Create first player (admin)
-      console.log('[CREATE_CLUB] Creating player with auth_user_id:', session.user.id);
+      console.log('[CREATE_CLUB] Creating player with auth_user_id:', user.id);
       const player = await tx.players.create({
         data: {
           tenant_id: tenant.tenant_id,
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
           phone: normalizedPhone,
           email: email,
           is_admin: true,
-          auth_user_id: session.user.id,
+          auth_user_id: user.id,
           is_ringer: false,
           is_retired: false,
           // Default skill ratings
@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
       await prisma.$executeRaw`
         INSERT INTO auth_activity_log (user_id, tenant_id, activity_type, success, metadata, created_at)
         VALUES (
-          ${session.user.id}::uuid,
+          ${user.id}::uuid,
           ${result.tenant.tenant_id}::uuid,
           'club_created',
           true,

@@ -206,7 +206,7 @@ export const PendingJoinRequests: React.FC = () => {
           
           {/* Modal panel - mobile friendly with keyboard support */}
           <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6 my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }} onClick={(e) => e.stopPropagation()}>
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+            <div className="overflow-y-auto pb-4" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
               {/* Header */}
               <h3 className="text-lg font-semibold text-slate-700 mb-4">Approve Join Request</h3>
               
@@ -235,8 +235,8 @@ export const PendingJoinRequests: React.FC = () => {
                 onClick={() => setApprovalMode('new')}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all bg-transparent relative ${
                   approvalMode === 'new'
-                    ? 'text-slate-600 hover:scale-102'
-                    : 'border border-slate-200 text-slate-500 hover:text-slate-700 hover:scale-102'
+                    ? 'text-slate-600'
+                    : 'border border-slate-200 text-slate-500 hover:text-slate-700'
                 }`}
                 style={approvalMode === 'new' ? {
                   border: '2px solid transparent',
@@ -251,8 +251,8 @@ export const PendingJoinRequests: React.FC = () => {
                 onClick={() => setApprovalMode('existing')}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all bg-transparent relative ${
                   approvalMode === 'existing'
-                    ? 'text-slate-600 hover:scale-102'
-                    : 'border border-slate-200 text-slate-500 hover:text-slate-700 hover:scale-102'
+                    ? 'text-slate-600'
+                    : 'border border-slate-200 text-slate-500 hover:text-slate-700'
                 }`}
                 style={approvalMode === 'existing' ? {
                   border: '2px solid transparent',

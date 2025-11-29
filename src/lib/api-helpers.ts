@@ -131,18 +131,18 @@ export async function requireAuthentication(request?: NextRequest): Promise<Auth
     }
   );
   
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
   
   if (error) {
-    console.error('[AUTH_ERROR] Failed to get session:', error);
-    throw new Error('Authentication required: Failed to verify session');
+    console.error('[AUTH_ERROR] Failed to get user:', error);
+    throw new Error('Authentication required: Failed to verify user');
   }
   
-  if (!session) {
+  if (!user) {
     throw new Error('Authentication required: No authenticated user');
   }
   
-  return { session, supabase };
+  return { session: { user }, supabase };
 }
 
 /**

@@ -269,23 +269,23 @@ export async function getTenantFromRequest(
     );
     
     const sessionStart = Date.now();
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log(`⏱️ [TENANT] getSession took ${Date.now() - sessionStart}ms`);
+    const { data: { user } } = await supabase.auth.getUser();
+    console.log(`⏱️ [TENANT] getUser took ${Date.now() - sessionStart}ms`);
     
-    if (!session) {
-      console.warn(`[TENANT_CONTEXT] No session found`);
+    if (!user) {
+      console.warn(`[TENANT_CONTEXT] No authenticated user found`);
       
       if (options.throwOnMissing) {
         throw new Error('Authentication required: No session found');
       }
       
       if (options.allowUnauthenticated) {
-        console.log(`[TENANT_CONTEXT] No session - using default tenant (allowUnauthenticated=true)`);
+        console.log(`[TENANT_CONTEXT] No user - using default tenant (allowUnauthenticated=true)`);
         return DEFAULT_TENANT_ID;
       }
       
       // SECURE DEFAULT: For authenticated API routes, fail instead of exposing data
-      throw new Error('Authentication required: No session found');
+      throw new Error('Authentication required: No authenticated user');
     }
     
     // Use Supabase admin client for cross-tenant tenant resolution
@@ -311,7 +311,7 @@ export async function getTenantFromRequest(
       const { data: superadminProfile } = await supabaseAdmin
         .from('admin_profiles')
         .select('user_role')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .maybeSingle();
       console.log(`⏱️ [TENANT] Cookie verification query took ${Date.now() - cookieCheckStart}ms`);
       
@@ -326,9 +326,9 @@ export async function getTenantFromRequest(
     }
     
     // Priority 1: Check app_metadata (for superadmin tenant switching - JWT based)
-    if (session.user.app_metadata?.tenant_id) {
-      console.log(`[TENANT_CONTEXT] ✅ Resolved from app_metadata: ${session.user.app_metadata.tenant_id}`);
-      return session.user.app_metadata.tenant_id;
+    if (user.app_metadata?.tenant_id) {
+      console.log(`[TENANT_CONTEXT] ✅ Resolved from app_metadata: ${user.app_metadata.tenant_id}`);
+      return user.app_metadata.tenant_id;
     }
     
     // Priority 2: Check admin_profiles table (use service role)
@@ -336,7 +336,7 @@ export async function getTenantFromRequest(
     const { data: adminProfile } = await supabaseAdmin
       .from('admin_profiles')
       .select('tenant_id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .maybeSingle();
     console.log(`⏱️ [TENANT] Admin profile query took ${Date.now() - adminCheckStart}ms`);
     
@@ -350,7 +350,7 @@ export async function getTenantFromRequest(
     const { data: playerProfile } = await supabaseAdmin
       .from('players')
       .select('tenant_id, name, player_id')
-      .eq('auth_user_id', session.user.id)
+      .eq('auth_user_id', user.id)
       .maybeSingle();
     console.log(`⏱️ [TENANT] Player profile query took ${Date.now() - playerCheckStart}ms`);
     
@@ -359,18 +359,18 @@ export async function getTenantFromRequest(
         tenant_id: playerProfile.tenant_id,
         player_name: playerProfile.name,
         player_id: playerProfile.player_id,
-        auth_user_id: session.user.id
+        auth_user_id: user.id
       });
       return playerProfile.tenant_id;
     }
     
-    console.error(`[TENANT_CONTEXT] ❌ NO PLAYER FOUND for auth_user_id: ${session.user.id}`);
+    console.error(`[TENANT_CONTEXT] ❌ NO PLAYER FOUND for auth_user_id: ${user.id}`);
     
     // User is authenticated but has no tenant assignment
-    console.error(`[TENANT_CONTEXT] SECURITY: User ${session.user.id} authenticated but has no tenant association`);
+    console.error(`[TENANT_CONTEXT] SECURITY: User ${user.id} authenticated but has no tenant association`);
     
     // NEVER fall back to default tenant - this is a security vulnerability
-    throw new Error(`SECURITY: User ${session.user.id} has no tenant association - redirect to /auth/no-club`);
+    throw new Error(`SECURITY: User ${user.id} has no tenant association - redirect to /auth/no-club`);
     
   } catch (error) {
     console.error(`[TENANT_CONTEXT] Error resolving tenant:`, error);

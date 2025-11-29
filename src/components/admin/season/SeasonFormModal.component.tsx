@@ -112,7 +112,7 @@ const SeasonFormModal: React.FC<SeasonFormModalProps> = ({
         
       {/* Modal panel - mobile friendly with keyboard support */}
       <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6 my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+        <div className="overflow-y-auto pb-4" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
           {/* Header with close button */}
           <div className="flex justify-between items-center mb-5">
             <h3 className="text-lg font-semibold text-slate-700" id="modal-title">

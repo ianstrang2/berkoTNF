@@ -39,9 +39,9 @@ export async function POST(request: NextRequest) {
     );
     
     // Verify user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
 
     if (existingPlayer) {
       // Check if already claimed by someone else
-      if (existingPlayer.auth_user_id && existingPlayer.auth_user_id !== session.user.id) {
+      if (existingPlayer.auth_user_id && existingPlayer.auth_user_id !== user.id) {
         return NextResponse.json(
           { success: false, error: 'This player profile is already claimed by another user' },
           { status: 409 }
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       await prisma.players.update({
         where: { player_id: existingPlayer.player_id },
         data: {
-          auth_user_id: session.user.id,
+          auth_user_id: user.id,
           // Update email if provided (optional)
           ...(email && { email: email.trim() }),
         },
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
           phone_number: normalizedIncomingPhone,
           display_name: displayName || null,
           email: email ? email.trim() : null, // Store email for notifications
-          auth_user_id: session.user.id,
+          auth_user_id: user.id,
           status: 'pending',
         },
       });
