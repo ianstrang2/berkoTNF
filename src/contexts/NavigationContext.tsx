@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 interface NavigationState {
   // Navigation state
-  primarySection: 'dashboard' | 'upcoming' | 'table' | 'records' | 'admin' | 'superadmin';
+  primarySection: 'dashboard' | 'upcoming' | 'table' | 'records' | 'settings' | 'admin' | 'superadmin';
   secondarySection?: string;
   
   // UI state  

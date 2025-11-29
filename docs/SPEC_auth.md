@@ -111,6 +111,143 @@ const { data, error } = await supabase.auth.signInWithOtp({
 
 ---
 
+## Supabase Package Standards (MANDATORY)
+
+### 🚨 One Package Only: @supabase/ssr
+
+**ALWAYS use `@supabase/ssr`** for all Supabase client creation:
+
+```json
+// package.json - ONLY these packages
+{
+  "@supabase/ssr": "^0.7.0",
+  "@supabase/supabase-js": "^2.58.0"
+}
+```
+
+**❌ NEVER use deprecated packages:**
+- `@supabase/auth-helpers-nextjs` (deprecated, causes session issues)
+- `@supabase/auth-helpers-react` (deprecated)
+- `@supabase/auth-helpers-remix` (deprecated)
+
+### Correct Patterns by Context
+
+**Client Components:**
+```typescript
+// Import shared singleton
+import { supabase } from '@/lib/supabaseClient';
+
+// Use directly (no instantiation)
+const { data } = await supabase.auth.getSession();
+```
+
+**Server: Middleware**
+```typescript
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+
+export async function middleware(req: NextRequest) {
+  // CRITICAL: Single response object (accumulates cookies)
+  const response = NextResponse.next({
+    request: { headers: req.headers },
+  });
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          req.cookies.set({ name, value, ...options });
+          response.cookies.set({ name, value, ...options }); // ✅ Same response
+        },
+        remove(name: string, options: CookieOptions) {
+          req.cookies.set({ name, value: '', ...options });
+          response.cookies.set({ name, value: '', ...options }); // ✅ Same response
+        },
+      },
+    }
+  );
+  
+  // ... auth logic ...
+  
+  return response; // ✅ Return response with accumulated cookies
+}
+```
+
+**Server: API Routes**
+```typescript
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+export async function POST(request: NextRequest) {
+  const cookieStore = cookies();
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch {} // Edge runtime may fail
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value: '', ...options });
+          } catch {} // Edge runtime may fail
+        },
+      },
+    }
+  );
+  
+  // ... route logic ...
+  
+  return NextResponse.json({ success: true });
+  // Next.js automatically includes cookie mutations
+}
+```
+
+### Cookie Handling Rules
+
+**✅ DO:**
+- Use single response object in middleware (closure pattern)
+- Use `cookies()` directly in API routes (Next.js handles response)
+- Try-catch around cookie operations (edge runtime safety)
+
+**❌ DON'T:**
+- Create multiple `NextResponse` objects in middleware
+- Reassign response variables in cookie handlers
+- Manually parse `document.cookie` or `localStorage` for sessions
+- Mix `@supabase/ssr` with deprecated packages
+
+### ESLint Configuration
+
+**Add to `.eslintrc.js` to prevent regressions:**
+
+```javascript
+module.exports = {
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [
+        {
+          group: ['**/auth-helpers-nextjs*', '**/auth-helpers-react*'],
+          message: 'Use @supabase/ssr instead. See docs/SPEC_auth.md'
+        }
+      ]
+    }]
+  }
+};
+```
+
+---
+
 ## Database Schema
 
 ### Core Tables
@@ -409,15 +546,37 @@ const { data: profile } = await useProfile();
 
 **File:** `src/middleware.ts`
 
-**Pattern:**
+**Pattern (UPDATED Nov 2025):** Now uses `@supabase/ssr` for consistent session management
+
 ```typescript
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req: request, res });
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  });
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({ name, value, ...options });
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({ name, value: '', ...options });
+          response.cookies.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
 
   // Check session
   const { data: { session } } = await supabase.auth.getSession();

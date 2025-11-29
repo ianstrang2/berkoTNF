@@ -9,14 +9,13 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
 import { apiFetch } from '@/lib/apiConfig';
 
 function JoinForm() {
   const params = useParams();
   const router = useRouter();
-  const supabase = createClientComponentClient();
   
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');

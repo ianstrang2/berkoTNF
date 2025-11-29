@@ -170,24 +170,28 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
         <nav className="flex space-x-8 min-w-max">
           {secondaryOptions.map((option: any) => {
             const isDisabled = option.disabled || false;
-            const Component = isDisabled ? 'button' : Link;
-            const props = isDisabled 
-              ? { 
-                  onClick: (e: React.MouseEvent) => e.preventDefault(),
-                  disabled: true,
-                  type: 'button' as const
-                } 
-              : { href: option.href };
+            
+            if (isDisabled) {
+              return (
+                <button
+                  key={option.key}
+                  onClick={(e) => e.preventDefault()}
+                  disabled={true}
+                  type="button"
+                  className="py-4 px-1 border-b-2 font-medium text-sm transition-colors relative border-transparent text-gray-400 cursor-not-allowed opacity-50"
+                >
+                  {option.label}
+                </button>
+              );
+            }
             
             return (
-              <Component
+              <Link
                 key={option.key}
-                {...props}
+                href={option.href}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors relative ${
                   option.active
                     ? 'border-transparent text-gray-900 font-bold'
-                    : isDisabled
-                    ? 'border-transparent text-gray-400 cursor-not-allowed opacity-50'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -196,7 +200,7 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
                 {option.active && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-l from-purple-700 to-pink-500" />
                 )}
-              </Component>
+              </Link>
             );
           })}
         </nav>

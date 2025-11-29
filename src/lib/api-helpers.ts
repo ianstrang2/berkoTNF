@@ -2,10 +2,13 @@
  * API Route Helpers
  * 
  * Standardized error handling and authentication utilities for API routes
+ * 
+ * FIXED (Nov 2025): Migrated from deprecated @supabase/auth-helpers-nextjs to @supabase/ssr
+ * This fixes session persistence issues where users had to login on every page load
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 /**
@@ -100,7 +103,34 @@ export interface AuthenticationResult {
  * @throws Error if no authenticated user session exists
  */
 export async function requireAuthentication(request?: NextRequest): Promise<AuthenticationResult> {
-  const supabase = createRouteHandlerClient({ cookies });
+  const cookieStore = cookies();
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch {
+            // Cookie setting can fail in middleware context
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value: '', ...options });
+          } catch {
+            // Cookie removal can fail in middleware context
+          }
+        },
+      },
+    }
+  );
+  
   const { data: { session }, error } = await supabase.auth.getSession();
   
   if (error) {

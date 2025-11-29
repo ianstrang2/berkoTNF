@@ -9,7 +9,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabaseClient';
 import { Capacitor } from '@capacitor/core';
 import { apiFetch } from '@/lib/apiConfig';
 
@@ -31,7 +31,6 @@ function PlayerLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams?.get('returnUrl');
-  const supabase = createClientComponentClient();
 
   // Check if user is already logged in - redirect to dashboard
   useEffect(() => {

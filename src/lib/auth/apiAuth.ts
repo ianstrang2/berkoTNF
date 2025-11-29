@@ -5,9 +5,10 @@
  * Uses Supabase Auth for session management
  * 
  * Phase 2 Update: Uses Supabase service role for auth checks to avoid RLS blocking
+ * FIXED (Nov 2025): Migrated from deprecated @supabase/auth-helpers-nextjs to @supabase/ssr
  */
 
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
@@ -84,7 +85,34 @@ export interface PlayerAuthResult extends AuthResult {
  * ```
  */
 export async function requireAuth(request: NextRequest): Promise<AuthResult> {
-  const supabase = createRouteHandlerClient({ cookies });
+  const cookieStore = cookies();
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch {
+            // Cookie setting can fail in some contexts
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value: '', ...options });
+          } catch {
+            // Cookie removal can fail in some contexts
+          }
+        },
+      },
+    }
+  );
+  
   const { data: { session }, error } = await supabase.auth.getSession();
   
   if (error || !session) {

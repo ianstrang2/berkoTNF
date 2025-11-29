@@ -3,9 +3,12 @@
  * 
  * Protects routes and enforces authentication + role requirements
  * Runs before requests to /admin, /superadmin, and /player routes
+ * 
+ * FIXED (Nov 2025): Migrated from deprecated @supabase/auth-helpers-nextjs to @supabase/ssr
+ * This fixes session persistence issues where users had to login on every page load
  */
 
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -37,17 +40,63 @@ function redirectToUnauthorized(req: NextRequest): NextResponse {
  * Checks authentication and authorization based on route
  */
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
   const { pathname } = req.nextUrl;
   
   // IMPORTANT: Skip middleware for API routes - they handle auth errors as JSON responses
   // API routes use handleTenantError() to return proper 401/403 responses
   if (pathname.startsWith('/api/')) {
-    return res;
+    return NextResponse.next();
   }
   
-  // Create Supabase client
-  const supabase = createMiddlewareClient({ req, res });
+  // Response object for cookie mutations - MUST be declared outside createServerClient
+  // This ensures all cookie modifications accumulate on the same response object
+  let response = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  });
+  
+  // Create Supabase client with proper cookie handling for @supabase/ssr
+  // CRITICAL: Cookie handlers must modify the SAME response object (closure over `response`)
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // Update request cookies for subsequent reads in this request
+          req.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+          // Update response cookies for client (ACCUMULATES on same response object)
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name: string, options: CookieOptions) {
+          // Update request cookies for subsequent reads in this request
+          req.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+          // Update response cookies for client (ACCUMULATES on same response object)
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+        },
+      },
+    }
+  );
   
   // Get current session
   const {
@@ -83,7 +132,7 @@ export async function middleware(req: NextRequest) {
     
     if (superadminProfile) {
       // Superadmins have access to all admin routes
-      return res;
+      return response;
     }
     
     // Check if user is a club admin (players.is_admin = true)
@@ -126,7 +175,8 @@ export async function middleware(req: NextRequest) {
     // (Can be direct player account OR admin with linked player_id)
   }
   
-  return res;
+  // CRITICAL: Return the response object that has accumulated all cookie mutations
+  return response;
 }
 
 /**

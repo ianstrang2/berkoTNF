@@ -235,12 +235,38 @@ export async function getTenantFromRequest(
 ): Promise<string> {
   const startTime = Date.now();
   try {
-    const { createRouteHandlerClient } = await import('@supabase/auth-helpers-nextjs');
+    const { createServerClient } = await import('@supabase/ssr');
     const { createClient } = await import('@supabase/supabase-js');
     const { cookies } = await import('next/headers');
     
     const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies });
+    
+    // FIXED (Nov 2025): Use @supabase/ssr instead of deprecated auth-helpers-nextjs
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            try {
+              cookieStore.set({ name, value, ...options });
+            } catch {
+              // Cookie setting can fail in middleware/server components
+            }
+          },
+          remove(name: string, options: any) {
+            try {
+              cookieStore.set({ name, value: '', ...options });
+            } catch {
+              // Cookie removal can fail in middleware/server components
+            }
+          },
+        },
+      }
+    );
     
     const sessionStart = Date.now();
     const { data: { session } } = await supabase.auth.getSession();

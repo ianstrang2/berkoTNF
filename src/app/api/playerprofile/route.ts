@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantFilter } from '@/lib/tenantFilter';

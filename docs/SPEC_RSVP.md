@@ -2803,7 +2803,8 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// ❌ OLD PATTERN (v4.2.0)
+// ❌ OLD PATTERN (v4.2.0) - DEPRECATED
+// Uses deprecated @supabase/auth-helpers-nextjs package
 export async function GET(request: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies });
   const { data: { session } } = await supabase.auth.getSession();

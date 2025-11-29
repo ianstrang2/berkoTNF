@@ -9,13 +9,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabaseClient';
 import { apiFetch } from '@/lib/apiConfig';
 
 export default function PendingApprovalPage() {
   const [checking, setChecking] = useState(true);
   const router = useRouter();
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     // Check every 5 seconds if profile has been approved
