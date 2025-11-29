@@ -20,6 +20,7 @@ export const PendingJoinRequests: React.FC = () => {
   const rejectMutation = useRejectJoinRequest();
   
   const [processing, setProcessing] = useState<string | null>(null); // UUID string, not number
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   const [approvingRequest, setApprovingRequest] = useState<JoinRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<JoinRequest | null>(null);
@@ -29,6 +30,17 @@ export const PendingJoinRequests: React.FC = () => {
   const [approvalMode, setApprovalMode] = useState<'new' | 'existing'>('new');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const startApproval = (request: JoinRequest) => {
     setApprovingRequest(request);
@@ -122,12 +134,16 @@ export const PendingJoinRequests: React.FC = () => {
               <th className="px-4 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Name
               </th>
-              <th className="px-4 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Phone Number
-              </th>
-              <th className="px-4 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
-                Requested
-              </th>
+              {!isMobile && (
+                <>
+                  <th className="px-4 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    Phone Number
+                  </th>
+                  <th className="px-4 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
+                    Requested
+                  </th>
+                </>
+              )}
               <th className="px-4 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-none whitespace-nowrap text-slate-400 opacity-70">
                 Actions
               </th>
@@ -141,16 +157,20 @@ export const PendingJoinRequests: React.FC = () => {
                     {request.name || <span className="italic">Not provided</span>}
                   </span>
                 </td>
-                <td className="p-4 align-middle bg-transparent border-b">
-                  <span className="text-sm font-normal" style={{ color: 'rgb(103, 116, 142)' }}>
-                    {request.phone}
-                  </span>
-                </td>
-                <td className="p-4 align-middle bg-transparent border-b">
-                  <span className="text-sm font-normal" style={{ color: 'rgb(103, 116, 142)' }}>
-                    {new Date(request.created_at).toLocaleDateString()}
-                  </span>
-                </td>
+                {!isMobile && (
+                  <>
+                    <td className="p-4 align-middle bg-transparent border-b">
+                      <span className="text-sm font-normal" style={{ color: 'rgb(103, 116, 142)' }}>
+                        {request.phone}
+                      </span>
+                    </td>
+                    <td className="p-4 align-middle bg-transparent border-b">
+                      <span className="text-sm font-normal" style={{ color: 'rgb(103, 116, 142)' }}>
+                        {new Date(request.created_at).toLocaleDateString()}
+                      </span>
+                    </td>
+                  </>
+                )}
                 <td className="p-4 text-center align-middle bg-transparent border-b">
                   <div className="flex gap-2 justify-center">
                     <button
@@ -192,15 +212,20 @@ export const PendingJoinRequests: React.FC = () => {
               
               {/* Player Info */}
               <div className="p-3 border border-slate-200 rounded-lg mb-4">
-                <div className="space-y-1">
+                <div>
                   {approvingRequest.display_name && (
-                    <p className="text-sm text-slate-700">
+                    <p className="text-sm text-slate-700 mb-2">
                       <strong>Name:</strong> {approvingRequest.display_name}
                     </p>
                   )}
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm text-slate-700 mb-2">
                     <strong>Phone:</strong> {approvingRequest.phone_number}
                   </p>
+                  {approvingRequest.email && (
+                    <p className="text-sm text-slate-700">
+                      <strong>Email:</strong> {approvingRequest.email}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -314,9 +339,9 @@ export const PendingJoinRequests: React.FC = () => {
           rejectingRequest ? `
             <div class="text-left">
               <div class="p-3 border border-slate-200 rounded-lg mb-2">
-                <div class="space-y-1">
-                  ${rejectingRequest.display_name ? `<p class="text-sm text-slate-700"><strong>Name:</strong> ${rejectingRequest.display_name}</p>` : ''}
-                  <p class="text-sm text-slate-700"><strong>Phone:</strong> ${rejectingRequest.phone_number}</p>
+                <div>
+                  ${rejectingRequest.display_name ? `<p class="text-sm text-slate-700 mb-2"><strong>Name:</strong> ${rejectingRequest.display_name}</p>` : ''}
+                  <p class="text-sm text-slate-700 mb-2"><strong>Phone:</strong> ${rejectingRequest.phone_number}</p>
                   ${rejectingRequest.email ? `<p class="text-sm text-slate-700"><strong>Email:</strong> ${rejectingRequest.email}</p>` : ''}
                 </div>
               </div>
@@ -334,4 +359,5 @@ export const PendingJoinRequests: React.FC = () => {
     </div>
   );
 };
+
 

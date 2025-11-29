@@ -6,10 +6,9 @@ import ClubSelector from '@/components/admin/player/ClubSelector.component';
 import { Club } from '@/types/player.types';
 import { apiFetch } from '@/lib/apiConfig';
 
-interface Toast {
+interface ErrorState {
   show: boolean;
   message: string;
-  type: 'success' | 'error';
 }
 
 interface ProfileFormData {
@@ -26,10 +25,16 @@ const ProfileSettings: React.FC = () => {
     email: '',
     club: null
   });
+  const [originalData, setOriginalData] = useState<ProfileFormData>({
+    name: '',
+    email: '',
+    club: null
+  });
   const [initialName, setInitialName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [errorState, setErrorState] = useState<ErrorState>({ show: false, message: '' });
 
   // Load player data
   useEffect(() => {
@@ -43,11 +48,13 @@ const ProfileSettings: React.FC = () => {
         if (result.success) {
           const currentPlayer = result.data.find((p: any) => p.id === String(authProfile.linkedPlayerId));
           if (currentPlayer) {
-            setFormData({
+            const playerData = {
               name: currentPlayer.name || '',
               email: currentPlayer.email || '',
               club: currentPlayer.club || null
-            });
+            };
+            setFormData(playerData);
+            setOriginalData(playerData);
             setInitialName(currentPlayer.name || '');
           }
         }
@@ -93,14 +100,22 @@ const ProfileSettings: React.FC = () => {
         if (result.error && result.error.includes('already taken')) {
           setNameError(result.error);
         } else {
-          setToast({ show: true, message: result.error || 'Failed to update profile', type: 'error' });
+          setErrorState({ show: true, message: result.error || 'Failed to update profile' });
+          setTimeout(() => setErrorState({ show: false, message: '' }), 3000);
         }
         throw new Error(result.error || 'Failed to update profile');
       }
 
-      // Success
-      setToast({ show: true, message: 'Profile updated successfully!', type: 'success' });
-      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+      // Success - use button flash pattern
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+      
+      // Update original data to match new saved state
+      setOriginalData({
+        name: formData.name,
+        email: formData.email,
+        club: formData.club
+      });
       
       // Update initial name for grandfathering logic
       setInitialName(formData.name);
@@ -120,13 +135,19 @@ const ProfileSettings: React.FC = () => {
   const allowLongName = initialName.length > 14 && formData.name === initialName;
   const maxNameLength = allowLongName ? undefined : 14;
 
+  // Check if form has changes (is dirty)
+  const isDirty = 
+    formData.name !== originalData.name ||
+    formData.email !== originalData.email ||
+    JSON.stringify(formData.club) !== JSON.stringify(originalData.club);
+
   return (
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border max-w-lg">
       <div className="p-6">
-        {/* Toast Notification */}
-        {toast.show && (
-          <div className={`mb-4 p-3 rounded-md ${toast.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-            {toast.message}
+        {/* Error Notification */}
+        {errorState.show && (
+          <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700">
+            {errorState.message}
           </div>
         )}
 
@@ -194,10 +215,16 @@ const ProfileSettings: React.FC = () => {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={isSubmitting || !formData.name || (maxNameLength && formData.name.length > maxNameLength)}
-            className="inline-block px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all bg-transparent border-0 rounded-lg cursor-pointer leading-pro text-xs ease-soft-in shadow-soft-md bg-150 bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-soft-xs active:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!isDirty || isSubmitting || !formData.name || (maxNameLength && formData.name.length > maxNameLength)}
+            className={`inline-flex items-center justify-center font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 uppercase text-xs px-4 py-2 rounded-md ${
+              saveSuccess 
+                ? 'text-white bg-gradient-to-tl from-green-600 to-green-500 shadow-soft-md hover:shadow-soft-lg border border-transparent'
+                : isDirty
+                ? 'text-white bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md hover:shadow-soft-lg border border-transparent cursor-pointer'
+                : 'text-neutral-700 bg-white border border-neutral-300 opacity-50 cursor-not-allowed'
+            }`}
           >
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+            {isSubmitting ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
           </button>
         </div>
       </form>

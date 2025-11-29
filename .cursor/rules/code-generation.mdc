@@ -324,6 +324,99 @@ When creating a new modal:
 6. [ ] Add `role="dialog"` + `aria-modal="true"`
 7. [ ] Add entry to `docs/SPEC_Modals.md` inventory table
 
+## Button Success Feedback Pattern (MANDATORY)
+
+**Save/Update buttons on pages MUST use button flash pattern (not toasts).**
+
+### Two Patterns: Action vs Form
+
+**Pattern A: Action Buttons (background jobs, triggers)**
+- Default: Gray (secondary)
+- Success flash: Purple/pink
+- Example: Update Stats button in admin/info
+
+**Pattern B: Form Save Buttons (settings, config)**
+- No changes: Gray (disabled)
+- Has changes: Purple/pink (active)
+- Success flash: GREEN
+- Example: ProfileSettings Save Changes
+
+### Form Save Button Implementation (Pattern B)
+
+**Required state:**
+```typescript
+const [formData, setFormData] = useState({...});
+const [originalData, setOriginalData] = useState({...});
+const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+const [errorState, setErrorState] = useState<{ show: boolean; message: string }>({ 
+  show: false, 
+  message: '' 
+});
+
+// Track if form is dirty
+const isDirty = JSON.stringify(formData) !== JSON.stringify(originalData);
+```
+
+**On save success:**
+```typescript
+setSaveSuccess(true);
+setTimeout(() => setSaveSuccess(false), 2000);
+setOriginalData(formData); // Update to new baseline
+```
+
+**On save error:**
+```typescript
+setErrorState({ show: true, message: error.message });
+setTimeout(() => setErrorState({ show: false, message: '' }), 3000);
+```
+
+**Button JSX:**
+```tsx
+<button
+  disabled={!isDirty || isSubmitting}
+  className={`[button classes] ${
+    saveSuccess 
+      ? 'bg-gradient-to-tl from-green-600 to-green-500 text-white'
+      : isDirty
+      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white'
+      : 'bg-white border border-neutral-300 text-neutral-700 opacity-50'
+  }`}
+>
+  {isSubmitting ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
+</button>
+```
+
+**Pattern:** Gray (pristine) → Purple/pink (dirty) → Green flash → Gray/Purple
+
+**Error banner (above form):**
+```tsx
+{errorState.show && (
+  <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700">
+    {errorState.message}
+  </div>
+)}
+```
+
+### Examples
+
+**✅ CORRECT:**
+- `src/app/admin/info/page.tsx` - Update Stats button (line 832-840)
+- `src/components/player/ProfileSettings.component.tsx` - Save Changes button
+
+**❌ WRONG:**
+- Success toasts/popups that user must dismiss
+- Persistent success banners that clutter UI
+- Generic "Success!" messages without context
+
+### Why This Pattern
+
+- **Immediate feedback** - Success shown on the button itself
+- **Auto-dismissing** - Reverts after 2 seconds automatically  
+- **Non-blocking** - No popup to close, no UI clutter
+- **Clear association** - Success tied to the action button
+- **Consistent** - Matches existing patterns in admin/info pages
+
 ## Mobile API Pattern (MANDATORY for New Code)
 
 **For mobile app compatibility, always use `apiFetch()` helper:**
