@@ -12,6 +12,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
 import { apiFetch } from '@/lib/apiConfig';
+import { formatPhoneNumber, isValidUKPhone, getPhoneErrorMessage } from '@/utils/phoneValidation.util';
 
 function JoinForm() {
   const params = useParams();
@@ -70,28 +71,19 @@ function JoinForm() {
     validateToken();
   }, [tenant, token]);
 
-  const formatPhoneNumber = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    
-    if (numbers.startsWith('0')) {
-      return '+44' + numbers.slice(1);
-    }
-    if (numbers.startsWith('44')) {
-      return '+' + numbers;
-    }
-    if (numbers.length === 10) {
-      return '+44' + numbers;
-    }
-    
-    return value;
-  };
-
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
+      // CLIENT-SIDE VALIDATION: Basic format check before API call
+      if (!isValidUKPhone(phone)) {
+        setLoading(false);
+        setError('Please enter a valid UK mobile number (e.g., 07123 456789)');
+        return;
+      }
+      
       const formattedPhone = formatPhoneNumber(phone);
       
       const { error } = await supabase.auth.signInWithOtp({
@@ -103,7 +95,7 @@ function JoinForm() {
       setStep('otp');
     } catch (error: any) {
       console.error('Error sending OTP:', error);
-      setError(error.message || 'Failed to send verification code');
+      setError(getPhoneErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -134,7 +126,7 @@ function JoinForm() {
       setStep('name');
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
-      setError(error.message || 'Verification failed');
+      setError(getPhoneErrorMessage(error));
       setStep('otp');
     } finally {
       setLoading(false);

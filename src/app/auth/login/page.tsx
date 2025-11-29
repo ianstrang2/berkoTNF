@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Capacitor } from '@capacitor/core';
 import { apiFetch } from '@/lib/apiConfig';
+import { formatPhoneNumber, isValidUKPhone, getPhoneErrorMessage } from '@/utils/phoneValidation.util';
 
 function PlayerLoginForm() {
   const [phone, setPhone] = useState('');
@@ -55,34 +56,6 @@ function PlayerLoginForm() {
     checkSession();
   }, [router, supabase]);
 
-  const formatPhoneNumber = (value: string) => {
-    // Remove all non-numeric characters
-    const numbers = value.replace(/\D/g, '');
-    
-    // If starts with 0, replace with 44
-    if (numbers.startsWith('0')) {
-      return '+44' + numbers.slice(1);
-    }
-    
-    // If starts with 44, add +
-    if (numbers.startsWith('44')) {
-      return '+' + numbers;
-    }
-    
-    // If just numbers, assume UK
-    if (numbers.length === 10) {
-      return '+44' + numbers;
-    }
-    
-    return value;
-  };
-
-  const isValidUKPhone = (phone: string): boolean => {
-    const formatted = formatPhoneNumber(phone);
-    // Basic validation: must start with +44 and be at least 12 chars
-    return formatted.startsWith('+44') && formatted.length >= 12;
-  };
-
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -90,15 +63,15 @@ function PlayerLoginForm() {
     setError('');
 
     try {
-      const formattedPhone = formatPhoneNumber(phone);
-      
-      // CLIENT-SIDE VALIDATION: Basic format check before pre-check
+      // CLIENT-SIDE VALIDATION: Basic format check before API call
       if (!isValidUKPhone(phone)) {
         setLoading(false);
         setCheckingPhone(false);
-        setError('Please enter a valid UK mobile number (07XXX XXXXXX)');
+        setError('Please enter a valid UK mobile number (e.g., 07123 456789)');
         return;
       }
+      
+      const formattedPhone = formatPhoneNumber(phone);
       
       // PRE-CHECK: Does phone exist in any club? (for bot protection only)
       let phoneFoundInDB = false;
@@ -133,7 +106,7 @@ function PlayerLoginForm() {
       setStep('otp');
     } catch (error: any) {
       console.error('Error sending OTP:', error);
-      setError(error.message || 'Failed to send verification code');
+      setError(getPhoneErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -203,7 +176,7 @@ function PlayerLoginForm() {
       }
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
-      setError(error.message || 'Invalid verification code');
+      setError(getPhoneErrorMessage(error));
     } finally {
       setLoading(false);
     }
