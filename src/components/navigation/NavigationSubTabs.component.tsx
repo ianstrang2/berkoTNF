@@ -89,7 +89,7 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
               {
                 key: 'balancing',
                 label: 'Balancing',
-                href: '/admin/setup?level=advanced&section=balancing&view=rating',
+                href: '/admin/setup?level=advanced&section=balancing',
                 active: currentSection === 'balancing'
               },
               {

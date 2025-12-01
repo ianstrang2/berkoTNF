@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import Card from '@/components/ui-kit/Card.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
-import Swal from 'sweetalert2';
 import { apiFetch } from '@/lib/apiConfig';
 
 // Define types
@@ -31,6 +30,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
+  const [resetModalTest, setResetModalTest] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [showExitWarning, setShowExitWarning] = useState<boolean>(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
@@ -45,6 +45,10 @@ const BalanceAlgorithmSetup: React.FC = () => {
 
   // Fetch balance weights on component mount
   useEffect(() => {
+    // Close any existing SweetAlert modals
+    if (typeof window !== 'undefined' && (window as any).Swal) {
+      (window as any).Swal.close();
+    }
     fetchWeights();
   }, []);
 
@@ -424,11 +428,10 @@ const BalanceAlgorithmSetup: React.FC = () => {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       {/* Floating Save Button - Only show when changes detected */}
       {hasChanges && (
-        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white rounded-full shadow-soft-xl px-6 py-3 border border-slate-200">
-          <span className="text-sm text-slate-600">Unsaved changes</span>
+        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white rounded-full shadow-soft-xl px-2 py-2 border border-slate-200">
           <Button
             onClick={handleSave}
             disabled={saving || !hasChanges}
@@ -438,10 +441,25 @@ const BalanceAlgorithmSetup: React.FC = () => {
                 : 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:shadow-lg-purple'
             }`}
           >
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? 'Saving...' : 'SAVE CHANGES?'}
           </Button>
         </div>
       )}
+      
+      {/* Reset Button - Icon style matching other screens - MOVED TO TOP */}
+      <div className="flex justify-end mb-4 relative z-10">
+            <button
+              type="button"
+              onClick={() => setShowResetConfirmation(true)}
+          disabled={loading || saving || isResetting}
+          className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Reset to defaults"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
       
       {error && (
         <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 border border-red-200">
@@ -467,21 +485,6 @@ const BalanceAlgorithmSetup: React.FC = () => {
         </div>
       ) : (
         <>
-          
-          {/* Reset Button - Top Right */}
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={() => setShowResetConfirmation(true)}
-              disabled={loading || saving || isResetting}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Reset to Defaults
-            </button>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {positionOrder.map(position => {
               const positionWeights = sortedGroupedWeights[position] || [];
@@ -540,32 +543,33 @@ const BalanceAlgorithmSetup: React.FC = () => {
         </>
       )}
       
-      {/* Reset Confirmation Modal */}
-      <SoftUIConfirmationModal
-        isOpen={showResetConfirmation}
-        onClose={() => setShowResetConfirmation(false)}
-        onConfirm={resetWeights}
-        title="Reset Balance Algorithm"
-        message="Are you sure you want to reset the balance algorithm to default values? This will discard all your customizations."
-        confirmText="Reset to Defaults"
-        cancelText="Cancel"
-        isConfirming={isResetting}
-      />
+      {/* Modals - Only render ONE at a time to avoid SweetAlert conflicts */}
+      {!showExitWarning && (
+        <SoftUIConfirmationModal
+          isOpen={showResetConfirmation}
+          onClose={() => setShowResetConfirmation(false)}
+          onConfirm={resetWeights}
+          title="Reset Balance Algorithm"
+          message="Are you sure you want to reset the balance algorithm to default values? This will discard all your customizations."
+          confirmText="Reset"
+          cancelText="Cancel"
+          isConfirming={isResetting}
+          icon="warning"
+        />
+      )}
 
-      {/* Exit Warning Modal */}
-      <SoftUIConfirmationModal
-        isOpen={showExitWarning}
-        onClose={() => setShowExitWarning(false)}
-        onConfirm={() => {
-          setShowExitWarning(false);
-          // Allow navigation
-        }}
-        title="Unsaved Changes"
-        message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
-        confirmText="Leave Anyway"
-        cancelText="Stay"
-        icon="warning"
-      />
+      {!showResetConfirmation && (
+        <SoftUIConfirmationModal
+          isOpen={showExitWarning}
+          onClose={() => setShowExitWarning(false)}
+          onConfirm={() => setShowExitWarning(false)}
+          title="Unsaved Changes"
+          message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
+          confirmText="Leave Anyway"
+          cancelText="Stay"
+          icon="warning"
+        />
+      )}
     </div>
   );
 };
