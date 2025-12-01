@@ -432,7 +432,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
       {/* Floating Save Button - Only show when changes detected */}
       {hasChanges && (
         <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white rounded-full shadow-soft-xl px-2 py-2 border border-slate-200">
-          <Button
+            <Button
             onClick={handleSave}
             disabled={saving || !hasChanges}
             className={`font-semibold py-2 px-4 rounded-lg transition-all ${
@@ -451,7 +451,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowResetConfirmation(true)}
-          disabled={loading || saving || isResetting}
+              disabled={loading || saving || isResetting}
           className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Reset to defaults"
         >
@@ -545,21 +545,21 @@ const BalanceAlgorithmSetup: React.FC = () => {
       
       {/* Modals - Only render ONE at a time to avoid SweetAlert conflicts */}
       {!showExitWarning && (
-        <SoftUIConfirmationModal
-          isOpen={showResetConfirmation}
-          onClose={() => setShowResetConfirmation(false)}
-          onConfirm={resetWeights}
-          title="Reset Balance Algorithm"
-          message="Are you sure you want to reset the balance algorithm to default values? This will discard all your customizations."
+      <SoftUIConfirmationModal
+        isOpen={showResetConfirmation}
+        onClose={() => setShowResetConfirmation(false)}
+        onConfirm={resetWeights}
+        title="Reset Balance Algorithm"
+        message="Are you sure you want to reset the balance algorithm to default values? This will discard all your customizations."
           confirmText="Reset"
-          cancelText="Cancel"
-          isConfirming={isResetting}
+        cancelText="Cancel"
+        isConfirming={isResetting}
           icon="warning"
-        />
+      />
       )}
 
       {!showResetConfirmation && (
-        <SoftUIConfirmationModal
+      <SoftUIConfirmationModal
           isOpen={showExitWarning}
           onClose={() => setShowExitWarning(false)}
           onConfirm={() => setShowExitWarning(false)}
@@ -568,7 +568,7 @@ const BalanceAlgorithmSetup: React.FC = () => {
           confirmText="Leave Anyway"
           cancelText="Stay"
           icon="warning"
-        />
+      />
       )}
     </div>
   );

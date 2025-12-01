@@ -44,12 +44,12 @@ export async function GET(request: NextRequest) {
       }
 
       console.log(`🔍 [APP-CONFIG] Query filters:`, whereClause);
-      const queryStart = Date.now();
-      configs = await prisma.app_config.findMany({
+        const queryStart = Date.now();
+        configs = await prisma.app_config.findMany({
         where: whereClause,
-        orderBy: orderByClause
-      });
-      console.log(`⏱️ [APP-CONFIG] Query took ${Date.now() - queryStart}ms (${configs.length} rows)`);
+          orderBy: orderByClause
+        });
+        console.log(`⏱️ [APP-CONFIG] Query took ${Date.now() - queryStart}ms (${configs.length} rows)`);
     } catch (error) {
       console.error('Error fetching app_config:', error);
       return NextResponse.json({ 

@@ -20,9 +20,18 @@ interface UseAppConfigOptions {
   complexity?: 'standard' | 'advanced';
 }
 
-export function useAppConfig(options: UseAppConfigOptions = {}) {
-  const { groups, complexity } = options;
+// Overload signatures for backward compatibility
+export function useAppConfig(group: string): ReturnType<typeof useQuery<AppConfigData[]>>;
+export function useAppConfig(options: UseAppConfigOptions): ReturnType<typeof useQuery<AppConfigData[]>>;
+export function useAppConfig(groupOrOptions: string | UseAppConfigOptions = {}): ReturnType<typeof useQuery<AppConfigData[]>> {
   const { profile } = useAuth();
+  
+  // Handle both old signature (string) and new signature (object)
+  const options = typeof groupOrOptions === 'string' 
+    ? { groups: [groupOrOptions] } 
+    : groupOrOptions;
+  
+  const { groups, complexity } = options;
   
   return useQuery({
     queryKey: queryKeys.appConfig(groups, complexity),
@@ -35,18 +44,18 @@ export function useAppConfig(options: UseAppConfigOptions = {}) {
       if (complexity) {
         queryParams += (queryParams ? '&' : '') + `complexity=${complexity}`;
       }
-      
+  
       const response = await apiFetch(`/admin/app-config${queryParams ? `?${queryParams}` : ''}`);
-      
-      if (!response.ok) {
+  
+  if (!response.ok) {
         throw new Error('Failed to fetch configuration settings');
-      }
-      
+  }
+  
       const result = await response.json();
       if (!result.success || !Array.isArray(result.data)) {
         throw new Error(result.error || 'Failed to fetch valid configuration settings data');
-      }
-      
+  }
+  
       return result.data as AppConfigData[];
     },
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes

@@ -59,8 +59,9 @@ export const queryKeys = {
   playersAdmin: (tenantId: string | null, includeMatchCounts: boolean, showRetired: boolean) => 
     ['playersAdmin', tenantId, includeMatchCounts, showRetired] as const,
   
-  // Admin Configuration APIs
-  balanceAlgorithm: () => ['balanceAlgorithm'] as const,
+  // Admin Configuration APIs  
+  balanceAlgorithm: (tenantId: string | null = null) => 
+    ['balanceAlgorithm', tenantId] as const,
   performanceWeights: (tenantId: string | null) => ['performanceWeights', tenantId] as const,
   teamTemplate: (tenantId: string | null, teamSize: number | undefined) => 
     ['teamTemplate', tenantId, teamSize] as const,

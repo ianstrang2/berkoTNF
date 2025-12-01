@@ -74,7 +74,7 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
           // Advanced tertiary navigation
           if (currentLevel === 'advanced') {
             return [
-              {
+                {
                 key: 'points',
                 label: 'Points',
                 href: '/admin/setup?level=advanced&section=points',
@@ -85,8 +85,8 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
                 label: 'Stats',
                 href: '/admin/setup?level=advanced&section=stats',
                 active: currentSection === 'stats'
-              },
-              {
+                },
+                {
                 key: 'balancing',
                 label: 'Balancing',
                 href: '/admin/setup?level=advanced&section=balancing',
