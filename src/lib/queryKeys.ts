@@ -18,9 +18,9 @@ export const queryKeys = {
   // Personal Bests API - used by MatchReport and PersonalBests components
   personalBests: (tenantId: string | null) => ['personalBests', tenantId] as const,
   
-  // App Config API - parameterized by group
-  appConfig: (tenantId: string | null, group?: string) => 
-    group ? ['appConfig', tenantId, group] as const : ['appConfig', tenantId] as const,
+  // App Config API - parameterized by groups (array) and complexity
+  appConfig: (groups?: string[], complexity?: string) => 
+    ['appConfig', groups?.join(',') || 'all', complexity || 'all'] as const,
   
   // Stats API - used by various components
   stats: (tenantId: string | null) => ['stats', tenantId] as const,
@@ -60,7 +60,7 @@ export const queryKeys = {
     ['playersAdmin', tenantId, includeMatchCounts, showRetired] as const,
   
   // Admin Configuration APIs
-  balanceAlgorithm: (tenantId: string | null) => ['balanceAlgorithm', tenantId] as const,
+  balanceAlgorithm: () => ['balanceAlgorithm'] as const,
   performanceWeights: (tenantId: string | null) => ['performanceWeights', tenantId] as const,
   teamTemplate: (tenantId: string | null, teamSize: number | undefined) => 
     ['teamTemplate', tenantId, teamSize] as const,

@@ -1,60 +1,104 @@
-/**
- * useAppConfig Hook
- * 
- * Fetches app configuration with automatic caching and deduplication
- * Used by: MatchReport, CurrentForm components
- */
-
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/apiConfig';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
 
-interface AppConfigItem {
+export interface AppConfigData {
+  config_id: number;
   config_key: string;
   config_value: string;
-  config_group?: string;
+  config_description: string;
+  config_group: string;
+  display_name: string;
+  display_group: string;
+  sort_order: number;
+  complexity_level?: string;
 }
 
-interface AppConfigResponse {
-  success: boolean;
-  data: AppConfigItem[];
-  error?: string;
+interface UseAppConfigOptions {
+  groups?: string[];
+  complexity?: 'standard' | 'advanced';
 }
 
-async function fetchAppConfig(tenantId: string | null, group?: string): Promise<AppConfigItem[]> {
-  // Gracefully handle missing tenantId
-  if (!tenantId) {
-    return [];
-  }
-  
-  const url = group 
-    ? `/api/admin/app-config?group=${encodeURIComponent(group)}`
-    : '/api/admin/app-config';
-  
-  const response = await fetch(url);
-  
-  if (!response.ok) {
-    throw new Error(`App config API returned ${response.status}`);
-  }
-  
-  const result: AppConfigResponse = await response.json();
-  
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to fetch app config');
-  }
-  
-  return result.data || [];
-}
-
-export function useAppConfig(group?: string) {
+export function useAppConfig(options: UseAppConfigOptions = {}) {
+  const { groups, complexity } = options;
   const { profile } = useAuth();
-  const tenantId = profile.tenantId;
   
   return useQuery({
-    queryKey: queryKeys.appConfig(tenantId, group),
-    queryFn: () => fetchAppConfig(tenantId, group),
-    staleTime: 10 * 60 * 1000, // 10 minutes - config doesn't change often
-    // NO enabled condition - queryFn handles missing tenantId gracefully
+    queryKey: queryKeys.appConfig(groups, complexity),
+    enabled: !!profile.tenantId,
+    queryFn: async () => {
+      let queryParams = '';
+      if (groups && groups.length > 0) {
+        queryParams = `groups=${encodeURIComponent(groups.join(','))}`;
+      }
+      if (complexity) {
+        queryParams += (queryParams ? '&' : '') + `complexity=${complexity}`;
+      }
+      
+      const response = await apiFetch(`/admin/app-config${queryParams ? `?${queryParams}` : ''}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch configuration settings');
+      }
+      
+      const result = await response.json();
+      if (!result.success || !Array.isArray(result.data)) {
+        throw new Error(result.error || 'Failed to fetch valid configuration settings data');
+      }
+      
+      return result.data as AppConfigData[];
+    },
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 }
 
+export function useUpdateAppConfig() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (configs: Array<{ config_key: string; config_value: string }>) => {
+      const response = await apiFetch('/admin/app-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ configs }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to save settings');
+      }
+
+      return result;
+    },
+    onSuccess: () => {
+      // Invalidate all app-config queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['appConfig'] });
+    },
+  });
+}
+
+export function useResetAppConfig() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (group: string) => {
+      const response = await apiFetch('/admin/app-config/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to reset settings');
+      }
+
+      return result;
+    },
+    onSuccess: () => {
+      // Invalidate all app-config queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['appConfig'] });
+    },
+  });
+}

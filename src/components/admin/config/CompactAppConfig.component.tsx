@@ -5,19 +5,7 @@ import Button from '@/components/ui-kit/Button.component';
 import InfoPopover from '@/components/ui-kit/InfoPopover.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { apiFetch } from '@/lib/apiConfig';
-
-interface AppConfigData {
-  config_id: number;
-  config_key: string;
-  config_value: string;
-  config_description: string;
-  config_group: string;
-  display_name: string;
-  display_group: string;
-  sort_order: number;
-  complexity_level?: string;
-}
+import { useAppConfig, useUpdateAppConfig, useResetAppConfig, AppConfigData } from '@/hooks/queries/useAppConfig.hook';
 
 interface ConfigSection {
   id: string;
@@ -39,15 +27,20 @@ const CompactAppConfig: React.FC<CompactAppConfigProps> = ({
   pageTitle,
   pageDescription,
 }) => {
-  const [allFetchedConfigs, setAllFetchedConfigs] = useState<AppConfigData[]>([]);
+  // Use React Query for data fetching
+  const { data: fetchedConfigs, isLoading, error: fetchError } = useAppConfig({
+    groups: targetConfigGroups,
+    complexity: targetComplexityLevel
+  });
+  const updateMutation = useUpdateAppConfig();
+  const resetMutation = useResetAppConfig();
+  
   const [configSections, setConfigSections] = useState<ConfigSection[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [originalData, setOriginalData] = useState<Record<string, string>>({});
   
-  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [showExitWarning, setShowExitWarning] = useState<boolean>(false);
@@ -109,45 +102,19 @@ const CompactAppConfig: React.FC<CompactAppConfigProps> = ({
     setConfigSections(sectionsArray);
   }, []);
 
+  // Process fetched data when it changes
   useEffect(() => {
-    const fetchConfigData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        let queryParams = '';
-        if (targetConfigGroups && targetConfigGroups.length > 0) {
-          queryParams = `groups=${encodeURIComponent(targetConfigGroups.join(','))}`;
-        }
-        if (targetComplexityLevel) {
-          queryParams += (queryParams ? '&' : '') + `complexity=${targetComplexityLevel}`;
-        }
-        
-        const response = await apiFetch(`/admin/app-config${queryParams ? `?${queryParams}` : ''}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch configuration settings');
-        }
-        
-        const result = await response.json();
-        if (!result.success || !Array.isArray(result.data)) {
-          throw new Error(result.error || 'Failed to fetch valid configuration settings data');
-        }
-        
-        const typedData = result.data as AppConfigData[];
-        setAllFetchedConfigs(typedData);
-        processAndSetFetchedData(typedData);
+    if (fetchedConfigs) {
+      processAndSetFetchedData(fetchedConfigs);
+    }
+  }, [fetchedConfigs, processAndSetFetchedData]);
 
-      } catch (err: any) {
-        console.error('Error fetching configuration settings:', err);
-        setError(err.message || 'Failed to fetch configuration settings');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchConfigData();
-  }, [targetConfigGroups, targetComplexityLevel, processAndSetFetchedData]);
+  // Set error from fetch if any
+  useEffect(() => {
+    if (fetchError) {
+      setError((fetchError as Error).message || 'Failed to fetch configuration settings');
+    }
+  }, [fetchError]);
 
   // Check for unsaved changes
   useEffect(() => {
@@ -187,33 +154,21 @@ const CompactAppConfig: React.FC<CompactAppConfigProps> = ({
   };
 
   const handleSaveAll = async () => {
-    setIsSaving(true);
-    setError(null);
+    if (!fetchedConfigs) return;
 
-    const modifiedConfigs = allFetchedConfigs
+    const modifiedConfigs = fetchedConfigs
       .filter(config => formData[config.config_key] !== originalData[config.config_key])
       .map(config => ({
-        config_id: config.config_id,
         config_key: config.config_key,
         config_value: formData[config.config_key],
       }));
 
     if (modifiedConfigs.length === 0) {
-      setIsSaving(false);
       return;
     }
 
     try {
-      const response = await apiFetch('/admin/app-config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ configs: modifiedConfigs }),
-      });
-
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to save settings');
-      }
+      await updateMutation.mutateAsync(modifiedConfigs);
 
       // Update original data to reflect saved changes
       setOriginalData({ ...formData });
@@ -225,8 +180,6 @@ const CompactAppConfig: React.FC<CompactAppConfigProps> = ({
     } catch (err: any) {
       console.error('Error saving settings:', err);
       setError(err.message || 'Failed to save settings');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -242,86 +195,35 @@ const CompactAppConfig: React.FC<CompactAppConfigProps> = ({
     setError(null);
 
     try {
-      setIsLoading(true);
-      
-      // Fetch defaults for this section's config keys
-      const configKeys = section.configs.map(c => c.config_key);
-      // We can't easily batch fetch defaults by key, but we can fetch by group and filter
-      // Or we can just reset the form values if we assume defaults are what we want
-      
-      // Better approach: Fetch all defaults for the relevant groups
-      const groups = [...new Set(section.configs.map(c => c.config_group))];
-      const defaultsPromises = groups.map(group => 
-        apiFetch(`/admin/app-config/defaults?group=${group}`)
-      );
-      
-      // Since we don't have a GET defaults endpoint yet, let's create one or use a different strategy
-      // Strategy: We can't easily get defaults without a new endpoint.
-      // Let's use the reset endpoint but we need to acknowledge it resets the WHOLE group.
-      
-      // For now, let's stick to the server-side reset but we need to warn the user it might reset related settings
-      // The existing implementation does exactly this.
-      
-      // The issue reported was "buttons don't seem to do anything".
-      // This might be because the UI doesn't update after reset.
-      
-      // Let's try to improve the existing implementation first by ensuring state updates
       const configGroup = section.configs[0]?.config_group;
       if (!configGroup) {
         throw new Error('Cannot determine config group for reset');
       }
 
-      const response = await apiFetch('/admin/app-config/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ group: configGroup }),
-      });
-
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to reset settings');
-      }
-
-      // REFRESH DATA immediately
-      // We need to fetch the fresh data to update the UI
-      let queryParams = '';
-      if (targetConfigGroups && targetConfigGroups.length > 0) {
-        queryParams = `groups=${encodeURIComponent(targetConfigGroups.join(','))}`;
-      }
-      if (targetComplexityLevel) {
-        queryParams += (queryParams ? '&' : '') + `complexity=${targetComplexityLevel}`;
-      }
+      // Use React Query mutation
+      await resetMutation.mutateAsync(configGroup);
       
-      const refetchResponse = await apiFetch(`/admin/app-config${queryParams ? `?${queryParams}` : ''}`);
-      const refetchResult = await refetchResponse.json();
-      
-      if (refetchResult.success && Array.isArray(refetchResult.data)) {
-        const typedData = refetchResult.data as AppConfigData[];
-        setAllFetchedConfigs(typedData);
-        processAndSetFetchedData(typedData);
+      // Update form data to match reset values (React Query auto-refetches)
+      if (fetchedConfigs) {
+        const newFormData: Record<string, string> = {};
+        const newOriginalData: Record<string, string> = {};
         
-        // Clear any unsaved changes state for these keys
-        const newFormData = { ...formData };
-        const newOriginalData = { ...originalData };
-        
-        typedData.forEach(config => {
+        fetchedConfigs.forEach(config => {
           newFormData[config.config_key] = config.config_value;
           newOriginalData[config.config_key] = config.config_value;
         });
         
         setFormData(newFormData);
         setOriginalData(newOriginalData);
-        
-        // Show success flash
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 2000);
       }
+      
+      // Show success flash
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
 
     } catch (err: any) {
       console.error('Error resetting section:', err);
       setError(err.message || 'Failed to reset section');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -351,7 +253,7 @@ const CompactAppConfig: React.FC<CompactAppConfigProps> = ({
                 checked={currentValue === 'true'}
                 onChange={handleInputChange}
                 className="sr-only peer"
-                disabled={isSaving}
+                disabled={updateMutation.isPending}
               />
               <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-tl peer-checked:from-purple-700 peer-checked:to-pink-500"></div>
             </label>
@@ -371,7 +273,7 @@ const CompactAppConfig: React.FC<CompactAppConfigProps> = ({
               value={currentValue}
               onChange={handleInputChange}
               className="w-24 text-right px-2 py-1 text-sm rounded-md border-slate-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 disabled:bg-slate-50 disabled:text-slate-400"
-              disabled={isSaving}
+              disabled={updateMutation.isPending}
               step={config.config_key.includes('weight') ? '0.01' : '1'}
             />
           )}
@@ -446,14 +348,14 @@ const CompactAppConfig: React.FC<CompactAppConfigProps> = ({
         <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white rounded-full shadow-soft-xl px-2 py-2 border border-slate-200">
           <Button
             onClick={handleSaveAll}
-            disabled={isSaving || !hasUnsavedChanges}
+            disabled={updateMutation.isPending || !hasUnsavedChanges}
             className={`font-semibold py-2 px-4 rounded-lg transition-all ${
               saveSuccess
                 ? 'bg-gradient-to-tl from-green-600 to-green-500 text-white'
                 : 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:shadow-lg-purple'
             }`}
           >
-            {isSaving ? 'Saving...' : saveSuccess ? 'Saved ✓' : 'SAVE CHANGES?'}
+            {updateMutation.isPending ? 'Saving...' : saveSuccess ? 'Saved ✓' : 'SAVE CHANGES?'}
           </Button>
         </div>
       )}
