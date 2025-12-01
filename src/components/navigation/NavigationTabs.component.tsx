@@ -16,32 +16,20 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
 
   // Admin mode secondary navigation for setup section only
   if (isAdminMode && secondarySection === 'setup') {
-    const currentSection = searchParams?.get('section') || 'general';
+    const currentLevel = searchParams?.get('level') || 'standard';
     
     const adminSetupOptions = [
       {
-        key: 'general',
-        label: 'General',
-        href: '/admin/setup?section=general',
-        active: currentSection === 'general'
+        key: 'standard',
+        label: 'Standard',
+        href: '/admin/setup?level=standard&section=general',
+        active: currentLevel === 'standard'
       },
       {
-        key: 'stats',
-        label: 'Stats',
-        href: '/admin/setup?section=stats',
-        active: currentSection === 'stats'
-      },
-      {
-        key: 'templates',
-        label: 'Templates',
-        href: '/admin/setup?section=templates',
-        active: currentSection === 'templates'
-      },
-      {
-        key: 'balancing',
-        label: 'Balancing',
-        href: '/admin/setup?section=balancing',
-        active: currentSection === 'balancing'
+        key: 'advanced',
+        label: 'Advanced',
+        href: '/admin/setup?level=advanced&section=points',
+        active: currentLevel === 'advanced'
       }
     ];
 

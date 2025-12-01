@@ -26,7 +26,7 @@ const LoadingIndicator = () => (
 function SetupContent() {
   const [isClient, setIsClient] = useState(false);
   const searchParams = useSearchParams();
-  const section = searchParams?.get('section') || 'general';
+  const level = searchParams?.get('level') || 'standard';
 
   useEffect(() => {
     setIsClient(true);
@@ -41,7 +41,7 @@ function SetupContent() {
     <div className="flex flex-col w-full">
       <div className="min-w-0 max-w-3xl">
         <ErrorBoundary>
-          <AppSetup initialSection={section as any} />
+          <AppSetup initialLevel={level as 'standard' | 'advanced'} />
         </ErrorBoundary>
       </div>
     </div>

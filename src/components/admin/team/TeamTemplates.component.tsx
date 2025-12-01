@@ -301,21 +301,6 @@ const TeamTemplates = () => {
 
       {!isLoading && (
         <>
-          <div className="border-black/12.5 border-b-0 border-solid pb-0">
-            <h5 className="mb-2 font-bold text-slate-700">Team Templates</h5>
-            <p className="text-sm text-slate-500 mb-2">
-              Manage team formations by adjusting the number of players in each position. 
-              The total number of players must match the team size.
-              {defaultTeamSize && (
-                <span className="block mt-2">
-                  The default team size for new matches is currently set to <strong>{defaultTeamSize}-a-side</strong> and can be changed in App Configuration.
-                </span>
-              )}
-            </p>
-            <p className="mt-2 mb-4 text-sm text-slate-500">
-              Recommended: Keep the default values, which have been tested and proven effective over many games.
-            </p>
-          </div>
           <div className="pt-0">
             <div className="overflow-x-auto">
               <table className="items-center w-full mb-0 align-top border-slate-200 text-slate-500">

@@ -342,6 +342,7 @@ model app_config {
   display_name       String?
   display_group      String?
   sort_order         Int?
+  complexity_level   String?   @default("advanced") @db.VarChar(20)
   tenant_id          String    @db.Uuid
   tenants            tenants   @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_app_config_tenant")
 }
@@ -351,6 +352,7 @@ model app_config_defaults {
   config_value       String
   config_description String?
   config_group       String  @db.VarChar(255)
+  complexity_level   String? @default("advanced") @db.VarChar(20)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

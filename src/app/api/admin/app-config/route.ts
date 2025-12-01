@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     // Get query parameters - support both 'group' and 'groups' for backward compatibility
     const { searchParams } = new URL(request.url);
     const groupsQueryParam = searchParams.get('groups') || searchParams.get('group');
+    const complexityParam = searchParams.get('complexity'); // 'standard' or 'advanced'
 
     let configs;
     const orderByClause = [
@@ -26,39 +27,29 @@ export async function GET(request: NextRequest) {
     ];
 
     try {
+      // Build where clause dynamically
+      const whereClause: any = { tenant_id: tenantId };
+      
+      // Add complexity filter if specified
+      if (complexityParam && (complexityParam === 'standard' || complexityParam === 'advanced')) {
+        whereClause.complexity_level = complexityParam;
+      }
+      
+      // Add group filter if specified
       if (groupsQueryParam) {
         const groupArray = groupsQueryParam.split(',').map(g => g.trim()).filter(g => g);
         if (groupArray.length > 0) {
-          // Multi-tenant: Query scoped to current tenant only
-          console.log(`🔍 [APP-CONFIG] Querying groups:`, groupArray);
-          const queryStart = Date.now();
-          configs = await prisma.app_config.findMany({
-            where: {
-              tenant_id: tenantId,
-              config_group: {
-                in: groupArray
-              }
-            },
-            orderBy: orderByClause
-          });
-          console.log(`⏱️ [APP-CONFIG] Query took ${Date.now() - queryStart}ms (${configs.length} rows)`);
-        } else {
-          // Multi-tenant: Query scoped to current tenant only
-          configs = await prisma.app_config.findMany({
-            where: { tenant_id: tenantId },
-            orderBy: orderByClause
-          });
+          whereClause.config_group = { in: groupArray };
         }
-      } else {
-        // Multi-tenant: Query scoped to current tenant only
-        console.log(`🔍 [APP-CONFIG] Fetching all configs (no group filter)`);
-        const queryStart = Date.now();
-        configs = await prisma.app_config.findMany({
-          where: { tenant_id: tenantId },
-          orderBy: orderByClause
-        });
-        console.log(`⏱️ [APP-CONFIG] Query took ${Date.now() - queryStart}ms (${configs.length} rows)`);
       }
+
+      console.log(`🔍 [APP-CONFIG] Query filters:`, whereClause);
+      const queryStart = Date.now();
+      configs = await prisma.app_config.findMany({
+        where: whereClause,
+        orderBy: orderByClause
+      });
+      console.log(`⏱️ [APP-CONFIG] Query took ${Date.now() - queryStart}ms (${configs.length} rows)`);
     } catch (error) {
       console.error('Error fetching app_config:', error);
       return NextResponse.json({ 

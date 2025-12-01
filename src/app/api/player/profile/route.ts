@@ -5,58 +5,75 @@ import { Club } from '@/types/player.types';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(request: NextRequest) {
+  try {
+    // SECURITY: Verify player access
+    const { player } = await requirePlayerAccess(request);
+
+    // Fetch current player's profile data
+    const playerData = await prisma.players.findUnique({
+      where: { player_id: player.player_id },
+      select: {
+        player_id: true,
+        name: true,
+        email: true,
+        selected_club: true
+      }
+    });
+
+    if (!playerData) {
+      return NextResponse.json(
+        { success: false, error: 'Player not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { 
+        success: true, 
+        data: {
+          id: String(playerData.player_id),
+          name: playerData.name,
+          email: playerData.email,
+          club: playerData.selected_club as Club | null
+        }
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Vary': 'Cookie',
+        }
+      }
+    );
+
+  } catch (error: any) {
+    console.error('[PLAYER PROFILE GET] Error:', error);
+    
+    if (error.message === 'Player profile required') {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch profile' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     // SECURITY: Verify player access
     const { player, tenantId } = await requirePlayerAccess(request);
 
     const body = await request.json();
-    const { name, email, club } = body as {
-      name: string;
+    const { email, club } = body as {
       email?: string | null;
       club?: Club | null;
     };
-
-    // Validate required fields
-    if (!name || typeof name !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Name is required' },
-        { status: 400 }
-      );
-    }
-
-    const trimmedName = name.trim();
-    
-    // Validate name length (max 14 characters for new names)
-    if (trimmedName.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Name cannot be empty' },
-        { status: 400 }
-      );
-    }
-
-    if (trimmedName.length > 14) {
-      return NextResponse.json(
-        { success: false, error: 'Name cannot exceed 14 characters' },
-        { status: 400 }
-      );
-    }
-
-    // Check for duplicate name (excluding current player)
-    const existingPlayer = await prisma.players.findFirst({
-      where: {
-        name: trimmedName,
-        tenant_id: tenantId,
-        NOT: { player_id: player.player_id }
-      }
-    });
-
-    if (existingPlayer) {
-      return NextResponse.json(
-        { success: false, error: 'This name is already taken' },
-        { status: 409 }
-      );
-    }
 
     // Validate email format if provided
     const trimmedEmail = email?.trim() || null;
@@ -67,13 +84,12 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update player record
+    // Update player record (name excluded - admin-only)
     const updatedPlayer = await prisma.players.update({
       where: { 
         player_id: player.player_id  // Primary key - sufficient for WHERE clause
       },
       data: {
-        name: trimmedName,
         email: trimmedEmail,
         selected_club: club as any  // Club object or null (stored as JSON)
       }

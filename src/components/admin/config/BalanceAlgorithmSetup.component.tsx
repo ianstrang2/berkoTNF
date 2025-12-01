@@ -31,8 +31,8 @@ const BalanceAlgorithmSetup: React.FC = () => {
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
-  const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
+  const [showExitWarning, setShowExitWarning] = useState<boolean>(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [showValidationError, setShowValidationError] = useState<boolean>(false);
   const [teamSize, setTeamSize] = useState<string>('9');
@@ -243,23 +243,6 @@ const BalanceAlgorithmSetup: React.FC = () => {
       
       if (data.success) {
         setHasChanges(false);
-        
-        Swal.fire({
-          toast: true,
-          position: 'top-right',
-          icon: 'success',
-          title: 'Saved Successfully',
-          text: 'Balance weights have been updated.',
-          showConfirmButton: false,
-          timer: 3000,
-          timerProgressBar: true,
-          customClass: {
-            popup: 'shadow-lg rounded-lg',
-            title: 'text-lg font-medium',
-            timerProgressBar: 'bg-green-500'
-          }
-        });
-        setShowConfirmation(false);
       } else {
         throw new Error(data.error || 'Failed to save balance weights');
       }
@@ -271,16 +254,24 @@ const BalanceAlgorithmSetup: React.FC = () => {
     }
   };
 
-  // Handler for closing confirmation and clearing states
-  const handleConfirmationClose = () => {
-    setShowConfirmation(false);
-    setSaving(false); // Ensure the saving state is reset
-  };
 
-  // Modified save handler to ensure UI state is properly updated
+  // Modified save handler with success flash
   const handleSave = async () => {
     await saveWeights();
   };
+
+  // Check for unsaved changes and warn before navigation
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
 
   // Reset weights to defaults
   const resetWeights = async (): Promise<void> => {
@@ -300,22 +291,6 @@ const BalanceAlgorithmSetup: React.FC = () => {
       if (data.success) {
         setWeights(data.data);
         setHasChanges(false);
-        
-        Swal.fire({
-          toast: true,
-          position: 'top-right',
-          icon: 'success',
-          title: 'Reset Successfully',
-          text: 'Balance weights have been reset to defaults.',
-          showConfirmButton: false,
-          timer: 3000,
-          timerProgressBar: true,
-          customClass: {
-            popup: 'shadow-lg rounded-lg',
-            title: 'text-lg font-medium',
-            timerProgressBar: 'bg-green-500'
-          }
-        });
         setShowResetConfirmation(false);
       } else {
         throw new Error(data.error || 'Failed to reset balance weights');
@@ -450,38 +425,38 @@ const BalanceAlgorithmSetup: React.FC = () => {
 
   return (
     <div className="w-full">
-      <div className="mb-6">
-        <div className="flex justify-between items-center">
-          <h2 className="font-bold text-[20px] leading-[28px]" style={{ fontFamily: '"Open Sans"', color: 'rgb(52, 71, 103)' }}>Balance Algorithm Settings</h2>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowResetConfirmation(true)}
-              variant="outline"
-              size="sm"
-              disabled={loading || saving || isResetting}
-              className="text-slate-700 border-slate-200 hover:bg-slate-100"
-            >
-              Reset to Defaults
-            </Button>
-            <Button
-              onClick={() => setShowConfirmation(true)}
-              variant="primary"
-              size="sm"
-              disabled={!hasChanges || loading || saving || isResetting}
-              className="bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md"
-            >
-              Save Changes
-            </Button>
-          </div>
+      {/* Floating Save Button - Only show when changes detected */}
+      {hasChanges && (
+        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white rounded-full shadow-soft-xl px-6 py-3 border border-slate-200">
+          <span className="text-sm text-slate-600">Unsaved changes</span>
+          <Button
+            onClick={handleSave}
+            disabled={saving || !hasChanges}
+            className={`font-semibold py-2 px-4 rounded-lg transition-all ${
+              saving
+                ? 'bg-slate-400 text-white'
+                : 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:shadow-lg-purple'
+            }`}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
         </div>
-        <p className="text-sm text-slate-500 mt-2">
-          Define how different player attributes are weighted when balancing teams
-        </p>
-      </div>
+      )}
       
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
+        <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 border border-red-200">
           {error}
+        </div>
+      )}
+
+      {showValidationError && Object.keys(validationErrors).length > 0 && (
+        <div className="mb-4 p-3 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+          <p className="font-medium mb-1">Please fix the following errors:</p>
+          <ul className="list-disc pl-5 text-sm">
+            {Object.entries(validationErrors).map(([group, error]) => (
+              <li key={group}>{error}</li>
+            ))}
+          </ul>
         </div>
       )}
       
@@ -492,18 +467,22 @@ const BalanceAlgorithmSetup: React.FC = () => {
         </div>
       ) : (
         <>
-          {showValidationError && Object.keys(validationErrors).length > 0 && (
-            <div className="mb-6 p-4 bg-amber-50 text-amber-700 rounded-lg border border-amber-200">
-              <p className="font-medium mb-1">Please fix the following errors before saving:</p>
-              <ul className="list-disc pl-5">
-                {Object.entries(validationErrors).map(([group, error]) => (
-                  <li key={group}>{error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Reset Button - Top Right */}
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => setShowResetConfirmation(true)}
+              disabled={loading || saving || isResetting}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Reset to Defaults
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {positionOrder.map(position => {
               const positionWeights = sortedGroupedWeights[position] || [];
               
@@ -515,11 +494,11 @@ const BalanceAlgorithmSetup: React.FC = () => {
               const positionTotal = isPositionGroup ? totals[position] || 0 : null;
               
               return (
-                <div key={position} className="space-y-4">
+                <div key={position} className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-[20px] leading-[28px]" style={{ fontFamily: '"Open Sans"', color: 'rgb(52, 71, 103)' }}>{getPositionName(position)}</h3>
+                    <h3 className="font-semibold text-base text-slate-700">{getPositionName(position)}</h3>
                     {isPositionGroup && (
-                      <div className="text-sm text-gray-500">
+                      <div className="text-xs text-gray-500">
                         Total: <span className={Math.abs(positionTotal! - 1) > 0.001 ? 'text-amber-500 font-medium' : 'text-gray-500'}>
                           {(positionTotal! * 100).toFixed(0)}%
                         </span>
@@ -527,18 +506,18 @@ const BalanceAlgorithmSetup: React.FC = () => {
                     )}
                   </div>
                   
-                  <div className="mt-2">
-                    <div className="text-xs text-gray-500 font-medium uppercase">ATTRIBUTES</div>
+                  <div className="mt-2 space-y-2.5">
+                    <div className="text-xs text-gray-500 font-medium uppercase mb-2">ATTRIBUTES</div>
                     
                     {positionWeights
                       .filter(w => allAttributes.includes(w.name))
                       .map(weight => (
-                        <div key={weight.attribute_id} className="my-4">
+                        <div key={weight.attribute_id}>
                           <div className="flex justify-between items-center mb-1">
                             <div className="text-sm text-slate-700">
                               {formatAttributeName(weight.name)}
                             </div>
-                            <div className="font-medium text-slate-700">{formatWeight(weight.weight)}</div>
+                            <div className="text-sm font-medium text-slate-700">{formatWeight(weight.weight)}</div>
                           </div>
                           <div className="h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer" 
                             onClick={(e) => handleBarClick(e, weight.attribute_id)}
@@ -561,18 +540,6 @@ const BalanceAlgorithmSetup: React.FC = () => {
         </>
       )}
       
-      {/* Confirmation Modal */}
-      <SoftUIConfirmationModal
-        isOpen={showConfirmation}
-        onClose={handleConfirmationClose}
-        onConfirm={handleSave}
-        title="Save Balance Algorithm Changes"
-        message="Are you sure you want to save your changes to the balance algorithm? This will affect how teams are balanced in future matches."
-        confirmText="Save Changes"
-        cancelText="Cancel"
-        isConfirming={saving}
-      />
-
       {/* Reset Confirmation Modal */}
       <SoftUIConfirmationModal
         isOpen={showResetConfirmation}
@@ -585,18 +552,19 @@ const BalanceAlgorithmSetup: React.FC = () => {
         isConfirming={isResetting}
       />
 
-      {/* Validation Error Modal */}
+      {/* Exit Warning Modal */}
       <SoftUIConfirmationModal
-        isOpen={showValidationError}
-        onClose={() => setShowValidationError(false)}
-        onConfirm={() => setShowValidationError(false)}
-        title="Validation Error"
-        message={Object.keys(validationErrors).length > 0 ? 
-          `The following errors must be fixed before saving: ${Object.values(validationErrors).join(', ')}` : 
-          'Please fix validation errors before saving.'
-        }
-        confirmText="OK"
-        cancelText="Cancel"
+        isOpen={showExitWarning}
+        onClose={() => setShowExitWarning(false)}
+        onConfirm={() => {
+          setShowExitWarning(false);
+          // Allow navigation
+        }}
+        title="Unsaved Changes"
+        message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
+        confirmText="Leave Anyway"
+        cancelText="Stay"
+        icon="warning"
       />
     </div>
   );

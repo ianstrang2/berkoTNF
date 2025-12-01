@@ -103,16 +103,16 @@ Before implementation, confirm:
 
 ## Profile Tab (MVP - Implement First)
 
+### Display Fields
+
+**1. Player Name (Read-Only)**
+- Display: Gray background box (non-editable)
+- Message: "Contact your admin to change your display name"
+- **Rationale:** Name is tied to historical stats and leaderboards - admin approval prevents confusion and maintains data integrity
+
 ### Editable Fields
 
-**1. Player Name**
-- Input: Text field
-- Max length: 14 characters
-- Validation: Required, unique per tenant
-- Show character count: `{length} / 14`
-- Error: "This name is already taken" (if duplicate)
-
-**2. Email Address**
+**1. Email Address**
 - Input: Email field
 - Validation: Optional, valid email format if provided
 - Placeholder: "player@email.com"
@@ -133,11 +133,12 @@ Before implementation, confirm:
 **Request Body**:
 ```typescript
 {
-  name: string;          // required, 14 char max
   email?: string | null; // optional
   club?: Club | null;    // optional, Club type from player.types.ts
 }
 ```
+
+**Note:** Name is excluded - players cannot change their display name (admin-only via player manager)
 
 **Response**:
 ```typescript
@@ -151,19 +152,10 @@ Before implementation, confirm:
 **Authorization**: `requirePlayerAccess(request)`
 
 **Validation**:
-1. **Name uniqueness**: Check `players` table for duplicate name within tenant **EXCLUDING current player**
-   ```typescript
-   const existingPlayer = await prisma.players.findFirst({
-     where: {
-       name: data.name,
-       tenant_id: tenantId,
-       NOT: { player_id: player.player_id }  // Essential - don't block their own name
-     }
-   });
-   ```
-2. **Name length**: Max 14 characters (allow existing >14 char names to remain - grandfathered)
-3. **Email format**: HTML5 email validation (if provided)
-4. **Tenant isolation**: Validated via `requirePlayerAccess()` which returns player with tenant_id
+1. **Email format**: HTML5 email validation (if provided)
+2. **Tenant isolation**: Validated via `requirePlayerAccess()` which returns player with tenant_id
+
+**Name changes:** Not allowed via player API - admins change names via `/api/admin/players` PUT endpoint
 
 **Database Update**:
 ```typescript

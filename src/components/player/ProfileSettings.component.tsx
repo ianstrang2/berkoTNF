@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth.hook';
-import { useAuthProfile } from '@/hooks/queries/useAuthProfile.hook';
 import ClubSelector from '@/components/admin/player/ClubSelector.component';
 import { Club } from '@/types/player.types';
 import { apiFetch } from '@/lib/apiConfig';
@@ -18,8 +17,8 @@ interface ProfileFormData {
 }
 
 const ProfileSettings: React.FC = () => {
-  const { profile: authProfile } = useAuth();
-  const { data: authData, refetch } = useAuthProfile();
+  const { profile: authProfile, loading: authLoading } = useAuth();
+  
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
     email: '',
@@ -30,48 +29,48 @@ const ProfileSettings: React.FC = () => {
     email: '',
     club: null
   });
-  const [initialName, setInitialName] = useState('');
-  const [nameError, setNameError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorState, setErrorState] = useState<ErrorState>({ show: false, message: '' });
 
-  // Load player data
+  // Load player data once auth is ready
   useEffect(() => {
     const loadPlayerData = async () => {
-      if (!authProfile.linkedPlayerId) return;
+      // Wait for auth to finish loading
+      if (authLoading) {
+        return;
+      }
+
+      // If no player ID, we can't fetch - show empty form
+      if (!authProfile.linkedPlayerId) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
-        const response = await apiFetch(`/admin/players?include_match_counts=false`);
+        const response = await apiFetch(`/player/profile`);
         const result = await response.json();
         
-        if (result.success) {
-          const currentPlayer = result.data.find((p: any) => p.id === String(authProfile.linkedPlayerId));
-          if (currentPlayer) {
-            const playerData = {
-              name: currentPlayer.name || '',
-              email: currentPlayer.email || '',
-              club: currentPlayer.club || null
-            };
-            setFormData(playerData);
-            setOriginalData(playerData);
-            setInitialName(currentPlayer.name || '');
-          }
+        if (result.success && result.data) {
+          const playerData = {
+            name: result.data.name || '',
+            email: result.data.email || '',
+            club: result.data.club || null
+          };
+          setFormData(playerData);
+          setOriginalData(playerData);
         }
       } catch (error) {
         console.error('Error loading player data:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadPlayerData();
-  }, [authProfile.linkedPlayerId]);
+  }, [authProfile.linkedPlayerId, authLoading]);
 
-  // Clear name error when name changes
-  useEffect(() => {
-    if (nameError) {
-      setNameError(null);
-    }
-  }, [formData.name]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +78,6 @@ const ProfileSettings: React.FC = () => {
     if (isSubmitting) return;
     
     setIsSubmitting(true);
-    setNameError(null);
 
     try {
       const response = await apiFetch('/player/profile', {
@@ -88,7 +86,6 @@ const ProfileSettings: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: formData.name.trim(),
           email: formData.email?.trim() || null,
           club: formData.club || null
         })
@@ -97,12 +94,8 @@ const ProfileSettings: React.FC = () => {
       const result = await response.json();
 
       if (!response.ok) {
-        if (result.error && result.error.includes('already taken')) {
-          setNameError(result.error);
-        } else {
-          setErrorState({ show: true, message: result.error || 'Failed to update profile' });
-          setTimeout(() => setErrorState({ show: false, message: '' }), 3000);
-        }
+        setErrorState({ show: true, message: result.error || 'Failed to update profile' });
+        setTimeout(() => setErrorState({ show: false, message: '' }), 3000);
         throw new Error(result.error || 'Failed to update profile');
       }
 
@@ -111,17 +104,13 @@ const ProfileSettings: React.FC = () => {
       setTimeout(() => setSaveSuccess(false), 2000);
       
       // Update original data to match new saved state
-      setOriginalData({
-        name: formData.name,
-        email: formData.email,
-        club: formData.club
-      });
-      
-      // Update initial name for grandfathering logic
-      setInitialName(formData.name);
-      
-      // Refetch auth profile to update display name
-      refetch();
+      if (formData) {
+        setOriginalData({
+          name: formData.name,
+          email: formData.email,
+          club: formData.club
+        });
+      }
       
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -131,15 +120,26 @@ const ProfileSettings: React.FC = () => {
     }
   };
 
-  // Allow existing names >14 chars to remain (grandfathered)
-  const allowLongName = initialName.length > 14 && formData.name === initialName;
-  const maxNameLength = allowLongName ? undefined : 14;
-
-  // Check if form has changes (is dirty)
-  const isDirty = 
-    formData.name !== originalData.name ||
+  // Check if form has changes (is dirty) - name excluded (read-only)
+  const isDirty = formData && originalData && (
     formData.email !== originalData.email ||
-    JSON.stringify(formData.club) !== JSON.stringify(originalData.club);
+    JSON.stringify(formData.club) !== JSON.stringify(originalData.club)
+  );
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border max-w-lg">
+        <div className="p-6">
+          <div className="text-center py-8">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+            </div>
+            <p className="mt-2 text-slate-600 text-sm">Loading your profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border max-w-lg">
@@ -152,30 +152,17 @@ const ProfileSettings: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit}>
-        {/* Name Field */}
+        {/* Name Field - Read Only */}
         <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-slate-700 text-sm font-medium">Your Name</label>
-            <span className="text-xs text-slate-500">{formData.name.length} / {maxNameLength || '∞'}</span>
+          <label className="block text-slate-700 text-sm font-medium mb-2">
+            Your Name
+          </label>
+          <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-slate-600">
+            {formData.name || 'Not set'}
           </div>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
-            placeholder="Enter your name"
-            maxLength={maxNameLength}
-            required
-            disabled={isSubmitting}
-          />
-          {nameError && (
-            <p className="text-xs text-red-500 mt-1">{nameError}</p>
-          )}
-          {allowLongName && (
-            <p className="text-xs text-slate-500 mt-1">
-              Your name exceeds the normal 14 character limit but is grandfathered in. If you change it, you'll need to follow the 14 character limit.
-            </p>
-          )}
+          <p className="text-xs text-slate-500 mt-1">
+            Contact your admin to change your display name
+          </p>
         </div>
 
         {/* Email Field */}
@@ -185,8 +172,8 @@ const ProfileSettings: React.FC = () => {
           </label>
           <input
             type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            value={formData?.email || ''}
+            onChange={(e) => formData && setFormData({ ...formData, email: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
             placeholder="your@email.com"
             disabled={isSubmitting}
@@ -202,8 +189,8 @@ const ProfileSettings: React.FC = () => {
             Favorite Club (Optional)
           </label>
           <ClubSelector 
-            value={formData.club}
-            onChange={(club) => setFormData({ ...formData, club })}
+            value={formData?.club || null}
+            onChange={(club) => formData && setFormData({ ...formData, club })}
             disabled={isSubmitting}
           />
           <p className="text-xs text-slate-500 mt-1">
@@ -215,7 +202,7 @@ const ProfileSettings: React.FC = () => {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={!isDirty || isSubmitting || !formData.name || (maxNameLength && formData.name.length > maxNameLength)}
+            disabled={!isDirty || isSubmitting}
             className={`inline-flex items-center justify-center font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 uppercase text-xs px-4 py-2 rounded-md ${
               saveSuccess 
                 ? 'text-white bg-gradient-to-tl from-green-600 to-green-500 shadow-soft-md hover:shadow-soft-lg border border-transparent'

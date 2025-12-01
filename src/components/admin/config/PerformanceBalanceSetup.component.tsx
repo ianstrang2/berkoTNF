@@ -19,10 +19,11 @@ const PerformanceBalanceSetup: React.FC = () => {
   const [originalFormData, setOriginalFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
-  const [showSaveConfirmation, setShowSaveConfirmation] = useState<boolean>(false);
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
+  const [showExitWarning, setShowExitWarning] = useState<boolean>(false);
 
   // Fetch performance configuration from database
   const fetchConfigs = useCallback(async () => {
@@ -65,6 +66,24 @@ const PerformanceBalanceSetup: React.FC = () => {
     }
   }, []);
 
+  // Save handler with success flash
+  const handleSaveWithoutConfirmation = async () => {
+    await saveConfigs();
+  };
+
+  // Check for unsaved changes and warn before navigation
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
+
   // Save configuration changes
   const saveConfigs = async () => {
     try {
@@ -80,7 +99,6 @@ const PerformanceBalanceSetup: React.FC = () => {
         }));
       
       if (changedConfigs.length === 0) {
-        setShowSaveConfirmation(false);
         return;
       }
       
@@ -104,7 +122,10 @@ const PerformanceBalanceSetup: React.FC = () => {
         // Update original form data to match current state
         setOriginalFormData({ ...formData });
         setHasChanges(false);
-        setShowSaveConfirmation(false);
+        
+        // Show success flash
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2000);
       } else {
         throw new Error(result.error || 'Failed to save configuration');
       }
@@ -217,38 +238,41 @@ const PerformanceBalanceSetup: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="font-bold text-[20px] leading-[28px]" style={{ fontFamily: '"Open Sans"', color: 'rgb(52, 71, 103)' }}>Performance Algorithm Settings</h3>
-          <p className="text-sm text-slate-500 mt-2">
-            Define how the performance-based balancing algorithm works
-          </p>
-        </div>
-        <div className="flex gap-2">
+      {/* Floating Save Button - Only show when changes detected */}
+      {hasChanges && (
+        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white rounded-full shadow-soft-xl px-6 py-3 border border-slate-200">
+          <span className="text-sm text-slate-600">Unsaved changes</span>
           <Button
-            onClick={() => setShowResetConfirmation(true)}
-            variant="outline"
-            size="sm"
-            disabled={loading || saving}
+            onClick={handleSaveWithoutConfirmation}
+            disabled={saving || !hasChanges}
+            className={`font-semibold py-2 px-4 rounded-lg transition-all ${
+              saveSuccess
+                ? 'bg-gradient-to-tl from-green-600 to-green-500 text-white'
+                : 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:shadow-lg-purple'
+            }`}
           >
-            Reset to Defaults
-          </Button>
-          <Button
-            onClick={() => setShowSaveConfirmation(true)}
-            variant="primary"
-            size="sm"
-            disabled={!hasChanges || loading || saving}
-            className="bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md"
-          >
-            Save Changes
+            {saving ? 'Saving...' : saveSuccess ? 'Saved ✓' : 'Save Changes'}
           </Button>
         </div>
+      )}
+
+      {/* Reset Button - Top Right */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setShowResetConfirmation(true)}
+          disabled={loading || saving}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Reset to Defaults
+        </button>
       </div>
 
       {/* Team Balancing Weighting - Custom Slider */}
-      <div className="bg-white rounded-xl shadow-soft-xl border p-6">
-        <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-soft-xl border p-4">
+        <div className="space-y-4">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <label className="text-sm font-medium text-slate-700">
@@ -294,7 +318,7 @@ const PerformanceBalanceSetup: React.FC = () => {
             .filter(config => config.config_key !== 'performance_power_weight' && config.config_key !== 'performance_goal_weight')
             .map((config, index, filteredConfigs) => {
               const isModified = formData[config.config_key] !== originalFormData[config.config_key];
-              const itemWrapperClasses = index < filteredConfigs.length - 1 ? "border-t border-slate-200 pt-6 pb-6" : "border-t border-slate-200 pt-6";
+              const itemWrapperClasses = index < filteredConfigs.length - 1 ? "border-t border-slate-200 pt-4 pb-4" : "border-t border-slate-200 pt-4";
 
               return (
                 <div key={config.config_key} className={itemWrapperClasses}>
@@ -341,19 +365,6 @@ const PerformanceBalanceSetup: React.FC = () => {
         </div>
       </div>
 
-      {/* Save Confirmation Modal */}
-      <SoftUIConfirmationModal
-        isOpen={showSaveConfirmation}
-        onConfirm={saveConfigs}
-        onClose={() => setShowSaveConfirmation(false)}
-        title="Save Performance Algorithm Settings"
-        message="Are you sure you want to save these performance algorithm settings? This will affect how teams are balanced when using the Performance algorithm."
-        confirmText={saving ? 'Saving...' : 'Save Settings'}
-        cancelText="Cancel"
-        isConfirming={saving}
-        icon="info"
-      />
-
       {/* Reset Confirmation Modal */}
       <SoftUIConfirmationModal
         isOpen={showResetConfirmation}
@@ -364,6 +375,21 @@ const PerformanceBalanceSetup: React.FC = () => {
         confirmText={saving ? 'Resetting...' : 'Reset to Defaults'}
         cancelText="Cancel"
         isConfirming={saving}
+        icon="warning"
+      />
+
+      {/* Exit Warning Modal */}
+      <SoftUIConfirmationModal
+        isOpen={showExitWarning}
+        onClose={() => setShowExitWarning(false)}
+        onConfirm={() => {
+          setShowExitWarning(false);
+          // Allow navigation
+        }}
+        title="Unsaved Changes"
+        message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
+        confirmText="Leave Anyway"
+        cancelText="Stay"
         icon="warning"
       />
     </div>

@@ -49,28 +49,58 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
           ];
         
         case 'setup':
-          // Get the current section from search params
-          const currentSection = searchParams?.get('section') || 'general';
+          // Get the current level and section from search params
+          const currentLevel = searchParams?.get('level') || 'standard';
+          const currentSection = searchParams?.get('section') || (currentLevel === 'standard' ? 'general' : 'points');
           
-          // Only show tertiary navigation when in balancing section
-          if (currentSection === 'balancing') {
+          // Standard tertiary navigation
+          if (currentLevel === 'standard') {
             return [
-                {
-                    key: 'rating',
-                    label: 'Rating',
-                    href: '/admin/setup?section=balancing&view=rating',
-                    active: !searchParams?.get('view') || searchParams?.get('view') === 'rating'
-                },
-                {
-                    key: 'performance',
-                    label: 'Performance',
-                    href: '/admin/setup?section=balancing&view=performance',
-                    active: searchParams?.get('view') === 'performance'
-                }
+              {
+                key: 'general',
+                label: 'General',
+                href: '/admin/setup?level=standard&section=general',
+                active: currentSection === 'general'
+              },
+              {
+                key: 'matches',
+                label: 'Matches',
+                href: '/admin/setup?level=standard&section=matches',
+                active: currentSection === 'matches'
+              }
             ];
           }
           
-          // No tertiary navigation for other setup sections
+          // Advanced tertiary navigation
+          if (currentLevel === 'advanced') {
+            return [
+              {
+                key: 'points',
+                label: 'Points',
+                href: '/admin/setup?level=advanced&section=points',
+                active: currentSection === 'points'
+              },
+              {
+                key: 'stats',
+                label: 'Stats',
+                href: '/admin/setup?level=advanced&section=stats',
+                active: currentSection === 'stats'
+              },
+              {
+                key: 'balancing',
+                label: 'Balancing',
+                href: '/admin/setup?level=advanced&section=balancing&view=rating',
+                active: currentSection === 'balancing'
+              },
+              {
+                key: 'templates',
+                label: 'Templates',
+                href: '/admin/setup?level=advanced&section=templates',
+                active: currentSection === 'templates'
+              }
+            ];
+          }
+          
           return [];
 
         default:
