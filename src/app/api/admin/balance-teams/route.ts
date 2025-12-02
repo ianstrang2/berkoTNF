@@ -74,9 +74,15 @@ export async function POST(request: NextRequest) {
       
       console.log('Calling random balance URL:', randomUrl);
       
+      // Forward cookies from original request to maintain authentication
+      const cookieHeader = request.headers.get('cookie') || '';
+      
       const randomResponse = await fetch(randomUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': cookieHeader,
+        }
       });
       const randomData = await randomResponse.json();
       

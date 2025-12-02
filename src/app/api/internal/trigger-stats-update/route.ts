@@ -1,15 +1,19 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache/constants';
 import { prisma } from '@/lib/prisma';
-// Multi-tenant imports - ensuring background jobs include tenant context
-import { withTenantContext, getCurrentTenantId } from '@/lib/tenantContext';
-import { handleTenantError } from '@/lib/api-helpers';
-import { requireAdminRole } from '@/lib/auth/apiAuth';
+
+/**
+ * Internal API endpoint for triggering stats updates
+ * 
+ * This endpoint is designed for server-to-server calls (e.g., from deletion routes)
+ * and uses Bearer token authentication instead of cookie-based auth.
+ * 
+ * Authentication: Bearer token (INTERNAL_API_KEY)
+ */
 
 // Define the list of Edge Functions to call and their associated cache tags
-// UPDATED: EWMA system has no execution order dependencies
 const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> = [
   { name: 'call-update-half-and-full-season-stats', tags: [CACHE_TAGS.SEASON_STATS, CACHE_TAGS.HALF_SEASON_STATS] },
   { name: 'call-update-all-time-stats', tag: CACHE_TAGS.ALL_TIME_STATS },
@@ -19,9 +23,8 @@ const FUNCTIONS_TO_CALL: Array<{ name: string; tag?: string; tags?: string[] }> 
   { name: 'call-update-match-report-cache', tag: CACHE_TAGS.MATCH_REPORT },
   { name: 'call-update-personal-bests', tag: CACHE_TAGS.PERSONAL_BESTS },
   { name: 'call-update-player-profile-stats', tag: CACHE_TAGS.PLAYER_PROFILE },
-  { name: 'call-update-player-teammate-stats', tag: CACHE_TAGS.PLAYER_TEAMMATE_STATS }, // NEW: Teammate stats function
+  { name: 'call-update-player-teammate-stats', tag: CACHE_TAGS.PLAYER_TEAMMATE_STATS },
   { name: 'call-update-season-race-data', tag: CACHE_TAGS.SEASON_RACE_DATA },
-  // EWMA function - no position dependency
   { name: 'call-update-power-ratings', tag: CACHE_TAGS.PLAYER_POWER_RATING }
 ];
 
@@ -39,8 +42,42 @@ function revalidateCache(tag: string): { success: boolean; error?: string } {
   }
 }
 
-// Main stats update logic that can be called by both GET (cron) and POST (manual)
-async function triggerStatsUpdate() {
+// Verify internal API key
+function verifyInternalAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  const expectedKey = process.env.INTERNAL_API_KEY || 'internal-worker-key';
+  
+  if (!authHeader) {
+    console.warn('[INTERNAL_API] Missing Authorization header');
+    return false;
+  }
+  
+  const token = authHeader.replace('Bearer ', '');
+  return token === expectedKey;
+}
+
+export async function POST(request: NextRequest) {
+  // Verify internal authentication
+  if (!verifyInternalAuth(request)) {
+    console.error('[INTERNAL_API] Unauthorized access attempt');
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  const body = await request.json();
+  const { tenantId, triggeredBy, matchId } = body;
+
+  if (!tenantId) {
+    return NextResponse.json(
+      { success: false, error: 'tenantId is required' },
+      { status: 400 }
+    );
+  }
+
+  console.log(`[INTERNAL_API] Stats update triggered for tenant ${tenantId} (source: ${triggeredBy})`);
+
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -49,22 +86,19 @@ async function triggerStatsUpdate() {
     return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 });
   }
 
-  // Multi-tenant: Get tenant context for fallback edge function calls
-  const tenantId = getCurrentTenantId();
-  
-  // Create audit log entry for fallback execution
-  console.log('⚠️ FALLBACK MODE: Using edge functions directly (background worker disabled or unavailable)');
+  // Create audit log entry
   let auditJobId: string | null = null;
   
   try {
     const auditLog = await prisma.background_job_status.create({
       data: {
-        job_type: 'stats_update_fallback',
+        job_type: 'stats_update_internal',
         job_payload: {
-          triggeredBy: 'fallback',
+          triggeredBy: triggeredBy || 'internal',
+          matchId,
           requestId: crypto.randomUUID(),
           timestamp: new Date().toISOString(),
-          note: 'Direct edge function execution (background worker bypassed)'
+          note: 'Internal server-to-server trigger'
         },
         status: 'processing',
         tenant_id: tenantId,
@@ -72,7 +106,7 @@ async function triggerStatsUpdate() {
       }
     });
     auditJobId = auditLog.id;
-    console.log(`📝 Created fallback audit log: ${auditJobId}`);
+    console.log(`📝 Created internal audit log: ${auditJobId}`);
   } catch (auditError) {
     console.warn('Failed to create audit log (non-critical):', auditError);
   }
@@ -97,7 +131,7 @@ async function triggerStatsUpdate() {
       console.log(`Attempt ${attempt} for ${func.name}`);
       
       const { error } = await supabase.functions.invoke(func.name, {
-        body: { tenantId } // Pass tenant context to edge functions
+        body: { tenantId }
       });
       
       if (!error) {
@@ -184,7 +218,7 @@ async function triggerStatsUpdate() {
           }
         }
       });
-      console.log(`📝 Updated fallback audit log ${auditJobId} with ${finalStatus} status`);
+      console.log(`📝 Updated internal audit log ${auditJobId} with ${finalStatus} status`);
     } catch (auditUpdateError) {
       console.warn('Failed to update audit log (non-critical):', auditUpdateError);
     }
@@ -217,7 +251,7 @@ async function triggerStatsUpdate() {
         revalidation_failures: revalidationFailures,
         failed_tags: results.filter(r => !r.revalidated).map(r => r.function)
       },
-      results, // Keep detailed results for debugging
+      results,
     }, { status: 500 });
   }
 
@@ -233,72 +267,3 @@ async function triggerStatsUpdate() {
   });
 }
 
-// GET handler for Vercel cron jobs with feature flag support
-export async function GET() {
-  console.log('📅 Cron job triggered stats update');
-  
-  // Import feature flags dynamically to avoid module loading issues
-  const { shouldUseBackgroundJobs } = await import('@/config/feature-flags');
-  const useBackgroundJobs = shouldUseBackgroundJobs('cron');
-  
-  if (useBackgroundJobs) {
-    console.log('🔄 Using background job system for cron trigger');
-    
-    // Multi-tenant: Get tenant context for background job
-    const tenantId = getCurrentTenantId();
-    
-    // Enqueue job instead of processing directly
-    const jobPayload = {
-      triggeredBy: 'cron' as const,
-      requestId: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      tenantId: tenantId // Multi-tenant: Include tenant context in background job
-    };
-
-    try {
-      // Call the enqueue endpoint directly with internal auth
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/api/admin/enqueue-stats-job`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY || 'internal-worker-key'}`,
-        },
-        body: JSON.stringify(jobPayload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Enqueue failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ Cron job successfully enqueued:', result.jobId);
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Cron stats update job successfully enqueued',
-        jobId: result.jobId,
-        method: 'background-job'
-      });
-    } catch (error) {
-      console.error('❌ Failed to enqueue cron job, falling back to direct processing');
-      return triggerStatsUpdate(); // Fallback to original implementation
-    }
-  } else {
-    console.log('🔄 Using fallback edge functions for cron trigger');
-    return triggerStatsUpdate();
-  }
-}
-
-// POST handler for manual admin triggers
-export async function POST(request: NextRequest) {
-  return withTenantContext(request, async (tenantId) => {
-    // SECURITY: Verify admin access
-    await requireAdminRole(request);
-    
-    console.log('👤 Manual stats update triggered');
-    console.log(`👤 Manual stats update triggered for tenant: ${tenantId}`);
-    return triggerStatsUpdate();
-  }).catch(handleTenantError);
-}

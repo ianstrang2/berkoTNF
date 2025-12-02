@@ -4,7 +4,7 @@ import { toPlayerInPool } from '@/lib/transform/player.transform';
 // Multi-tenant imports - ensuring admin match operations are tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
-import { handleTenantError } from '@/lib/api-helpers';
+import { handleTenantError, triggerStatsUpdateInternal } from '@/lib/api-helpers';
 import { withTenantFilter } from '@/lib/tenantFilter';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
 
@@ -393,16 +393,10 @@ export async function DELETE(request: NextRequest) {
       });
     });
 
-    // Trigger stats recalculation if we deleted a completed match (fire and forget)
+    // Trigger stats recalculation if we deleted a completed match
+    // Uses internal API with proper authentication
     if (shouldTriggerStatsUpdate) {
-      // Don't await - let stats update run in background
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
-        method: 'POST',
-      }).catch(statsError => {
-        console.warn('Could not trigger stats recalculation:', statsError);
-        // Stats update failure doesn't affect deletion success
-      });
+      await triggerStatsUpdateInternal(tenantId, 'match-deletion', upcomingMatchId);
     }
 
     return NextResponse.json({ 

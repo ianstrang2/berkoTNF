@@ -4,7 +4,7 @@ import { revalidateTag } from 'next/cache';
 import { ALL_MATCH_RELATED_TAGS } from '@/lib/cache/constants';
 // Multi-tenant imports - ensuring match history is tenant-scoped
 import { withTenantContext } from '@/lib/tenantContext';
-import { handleTenantError } from '@/lib/api-helpers';
+import { handleTenantError, triggerStatsUpdateInternal } from '@/lib/api-helpers';
 import { withTenantFilter } from '@/lib/tenantFilter';
 
 async function revalidateMatchCaches() {
@@ -354,14 +354,9 @@ export async function DELETE(request: NextRequest) {
       }
     });
     
-    // Trigger stats recalculation since we deleted historical data (fire and forget)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    fetch(new URL('/api/admin/trigger-stats-update', baseUrl), {
-      method: 'POST',
-    }).catch(statsError => {
-      console.warn('Could not trigger stats recalculation:', statsError);
-      // Stats update failure doesn't affect deletion success
-    });
+    // Trigger stats recalculation since we deleted historical data
+    // Uses internal API with proper authentication
+    await triggerStatsUpdateInternal(tenantId, 'match-deletion', parsedMatchId);
     
     // Revalidate caches after successful deletion
     await revalidateMatchCaches();

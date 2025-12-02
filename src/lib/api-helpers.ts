@@ -161,3 +161,54 @@ export async function getOptionalAuthentication(request?: NextRequest): Promise<
   }
 }
 
+/**
+ * Trigger stats update from server-side context (API routes)
+ * Uses service role key to bypass authentication requirements
+ * 
+ * @param tenantId - Tenant ID for multi-tenant context
+ * @param triggeredBy - Source of the trigger (e.g., 'match-deletion', 'admin', 'cron')
+ * @param matchId - Optional match ID for post-match triggers
+ * @returns Promise<void>
+ */
+export async function triggerStatsUpdateInternal(
+  tenantId: string,
+  triggeredBy: 'match-deletion' | 'admin' | 'cron',
+  matchId?: number
+): Promise<void> {
+  try {
+    // Use internal API endpoint with service role authentication
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    
+    const payload = {
+      triggeredBy,
+      matchId,
+      tenantId,
+      requestId: crypto.randomUUID(),
+      timestamp: new Date().toISOString()
+    };
+
+    console.log(`[STATS_TRIGGER] Triggering stats update for tenant ${tenantId} (source: ${triggeredBy})`);
+
+    // Use the internal API endpoint with Authorization header
+    const response = await fetch(`${baseUrl}/api/internal/trigger-stats-update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.INTERNAL_API_KEY || 'internal-worker-key'}`,
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Stats trigger failed: ${response.status} - ${errorData.error || response.statusText}`);
+    }
+
+    console.log(`[STATS_TRIGGER] Successfully triggered stats update for tenant ${tenantId}`);
+  } catch (error) {
+    // Log but don't throw - stats update failure shouldn't block the main operation
+    console.error('[STATS_TRIGGER] Failed to trigger stats update:', error);
+    console.warn('[STATS_TRIGGER] Stats will be updated by next cron job');
+  }
+}
+
