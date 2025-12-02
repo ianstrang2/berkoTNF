@@ -200,9 +200,9 @@ export const BottomNavigation: React.FC = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden transition-all duration-200 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-      {/* Safe area for iOS */}
+      {/* Safe area for iOS - increased height for better home indicator clearance */}
       <div className="pb-safe">
-        <div className="grid grid-cols-4 h-16">
+        <div className="grid grid-cols-4 h-20">
           {navigationItems.map((item) => (
             <div key={item.section} className="flex items-center justify-center">
               <NavItemComponent {...item} />

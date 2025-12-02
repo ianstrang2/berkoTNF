@@ -42,6 +42,18 @@ body {
   font-family: 'Open Sans', sans-serif;
 }
 
+/* CRITICAL: Prevent horizontal overflow on mobile when keyboard appears */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Ensure all input fields don't cause horizontal overflow */
+input, textarea, select {
+  max-width: 100%;
+}
+
 /* Scroll reveal animation utility */
 .scroll-reveal {
   opacity: 0;

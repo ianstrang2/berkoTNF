@@ -1,18 +1,30 @@
 # 📱 Mobile App Submission Status
 
-**Last Updated:** November 26, 2025  
-**Current Phase:** Ready for TestFlight Submission  
-**Target:** TestFlight Beta → App Store/Play Store Submission
+**Last Updated:** December 1, 2025  
+**Current Phase:** ✅ LIVE ON TESTFLIGHT!  
+**Target:** Build RSVP → App Store Public Release
 
-**Screenshots:** ✅ Complete (November 26, 2025)
+**Screenshots:** ✅ Complete (November 26, 2025)  
+**TestFlight:** ✅ Live and Working (December 1, 2025)
 
 ---
 
 ## 🎯 **Quick Status**
 
-**You are ready to take screenshots and submit to TestFlight!**
+**✅ APP IS LIVE ON TESTFLIGHT AND WORKING!**
 
 **Architecture:** Webview wrapper loading your Vercel deployment (simple & reliable)
+
+**Completed December 1, 2025:**
+- ✅ Apple Developer Account approved
+- ✅ App Store Connect listing created
+- ✅ Bundle ID registered (com.caposport.capo)
+- ✅ Certificates and provisioning profiles configured
+- ✅ Archive built and uploaded successfully
+- ✅ TestFlight processing completed
+- ✅ Internal testing configured
+- ✅ App installed and tested on iPhone
+- ✅ **FULLY FUNCTIONAL!**
 
 ### ✅ **COMPLETE (Hard Work Done!)**
 
@@ -80,42 +92,40 @@
    - Printable checklist for tracking progress
    - All questions answered, ready to start!
 
-### ⏳ **TODO (About 2 Hours Active Time)**
+### ✅ **TESTFLIGHT COMPLETE!** (December 1, 2025)
 
-**✅ Submission Guide Ready:** `docs/TESTFLIGHT_SUBMISSION_GUIDE.md` - Complete step-by-step walkthrough!
+**All phases completed:**
 
-2. **Apple Developer Account** (15 min + 24h wait) - **START HERE**
-   - Sign up at https://developer.apple.com/programs/
-   - Cost: $99/year
-   - Approval: ~24 hours
-   - **See guide Phase 1 for details**
+1. ✅ **Apple Developer Account** - Approved
+   - Cost: $99/year paid
+   - Account active and fully configured
 
-3. **App Store Connect Setup** (30 min)
-   - Create app listing
-   - Upload screenshots (ready on Desktop!)
-   - Add description, keywords
-   - Privacy policy URL: `https://app.caposport.com/privacy`
+2. ✅ **App Store Connect Setup** - Complete
+   - App name: "Capo Football" (Capo was taken)
+   - Bundle ID: com.caposport.capo
+   - Screenshots uploaded (1284 x 2778)
+   - Description, keywords, metadata complete
+   - Privacy policy URL configured
    - Age rating: 4+
-   - **See guide Phase 2 for step-by-step**
+   - Demo account configured for reviewers
 
-4. ~~**Remove NSAppTransportSecurity**~~ ✅ **AUTOMATED**
-   - Configuration-specific Info.plist handles this
-   - No manual steps needed!
+3. ✅ **Certificates & Profiles** - Configured
+   - Apple Development certificate created
+   - Apple Distribution certificate created
+   - App Store Connect provisioning profile created
+   - Manual signing configured in Xcode
 
-5. **Build & Upload** (45 min)
-   - `git pull origin main` on Mac
-   - `npm run ios:build` (opens Xcode)
-   - Archive in Xcode
-   - Validate
-   - Upload to App Store Connect
-   - Wait for TestFlight processing
-   - **See guide Phase 3 for detailed instructions**
+4. ✅ **Build & Upload** - Successful
+   - Archive built in Xcode
+   - Validated successfully
+   - Uploaded to App Store Connect
+   - Processing completed (~20 minutes)
 
-6. **TestFlight Configuration** (15 min)
-   - Add internal testers
-   - Configure test info
-   - Enable builds
-   - **See guide Phase 4 for setup**
+5. ✅ **TestFlight Configuration** - Active
+   - Internal testing group created
+   - Build enabled for testing
+   - Tester invited and accepted
+   - **App installed and working on iPhone!**
 
 ---
 
@@ -146,48 +156,48 @@
 
 ## 🚀 **Next Steps**
 
-### **This Week: Submit to TestFlight**
+### **Phase 1: Build RSVP System** (Next 3-4 Weeks)
 
-**📖 FOLLOW THE GUIDE:** `docs/TESTFLIGHT_SUBMISSION_GUIDE.md`
+**Now that TestFlight is live, focus on RSVP development:**
 
-The guide contains EVERYTHING you need with detailed steps, screenshots, troubleshooting, and timelines.
+**Week 1-2: Core RSVP Implementation**
+- Match RSVP system (IN/OUT/MAYBE responses)
+- Waitlist management
+- Last-call notifications (48h before match)
+- Player capacity tracking
 
-**Quick Timeline:**
+**Week 2-3: Push Notifications**
+- Firebase Cloud Messaging (FCM) setup
+- Apple Push Notifications (APNs) setup
+- Notification triggers (match created, roster updated, last call)
+- Test via TestFlight (real device push notifications!)
 
-**Day 1 (15 min):** Apple Developer Account
-- Sign up at https://developer.apple.com/programs/
-- Pay $99/year  
-- Wait 24 hours for activation
-- **→ See guide Phase 1**
+**Week 3-4: Stripe Payment Integration**
+- Stripe Connect setup (marketplace model)
+- Admin onboarding (connect Stripe accounts)
+- Per-match payment flow
+- Web checkout integration (app.caposport.com/checkout)
+- Webhook handling for payment confirmation
 
-**Day 2 (1 hour):** App Store Connect Setup
-- Create app listing
-- Upload screenshots (ready on Desktop!)
-- Add description, keywords, metadata
-- **→ See guide Phase 2**
+**Week 4: Beta Testing**
+- Invite 5-10 Berko TNF players to TestFlight
+- Real-world RSVP testing with push notifications
+- Payment flow testing
+- Bug fixes and iteration
 
-**Day 2-3 (45 min):** Archive & Upload
-- `git pull` on Mac
-- `npm run ios:build`
-- Archive, validate, upload
-- **→ See guide Phase 3**
+### **Phase 2: App Store Public Release** (Week 5-6)
 
-**Day 3 (15 min):** TestFlight Configuration
-- Add internal testers
-- Enable builds
-- Test on real device!
-- **→ See guide Phase 4**
+**Submit for App Store Review:**
+- Complete version with RSVP
+- Push notifications working
+- Payment flow tested
+- Marketing: "Capo Football - Now on iPhone with Match RSVP!"
 
-**Week 2:** Beta Testing
-- Test on real devices via TestFlight
-- Invite Berko TNF players as beta testers
-- Collect feedback
-- Fix critical bugs
-
-**Weeks 3-6:** Implement RSVP
-- **With real push notification testing!**
-- TestFlight perfect environment for development
-- Iterate with real user feedback
+**Week 6+:** Public Launch
+- App Store approval (1-2 weeks)
+- Launch announcement
+- All users migrate from web to iOS app
+- Monitor feedback and iterate
 
 ---
 
@@ -238,26 +248,33 @@ npm run ios:build     # Opens Xcode, loads app.caposport.com
 
 ## 🎯 **Success Criteria**
 
-### **For TestFlight Submission:**
+### **For TestFlight Submission:** ✅ **COMPLETE!**
 - [x] App icons complete
 - [x] Splash screens complete
-- [x] API migration complete
+- [x] API migration complete (218 uses of apiFetch())
 - [x] Privacy policy live
 - [x] Security audit passed
-- [ ] Screenshots taken
-- [ ] Apple Developer account active
-- [ ] App Store Connect listing created
-- [ ] NSAppTransportSecurity removed
-- [ ] Archive uploaded
+- [x] Screenshots taken and uploaded
+- [x] Apple Developer account active
+- [x] App Store Connect listing created
+- [x] Certificates and profiles configured
+- [x] Archive uploaded successfully
+- [x] TestFlight processing complete
+- [x] Internal testing configured
+- [x] **App installed and working on iPhone!**
 
-### **For Public App Store Release:**
-- [ ] TestFlight beta testing complete (1-2 weeks)
+### **For Public App Store Release:** (In Progress)
+- [x] TestFlight live and functional
+- [ ] RSVP system implemented
+- [ ] Push notifications configured and tested
+- [ ] Stripe payment integration complete
+- [ ] Beta testing with real users (5-10 testers)
 - [ ] Critical bugs fixed
 - [ ] User feedback incorporated
-- [ ] RSVP system implemented and tested
-- [ ] App Store review approved
+- [ ] App Store review submission
+- [ ] App Store approval
 - [ ] Marketing materials ready
-- [ ] Launch plan executed
+- [ ] Public launch executed
 
 ---
 
@@ -282,25 +299,42 @@ npm run ios:build     # Opens Xcode, loads app.caposport.com
 **If you're helping with mobile app work, read this file first!**
 
 **Key context:**
-- Capo is a football stats and match management app
+- Capo Football is a football stats and match management app
 - Multi-tenant SaaS platform (each club is isolated)
-- Currently live on web with 1 club (Berko TNF)
-- Mobile app 95% ready for submission
-- RSVP system designed but not implemented yet
-- Strategy: Submit app first, implement RSVP with TestFlight testing
+- Currently live on web with 1 active club (Berko TNF)
+- **Mobile app is LIVE ON TESTFLIGHT** ✅ (December 1, 2025)
+- RSVP system is next priority (3-4 weeks development)
+- Strategy: Build RSVP with TestFlight testing, then submit to App Store
 
 **What the user might ask:**
-- "Help me take screenshots" → Guide iOS simulator capture
-- "Help with App Store listing" → Generate description/keywords
-- "Why do I need TestFlight?" → RSVP needs push notifications
-- "Should I implement RSVP first?" → No, publish first (see reasoning above)
+- "How do I update TestFlight build?" → See build update process below
+- "Help me implement RSVP" → See SPEC_RSVP.md for design
+- "How do I test push notifications?" → TestFlight on real device required
+- "When should I submit to App Store?" → After RSVP is complete and tested
+
+**TestFlight Update Process:**
+1. Make code changes
+2. `git commit` and `git push`
+3. On Mac: `git pull`, `npm install`, `npm run ios:build`
+4. Xcode: Product → Clean → Archive
+5. Distribute → App Store Connect → Upload
+6. Wait for processing (~15-30 min)
+7. In App Store Connect → TestFlight → Add new build to test group
+8. Testers get automatic update notification
+
+**Demo Account for Apple Review:**
+- Tenant: Apple Review Demo (tenant_id: 6113aff7-a499-47f4-acf7-c021becf81ad)
+- Phone: +447000000000
+- OTP: 123456 (configured in Supabase test numbers)
+- 15 fake players for testing
+- All settings configured
 
 **Common issues:**
 - "White screen on iOS" → Already fixed (correct capacitor config)
 - "API calls fail" → Already fixed (218 apiFetch migrations done)
-- "Deep links don't work" → Already working on simulator
+- "Signing issues in Xcode" → Use manual signing with Distribution certificate
 
 ---
 
-**Status:** Ready for screenshots + submission! 🎉
+**Status:** ✅ Live on TestFlight! Next: Build RSVP system! 🎉
 

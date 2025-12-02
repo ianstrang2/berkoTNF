@@ -65,7 +65,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           
           <NavigationTabs />
           <NavigationSubTabs />
-          <main className="p-2 pb-20 bg-slate-50 min-h-screen sm:p-4 lg:p-6">
+          <main className="p-2 pb-32 bg-slate-50 min-h-screen sm:p-4 lg:p-6">
             <ErrorBoundary>
               {children}
             </ErrorBoundary>
