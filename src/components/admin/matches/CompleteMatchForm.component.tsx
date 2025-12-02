@@ -55,104 +55,82 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     return { teamA: a, teamB: b };
   }, [players, teamSwaps]);
 
+  // Track which matchId we've loaded data for (prevents double-fetch in StrictMode)
+  const loadedMatchIdRef = React.useRef<string | null>(null);
+
   // Load historical match data for completed matches OR matches with historical data (undone matches)
   useEffect(() => {
-    if (matchId && !hasLoadedHistoricalData) {
-      console.log('CompleteMatchForm: Starting historical data load for match', matchId, 'isCompleted:', isCompleted);
-      
-      const loadHistoricalData = async () => {
-        setIsLoadingHistoricalData(true);
-        try {
-          // Fetch historical match data for this specific match (optimized endpoint)
-          const response = await apiFetch(`/admin/upcoming-matches/${matchId}/historical-data`);
-          
-          // 404 is expected for new matches (no historical data yet)
-          if (response.status === 404) {
-            console.log('No historical data found (normal for new match):', matchId);
-            setHasLoadedHistoricalData(true);
-            setIsLoadingHistoricalData(false);
-            return;
-          }
-          
-          const result = await response.json();
-          
-          if (result.success && result.data) {
-            const historicalMatch = result.data;
-            
-            // Create a map of player goals from historical data
-            const goalMap = new Map<string, number>();
-            
-            // Load player goals from player_matches
-            const playedPlayerIds = new Set<string>();
-            const swaps = new Map<string, string>();
-            
-            historicalMatch.player_matches.forEach((pm: any) => {
-              const playerIdStr = pm.player_id.toString();
-              goalMap.set(playerIdStr, pm.goals || 0);
-              playedPlayerIds.add(playerIdStr);
-              
-              // Load team swaps (if actual_team differs from planned team)
-              if (pm.actual_team && pm.actual_team !== pm.team) {
-                swaps.set(playerIdStr, pm.actual_team);
-              }
-            });
-            
-            // Figure out no-shows by cross-referencing:
-            // No-shows = players in upcoming_match_players but NOT in player_matches
-            const noShows = new Set<string>();
-            players.forEach(player => {
-              if (!playedPlayerIds.has(player.id)) {
-                noShows.add(player.id);
-              }
-            });
-            
-            // Load actual own goals from database
-            const actualOwnGoalsA = historicalMatch.team_a_own_goals || 0;
-            const actualOwnGoalsB = historicalMatch.team_b_own_goals || 0;
-            
-            // Update state with historical data
-            setPlayerGoals(goalMap);
-            setOwnGoalsA(actualOwnGoalsA);
-            setOwnGoalsB(actualOwnGoalsB);
-            setNoShowPlayers(noShows);
-            setTeamSwaps(swaps);
-            setHasLoadedHistoricalData(true);
-            
-            console.log('Successfully loaded historical data:', {
-              playerGoals: Object.fromEntries(goalMap),
-              ownGoalsA: actualOwnGoalsA,
-              ownGoalsB: actualOwnGoalsB,
-              matchId: historicalMatch.match_id
-            });
-          } else {
-            console.log('No history data in response');
-            setHasLoadedHistoricalData(true);
-          }
-        } catch (err: any) {
-          console.error('Failed to load historical match data:', err);
-          setError('Failed to load match results. Please refresh the page.');
-          setHasLoadedHistoricalData(true);
-        } finally {
-          setIsLoadingHistoricalData(false);
-        }
-      };
-      
-      loadHistoricalData();
-    }
-  }, [matchId, hasLoadedHistoricalData]); // Removed isCompleted dependency
-
-  // Reset historical data flag only when match ID changes (different match)
-  useEffect(() => {
-    console.log('CompleteMatchForm: matchId changed to', matchId);
-    // Reset state when switching to a completely different match
-    setHasLoadedHistoricalData(false);
+    // Skip if already loaded for this match
+    if (!matchId || loadedMatchIdRef.current === matchId) return;
+    
+    // Reset state for new match
     setPlayerGoals(new Map());
     setOwnGoalsA(0);
     setOwnGoalsB(0);
     setNoShowPlayers(new Set());
     setTeamSwaps(new Map());
     setError(null);
-  }, [matchId]); // Only depend on matchId, not isCompleted
+    setHasLoadedHistoricalData(false);
+    
+    loadedMatchIdRef.current = matchId;
+
+    const loadHistoricalData = async () => {
+      setIsLoadingHistoricalData(true);
+      try {
+        const response = await apiFetch(`/admin/upcoming-matches/${matchId}/historical-data`);
+        
+        // 404 is expected for new matches (no historical data yet)
+        if (response.status === 404) {
+          setHasLoadedHistoricalData(true);
+          setIsLoadingHistoricalData(false);
+          return;
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          const historicalMatch = result.data;
+          const goalMap = new Map<string, number>();
+          const playedPlayerIds = new Set<string>();
+          const swaps = new Map<string, string>();
+          
+          historicalMatch.player_matches.forEach((pm: any) => {
+            const playerIdStr = pm.player_id.toString();
+            goalMap.set(playerIdStr, pm.goals || 0);
+            playedPlayerIds.add(playerIdStr);
+            
+            if (pm.actual_team && pm.actual_team !== pm.team) {
+              swaps.set(playerIdStr, pm.actual_team);
+            }
+          });
+          
+          const noShows = new Set<string>();
+          players.forEach(player => {
+            if (!playedPlayerIds.has(player.id)) {
+              noShows.add(player.id);
+            }
+          });
+          
+          setPlayerGoals(goalMap);
+          setOwnGoalsA(historicalMatch.team_a_own_goals || 0);
+          setOwnGoalsB(historicalMatch.team_b_own_goals || 0);
+          setNoShowPlayers(noShows);
+          setTeamSwaps(swaps);
+          setHasLoadedHistoricalData(true);
+        } else {
+          setHasLoadedHistoricalData(true);
+        }
+      } catch (err: any) {
+        console.error('Failed to load historical match data:', err);
+        setError('Failed to load match results. Please refresh the page.');
+        setHasLoadedHistoricalData(true);
+      } finally {
+        setIsLoadingHistoricalData(false);
+      }
+    };
+    
+    loadHistoricalData();
+  }, [matchId, players]);
 
   // Notify parent of loading state changes
   useEffect(() => {
@@ -249,19 +227,20 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
     submit: validateAndSubmit,
   }));
 
+  // Track which team is currently visible
+  const [focusedTeam, setFocusedTeam] = useState<'A' | 'B'>('A');
+
   const renderPlayerRow = (player: PlayerInPool | { id: string; name: string; isSynthetic?: boolean; team?: string }, isOwnGoal = false, teamId?: 'A' | 'B') => {
     const goals = isOwnGoal 
       ? (player.id === 'own-goal-a' ? ownGoalsA : ownGoalsB)
       : (playerGoals.get(player.id) || 0);
-    const displayName = player.name.length > 14 ? player.name.substring(0, 14) : player.name;
     const isSynthetic = 'isSynthetic' in player && player.isSynthetic;
     const isNoShow = !isOwnGoal && noShowPlayers.has(player.id);
-    const hasSwapped = !isOwnGoal && teamSwaps.has(player.id);
     
     return (
       <div 
         key={player.id} 
-        className={`flex items-center justify-between bg-white rounded-lg shadow-soft-sm border border-gray-200 px-3 py-2 transition-all duration-200 hover:shadow-soft-md ${
+        className={`flex items-center justify-between bg-white rounded shadow-soft-sm border border-gray-200 px-2 py-1.5 ${
           isSynthetic ? 'bg-gray-50' : ''
         } ${isNoShow ? 'opacity-50' : ''}`}
       >
@@ -271,190 +250,181 @@ const CompleteMatchForm = forwardRef<CompleteFormHandle, CompleteMatchFormProps>
             type="button"
             onClick={() => toggleNoShow(player.id)}
             disabled={isSubmitting || isCompleted}
-            className={`w-5 h-5 mr-2 flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+            className={`w-4 h-4 mr-1.5 flex-shrink-0 rounded-full border-2 flex items-center justify-center ${
               isNoShow 
-                ? 'border-gray-300 bg-white hover:border-gray-400' 
-                : 'border-transparent bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-sm hover:shadow-soft-md'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                ? 'border-gray-300 bg-white' 
+                : 'border-transparent bg-gradient-to-tl from-purple-700 to-pink-500'
+            } disabled:opacity-50`}
             title={isNoShow ? "Mark as played" : "Mark as no-show"}
           >
             {!isNoShow && (
-              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             )}
           </button>
         )}
         
-        <div className="flex items-center flex-1 gap-2">
+        <div className="flex items-center flex-1 min-w-0">
           {/* Team swap arrow (only for real players) */}
           {!isOwnGoal && teamId && (
             <button
               type="button"
               onClick={() => handleTeamSwap(player.id, player.team || '')}
               disabled={isSubmitting || isCompleted || isNoShow}
-              className="w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-purple-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="w-5 h-5 mr-1.5 flex-shrink-0 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 hover:text-purple-600 disabled:opacity-30"
               title={`Move to Team ${teamId === 'A' ? 'B' : 'A'}`}
             >
-              <span className="text-sm font-bold">{teamId === 'A' ? '→' : '←'}</span>
+              <span className="text-xs font-bold">{teamId === 'A' ? '→' : '←'}</span>
             </button>
           )}
           
-          <span className={`font-medium text-sm ${
+          <span className={`text-sm ${
             isSynthetic ? 'text-gray-500' : 
             isNoShow ? 'text-gray-400 line-through' : 'text-slate-700'
           }`}>
-            {displayName}
-            {isNoShow && (
-              <span className="text-xs ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded">No Show</span>
-            )}
+            {player.name}
+            {isNoShow && <span className="text-xs ml-1 text-slate-400">(NS)</span>}
           </span>
         </div>
         
         {/* Goal buttons - hidden for no-shows */}
         {(!isNoShow || isOwnGoal) && (
-          <div className="flex items-center gap-2">
-            <Button 
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button 
+              type="button"
               onClick={() => isOwnGoal 
                 ? (player.id === 'own-goal-a' ? setOwnGoalsA(Math.max(0, ownGoalsA - 1)) : setOwnGoalsB(Math.max(0, ownGoalsB - 1)))
                 : handleGoalChange(player.id, -1)
               } 
-              size="sm" 
-              variant="outline" 
               disabled={isSubmitting || isCompleted || goals === 0}
-              className="w-7 h-7 p-0 rounded-full border-slate-300 hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
+              className="w-7 h-7 rounded-full border border-slate-300 flex items-center justify-center hover:border-purple-400 hover:bg-purple-50 disabled:opacity-30 active:bg-purple-100"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24">
+              <svg width="14" height="14" viewBox="0 0 24 24">
                 <defs>
-                  <linearGradient id={`minus-gradient-${player.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient id={`minus-grad-${player.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#7c3aed" />
                     <stop offset="100%" stopColor="#ec4899" />
                   </linearGradient>
                 </defs>
-                <rect x="6" y="11" width="12" height="2" rx="1" fill={`url(#minus-gradient-${player.id})`} />
+                <rect x="5" y="10.5" width="14" height="3" rx="1.5" fill={`url(#minus-grad-${player.id})`} />
               </svg>
-            </Button>
-            <span className="font-bold text-sm w-6 text-center text-slate-800">
+            </button>
+            <span className="font-bold text-sm w-5 text-center text-slate-800">
               {goals}
             </span>
-            <Button 
+            <button 
+              type="button"
               onClick={() => isOwnGoal
                 ? (player.id === 'own-goal-a' ? setOwnGoalsA(ownGoalsA + 1) : setOwnGoalsB(ownGoalsB + 1))
                 : handleGoalChange(player.id, 1)
               } 
-              size="sm" 
-              variant="outline" 
               disabled={isSubmitting || isCompleted}
-              className="w-7 h-7 p-0 rounded-full border-slate-300 hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
+              className="w-7 h-7 rounded-full border border-slate-300 flex items-center justify-center hover:border-purple-400 hover:bg-purple-50 disabled:opacity-30 active:bg-purple-100"
             >
-              <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
+              <svg width="14" height="14" viewBox="0 0 24 24">
                 <defs>
-                  <linearGradient id={`plus-gradient-${player.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient id={`plus-grad-${player.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#7c3aed" />
                     <stop offset="100%" stopColor="#ec4899" />
                   </linearGradient>
                 </defs>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" stroke={`url(#plus-gradient-${player.id})`} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                <path d="M12 5v14M5 12h14" stroke={`url(#plus-grad-${player.id})`} strokeWidth="3" strokeLinecap="round" />
               </svg>
-            </Button>
+            </button>
           </div>
         )}
       </div>
     );
   };
 
-  const renderTeamColumn = (team: PlayerInPool[], teamName: string, teamId: 'A' | 'B') => {
-    // Calculate auto score (excluding no-shows)
-    const playerGoalsTotal = team
-      .filter(p => !noShowPlayers.has(p.id))
-      .reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0);
-    const ownGoals = teamId === 'A' ? ownGoalsA : ownGoalsB;
-    const calculatedScore = playerGoalsTotal + ownGoals;
-    
+  // Calculate scores
+  const scoreA = useMemo(() => {
+    return teamA.filter(p => !noShowPlayers.has(p.id)).reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0) + ownGoalsA;
+  }, [teamA, playerGoals, noShowPlayers, ownGoalsA]);
+  
+  const scoreB = useMemo(() => {
+    return teamB.filter(p => !noShowPlayers.has(p.id)).reduce((sum, p) => sum + (playerGoals.get(p.id) || 0), 0) + ownGoalsB;
+  }, [teamB, playerGoals, noShowPlayers, ownGoalsB]);
+
+  const renderTeamCard = (team: PlayerInPool[], teamId: 'A' | 'B') => {
     return (
-      <div className="flex-1">
-        <Card>
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="font-bold text-slate-700 text-lg text-center">
-              {teamName}
-            </h3>
-          </div>
-          <div className="p-4">
-            <div className="space-y-3 mb-4">
-              {team.map(player => renderPlayerRow(player, false, teamId))}
-              
-              {/* Own Goal Row */}
-              {renderPlayerRow(
-                { 
-                  id: `own-goal-${teamId.toLowerCase()}`, 
-                  name: 'OG / Unknown', 
-                  isSynthetic: true 
-                }, 
-                true
-              )}
-            </div>
+      <Card>
+        <div className="p-2">
+          <div className="space-y-1.5">
+            {team.map(player => renderPlayerRow(player, false, teamId))}
             
-            <div className="pt-4 border-t border-gray-200">
-              <label className="text-sm font-semibold text-slate-700 mb-3 block">Final Score</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={calculatedScore}
-                  readOnly
-                  className="w-full px-4 py-3 text-lg font-bold text-center rounded-lg border-2 border-gray-200 text-slate-600 shadow-soft-sm cursor-not-allowed"
-                  placeholder="0"
-                />
-              </div>
-            </div>
+            {/* Own Goal Row */}
+            {renderPlayerRow(
+              { 
+                id: `own-goal-${teamId.toLowerCase()}`, 
+                name: 'OG / Unknown', 
+                isSynthetic: true 
+              }, 
+              true
+            )}
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
     );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">
-          {isCompleted ? 'Match Result' : 'Enter Match Results'}
-        </h2>
-        <p className="text-slate-600">
-          {isCompleted ? 'This match has been completed and saved.' : 'Record goals for each player and enter the final scores.'}
-        </p>
-      </div>
-      
-      {isLoadingHistoricalData && (
-        <Card>
-          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-3 text-blue-700">
-              <div className="flex-shrink-0">
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-              <p className="font-medium">Loading match results...</p>
+    <div className="space-y-3">
+      {/* Sticky Score Bar - Always visible */}
+      <div className="bg-gradient-to-r from-gray-900 to-slate-800 rounded-xl p-3 shadow-soft-md">
+        <div className="flex items-center justify-center gap-6">
+          <button 
+            onClick={() => setFocusedTeam('A')}
+            className={`text-center transition-all ${focusedTeam === 'A' ? 'opacity-100' : 'opacity-60'}`}
+          >
+            <div className="text-xs text-gray-400 uppercase tracking-wide">Orange</div>
+            <div className="text-3xl font-bold text-white">{scoreA}</div>
+          </button>
+          <div className="text-gray-500 text-xl font-light">–</div>
+          <button 
+            onClick={() => setFocusedTeam('B')}
+            className={`text-center transition-all ${focusedTeam === 'B' ? 'opacity-100' : 'opacity-60'}`}
+          >
+            <div className="text-xs text-gray-400 uppercase tracking-wide">Green</div>
+            <div className="text-3xl font-bold text-white">{scoreB}</div>
+          </button>
+        </div>
+        {/* Warning if playing teams unbalanced (excluding no-shows) */}
+        {(() => {
+          const playingA = teamA.filter(p => !noShowPlayers.has(p.id)).length;
+          const playingB = teamB.filter(p => !noShowPlayers.has(p.id)).length;
+          return playingA !== playingB ? (
+            <div className="text-center mt-2 text-xs text-amber-400">
+              ⚠️ Uneven: {playingA} vs {playingB}
             </div>
+          ) : null;
+        })()}
+      </div>
+
+      {isLoadingHistoricalData && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2 text-blue-700 text-sm">
+            <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span>Loading...</span>
           </div>
-        </Card>
+        </div>
       )}
       
       {error && (
-        <Card>
-          <div className="p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-lg">
-            <div className="flex items-start gap-3 text-red-700">
-              <div className="flex-shrink-0 mt-0.5">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              </div>
-              <div>
-                <p className="font-medium">Error saving results</p>
-                <p className="text-sm text-red-600 mt-1">{error}</p>
-              </div>
-            </div>
-          </div>
-        </Card>
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {renderTeamColumn(teamA, 'Orange', 'A')}
-        {renderTeamColumn(teamB, 'Green', 'B')}
+      {/* Team toggle hint */}
+      <p className="text-center text-xs text-gray-400">
+        Tap score above to switch teams
+      </p>
+
+      {/* Team Card - Show one at a time, toggle with score bar */}
+      <div>
+        {focusedTeam === 'A' ? renderTeamCard(teamA, 'A') : renderTeamCard(teamB, 'B')}
       </div>
     </div>
   );

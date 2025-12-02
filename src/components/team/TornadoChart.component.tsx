@@ -90,14 +90,6 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   const calculateWeightedBalanceScore = () => {
     if (!weights) return null;
     
-    // Debug logging for weights and team stats
-    if (process.env.NODE_ENV === 'development') {
-      console.log('=== BALANCE SCORE DEBUG ===');
-      console.log('Weights structure:', weights);
-      console.log('Team A stats:', teamAStats);
-      console.log('Team B stats:', teamBStats);
-    }
-    
     let totalDifference = 0;
     const positionGroups: ('defense' | 'midfield' | 'attack')[] = ['defense', 'midfield', 'attack'];
     
@@ -106,31 +98,13 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
       const statsB = teamBStats[group];
       const groupWeights = weights[group] || {};
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`--- ${group.toUpperCase()} ---`);
-        console.log(`Group weights:`, groupWeights);
-        console.log(`Team A ${group}:`, statsA);
-        console.log(`Team B ${group}:`, statsB);
-      }
-      
       // Calculate weighted differences for each attribute
       Object.keys(statsA).forEach(attribute => {
         const weight = groupWeights[attribute] || 0;
         const diff = Math.abs(statsA[attribute] - statsB[attribute]);
         const weightedDiff = diff * weight;
         totalDifference += weightedDiff;
-        
-        // Debug logging for each attribute calculation
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`  ${attribute}: A=${statsA[attribute].toFixed(2)}, B=${statsB[attribute].toFixed(2)}, diff=${diff.toFixed(2)}, weight=${weight}, weighted=${weightedDiff.toFixed(4)}`);
-        }
       });
-    }
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`=== FINAL RESULT ===`);
-      console.log(`Total weighted difference: ${totalDifference.toFixed(4)}`);
-      console.log('========================');
     }
     
     return totalDifference;
@@ -139,15 +113,9 @@ const TornadoChart: React.FC<TornadoChartProps> = ({ teamAStats, teamBStats, wei
   const balanceScore = calculateWeightedBalanceScore();
   
   // Convert to percentage (0-100%, higher is better)
-  // Adjust scaling - if balanceScore is very small, we need a different scale factor
   const balancePercentage = balanceScore !== null 
-    ? Math.min(100, Math.max(0, Math.round(100 - (balanceScore * 25))))  // Increased scale factor
+    ? Math.min(100, Math.max(0, Math.round(100 - (balanceScore * 25))))
     : null;
-    
-  // Debug logging for balance score
-  if (process.env.NODE_ENV === 'development' && balanceScore !== null) {
-    console.log(`Raw balance score: ${balanceScore.toFixed(4)}, Scaled percentage: ${balancePercentage}%`);
-  }
   
   // Helper function to calculate bar width percentage (scale differences for visualization)
   const getBarWidth = (diff: number) => {

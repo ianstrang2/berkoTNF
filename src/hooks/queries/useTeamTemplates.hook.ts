@@ -39,11 +39,13 @@ async function fetchTeamTemplate(
 
   const result = await response.json();
   
-  if (result.success && result.data) {
+  // API returns array of templates - use the first one
+  if (result.success && result.data && result.data.length > 0) {
+    const template = result.data[0];
     return {
-      defenders: result.data.defenders,
-      midfielders: result.data.midfielders,
-      attackers: result.data.attackers
+      defenders: template.defenders,
+      midfielders: template.midfielders,
+      attackers: template.attackers
     };
   }
 

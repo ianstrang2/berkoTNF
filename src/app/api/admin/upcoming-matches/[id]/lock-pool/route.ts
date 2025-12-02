@@ -6,10 +6,26 @@ import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantMatchLock } from '@/lib/tenantLocks';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
+// Balance functions
+import { balanceByRating } from '@/app/api/admin/balance-teams/balanceByRating';
+import { balanceByPerformance } from '@/app/api/admin/balance-teams/balanceByPerformance';
+
+type BalanceMethod = 'ability' | 'performance' | 'random';
+
+// Shuffle array function for random ordering (copied from random-balance-match)
+const shuffleArray = <T>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
 
 /**
  * API route to lock the player pool for an upcoming match.
  * Transitions state from 'Draft' to 'PoolLocked'.
+ * Optionally balances teams immediately if balanceMethod is provided.
  */
 export async function PATCH(
   request: NextRequest,
@@ -23,7 +39,11 @@ export async function PATCH(
       console.log(`[LOCK_POOL] Starting lock pool operation for match ${matchId}`);
       console.log(`[LOCK_POOL] Resolved tenant ID: ${tenantId}`);
       
-      const { playerIds, state_version } = await request.json();
+      const { playerIds, state_version, balanceMethod } = await request.json() as {
+        playerIds: number[];
+        state_version: number;
+        balanceMethod?: BalanceMethod;
+      };
       console.log(`[LOCK_POOL] Request data - playerIds: ${playerIds?.length}, state_version: ${state_version}`);
 
       if (isNaN(matchId)) {
@@ -168,14 +188,80 @@ export async function PATCH(
       console.log(`[LOCK_POOL] Lock pool completed successfully for match ${matchId}`);
       console.log(`[LOCK_POOL] Final match state: ${updatedMatch.state}, version: ${updatedMatch.state_version}`);
 
+      // If balanceMethod is provided, balance teams immediately after locking
+      if (balanceMethod) {
+        console.log(`[LOCK_POOL] Balance method provided: ${balanceMethod}, proceeding to balance teams`);
+        
+        try {
+          if (balanceMethod === 'ability') {
+            // Block ability balancing for uneven/simplified teams
+            if (isUneven || isSimplified) {
+              console.warn(`[LOCK_POOL] Ability balancing not supported for ${sizeA}v${sizeB}, skipping balance`);
+            } else {
+              await balanceByRating(matchId.toString(), { a: sizeA, b: sizeB }, updatedMatch.state_version, tenantId);
+              console.log(`[LOCK_POOL] Teams balanced by ability`);
+            }
+          } else if (balanceMethod === 'performance') {
+            const playerIdsAsStrings = playerIds.map((id: number) => String(id));
+            await balanceByPerformance(matchId.toString(), playerIdsAsStrings, { a: sizeA, b: sizeB }, tenantId, updatedMatch.state_version);
+            console.log(`[LOCK_POOL] Teams balanced by performance`);
+          } else if (balanceMethod === 'random') {
+            // Random balance inline (simpler than calling another API)
+            const shuffledPlayerIds = shuffleArray(playerIds);
+            const teamAIds = shuffledPlayerIds.slice(0, sizeA);
+            const teamBIds = shuffledPlayerIds.slice(sizeA, sizeA + sizeB);
+            
+            // Update assignments with team and slot
+            for (let i = 0; i < teamAIds.length; i++) {
+              await prisma.upcoming_match_players.updateMany({
+                where: { 
+                  upcoming_match_id: matchId, 
+                  player_id: teamAIds[i],
+                  tenant_id: tenantId
+                },
+                data: { 
+                  team: 'A', 
+                  slot_number: i + 1 
+                }
+              });
+            }
+            for (let i = 0; i < teamBIds.length; i++) {
+              await prisma.upcoming_match_players.updateMany({
+                where: { 
+                  upcoming_match_id: matchId, 
+                  player_id: teamBIds[i],
+                  tenant_id: tenantId
+                },
+                data: { 
+                  team: 'B', 
+                  slot_number: i + 1 
+                }
+              });
+            }
+            
+            // Mark as balanced
+            await prisma.upcoming_matches.update({
+              where: { upcoming_match_id: matchId, tenant_id: tenantId },
+              data: { is_balanced: true }
+            });
+            console.log(`[LOCK_POOL] Teams balanced randomly`);
+          }
+        } catch (balanceError: any) {
+          // Log but don't fail the lock - user can re-balance manually
+          console.error(`[LOCK_POOL] Balance failed, but pool is locked:`, balanceError.message);
+        }
+      }
+
       return NextResponse.json({ 
         success: true, 
         data: updatedMatch,
         splitInfo: { sizeA, sizeB, isUneven, isSimplified },
+        balanced: !!balanceMethod,
         debug: {
           tenantId,
           matchId,
           playersLocked: playerIds.length,
+          balanceMethod: balanceMethod || 'none',
           operation: 'lock-pool'
         }
       });

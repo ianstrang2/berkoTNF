@@ -8,10 +8,21 @@ interface GlobalCtaBarProps {
   onClick: () => void;
   disabled?: boolean;
   hint?: string;
+  successState?: boolean; // When true, shows green "Saved!" state
 }
 
-const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = false, hint }) => {
+const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = false, hint, successState = false }) => {
   const isLoading = label.includes('Saving...') || label.includes('Loading...');
+  
+  // Determine button styling based on state
+  const buttonClassName = successState
+    ? 'w-full bg-gradient-to-tl from-green-600 to-green-500 shadow-soft-md transition-all duration-300'
+    : `w-full bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md transition-all duration-300 ${
+        disabled ? 'opacity-50 cursor-not-allowed' : ''
+      }`;
+  
+  // Display text - show "✓ Saved!" during success state
+  const displayLabel = successState ? '✓ Saved!' : label;
   
   return (
     // This container handles the responsive positioning.
@@ -23,25 +34,23 @@ const GlobalCtaBar: React.FC<GlobalCtaBarProps> = ({ label, onClick, disabled = 
       "
     >
       <div className="md:max-w-4xl md:mx-auto">
-        {hint && (
+        {hint && !successState && (
           <p className="text-sm text-gray-600 text-center mb-3 px-4">
             {hint}
           </p>
         )}
         <Button
           onClick={onClick}
-          disabled={disabled}
+          disabled={disabled && !successState}
           variant="primary"
           size="lg"
-          className={`w-full bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md ${
-            disabled ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          className={buttonClassName}
         >
           <div className="flex items-center justify-center">
-            {isLoading && (
+            {isLoading && !successState && (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 flex-shrink-0" />
             )}
-            <span>{label}</span>
+            <span>{displayLabel}</span>
           </div>
         </Button>
       </div>

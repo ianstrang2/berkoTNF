@@ -35,6 +35,7 @@ interface MatchData {
   matchDate: string;
   teamAName?: string;
   teamBName?: string;
+  teamsSavedAt: string | null;  // When teams were officially saved (visible to players)
 }
 
 /**
@@ -93,6 +94,7 @@ export const useMatchState = (matchId: number | string) => {
           matchDate: result.data.match_date,
           teamAName: result.data.team_a_name || 'Orange',
           teamBName: result.data.team_b_name || 'Green',
+          teamsSavedAt: result.data.teams_saved_at || null,
         };
         setMatchData(transformedData);
       } else {
@@ -255,6 +257,7 @@ export const useMatchState = (matchId: number | string) => {
     showToast,
     actions: {
       lockPool: createApiAction(`/admin/upcoming-matches/${matchId}/lock-pool`, 'PATCH'),
+      saveTeams: createApiAction(`/admin/upcoming-matches/${matchId}/save-teams`, 'POST'),
       confirmTeams: createApiAction(`/admin/upcoming-matches/${matchId}/confirm-teams`, 'PATCH'),
       completeMatch: (scoreData: any) => createApiAction(`/admin/upcoming-matches/${matchId}/complete`, 'POST')(scoreData),
       revalidate: fetchMatchState,

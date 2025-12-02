@@ -6,7 +6,6 @@ import { PlayerInPool } from '@/types/player.types';
 import Card from '@/components/ui-kit/Card.component';
 import { GripVertical, Copy, Trash2 } from 'lucide-react';
 import BalanceOptionsModal from './BalanceOptionsModal.component';
-import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import TornadoChart from '@/components/team/TornadoChart.component';
 import PerformanceTornadoChart from '@/components/team/PerformanceTornadoChart.component';
 import { calculateTeamStatsFromPlayers, calculatePerformanceTeamStats } from '@/utils/teamStatsCalculation.util';
@@ -48,10 +47,12 @@ interface BalanceTeamsPaneProps {
   players: PlayerInPool[];
   isBalanced: boolean;
   balanceTeamsAction: (method: 'ability' | 'performance' | 'random') => Promise<void>;
-  clearTeamsAction: () => Promise<void>;
   onShowToast: (message: string, type: 'success' | 'error') => void;
   markAsUnbalanced: () => Promise<void>;
   onPlayersUpdated?: () => Promise<void>;
+  teamsSavedAt: string | null;
+  onUnsavedChangesChange?: (hasChanges: boolean) => void;
+  initialBalanceMethod?: 'ability' | 'performance' | 'random' | null;
 }
 
 const useTeamDragAndDrop = (
@@ -60,7 +61,8 @@ const useTeamDragAndDrop = (
   matchId: string,
   onTeamModified?: () => void,
   currentPlayers?: PlayerInPool[],
-  onPlayersUpdated?: () => Promise<void>
+  onPlayersUpdated?: () => Promise<void>,
+  localOnly: boolean = true  // NEW: When true, only update local state (don't persist to DB)
 ) => {
   const [draggedPlayer, setDraggedPlayer] = useState<PlayerInPool | null>(null);
   const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
@@ -89,7 +91,7 @@ const useTeamDragAndDrop = (
       ) || null;
     }
     
-    // Optimistically update the UI
+    // Update the local UI state
     setPlayers(currentPlayers => {
       const newPlayers = [...currentPlayers];
       const draggedPlayerIdx = newPlayers.findIndex(p => p.id === player.id);
@@ -128,7 +130,15 @@ const useTeamDragAndDrop = (
       return newPlayers;
     });
 
-    // Send updates to the server
+    // Track team modification (for unsaved changes indicator)
+    onTeamModified?.();
+
+    // If localOnly mode, skip API calls - changes will be saved via save-teams API
+    if (localOnly) {
+      return;
+    }
+
+    // Legacy mode: Send updates to the server immediately
     try {
       if (conflictPlayer) {
         // Use atomic swap endpoint for any conflicts (either true swap or displacement to pool)
@@ -173,8 +183,6 @@ const useTeamDragAndDrop = (
       
       // After successfully updating all players, mark the match as unbalanced
       await markAsUnbalanced();
-      // Track team modification
-      onTeamModified?.();
       // Notify parent component that players have been updated
       onPlayersUpdated?.();
     } catch (error) {
@@ -210,11 +218,10 @@ const useTeamDragAndDrop = (
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!draggedPlayer) return;
-    e.preventDefault(); // Prevent scrolling while dragging
+    // Note: scrolling is prevented via CSS touch-action: none (touch-none class)
     
     // Update dragged element position for visual feedback
     if (draggedElement) {
-      const touch = e.touches[0];
       draggedElement.style.opacity = '0.5';
     }
   };
@@ -273,10 +280,12 @@ const BalanceTeamsPane = ({
   players: initialPlayers, 
   isBalanced, 
   balanceTeamsAction, 
-  clearTeamsAction, 
   onShowToast, 
   markAsUnbalanced,
-  onPlayersUpdated
+  onPlayersUpdated,
+  teamsSavedAt,
+  onUnsavedChangesChange,
+  initialBalanceMethod = null
 }: BalanceTeamsPaneProps) => {
   // React Query hooks - automatic deduplication and caching!
   const { data: teamTemplate = null } = useTeamTemplate(teamSize);
@@ -291,8 +300,8 @@ const BalanceTeamsPane = ({
   const [teamTemplateA, setTeamTemplateA] = useState<TeamTemplate | null>(null);
   const [teamTemplateB, setTeamTemplateB] = useState<TeamTemplate | null>(null);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
-  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
-  const [balanceMethod, setBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(null);
+  // Initialize with method from Lock & Balance (for tornado chart), or null
+  const [balanceMethod, setBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(initialBalanceMethod);
   const [isTeamsModified, setIsTeamsModified] = useState<boolean>(false);
 
   // Copy functionality states
@@ -323,13 +332,37 @@ const BalanceTeamsPane = ({
   const onFirePlayerId = playerStatus?.on_fire_player_id || null;
   const grimReaperPlayerId = playerStatus?.grim_reaper_player_id || null;
 
+  // Track saved state for comparison (what players see)
+  const [savedPlayers, setSavedPlayers] = useState(initialPlayers);
+  
   // Sync local players state when initialPlayers changes
   useEffect(() => {
     setPlayers(initialPlayers);
+    setSavedPlayers(initialPlayers);
   }, [initialPlayers]);
 
-  // Handle uneven team templates (React Query provides base template)
+  // Check if there are unsaved changes by comparing current players to saved players
+  const hasUnsavedChanges = useMemo(() => {
+    if (players.length !== savedPlayers.length) return true;
+    return players.some((player, index) => {
+      const savedPlayer = savedPlayers.find(sp => sp.id === player.id);
+      if (!savedPlayer) return true;
+      return player.team !== savedPlayer.team || player.slot_number !== savedPlayer.slot_number;
+    });
+  }, [players, savedPlayers]);
+
+  // Notify parent of unsaved changes
   useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
+
+  // NOTE: We intentionally don't auto-detect balance method on mount.
+  // The user can click "Re-Balance" to choose a method and see the appropriate chart.
+  // This avoids showing misleading charts (e.g., performance chart for randomly balanced teams).
+
+  // Handle uneven team templates (React Query provides base template)
+  // Use useMemo to ensure templates are computed synchronously and don't flicker
+  const { computedTemplateA, computedTemplateB } = useMemo(() => {
     const isUneven = actualSizeA && actualSizeB && actualSizeA !== actualSizeB;
     const isSimplified = actualSizeA === 4 && actualSizeB === 4;
     
@@ -341,15 +374,25 @@ const BalanceTeamsPane = ({
       const formationA = deriveTemplate(sizeA, isSimplified);
       const formationB = deriveTemplate(sizeB, isSimplified);
       
-      setTeamTemplateA(formationToTemplate(formationA));
-      setTeamTemplateB(formationToTemplate(formationB));
+      return {
+        computedTemplateA: formationToTemplate(formationA),
+        computedTemplateB: formationToTemplate(formationB)
+      };
     } else {
       // Even teams - use template from React Query or fallback
       const template = teamTemplate || getFallbackTemplate(teamSize);
-      setTeamTemplateA(template);
-      setTeamTemplateB(template);
+      return {
+        computedTemplateA: template,
+        computedTemplateB: template
+      };
     }
   }, [teamSize, actualSizeA, actualSizeB, teamTemplate]);
+  
+  // Sync computed templates to state (for any components that need state)
+  useEffect(() => {
+    setTeamTemplateA(computedTemplateA);
+    setTeamTemplateB(computedTemplateB);
+  }, [computedTemplateA, computedTemplateB]);
 
   const { handleDragStart, handleDragOver, handleDrop, handleTouchStart, handleTouchMove, handleTouchEnd } = useTeamDragAndDrop(
     setPlayers,
@@ -357,7 +400,8 @@ const BalanceTeamsPane = ({
     matchId,
     () => setIsTeamsModified(true),
     players,
-    onPlayersUpdated
+    onPlayersUpdated,
+    true  // localOnly: Only update local state, save via save-teams API
   );
 
   const { teamA, teamB, unassigned } = useMemo(() => {
@@ -446,18 +490,6 @@ const BalanceTeamsPane = ({
     finally { setIsBalancing(false); }
   };
 
-  const handleClearTeams = async () => {
-    setIsClearConfirmOpen(false);
-    try {
-      await clearTeamsAction();
-      // Reset TornadoChart state when teams are cleared
-      setBalanceMethod(null);
-      setIsTeamsModified(false);
-    } catch (error: any) {
-      onShowToast(error.message || "Failed to clear teams", 'error');
-    }
-  };
-
   const handleCopyTeams = async () => {
     if (teamA.length === 0 && teamB.length === 0) {
       onShowToast('No teams to copy.', 'error');
@@ -497,8 +529,8 @@ const BalanceTeamsPane = ({
   };
 
   const renderPlayer = (player: PlayerInPool) => {
-    // Truncate name to 14 characters max
-    const displayName = player.name.length > 14 ? player.name.substring(0, 14) : player.name;
+    // Truncate name to 12 characters max for compact display
+    const displayName = player.name.length > 12 ? player.name.substring(0, 12) : player.name;
     
     return (
       <div 
@@ -508,10 +540,10 @@ const BalanceTeamsPane = ({
         onTouchStart={(e) => handleTouchStart(player, e)}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="inline-flex items-center justify-between bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-3 py-2 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing w-[170px] touch-none"
+        className="inline-flex items-center justify-between bg-white rounded shadow-soft-sm text-slate-700 border border-gray-200 px-2 py-1 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing w-full max-w-[140px] touch-none"
       >
-          <span className="text-sm font-medium truncate flex-1">{displayName}</span>
-          <GripVertical className="ml-2 text-slate-400 flex-shrink-0" size={16} />
+          <span className="text-xs font-medium truncate flex-1">{displayName}</span>
+          <GripVertical className="ml-1 text-slate-400 flex-shrink-0" size={14} />
       </div>
     );
   };
@@ -529,24 +561,26 @@ const BalanceTeamsPane = ({
         data-slot={actualSlotNumber}
         onDragOver={handleDragOver} 
         onDrop={() => handleDrop(team, actualSlotNumber)}
-        className={`h-[44px] w-[170px] flex items-center justify-center rounded-lg transition-all duration-200 ease-in-out mx-auto ${
+        className={`h-[32px] w-full max-w-[140px] flex items-center justify-center rounded transition-all duration-200 ease-in-out mx-auto ${
           playerInSlot 
             ? 'bg-transparent' 
-            : 'bg-gray-50 border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50 hover:shadow-soft-sm'
+            : 'bg-gray-50 border border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50'
         }`}
       >
         {playerInSlot ? renderPlayer(playerInSlot) : (
-          <span className="text-xs text-gray-400 font-medium">Drop player here</span>
+          <span className="text-[10px] text-gray-400">Swap here</span>
         )}
       </div>
     );
   };
   
   const renderTeamColumn = (teamName: 'A' | 'B') => {
-    // Use team-specific templates for uneven teams
-    const currentTemplate = teamName === 'A' ? (teamTemplateA || teamTemplate) : (teamTemplateB || teamTemplate);
+    // Use team-specific templates - prefer state, fall back to computed, then to hook value
+    const currentTemplate = teamName === 'A' 
+      ? (teamTemplateA || computedTemplateA || teamTemplate) 
+      : (teamTemplateB || computedTemplateB || teamTemplate);
     
-    if (!currentTemplate) return <div className="p-4"><div className="w-full h-96 bg-gray-200 animate-pulse rounded-lg"></div></div>;
+    if (!currentTemplate) return <div className="p-2"><div className="w-full h-48 bg-gray-200 animate-pulse rounded-lg"></div></div>;
     
     // Use actual team sizes if available, otherwise fall back to teamSize
     const actualTeamSize = teamName === 'A' 
@@ -557,11 +591,9 @@ const BalanceTeamsPane = ({
     const slots = Array.from({ length: actualTeamSize }, (_, i) => i);
     const { defenders, midfielders, attackers } = currentTemplate;
     
-
-    
     return (
-      <div className="space-y-1">
-        <h3 className="font-bold text-slate-700 text-lg text-center mb-3">
+      <div className="space-y-0.5">
+        <h3 className="font-semibold text-slate-700 text-sm text-center mb-2">
           {teamName === 'A' ? 'Orange' : 'Green'}
         </h3>
         {slots.map((slotIndex) => {
@@ -572,8 +604,8 @@ const BalanceTeamsPane = ({
             <React.Fragment key={slotIndex}>
                 {renderTeamSlot(teamName, slotIndex)}
                 {showLineAfter && (
-                     <div className="py-2 flex items-center justify-center">
-                       <div className="h-0.5 w-24 bg-gradient-to-r from-pink-400 via-purple-500 to-pink-400 rounded-full shadow-sm opacity-75"></div>
+                     <div className="py-1 flex items-center justify-center">
+                       <div className="h-0.5 w-16 bg-gradient-to-r from-pink-400 via-purple-500 to-pink-400 rounded-full shadow-sm opacity-75"></div>
                      </div>
                 )}
             </React.Fragment>
@@ -585,191 +617,82 @@ const BalanceTeamsPane = ({
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-        {/* Left Column: Player Pool + TornadoChart (Desktop) */}
-        <div className="w-full space-y-6">
-          {/* Player Pool Card */}
-          <Card>
-            <div className="p-3 border-b border-gray-200">
-                <h2 className="font-bold text-slate-700 text-lg">Player Pool</h2>
-            </div>
-            <div 
-              className="p-4" 
-              data-drop-zone="true"
-              data-team="Unassigned"
-              onDragOver={handleDragOver} 
-              onDrop={() => handleDrop('Unassigned')}
-            >
-                <div className="flex flex-wrap gap-2 min-h-[120px] content-start">
-                    {unassigned.length > 0 
-                        ? unassigned.map(p => renderPlayer(p)) 
-                        : <p className="w-full text-center text-slate-500 pt-4 text-sm">All players assigned</p>}
-                </div>
-            </div>
-            <div className="p-3 border-t border-gray-200 flex justify-end">
+      {/* Single column layout - teams are now the main focus */}
+      <div className="w-full space-y-4">
+        {/* Teams Card - Full Width */}
+        <Card>
+          <div className="flex justify-between items-center p-3 border-b border-gray-200">
+            <h2 className="font-bold text-slate-700 text-lg">Set Teams</h2>
+            <div className="flex items-center gap-2">
+              {/* Discard button - only show when there are unsaved changes */}
+              {hasUnsavedChanges && (
                 <Button 
-                    variant="primary" 
-                    onClick={() => setIsBalanceModalOpen(true)} 
-                    disabled={isBalancing}
+                  variant="primary" 
+                  size="sm"
+                  onClick={() => {
+                    setPlayers(savedPlayers);
+                    setIsTeamsModified(false);
+                  }}
+                  className="bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-sm"
                 >
-                    {unassigned.length === 0 ? 'Re-Balance Teams' : 'Auto Assign'}
+                  Discard
                 </Button>
+              )}
+              {/* Copy Teams - only show when saved AND no unsaved changes */}
+              {teamsSavedAt && !hasUnsavedChanges && (
+                <Button 
+                  variant={copySuccess ? "primary" : "secondary"}
+                  size="sm"
+                  className={copySuccess ? "bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-sm" : "shadow-soft-sm"}
+                  onClick={handleCopyTeams} 
+                  disabled={unassigned.length > 0}
+                >
+                  {copySuccess ? 'Copied!' : 'Copy'}
+                </Button>
+              )}
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setIsBalanceModalOpen(true)} 
+                disabled={isBalancing}
+                className="shadow-soft-sm"
+              >
+                {isBalancing ? 'Balancing...' : 'Re-Balance'}
+              </Button>
             </div>
-          </Card>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-4">
+            {renderTeamColumn('A')}
+            {renderTeamColumn('B')}
+          </div>
+        </Card>
 
-          {/* TornadoChart - Desktop Only (Below Player Pool) */}
-          {balanceMethod === 'ability' && teamStatsData && balanceWeights && (
-            <div className="hidden md:block">
-              <Card>
-                <div className="p-3 border-b border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h2 className="font-bold text-slate-700 text-lg">Team Balance Analysis</h2>
-                    {isTeamsModified && (
-                    <span className="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Teams Modified
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4">
-                  <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
-                    <TornadoChart 
-                      teamAStats={teamStatsData.teamAStats} 
-                      teamBStats={teamStatsData.teamBStats} 
-                      weights={balanceWeights}
-                      teamSize={teamSize}
-                      isModified={isTeamsModified}
-                    />
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
+        {/* TornadoChart - Ability Balance Analysis */}
+        {balanceMethod === 'ability' && teamStatsData && balanceWeights && (
+          <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
+            <TornadoChart 
+              teamAStats={teamStatsData.teamAStats} 
+              teamBStats={teamStatsData.teamBStats} 
+              weights={balanceWeights}
+              teamSize={teamSize}
+              isModified={isTeamsModified}
+            />
+          </div>
+        )}
 
-          {/* Performance TornadoChart - Desktop Only (Below Player Pool) */}
-          {balanceMethod === 'performance' && performanceStatsData && (
-            <div className="hidden md:block">
-              <Card>
-                <div className="p-3 border-b border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h2 className="font-bold text-slate-700 text-lg">Performance Balance Analysis</h2>
-                    {isTeamsModified && (
-                    <span className="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Teams Modified
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4">
-                  <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
-                    <PerformanceTornadoChart 
-                      teamAStats={performanceStatsData.teamAStats} 
-                      teamBStats={performanceStatsData.teamBStats} 
-                      weights={performanceWeights}
-                      teamSize={teamSize}
-                      isModified={isTeamsModified}
-                    />
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Teams */}
-        <div className="w-full">
-            <Card>
-                <div className="flex justify-between items-center p-3 border-b border-gray-200">
-                    <h2 className="font-bold text-slate-700 text-lg">Teams</h2>
-                </div>
-                <div className="p-4 grid grid-cols-2 gap-4">
-                    {renderTeamColumn('A')}
-                    {renderTeamColumn('B')}
-                </div>
-                <div className="p-3 border-t border-gray-200 flex justify-start gap-2">
-                    <Button variant="secondary" onClick={() => setIsClearConfirmOpen(true)} className="shadow-soft-sm">Clear</Button>
-                    <Button 
-                      variant={copySuccess ? "primary" : "secondary"}
-                      className={copySuccess ? "bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md" : "shadow-soft-sm"}
-                      onClick={handleCopyTeams} 
-                      disabled={unassigned.length > 0}
-                    >
-                      {copySuccess ? 'Copied!' : 'Copy'}
-                    </Button>
-                </div>
-            </Card>
-        </div>
+        {/* Performance TornadoChart - Performance Balance Analysis */}
+        {balanceMethod === 'performance' && performanceStatsData && (
+          <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
+            <PerformanceTornadoChart 
+              teamAStats={performanceStatsData.teamAStats} 
+              teamBStats={performanceStatsData.teamBStats} 
+              weights={performanceWeights}
+              teamSize={teamSize}
+              isModified={isTeamsModified}
+            />
+          </div>
+        )}
       </div>
-
-      {/* TornadoChart Analysis - Mobile Only (Full Width at Bottom) */}
-      {balanceMethod === 'ability' && teamStatsData && balanceWeights && (
-        <div className="md:hidden w-full mt-6">
-          <Card>
-            <div className="p-3 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-bold text-slate-700 text-lg">Team Balance Analysis</h2>
-                {isTeamsModified && (
-                    <span className="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Teams Modified
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="p-4">
-              <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
-                <TornadoChart 
-                  teamAStats={teamStatsData.teamAStats} 
-                  teamBStats={teamStatsData.teamBStats} 
-                  weights={balanceWeights}
-                  teamSize={teamSize}
-                  isModified={isTeamsModified}
-                />
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Performance TornadoChart Analysis - Mobile Only (Full Width at Bottom) */}
-      {balanceMethod === 'performance' && performanceStatsData && (
-        <div className="md:hidden w-full mt-6">
-          <Card>
-            <div className="p-3 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-bold text-slate-700 text-lg">Performance Balance Analysis</h2>
-                {isTeamsModified && (
-                    <span className="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Teams Modified
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="p-4">
-              <div className="bg-gradient-to-tl from-gray-900 to-slate-800 rounded-xl p-4">
-                <PerformanceTornadoChart 
-                  teamAStats={performanceStatsData.teamAStats} 
-                  teamBStats={performanceStatsData.teamBStats} 
-                  weights={performanceWeights}
-                  teamSize={teamSize}
-                  isModified={isTeamsModified}
-                />
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
 
       <BalanceOptionsModal 
         isOpen={isBalanceModalOpen} 
@@ -778,16 +701,6 @@ const BalanceTeamsPane = ({
         isLoading={isBalancing}
         actualSizeA={actualSizeA}
         actualSizeB={actualSizeB}
-      />
-      <SoftUIConfirmationModal 
-        isOpen={isClearConfirmOpen} 
-        onClose={() => setIsClearConfirmOpen(false)} 
-        onConfirm={handleClearTeams} 
-        title="Clear Teams" 
-        message="Are you sure you want to clear all team assignments? This cannot be undone." 
-        confirmText="Clear Teams" 
-        cancelText="Cancel"
-        icon="warning"
       />
     </>
   );

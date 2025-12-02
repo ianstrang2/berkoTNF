@@ -19,6 +19,7 @@ interface UpcomingMatch {
   team_size: number;
   actual_size_a?: number;
   actual_size_b?: number;
+  teams_saved_at?: string | null;
 }
 
 interface UpcomingMatchCardProps {
@@ -51,14 +52,22 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
   const grimReaperPlayerId = playerStatus?.grim_reaper_player_id || null;
 
   // Helper function to format state display text
-  const formatStateDisplay = (state: string) => {
+  // For players, show BUILDING until teams are actually saved/visible
+  const formatStateDisplay = (state: string, teamsSavedAt?: string | null) => {
     switch (state) {
+      case 'Draft':
+      case 'DRAFT':
+        return 'BUILDING';
       case 'PoolLocked':
       case 'POOLLOCKED':
-        return 'POOL LOCKED';
+        // Players see BUILDING until teams are saved, then TEAMS SET
+        return teamsSavedAt ? 'TEAMS SET' : 'BUILDING';
       case 'TeamsBalanced':
       case 'TEAMSBALANCED':
-        return 'TEAMS BALANCED';
+        return 'READY';
+      case 'Completed':
+      case 'COMPLETED':
+        return 'COMPLETE';
       default:
         return state.toUpperCase();
     }
@@ -173,12 +182,25 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
 
     if (!expandedMatch) return null;
 
-    // Check if teams are balanced or just pool locked
+    // Check if teams are saved (visible to players)
+    const teamsSaved = expandedMatch.teams_saved_at !== null && expandedMatch.teams_saved_at !== undefined;
     const hasTeamAssignments = expandedMatch.players.some(p => p.team === 'A' || p.team === 'B');
+    
+    // If teams exist but not saved yet, show "finalizing" message
+    if (hasTeamAssignments && !teamsSaved) {
+      return (
+        <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="text-center text-amber-700">
+            <p className="font-medium">Teams being finalised...</p>
+            <p className="text-sm mt-1">Check back soon!</p>
+          </div>
+        </div>
+      );
+    }
     
     return (
       <div className="mt-4 space-y-4">
-        {hasTeamAssignments ? renderTeams() : renderPlayerPool()}
+        {hasTeamAssignments && teamsSaved ? renderTeams() : renderPlayerPool()}
       </div>
     );
   };
@@ -193,7 +215,7 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
             <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm">
-              {formatStateDisplay(match.state)}
+              {formatStateDisplay(match.state, match.teams_saved_at)}
             </span>
             <button
               onClick={handleToggleExpand}

@@ -16,6 +16,7 @@ import GlobalCtaBar from '@/components/admin/matches/GlobalCtaBar.component';
 import MatchModal from '@/components/team/modals/MatchModal.component';
 import MatchCompletedModal from '@/components/team/modals/MatchCompletedModal.component';
 import SingleBlockedModal from '@/components/admin/matches/SingleBlockedModal.component';
+import LockPoolWithBalanceModal from '@/components/admin/matches/LockPoolWithBalanceModal.component';
 import { MoreVertical, Lock, Unlock, RotateCcw, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -47,6 +48,16 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   
   // Blocked pool modal state
   const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
+  
+  // Lock pool with balance modal state
+  const [isLockBalanceModalOpen, setIsLockBalanceModalOpen] = useState(false);
+  const [isLockingAndBalancing, setIsLockingAndBalancing] = useState(false);
+  
+  // Track initial balance method from Lock & Balance (for tornado chart)
+  const [initialBalanceMethod, setInitialBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(null);
+  
+  // Save teams success flash state
+  const [saveTeamsSuccess, setSaveTeamsSuccess] = useState(false);
 
   // Edit match data state
   const [editMatchData, setEditMatchData] = useState({
@@ -56,14 +67,22 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   });
   
   // Helper function to format state display text
-  const formatStateDisplay = (state: string) => {
+  // Takes into account teams_saved_at for PoolLocked state
+  const formatStateDisplay = (state: string, teamsSavedAt?: string | null) => {
     switch (state) {
+      case 'Draft':
+      case 'DRAFT':
+        return 'BUILDING';
       case 'PoolLocked':
       case 'POOLLOCKED':
-        return 'POOL LOCKED';
+        // Show ARRANGING if teams not yet saved, TEAMS SET if saved
+        return teamsSavedAt ? 'TEAMS SET' : 'ARRANGING';
       case 'TeamsBalanced':
       case 'TEAMSBALANCED':
-        return 'TEAMS BALANCED';
+        return 'RESULT';
+      case 'Completed':
+      case 'COMPLETED':
+        return 'COMPLETE';
       default:
         return state.toUpperCase();
     }
@@ -117,11 +136,27 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
     }
   };
 
+  // Track if BalanceTeamsPane has unsaved changes (will be set via callback)
+  const [hasUnsavedTeamChanges, setHasUnsavedTeamChanges] = useState(false);
+  
+  // Handler for saving teams
+  const handleSaveTeams = useCallback(async (teamAssignments?: any[]) => {
+    try {
+      await actions.saveTeams({ teamAssignments });
+      setHasUnsavedTeamChanges(false);
+      // Show success flash for 1.5 seconds
+      setSaveTeamsSuccess(true);
+      setTimeout(() => setSaveTeamsSuccess(false), 1500);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save teams', 'error');
+    }
+  }, [actions, showToast]);
+
   const { currentStep, primaryLabel, primaryAction, primaryDisabled, buttonHint } = useMemo(() => {
     if (!matchData) {
       return { currentStep: 'Pool' as 'Pool', primaryLabel: 'Loading...', primaryAction: () => {}, primaryDisabled: true, buttonHint: '' };
     }
-    let step: 'Pool' | 'Teams' | 'Result' | 'Done' = 'Pool';
+    let step: 'Pool' | 'Teams' | 'Done' = 'Pool';
     let label = '';
     let action = () => {};
     let disabled = true;
@@ -130,14 +165,14 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
     switch (matchData.state) {
       case 'Draft':
         step = 'Pool';
-        label = 'Lock Pool';
+        label = 'Lock & Balance';
         
         const poolSize = playerPoolIds.length;
         const targetSize = matchData.teamSize * 2;
         const { a: sizeA, b: sizeB } = splitSizesFromPool(poolSize);
         const { disabled: poolDisabled, blocked } = getPoolValidation(poolSize);
         
-        // Modify primary action for direct lock or single block modal
+        // Modify primary action: show blocked modal OR show lock+balance modal
         action = () => {
           // Single blocking condition: < 8 players
           if (blocked) {
@@ -145,8 +180,8 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
             return;
           }
           
-          // Direct lock for all viable scenarios (>=8 players)
-          actions.lockPool({ playerIds: playerPoolIds.map(id => Number(id)) });
+          // Open lock + balance modal for viable scenarios (>=8 players)
+          setIsLockBalanceModalOpen(true);
         };
         
         disabled = poolDisabled;
@@ -167,21 +202,46 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
           hint = `Lock ${sizeA}v${sizeB}`;
         }
         break;
+        
       case 'PoolLocked':
         step = 'Teams';
-        label = 'Confirm Teams';
-        action = () => actions.confirmTeams();
-        disabled = !areAllSlotsFilled(matchData.players, matchData.actualSizeA, matchData.actualSizeB);
-        if (disabled) {
-          hint = getTeamCompletionStatus(matchData.players, matchData.actualSizeA, matchData.actualSizeB);
+        const teamsSaved = matchData.teamsSavedAt !== null;
+        const allSlotsFilled = areAllSlotsFilled(matchData.players, matchData.actualSizeA, matchData.actualSizeB);
+        
+        if (!teamsSaved) {
+          // Teams not yet saved - primary action is Save Teams
+          label = 'Save Teams';
+          action = () => handleSaveTeams();
+          disabled = !allSlotsFilled;
+          if (!allSlotsFilled) {
+            hint = getTeamCompletionStatus(matchData.players, matchData.actualSizeA, matchData.actualSizeB);
+          } else {
+            hint = 'Make teams visible to players';
+          }
+        } else if (hasUnsavedTeamChanges) {
+          // Teams saved but have unsaved modifications
+          label = 'Save Changes';
+          action = () => handleSaveTeams();
+          disabled = !allSlotsFilled;
+          hint = 'Save your team modifications';
+        } else {
+          // Teams saved and no unsaved changes - can proceed to result
+          label = 'Enter Result';
+          action = () => actions.confirmTeams(); // This transitions to TeamsBalanced
+          disabled = !allSlotsFilled;
+          if (!allSlotsFilled) {
+            hint = getTeamCompletionStatus(matchData.players, matchData.actualSizeA, matchData.actualSizeB);
+          }
         }
         break;
+        
       case 'TeamsBalanced':
-        step = 'Result';
+        step = 'Done'; // Step 3 - entering result
         label = isCompleteFormSubmitting ? 'Saving...' : 'Save Result';
         action = () => completeFormRef.current?.submit();
         disabled = isCompleteFormSubmitting;
         break;
+        
       case 'Completed':
         step = 'Done';
         label = 'Match Completed';
@@ -190,7 +250,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         break;
     }
     return { currentStep: step, primaryLabel: label, primaryAction: action, primaryDisabled: disabled, buttonHint: hint };
-  }, [matchData, playerPoolIds, actions, isCompleteFormSubmitting]);
+  }, [matchData, playerPoolIds, actions, isCompleteFormSubmitting, hasUnsavedTeamChanges, handleSaveTeams]);
 
   if (error) {
     return <div className="p-4 text-center text-red-500">{error}</div>;
@@ -263,7 +323,23 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
       case 'Draft':
         return <PlayerPoolPane matchId={matchId} teamSize={matchData.teamSize} initialPlayers={matchData.players} onSelectionChange={setPlayerPoolIds} matchDate={matchData.matchDate} />;
       case 'PoolLocked':
-        return <BalanceTeamsPane matchId={matchId} teamSize={matchData.teamSize} actualSizeA={matchData.actualSizeA} actualSizeB={matchData.actualSizeB} players={matchData.players} isBalanced={matchData.isBalanced} balanceTeamsAction={actions.balanceTeams} clearTeamsAction={actions.clearAssignments} onShowToast={showToast} markAsUnbalanced={actions.markAsUnbalanced} />;
+        return (
+          <BalanceTeamsPane 
+            matchId={matchId} 
+            teamSize={matchData.teamSize} 
+            actualSizeA={matchData.actualSizeA} 
+            actualSizeB={matchData.actualSizeB} 
+            players={matchData.players} 
+            isBalanced={matchData.isBalanced} 
+            balanceTeamsAction={actions.balanceTeams} 
+            onShowToast={showToast} 
+            markAsUnbalanced={actions.markAsUnbalanced} 
+            onPlayersUpdated={actions.revalidate}
+            teamsSavedAt={matchData.teamsSavedAt}
+            onUnsavedChangesChange={setHasUnsavedTeamChanges}
+            initialBalanceMethod={initialBalanceMethod}
+          />
+        );
       case 'TeamsBalanced':
       case 'Completed':
         return (
@@ -305,7 +381,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
               <StepperBar currentStep={currentStep} variant="compact" />
             </div>
             <div className="flex items-center gap-2">
-                <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm">{formatStateDisplay(matchData.state)}</span>
+                <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-transparent text-neutral-500">{formatStateDisplay(matchData.state, matchData.teamsSavedAt)}</span>
                 {renderMoreMenu()}
             </div>
         </div>
@@ -318,7 +394,13 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         {renderCurrentPane()}
       
       {matchData.state !== 'Completed' && (
-        <GlobalCtaBar label={primaryLabel} onClick={primaryAction} disabled={primaryDisabled} hint={buttonHint} />
+        <GlobalCtaBar 
+          label={primaryLabel} 
+          onClick={primaryAction} 
+          disabled={primaryDisabled} 
+          hint={buttonHint}
+          successState={saveTeamsSuccess}
+        />
       )}
 
       {/* Match Completed Modal */}
@@ -348,6 +430,33 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         isOpen={isBlockedModalOpen}
         onClose={() => setIsBlockedModalOpen(false)}
         poolSize={playerPoolIds.length}
+      />
+
+      {/* Lock Pool with Balance Modal */}
+      <LockPoolWithBalanceModal
+        isOpen={isLockBalanceModalOpen}
+        onClose={() => setIsLockBalanceModalOpen(false)}
+        onConfirm={async (method) => {
+          setIsLockingAndBalancing(true);
+          try {
+            const { a: sizeA, b: sizeB } = splitSizesFromPool(playerPoolIds.length);
+            await actions.lockPool({ 
+              playerIds: playerPoolIds.map(id => Number(id)),
+              balanceMethod: method
+            });
+            // Store the balance method for tornado chart display
+            setInitialBalanceMethod(method);
+            setIsLockBalanceModalOpen(false);
+          } catch (err: any) {
+            showToast(err.message || 'Failed to lock and balance', 'error');
+          } finally {
+            setIsLockingAndBalancing(false);
+          }
+        }}
+        isLoading={isLockingAndBalancing}
+        poolSize={playerPoolIds.length}
+        sizeA={splitSizesFromPool(playerPoolIds.length).a}
+        sizeB={splitSizesFromPool(playerPoolIds.length).b}
       />
     </div>
   );

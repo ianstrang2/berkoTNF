@@ -686,6 +686,7 @@ model upcoming_matches {
   state_version          Int                      @default(0)
   actual_size_a          Int?
   actual_size_b          Int?
+  teams_saved_at         DateTime?                @db.Timestamptz(6)
   tenant_id              String                   @db.Uuid
   match_player_pool      match_player_pool[]
   matches                matches[]

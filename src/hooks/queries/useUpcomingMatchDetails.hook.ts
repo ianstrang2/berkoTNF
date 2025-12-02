@@ -11,6 +11,7 @@ interface UpcomingMatchWithPlayers {
   team_size: number;
   actual_size_a?: number;
   actual_size_b?: number;
+  teams_saved_at?: string | null;  // When teams were officially saved (visible to players)
   players: PlayerInPool[];
 }
 

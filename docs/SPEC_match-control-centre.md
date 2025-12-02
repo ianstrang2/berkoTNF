@@ -1,81 +1,90 @@
 # Match Control Centre Specification
 
-**Version:** 1.0  
-**Last Updated:** November 26, 2025  
-**Status:** ✅ Production Complete (includes Uneven Teams - January 2025)
+**Version:** 2.0  
+**Last Updated:** December 2, 2025  
+**Status:** ✅ Production Complete (includes Explicit Save Model - December 2025)
 
 ---
 
 ## Overview
 
-The **Match Control Centre (MCC)** unifies match planning, team balancing, and result entry into a single cohesive workflow. Admins manage the entire match lifecycle through one interface that evolves from Draft → PoolLocked → TeamsBalanced → Completed.
+The **Match Control Centre (MCC)** unifies match planning, team balancing, and result entry into a single cohesive workflow. Admins manage the entire match lifecycle through one interface using a **3-step process**:
+
+```
+Step 1: Pool → Step 2: Teams → Step 3: Done
+```
 
 **Key Features:**
-- Complete match lifecycle management
+- 3-step streamlined workflow
+- Lock & Balance in single action
+- Explicit save model (teams not visible to players until saved)
 - Advanced team balancing (3 algorithms)
 - Mobile-first design (on-pitch optimized)
 - Drag & drop player assignment
-- Real-time team analysis
-- Uneven teams support (January 2025)
+- Real-time team analysis (Tornado Charts)
+- Uneven teams support
+- No-show tracking with uneven team warnings
 
 ---
 
 ## Match Lifecycle States
 
-**State machine:**
+### Database States
+
+The database uses 4 states for persistence:
+
 ```
 Draft → PoolLocked → TeamsBalanced → Completed
-  ↓           ↓             ↓            ↓
-Unlock    Unlock        Undo          (Final)
 ```
 
-### State Definitions
+### UI Steps Mapping
 
-**Draft:**
-- Purpose: Select players for match
-- Action: Add/remove players from pool
-- Requirement: Exactly `teamSize * 2` players (or custom for uneven)
-- Next: Lock Pool → PoolLocked
-
-**PoolLocked:**
-- Purpose: Assign players to teams
-- Action: Auto-balance or manual assignment
-- Requirement: All slots filled (based on `actualSizeA` + `actualSizeB`)
-- Next: Confirm Teams → TeamsBalanced
-
-**TeamsBalanced:**
-- Purpose: Play match and enter results
-- Action: Enter team scores
-- Requirement: Valid scores (≥ 0)
-- Next: Complete Match → Completed
-
-**Completed:**
-- Purpose: Match finished, stats calculated
-- Action: Undo if needed
-- Undo: Removes match results, returns to TeamsBalanced
+| DB State | UI Step | Status Display | Player View |
+|----------|---------|----------------|-------------|
+| Draft | Pool (1) | BUILDING | "Match on [date]" |
+| PoolLocked (teams_saved_at=NULL) | Teams (2) | ARRANGING | "Teams being finalised..." |
+| PoolLocked (teams_saved_at set) | Teams (2) | TEAMS SET | Full team lists |
+| TeamsBalanced | Done (3) | RESULT | Full team lists |
+| Completed | Done (3) | COMPLETE | Result + teams |
 
 ### State Transitions
 
-**Lock Pool** (`Draft → PoolLocked`):
-- Validates exactly `teamSize * 2` players selected (or custom for uneven)
-- Updates `state = 'PoolLocked'`
-- Increments `state_version` (optimistic locking)
+**Lock & Balance** (`Draft → PoolLocked`):
+- Admin clicks "Lock & Balance" button
+- Modal opens to choose balance method (Ability/Performance/Random)
+- Validates player count (8-22 players)
+- Creates team assignments via chosen algorithm
+- Sets `state = 'PoolLocked'`, `is_balanced = true`
+- `teams_saved_at` remains NULL (draft state)
 
-**Confirm Teams** (`PoolLocked → TeamsBalanced`):
-- Validates all team slots filled
-- Updates `state = 'TeamsBalanced'`
-- Sets `is_balanced = true`
+**Save Teams** (within `PoolLocked`):
+- Admin reviews teams, makes adjustments
+- Clicks "Save Teams" (first time) or "Save Changes" (subsequent)
+- Sets `teams_saved_at = NOW()`
+- Teams now visible to players
+- Future: Triggers notifications
+
+**Enter Result** (`PoolLocked → TeamsBalanced`):
+- Admin clicks "Enter Result" (only visible when teams saved)
+- Shows result entry form
+- Sets `state = 'TeamsBalanced'`
 
 **Complete Match** (`TeamsBalanced → Completed`):
+- Admin enters scores for each player
 - Creates `matches` record with scores
 - Creates `player_matches` records with stats
 - Triggers background stats update
-- Updates `state = 'Completed'`, `is_completed = true`
+- Sets `state = 'Completed'`, `is_completed = true`
 
 **Undo Completion** (`Completed → TeamsBalanced`):
 - Soft-deletes `matches` record
 - Soft-deletes `player_matches` records
-- Updates `state = 'TeamsBalanced'`, `is_completed = false`
+- Sets `state = 'TeamsBalanced'`, `is_completed = false`
+
+**Unlock Pool** (any state → `Draft`):
+- Admin can unlock pool from menu
+- Returns to Draft state for pool changes
+- Preserves player pool but resets team assignments
 
 ---
 
@@ -96,6 +105,7 @@ state_version: number           // Optimistic locking
 is_balanced: boolean
 is_active: boolean
 is_completed: boolean
+teams_saved_at: DateTime | null // NULL = draft, timestamp = teams visible to players
 team_a_name: string             // "Orange"
 team_b_name: string             // "Green"
 location: string | null
@@ -152,19 +162,23 @@ response_timestamp: DateTime
 
 **`PATCH /api/admin/upcoming-matches/[id]/lock-pool`**
 - Transition: Draft → PoolLocked
-- Validates: Player count matches requirements
-- Body: `{ playerIds: number[] }`
+- **Now includes balancing** in single action
+- Body: `{ playerIds: number[], balanceMethod?: 'ability' | 'performance' | 'random' }`
+- Creates team assignments immediately
+- Sets `is_balanced = true`
+- `teams_saved_at` remains NULL
 
-**`PATCH /api/admin/upcoming-matches/[id]/confirm-teams`**
-- Transition: PoolLocked → TeamsBalanced
-- Validates: All slots filled
-- Body: None (uses current assignments)
+**`POST /api/admin/upcoming-matches/[id]/save-teams`**
+- Saves current team assignments as "official"
+- Sets `teams_saved_at = NOW()`
+- Body: `{ players: [{ id, team, slot_number }] }`
+- Players can now see teams
 
 **`POST /api/admin/upcoming-matches/[id]/complete`**
 - Transition: TeamsBalanced → Completed
 - Creates match results
 - Triggers stats update job
-- Body: `{ team_a_score, team_b_score }`
+- Body: `{ team_a_score, team_b_score, playerStats: [...] }`
 
 **`PATCH /api/admin/upcoming-matches/[id]/undo`**
 - Transition: Completed → TeamsBalanced
@@ -181,12 +195,8 @@ response_timestamp: DateTime
 - Swap two players between teams
 - Body: `{ player1_id, player2_id, upcoming_match_id }`
 
-**`POST /api/admin/upcoming-match-players/clear`**
-- Clear all team assignments
-- Body: `{ upcoming_match_id }`
-
 **`POST /api/admin/balance-teams`**
-- Auto-balance teams using selected algorithm
+- Re-balance teams using selected algorithm
 - Body: `{ upcoming_match_id, algorithm: 'ability' | 'performance' | 'random' }`
 - Returns: Balanced teams with scores
 
@@ -204,7 +214,11 @@ response_timestamp: DateTime
 3. Calculate weighted balance score per position
 4. Return most balanced combination
 
-**Best for:** Even teams (8v8, 9v9) where positions matter
+**Restrictions:**
+- Disabled for uneven teams (algorithm requires equal sizes)
+- Disabled for 4v4 simplified teams (not enough positions)
+
+**Tornado Chart:** Shows ability-based balance analysis
 
 **See:** `SPEC_balance_by_rating_algorithm.md` for complete spec
 
@@ -220,6 +234,8 @@ response_timestamp: DateTime
 
 **Best for:** All team sizes, performance-based fairness
 
+**Tornado Chart:** Shows performance-based balance analysis
+
 **See:** `SPEC_balance_by_performance_algorithm.md` for complete spec
 
 ### 3. Random Assignment
@@ -231,7 +247,9 @@ response_timestamp: DateTime
 2. Assign alternating to Team A and Team B
 3. No optimization
 
-**Best for:** Quick distribution, uneven teams
+**Best for:** Quick distribution, casual matches
+
+**Tornado Chart:** None (no meaningful analysis for random)
 
 ---
 
@@ -290,20 +308,19 @@ const allSlotsFilled = teamAPlayers.length === actualSizeA
 
 ### Match Control Centre (`/admin/matches/[id]`)
 
-**Layout:**
+**Layout (Mobile):**
 ```
 ┌─────────────────────────────────┐
-│ StepperBar (4 steps)            │
+│ Date: 04-Dec-25    ①②③         │  ← Header with compact stepper
 ├─────────────────────────────────┤
-│ Match Metadata (date, size)     │
+│ [TEAMS SET]                     │  ← Status badge (subtle, transparent)
 ├─────────────────────────────────┤
-│ Current Step Content:           │
+│ Step Content (full height):     │
 │ - Draft: PlayerPoolPane         │
 │ - PoolLocked: BalanceTeamsPane  │
-│ - TeamsBalanced: ResultPane     │
-│ - Completed: CompletionPane     │
+│ - TeamsBalanced: CompleteMatch  │
 ├─────────────────────────────────┤
-│ GlobalCtaBar (mobile-fixed)     │
+│ [Primary CTA Button]            │  ← Fixed to bottom on mobile
 └─────────────────────────────────┘
 ```
 
@@ -311,62 +328,78 @@ const allSlotsFilled = teamAPlayers.length === actualSizeA
 ```typescript
 {matchData.state === 'Draft' && <PlayerPoolPane />}
 {matchData.state === 'PoolLocked' && <BalanceTeamsPane />}
-{matchData.state === 'TeamsBalanced' && <ResultPane />}
-{matchData.state === 'Completed' && <CompletionPane />}
+{matchData.state === 'TeamsBalanced' && <CompleteMatchForm />}
+{matchData.state === 'Completed' && <CompletionSummary />}
 ```
 
-### PlayerPoolPane
+### Stepper Bar
 
-**Purpose:** Select which players will participate
+**Desktop:** Full labels (Pool → Teams → Done)
+**Mobile:** Compact circles (①②③) aligned with date
 
-**UI:**
-- List of available players (checkboxes)
-- Selected count display
-- Validation: Must select exactly `teamSize * 2`
-- Primary action: "Lock Pool"
+**Styling:** Neutral grey (non-distracting)
+- Active: Dark grey outline with dark grey number
+- Completed: Light grey outline with grey checkmark
+- Pending: Light grey outline with grey number
 
-### BalanceTeamsPane
+### Step 1: PlayerPoolPane
 
-**Purpose:** Assign players to teams
+**Purpose:** Select players for match
 
-**UI:**
-- Two team columns (Team A, Team B)
-- Drag & drop player assignment
-- Balance algorithm selector
-- TornadoChart team analysis
+**UI Elements:**
+- Header: "Player Pool: 04-Dec-25" with player count (e.g., "8/16")
+- Search input: "Add players (X available)"
+- Search results: 4-5 visible players
+- Selected players: Compact pills (same height as search results)
+- Primary CTA: "Lock & Balance"
+
+**Lock & Balance Modal:**
+- Radio buttons for balance method
+- Shows pool size and projected team split
+- Ability option disabled if uneven or 4v4
+- Purple-pink gradient on selected option
+
+### Step 2: BalanceTeamsPane (Set Teams)
+
+**Purpose:** Review and finalize team assignments
+
+**UI Elements:**
+- Header: "Set Teams" with Re-Balance and Copy/Discard buttons
+- Two team columns with drag & drop
+- Position dividers (purple lines between DEF/MID/ATT)
+- Tornado Chart (only for Ability/Performance, never Random)
 - Balance score display
-- Primary action: "Confirm Teams"
 
-**Key Pattern:**
-```typescript
-// Confirm enabled when all slots filled (not when balanced)
-const allSlotsFilled = teamA.length === actualSizeA 
-                    && teamB.length === actualSizeB;
+**Button States:**
+| teams_saved_at | hasUnsavedChanges | Buttons Shown |
+|----------------|-------------------|---------------|
+| NULL | false | Re-Balance |
+| NULL | true | Re-Balance, Discard (gradient) |
+| set | false | Re-Balance, Copy |
+| set | true | Re-Balance, Discard (gradient) |
 
-<button disabled={!allSlotsFilled}>
-  Confirm Teams
-</button>
-```
+**Primary CTA:**
+- First save: "Save Teams" → Green flash "✓ Saved!" (1.5s)
+- After save, no changes: "Enter Result"
+- After save, with changes: "Save Changes" → Green flash
 
-### ResultPane
+### Step 3: CompleteMatchForm
 
 **Purpose:** Enter match results
 
-**UI:**
-- Team score inputs
-- Submit button
-- Match summary
-- Primary action: "Complete Match"
+**UI Elements:**
+- Sticky score bar (Orange vs Green totals)
+- Uneven team warning (if playing counts differ, including no-shows)
+- "Tap score above to switch teams" hint
+- Single team card view (tap-to-toggle)
+- Compact player rows with:
+  - Played checkbox (purple-pink gradient)
+  - Team swap button (arrow)
+  - Player name
+  - Goal +/- buttons (purple-pink gradient SVG)
+- Own Goal row per team
 
-### CompletionPane
-
-**Purpose:** Show completed match
-
-**UI:**
-- Final scores
-- Stats update status
-- Undo button (if needed)
-- Link to match report
+**Primary CTA:** "Save Result"
 
 ---
 
@@ -377,21 +410,9 @@ const allSlotsFilled = teamA.length === actualSizeA
 **Desktop:** Inline button at bottom of content  
 **Mobile:** Fixed to bottom of screen (always visible)
 
-```css
-/* Mobile: Fixed positioning */
-.max-md:fixed
-.max-md:bottom-0
-.max-md:left-0
-.max-md:right-0
-.max-md:z-30
-.max-md:p-4
-.max-md:bg-white
-.max-md:shadow-soft-xl-top
-
-/* Desktop: Inline positioning */
-.md:relative
-.md:mt-6
-```
+**Success Flash:**
+- Shows green gradient with "✓ Saved!" for 1.5 seconds
+- Auto-resets to normal state
 
 **Why:** On mobile, primary action always accessible (no scrolling to find button)
 
@@ -400,52 +421,41 @@ const allSlotsFilled = teamA.length === actualSizeA
 **Drag & Drop:**
 - Large touch targets (48px minimum)
 - Visual feedback on drag
-- Drop zones clearly indicated
 - Works on desktop mouse + mobile touch
+- `touch-none` CSS prevents scroll conflicts
 
 **Buttons:**
 - Minimum 44px height (Apple HIG)
-- Clear labels (no icon-only on mobile)
+- Clear labels
 - Loading states prevent double-tap
 
 ---
 
-## Configuration Management
+## Player Visibility Logic
 
-### Team Names
+**Key Concept:** Players only see teams when `teams_saved_at` is set.
 
-**Storage:** `app_config` table
+### `/player/upcoming` View
+
 ```typescript
-config_key: 'team_a_name' | 'team_b_name'
-config_value: 'Orange' | 'Green' | custom
+const formatStateDisplay = (state: string, teamsSavedAt?: string) => {
+  switch (state) {
+    case 'Draft':
+      return 'BUILDING';
+    case 'PoolLocked':
+      return teamsSavedAt ? 'TEAMS SET' : 'BUILDING';
+    case 'TeamsBalanced':
+      return 'READY';
+    case 'Completed':
+      return 'COMPLETE';
+  }
+};
+
+// Show teams only if saved
+if (match.state === 'PoolLocked' && !match.teams_saved_at) {
+  return <div>Teams being finalised...</div>;
+}
 ```
-
-**UI:** Editable in match settings
-
-### Balance Weights
-
-**Storage:** `team_balance_weights` table
-```typescript
-position_group: 'defense' | 'midfield' | 'attack'
-attribute: 'goalscoring' | 'defending' | ...
-weight: Decimal  // 0.00-1.00
-```
-
-**UI:** Sliders in `/admin/setup/balance` page
-
-**See:** `SPEC_balance_by_rating_algorithm.md` for details
-
-### Team Templates
-
-**Storage:** `team_size_templates` table
-```typescript
-team_size: 8     // Total team size
-defenders: 2     // Formation
-midfielders: 4
-attackers: 2
-```
-
-**UI:** Dropdown in match creation
 
 ---
 
@@ -453,17 +463,17 @@ attackers: 2
 
 ### Validation Errors
 
-**Player Count Mismatch:**
+**Player Count:**
 ```typescript
-if (playerIds.length !== teamSize * 2) {
-  throw new Error(`Need exactly ${teamSize * 2} players`);
+if (playerIds.length < 8 || playerIds.length > 22) {
+  throw new Error('Need between 8 and 22 players');
 }
 ```
 
-**Slots Not Filled:**
+**Balance Method Restrictions:**
 ```typescript
-if (teamAPlayers.length !== actualSizeA || teamBPlayers.length !== actualSizeB) {
-  throw new Error('All team slots must be filled');
+if (balanceMethod === 'ability' && (isUneven || isSimplified)) {
+  throw new Error('Ability balancing not available for uneven/4v4 teams');
 }
 ```
 
@@ -471,7 +481,6 @@ if (teamAPlayers.length !== actualSizeA || teamBPlayers.length !== actualSizeB) 
 
 **Optimistic Locking:**
 ```typescript
-// Check state_version to prevent race conditions
 await prisma.upcoming_matches.update({
   where: {
     upcoming_match_id: matchId,
@@ -479,149 +488,30 @@ await prisma.upcoming_matches.update({
   },
   data: {
     state: 'PoolLocked',
-    state_version: currentVersion + 1
+    state_version: { increment: 1 }
   }
 });
 ```
 
 **If version mismatch:** Return 409 Conflict error
 
-### User Experience
-
-**Loading States:**
-- Buttons show "Processing..." during API calls
-- Spinner for long operations (balancing teams)
-- Success/error toasts after actions
-
-**Optimistic Updates:**
-- UI updates immediately
-- Rollback if API call fails
-- Clear error messages
-
 ---
 
-## Key Implementation Notes
+## No-Show Handling
 
-### Match Completion Triggers Stats Update
+**Result Entry Screen:**
+- Players can be marked as "No Show"
+- No-shows excluded from goal entry
+- Uneven team warning appears if playing counts differ
 
-**When match completed:**
 ```typescript
-// Trigger background job (non-blocking)
-await fetch('/api/admin/enqueue-stats-job', {
-  method: 'POST',
-  body: JSON.stringify({
-    triggeredBy: 'post-match',
-    matchId: matchData.id,
-    tenantId: tenantId
-  })
-});
-```
+const playingA = teamA.filter(p => !noShowPlayers.has(p.id)).length;
+const playingB = teamB.filter(p => !noShowPlayers.has(p.id)).length;
 
-**Stats updated (30-60 seconds):**
-- Half season and full season stats
-- All-time stats
-- Hall of fame
-- Recent performance
-- Season honours
-- Match report cache
-- Personal bests
-- Player profile stats
-- Season race data
-- Power ratings
-
-**See:** `SPEC_background_jobs.md` for complete job system
-
-### Uneven Teams Validation
-
-**Total Players Requirement:**
-```typescript
-// Even teams: team_size * 2
-// Uneven teams: actual_size_a + actual_size_b
-
-const requiredPlayers = actual_size_a 
-  ? actual_size_a + actual_size_b 
-  : team_size * 2;
-
-if (playerIds.length !== requiredPlayers) {
-  throw new Error(`Need exactly ${requiredPlayers} players`);
+if (playingA !== playingB) {
+  // Show warning: "⚠️ Uneven: X vs Y"
 }
 ```
-
-**Algorithm Restrictions:**
-- **Ability balancing:** Disabled for uneven teams (algorithm integrity)
-- **Performance balancing:** Fully supported (works any size)
-- **Random assignment:** Fully supported
-
-### Drag & Drop Implementation
-
-**Library:** `react-beautiful-dnd`
-
-**Pattern:**
-```typescript
-<DragDropContext onDragEnd={handleDragEnd}>
-  <Droppable droppableId="team-a">
-    {(provided) => (
-      <div ref={provided.innerRef} {...provided.droppableProps}>
-        {teamA.map((player, index) => (
-          <Draggable key={player.id} draggableId={player.id} index={index}>
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.draggableProps}
-                {...provided.dragHandleProps}
-              >
-                {player.name}
-              </div>
-            )}
-          </Draggable>
-        ))}
-        {provided.placeholder}
-      </div>
-    )}
-  </Droppable>
-</DragDropContext>
-```
-
-**Mobile Support:** Touch-friendly with visual feedback
-
----
-
-## Performance Considerations
-
-### Query Optimization
-
-**Fetch match with relations:**
-```typescript
-const match = await prisma.upcoming_matches.findUnique({
-  where: { upcoming_match_id: matchId },
-  include: {
-    upcoming_match_players: {
-      include: { players: true }
-    },
-    match_player_pool: {
-      include: { players: true }
-    }
-  }
-});
-```
-
-**Tenant filtering:** All queries use `withTenantFilter(tenantId)`
-
-### Balance Algorithm Performance
-
-**Ability (Brute Force):**
-- Time: O(n!) for combinations
-- Practical limit: 18 players max
-- Duration: 1-3 seconds for 8v8
-
-**Performance (Hill Climbing):**
-- Time: O(n × iterations) ≈ 2000 iterations
-- No practical limit
-- Duration: 100-500ms for any size
-
-**Random:**
-- Time: O(n)
-- Instant (< 10ms)
 
 ---
 
@@ -632,27 +522,24 @@ const match = await prisma.upcoming_matches.findUnique({
 - **Match Report Dashboard:** `SPEC_match-report.md`
 - **Background Jobs:** `SPEC_background_jobs.md`
 - **Multi-Tenancy:** `SPEC_multi_tenancy.md`
+- **Flow Diagrams:** `MERMAID_Match_Control.md`
 
 ---
 
 ## Future Enhancements
 
 **Not Yet Implemented:**
+- [ ] RSVP integration (auto-pool, auto-balance, auto-save)
+- [ ] Player notifications on team save
 - [ ] Match templates (save common configurations)
-- [ ] Bulk match creation (create 10 weeks at once)
-- [ ] Player position preferences
+- [ ] Bulk match creation
 - [ ] Advanced balance constraints (keep pairs together/apart)
-- [ ] Match reminders/notifications
-- [ ] Weather integration
-- [ ] Pitch availability calendar
+- [ ] Match reminders
 
-**See:** `FUTURE_PROBLEMS.md` for additional roadmap items
+**See:** `SPEC_RSVP.md` for RSVP implementation plan
 
 ---
 
 **Document Status:** ✅ Production Complete  
-**Last Updated:** November 26, 2025  
-**Version:** 1.0
-
-**For detailed component implementation:** See original (if needed)  
-**For balance algorithm math:** See `SPEC_balance_by_performance_algorithm.md` and `SPEC_balance_by_rating_algorithm.md`
+**Last Updated:** December 2, 2025  
+**Version:** 2.0
