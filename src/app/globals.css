@@ -54,6 +54,14 @@ input, textarea, select {
   max-width: 100%;
 }
 
+/* CRITICAL: Prevent iOS zoom on input focus - inputs must be 16px+ */
+/* iOS automatically zooms when font-size < 16px, causing viewport expansion */
+@media screen and (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
 /* Scroll reveal animation utility */
 .scroll-reveal {
   opacity: 0;
