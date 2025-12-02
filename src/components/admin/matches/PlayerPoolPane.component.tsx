@@ -19,9 +19,10 @@ interface PlayerPoolPaneProps {
   teamSize: number;
   initialPlayers: PlayerInPool[];
   onSelectionChange: (playerIds: string[]) => void;
+  matchDate?: string;
 }
 
-const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }: PlayerPoolPaneProps) => {
+const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange, matchDate }: PlayerPoolPaneProps) => {
   // Use React Query hook - automatic deduplication and caching!
   const { data: allPlayers = [], isLoading, error: queryError } = usePlayers();
   const queryErrorMessage = queryError ? (queryError as Error).message : null;
@@ -162,7 +163,7 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
   return (
     <>
       <div className="bg-white rounded-xl shadow-soft-xl">
-        <div className="p-4">
+        <div className="px-4 py-3">
           <PlayerPool
             allPlayers={allPlayers}
             selectedPlayers={selectedPlayers}
@@ -172,6 +173,7 @@ const PlayerPoolPane = ({ matchId, teamSize, initialPlayers, onSelectionChange }
             pendingPlayers={pendingPlayerToggles}
             onBalanceTeams={() => {}} 
             isBalancing={false}
+            matchDate={matchDate}
           />
         </div>
         <div className="p-3 border-t border-gray-200 flex justify-end gap-3">

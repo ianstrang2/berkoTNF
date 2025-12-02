@@ -261,7 +261,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   const renderCurrentPane = () => {
     switch (matchData.state) {
       case 'Draft':
-        return <PlayerPoolPane matchId={matchId} teamSize={matchData.teamSize} initialPlayers={matchData.players} onSelectionChange={setPlayerPoolIds} />;
+        return <PlayerPoolPane matchId={matchId} teamSize={matchData.teamSize} initialPlayers={matchData.players} onSelectionChange={setPlayerPoolIds} matchDate={matchData.matchDate} />;
       case 'PoolLocked':
         return <BalanceTeamsPane matchId={matchId} teamSize={matchData.teamSize} actualSizeA={matchData.actualSizeA} actualSizeB={matchData.actualSizeB} players={matchData.players} isBalanced={matchData.isBalanced} balanceTeamsAction={actions.balanceTeams} clearTeamsAction={actions.clearAssignments} onShowToast={showToast} markAsUnbalanced={actions.markAsUnbalanced} />;
       case 'TeamsBalanced':
@@ -293,12 +293,16 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
               </div>
             </div>
         )}
-        <div className="flex justify-between items-start mb-4">
-            <div>
+        <div className="flex justify-between items-center mb-4">
+            <div className="hidden md:block">
               <h1 className="text-2xl font-bold text-slate-800">Match Control Centre</h1>
               <p className="font-semibold text-base leading-relaxed" style={{ color: 'rgb(52, 71, 103)'}}>
-                  {matchData.matchDate ? format(new Date(matchData.matchDate), 'EEEE, MMMM d, yyyy') : 'Loading date...'}
+                  {matchData.matchDate ? format(new Date(matchData.matchDate), 'EEEE, MMMM d, yyyy') : 'Loading...'}
               </p>
+            </div>
+            {/* Mobile: Compact stepper only - ml-4 aligns with card content padding */}
+            <div className="flex items-center gap-2 md:hidden ml-4">
+              <StepperBar currentStep={currentStep} variant="compact" />
             </div>
             <div className="flex items-center gap-2">
                 <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm">{formatStateDisplay(matchData.state)}</span>
@@ -306,7 +310,10 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
             </div>
         </div>
         
-        <StepperBar currentStep={currentStep} />
+        {/* Full stepper on desktop only */}
+        <div className="hidden md:block">
+          <StepperBar currentStep={currentStep} />
+        </div>
         
         {renderCurrentPane()}
       
