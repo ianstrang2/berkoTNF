@@ -1,43 +1,24 @@
 # Capo RSVP & Player Invitation System — Consolidated Implementation Specification
 
-**Version 4.5.0 • Updated January 2025**
+**Version 6.0.0 • Updated December 2025**
 
-**UPDATE NOTES (v4.5.0 - RSVP Mode Toggle Architecture):**
-- **CLARIFIED** RSVP mode is a per-match toggle (booking_enabled) that can only change in Draft state
-- **ADDED** Section 12.5: RSVP Mode State Machine with explicit toggle behavior
-- **UNIFIED** UI component architecture: Single PlayersStep.component.tsx with mode switching
-- **ADDED** auto_balanced_at timestamp for UI messaging ("Teams auto-constructed")
-- **ADDED** Activity feed as separate tab in Players step (Players | Activity)
-- **ORGANIZED** UI hierarchy: Compact settings visible, Advanced settings collapsible
-- **ADDED** toggle-rsvp API endpoint with state guards
-- **ADDED** error codes: ERR_STATE_LOCKED, ERR_PAYMENTS_LOCKED (future)
-- **CLARIFIED** 4-step Match Control Centre flow with RSVP integration points
+**UPDATE NOTES (v6.0.0 - Three-Mode Architecture + State Simplification):**
+- **NEW** Three operating modes: Manual, RSVP, Auto-pilot (Section 2)
+- **SIMPLIFIED** State machine: Draft → TeamsBalanced → Completed (removed PoolLocked)
+- **DECOUPLED** Balancing from sending: `teams_balanced_at` vs `teams_sent_at`
+- **ADDED** `auto_pilot_enabled` with send mode config (immediate/scheduled)
+- **ADDED** `is_pool_closed` escape hatch for admins
+- **REMOVED** `auto_lock_when_full` (replaced by auto_pilot_enabled)
+- **REMOVED** State reversion logic (no more Draft ↔ PoolLocked bouncing)
+- **CLARIFIED** `booking_enabled` locked at match creation
+- **CLARIFIED** UI driven by timestamps, not state
+- **ALIGNED** Email templates and notifications (Section 10.5)
+- **SIMPLIFIED** Tiered booking: Hidden power-user feature (Section 3.5)
+- **SIMPLIFIED** Grace period: Fixed 3 minutes
+- **SIMPLIFIED** Waitlist TTL: 2hr or 30min based on time to kickoff
+- **ADDED** Push notification setup guide (Firebase/FCM)
 
-**PREVIOUS UPDATE (v4.4.0 - Schema Reconciliation):**
-- **RECONCILED** with Match Control Centre spec (uneven teams, no-shows, own goals)
-- **RECONCILED** with Auth spec v6.6 (phone-only, verified OTP, email notifications)
-- Fixed schema drift: `upcoming_match_id` non-nullable, added missing columns
-- Clarified concurrency: completion bypasses `state_version` (intentional)
-- Updated TornadoChart rules: reflects uneven team constraints
-- Documented ghost fields: `locked_for_payments` (future), `is_no_show` (unused)
-- Removed legacy flags: `is_completed`, `is_active` deprecated (use `state`)
-- Clarified `Cancelled` state: defined but unused (deletion is destructive)
-
-**PREVIOUS UPDATE (v4.3.0):**
-- Updated to align with completed multi-tenancy implementation (Phase 2 patterns)
-- Updated to align with auth implementation (v6.0 - Phone-Only + Club Creation)
-- Replaced RLS enforcement with `withTenantFilter()` helper pattern
-- Updated all API patterns to use `withTenantContext` wrapper
-- Removed duplicate phone/email fields (already exist from auth)
-- Updated React Query patterns to match `queryKeys.ts`
-- Updated tenant resolution to use `getTenantFromRequest()`
-- Clarified background job integration with `withBackgroundTenantContext`
-
-**PREVIOUS CONSOLIDATION (v4.2.0):**
-- Removed calendar integration (out of scope)
-- Simplified auto-balance coverage (leverages existing implementation)
-- Aligned with actual codebase patterns (worker HTTP calls, method name mapping)
-- Reduced redundancy while preserving all critical technical details
+*Previous versions: v4.5.0 (RSVP toggle), v4.4.0 (schema reconciliation), v4.3.0 (multi-tenancy), v4.2.0 (consolidation) - see git history*
 
 ---
 
@@ -60,8 +41,9 @@ This specification builds on **fully implemented infrastructure**:
 - Deep links configured (`capo://match/123`)
 - See `SPEC_auth.md` v6.6 for authentication patterns
 
-**Match Control Centre (COMPLETE ✅):**
-- Unified match lifecycle: Draft → PoolLocked → TeamsBalanced → Completed
+**Match Control Centre (COMPLETE ✅ - Updated for RSVP v6.0):**
+- Simplified match lifecycle: Draft → TeamsBalanced → Completed
+- UI driven by `teams_balanced_at` timestamp (not state)
 - Uneven teams: 4v4 to 11v11 (8-22 total players)
 - No-show handling: Checkbox controls `player_matches` row creation
 - Team swaps: `actual_team` field tracks match-day changes
@@ -79,31 +61,57 @@ This specification builds on **fully implemented infrastructure**:
 
 ## **Human Overview — How It Works**
 
+### **0) Three Operating Modes (v6.0.0)**
+
+At match creation, admin chooses how to manage the match:
+
+| Mode | Description | Who Does What |
+|------|-------------|---------------|
+| **Manual** | "I'll handle it" | Admin adds players, balances, sends teams (WhatsApp) |
+| **RSVP** | "Let players book" | System sends invites, players book, admin balances & sends |
+| **Auto-pilot** | "Full automation" | System handles invites, balancing, AND sending teams |
+
+**Mode Locking:**
+- `booking_enabled` (Manual vs RSVP/Auto-pilot) is **locked at match creation** - can't change
+- `auto_pilot_enabled` (RSVP vs Auto-pilot) **can toggle anytime** during the match
+
 ### **1) What the admin does**
 
-**Create match as usual.** Set capacity (e.g., 20 players for 10v10).
+**Create match and choose mode:**
 
-**If they want self-serve bookings:** toggle "Allow self-serve booking" and configure:
-- **Invite mode:** "All at once" or "Tiered" (A/B/C windows)
-- **Auto-balance:** Automatically balance teams when match fills (default OFF)
-- **Auto-lock:** Automatically lock pool when full (default OFF)
+```
+┌─────────────────────────────────────────┐
+│  Create Match                           │
+│                                         │
+│  How do you want to manage this match?  │
+│                                         │
+│  ○ I'll handle it (Manual)              │
+│    Add players and send teams yourself  │
+│                                         │
+│  ● Let players book (RSVP)              │
+│    Players book themselves, you send    │
+│                                         │
+│  ○ Full auto-pilot                      │
+│    System handles everything            │
+└─────────────────────────────────────────┘
+```
 
-**Share one link** in WhatsApp: "Book for Sunday's match: [link]"
+**If RSVP or Auto-pilot:** Share one link in WhatsApp: "Book for Sunday's match: [link]"
 
 **Watch real-time updates** in Match Control Centre:
 - Live counters: "Booked 15/20" • "Waitlist 3"
 - Player lists with source badges: 📱 App, 🌐 Web, 👤 Admin, 🎯 Guest
 - Activity feed showing timeline of all RSVP events
 
-**Add guests manually** using existing "Add Player" modal.
+**Add guests manually** using existing "Add Player" modal (works in all modes).
 
-**Teams auto-balance when full** (if enabled):
-- Triggers when confirmed IN count reaches capacity
-- On dropout below capacity: Teams unbalance automatically
-- On refill to capacity: Auto-balance triggers again
-- Uses existing balance system at `/api/admin/balance-teams`
+**RSVP mode:** Admin clicks "Balance Teams" when ready, then "Send Teams"
 
-**When ready:** Lock Pool → Balance Teams → Complete (unchanged workflow).
+**Auto-pilot mode:** System auto-balances when full, auto-sends at scheduled time (or immediately)
+- If dropout: Waitlist fills spot → System re-balances → Re-sends updated teams
+- Admin can toggle auto-pilot OFF to take over manually anytime
+
+**Escape hatch:** Admin can click "Close Pool" to stop accepting RSVP responses (e.g., "let's just go with 16 players")
 
 ### **2) What regular players see/do**
 
@@ -116,7 +124,7 @@ This specification builds on **fully implemented infrastructure**:
 
 **Real-time updates:** Live booking count, push notifications, view teams once balanced.
 
-**Waitlist system:** Top-3 simultaneous offers when someone drops out, first to claim wins, dynamic offer timing (4h/1h/30min based on proximity to kick-off).
+**Waitlist system:** Top-3 simultaneous offers when someone drops out, first to claim wins. TTL: 2 hours normally, 30 minutes if <3 hours to kickoff.
 
 **Last-call notifications:** Fixed windows at T-12h and T-3h if match is short.
 
@@ -130,7 +138,7 @@ This specification builds on **fully implemented infrastructure**:
 
 ### **4) Waitlist & offers**
 
-Grace period after dropout (5min/2min/1min based on time to kick-off). Top-3 simultaneous offers, first to claim wins. Dynamic TTL (4h/1h/30min/instant). Auto-cascade until spot claimed or waitlist empty.
+Fixed 3-minute grace period after dropout (cancel if player returns to IN). Top-3 simultaneous offers, first to claim wins. TTL: 2hr normally, 30min if <3hr to kickoff. Auto-cascade until spot claimed or waitlist empty.
 
 ### **5) Smart notifications**
 
@@ -151,11 +159,12 @@ Guest players admin brings occasionally. Don't self-book, admin adds manually, d
 Add RSVP functionality to keep matches full with minimal admin effort.
 
 **In scope:**
-- Two match modes: Manual only (default) | Self-serve booking
-- Invitations & responses (IN/OUT/WAITLIST) with tier windows
+- Three match modes: Manual | RSVP | Auto-pilot
+- Invitations & responses (IN/OUT/WAITLIST) with optional tier windows
 - Waitlist with simultaneous offers and TTL
-- Native push notifications via Capacitor
-- Enhanced admin features: audit trail, activity feed, auto-balance integration
+- Native push notifications via Capacitor (FCM/APNs)
+- Auto-pilot: automatic balancing and team sending
+- Enhanced admin features: audit trail, activity feed
 - Production reliability: concurrency protection, rate limiting, security
 
 **Out of scope:**
@@ -167,50 +176,94 @@ Add RSVP functionality to keep matches full with minimal admin effort.
 
 ## **1) Guiding Principles**
 
-- **No new match states.** RSVP in Draft; existing lifecycle unchanged
-- **Single source of truth:** extend `match_player_pool` for attendance
+- **Simplified state machine:** Draft → TeamsBalanced → Completed (removed PoolLocked)
+- **UI driven by timestamps:** `teams_balanced_at` and `teams_sent_at` control UI, not state
+- **Decoupled operations:** Balancing and sending are separate actions
+- **Single source of truth:** `match_player_pool` for attendance
 - **Deterministic & auditable:** every event logged
 - **Race-safe waitlist:** offers have TTL, claims are atomic
 - **One link for everything:** deep-links to app
-- **Enhanced capacity management:** LIFO demotion to waitlist if capacity lowered
-- **All operations** use `withTenantMatchLock` for race safety
+- **Simple capacity management:** block reduction if it would demote players
+- **Pool always fluid:** Changes allowed until match; `is_pool_closed` as escape hatch
 
 ---
 
 ## **2) Modes**
 
-**Manual only (default):** No public link. Admin adds players as today.
+### **Three Operating Modes (v6.0.0)**
 
-**Self-serve booking:** Toggle "Allow self-serve booking" → generates public link. Optional tier open times. Admin can still add players manually.
+| Mode | `booking_enabled` | `auto_pilot_enabled` | Description |
+|------|-------------------|---------------------|-------------|
+| **Manual** | `false` | N/A | Admin adds players, balances, sends via WhatsApp |
+| **RSVP** | `true` | `false` | Players self-book, admin balances & sends |
+| **Auto-pilot** | `true` | `true` | Full automation: invites, balance, send |
 
-### **RSVP Mode Toggle Rules (v4.5.0)**
+### **Mode Selection Rules**
 
-**RSVP mode (booking_enabled) is a per-match setting with strict state guards:**
+**`booking_enabled` (Manual vs RSVP):**
+- Set at match creation
+- **Cannot change after creation** (too disruptive to switch mid-match)
+- Controls whether RSVP link exists and players can self-book
 
-- **Can ONLY toggle in Draft state**
-  - Once PoolLocked or later: RSVP mode becomes READ-ONLY
-  - UI shows disabled toggle with 🔒 icon and tooltip: "Can only change RSVP mode in Draft"
+**`auto_pilot_enabled` (RSVP vs Auto-pilot):**
+- Can toggle ON/OFF anytime during the match
+- OFF → ON: "System, take over from here"
+- ON → OFF: "I'll handle it from here"
 
-- **Toggle ON (Draft only):**
-  - Opens self-serve booking link
-  - Generates invite token if not exists
-  - Preserves ALL manually-added players
-  - Sets response_status = 'PENDING' for existing pool players
-  - Admin retains full control (can still add/remove players)
+### **Auto-pilot Configuration**
 
-- **Toggle OFF (Draft only):**
-  - Closes booking link (returns ERR_BOOKING_CLOSED)
-  - Blocks player self-updates
-  - **PRESERVES** all match_player_pool data (statuses, timestamps, waitlist positions)
-  - **PRESERVES** invite_token_hash (for audit trail)
-  - Expires all active waitlist offers immediately
-  - Admin retains full control over pool
+When auto-pilot is enabled, configure when teams are sent:
 
-- **Future (Payment Phase):**
-  - When `locked_for_payments = TRUE`: Toggle disabled regardless of state
-  - Prevents disrupting financial records
+```
+Auto-pilot Settings:
+├── Send teams: 
+│   ├── ○ As soon as pool is full
+│   └── ○ [24] hours before kickoff (if pool is full)
+```
 
-**Design Principle:** Toggle affects WHO can modify the pool, not WHAT data exists or match lifecycle state.
+**Database fields:**
+- `auto_pilot_send_mode`: `'immediate'` | `'scheduled'`
+- `auto_pilot_send_hours_before`: number (only if scheduled)
+
+### **Escape Hatch: Close Pool**
+
+Admin can click "Close Pool" at any time to stop accepting RSVP responses:
+- Sets `is_pool_closed = true`
+- RSVP link returns "Pool is closed for this match"
+- Useful for: "We have 16 players, let's just go with that"
+- Does NOT affect existing pool or teams
+
+### **How Each Mode Works**
+
+**Manual mode:**
+1. Admin adds players via "Add Player" modal
+2. Admin clicks "Balance Teams" when ready
+3. Admin sends teams via WhatsApp (outside app)
+4. Admin enters result after match
+
+**RSVP mode:**
+1. System generates booking link
+2. Players self-book via link (IN/OUT/WAITLIST)
+3. Admin monitors in Match Control Centre
+4. Admin clicks "Balance Teams" when ready
+5. Admin clicks "Send Teams" to notify players
+6. Admin enters result after match
+
+**Auto-pilot mode:**
+1. System generates booking link
+2. Players self-book via link
+3. When pool fills → System auto-balances (sets `teams_balanced_at`)
+4. At scheduled time (or immediately) → System sends teams (sets `teams_sent_at`)
+5. If dropout → Waitlist fills → System re-balances → Re-sends
+6. Admin enters result after match (only manual step!)
+
+### **Design Principles**
+
+- Pool is always fluid until `is_pool_closed` or kickoff
+- `booking_enabled` locked at creation (fundamental choice)
+- `auto_pilot_enabled` toggleable (just "who does the work")
+- Timestamps drive UI: `teams_balanced_at`, `teams_sent_at`
+- State only changes for result entry (Draft → TeamsBalanced)
 
 ---
 
@@ -245,13 +298,90 @@ CREATE INDEX IF NOT EXISTS idx_players_tenant_tier ON players(tenant_id, tier);
 
 **Note:** Auth v6.6 implements OTP-before-join: all phones are verified via SMS before join requests are created, so `last_verified_at` will track most recent RSVP phone verification (distinct from initial signup verification).
 
+### **3.1.1 Guest vs Regular Players (v5.0.0)**
+
+**The `is_guest` field (previously `is_ringer`) distinguishes two player types:**
+
+| Aspect | Regular Player | Guest Player |
+|--------|----------------|--------------|
+| **Club Membership** | Active member (Tier A/B/C) | On-call / occasional fill-in |
+| **RSVP Self-Booking** | ✅ Can book via link | ❌ Must be admin-added |
+| **Broadcast Notifications** | ✅ Booking open, last-call | ❌ Not sent |
+| **Match Notifications** | ✅ When in pool | ✅ When in pool (admin added them) |
+| **Leaderboard/Stats** | ✅ Included | ❌ Excluded |
+| **Typical Use** | Weekly squad member | Holiday fill-in, friend of a player |
+
+**Why This Distinction Exists:**
+1. **Stats integrity:** A guest who plays once and scores 10 goals shouldn't be the all-time leader
+2. **Clean leaderboards:** 15+ occasional players would bloat the table
+3. **Notification hygiene:** Guests don't need weekly "booking open" spam
+4. **Clear club membership:** Regulars are subscribed; guests are invited per-match
+
+**Guest Lifecycle:**
+```
+Admin creates guest profile (for stats tracking)
+    ↓
+Guest exists but is dormant (no notifications, can't self-book)
+    ↓
+Admin adds guest to specific match (guest now gets match notifications)
+    ↓
+Match completes (guest stats recorded but not in leaderboard)
+    ↓
+Option A: Guest stays dormant until next invite
+Option B: Admin promotes to regular (is_guest = false, assign tier)
+```
+
+**Database:**
+```sql
+-- Already exists on players table
+is_guest BOOLEAN DEFAULT false  -- Previously named is_ringer
+```
+
+**RSVP Notification Logic:**
+```typescript
+function shouldReceiveBroadcastNotification(player: Player): boolean {
+  // Guests don't get "booking open" or "last call" broadcasts
+  return !player.is_guest;
+}
+
+function shouldReceiveMatchNotification(player: Player, matchId: number): boolean {
+  // Everyone in the match pool gets match-specific notifications
+  return isPlayerInMatchPool(player.id, matchId);
+}
+```
+
+**Self-Booking Prevention:**
+```typescript
+// POST /api/booking/respond
+if (player.is_guest) {
+  return fail(
+    'Please contact the organiser to be added to this match',
+    RSVP_ERROR_CODES.GUEST_BOOKING_DISABLED
+  );
+}
+```
+
 ### **3.2 Upcoming Matches**
 
 ```sql
 -- Current: upcoming_matches(upcoming_match_id, tenant_id, ...) ✅ EXISTS
 
 ALTER TABLE upcoming_matches
-  ADD COLUMN booking_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Mode selection (v6.0.0)
+  ADD COLUMN booking_enabled BOOLEAN NOT NULL DEFAULT FALSE,  -- Locked at creation
+  ADD COLUMN auto_pilot_enabled BOOLEAN NOT NULL DEFAULT FALSE,  -- Toggleable anytime
+  ADD COLUMN auto_pilot_send_mode TEXT NOT NULL DEFAULT 'scheduled'
+    CHECK (auto_pilot_send_mode IN ('immediate','scheduled')),
+  ADD COLUMN auto_pilot_send_hours_before INT NOT NULL DEFAULT 24,
+  
+  -- Escape hatch
+  ADD COLUMN is_pool_closed BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  -- Timestamps for UI (replaces state-based UI logic)
+  ADD COLUMN teams_balanced_at TIMESTAMPTZ NULL,  -- When teams were last calculated
+  ADD COLUMN teams_sent_at TIMESTAMPTZ NULL,  -- When teams were sent to players
+  
+  -- Tiered booking (optional)
   ADD COLUMN invite_mode TEXT NOT NULL DEFAULT 'all'
     CHECK (invite_mode IN ('all','tiered')),
   ADD COLUMN invite_token_hash TEXT,
@@ -259,24 +389,38 @@ ALTER TABLE upcoming_matches
   ADD COLUMN a_open_at TIMESTAMPTZ NULL,
   ADD COLUMN b_open_at TIMESTAMPTZ NULL,
   ADD COLUMN c_open_at TIMESTAMPTZ NULL,
+  
+  -- Match settings
   ADD COLUMN match_timezone TEXT NOT NULL DEFAULT 'Europe/London',
-  ADD COLUMN capacity INT NULL,
-  ADD COLUMN auto_balance_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN capacity INT NOT NULL DEFAULT 20,
   ADD COLUMN auto_balance_method TEXT NOT NULL DEFAULT 'performance'
     CHECK (auto_balance_method IN ('ability','performance','random')),
-  ADD COLUMN auto_lock_when_full BOOLEAN NOT NULL DEFAULT FALSE,
-  ADD COLUMN auto_balanced_at TIMESTAMPTZ NULL,
+  
+  -- Notification tracking
   ADD COLUMN last_call_12_sent_at TIMESTAMPTZ NULL,
   ADD COLUMN last_call_3_sent_at TIMESTAMPTZ NULL;
 
 COMMENT ON COLUMN upcoming_matches.booking_enabled IS 
-  'RSVP self-serve mode toggle. Can only be modified in Draft state. 
-   OFF = admin-only pool management. ON = players can self-book via link.
-   Toggling OFF preserves all match_player_pool data but deactivates link.';
+  'RSVP mode. Set at match creation, CANNOT change after.
+   FALSE = Manual mode (admin adds players).
+   TRUE = RSVP/Auto-pilot mode (players self-book).';
 
-COMMENT ON COLUMN upcoming_matches.auto_balanced_at IS 
-  'Timestamp when auto-balance last ran. Used for UI messaging in Teams step.
-   Cleared when match drops below capacity or admin manually rebalances.';
+COMMENT ON COLUMN upcoming_matches.auto_pilot_enabled IS 
+  'Auto-pilot toggle. Can change anytime.
+   FALSE = RSVP mode (admin balances/sends).
+   TRUE = Auto-pilot (system balances/sends).';
+
+COMMENT ON COLUMN upcoming_matches.teams_balanced_at IS 
+  'When teams were last calculated. Drives UI: show Teams pane if set.
+   Updated on every balance (auto or manual). NULL = show Pool pane.';
+
+COMMENT ON COLUMN upcoming_matches.teams_sent_at IS 
+  'When teams were last sent to players. Triggers notifications.
+   Players can only see teams after this is set.';
+
+COMMENT ON COLUMN upcoming_matches.is_pool_closed IS 
+  'Escape hatch. When TRUE, RSVP link returns "Pool closed".
+   Admin uses this to stop accepting responses mid-match.';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_upcoming_matches_tenant_token_hash
   ON upcoming_matches(tenant_id, invite_token_hash)
@@ -304,13 +448,13 @@ These tables are fully implemented in Match Control Centre and work with RSVP sy
 -- ✅ COLUMN EXISTS BUT UNUSED: is_no_show BOOLEAN (absence of row = no-show)
 -- Note: Checkbox controls row creation; no row = player did not attend
 
--- upcoming_matches state management
--- ✅ IMPLEMENTED: state ENUM (Draft, PoolLocked, TeamsBalanced, Completed, Cancelled)
+-- upcoming_matches state management (v6.0.0 - simplified)
+-- ✅ SIMPLIFIED: state ENUM (Draft, TeamsBalanced, Completed, Cancelled)
+-- NOTE: PoolLocked state REMOVED in v6.0.0 - UI driven by teams_balanced_at timestamp instead
 -- ✅ LEGACY DEPRECATED: is_completed BOOLEAN, is_active BOOLEAN (use state instead)
--- Note: Active tab filtering = state IN ('Draft', 'PoolLocked', 'TeamsBalanced')
+-- Note: Active tab filtering = state IN ('Draft', 'TeamsBalanced')
 -- Note: History tab filtering = state = 'Completed'
 -- Note: Cancelled state defined but currently UNUSED (deletion is destructive instead)
--- Note: If Cancelled is implemented: should appear in History tab, not Active
 ```
 
 See `SPEC_match-control-centre.md` sections 2, 10, 11 for complete schema details.
@@ -331,7 +475,8 @@ ALTER TABLE match_player_pool
   ADD COLUMN waitlist_position INTEGER NULL,
   ADD COLUMN offer_expires_at TIMESTAMPTZ NULL,
   ADD COLUMN response_timestamp TIMESTAMPTZ NULL,
-  ADD COLUMN source TEXT NULL;
+  ADD COLUMN source TEXT NULL CHECK (source IN ('app', 'web', 'admin', 'guest_link'));
+  -- source: 📱 'app' = mobile app, 🌐 'web' = browser, 👤 'admin' = admin-added, 🎯 'guest_link' = guest invite
 
 ALTER TABLE match_player_pool 
   DROP CONSTRAINT IF EXISTS match_player_pool_response_status_check;
@@ -451,12 +596,13 @@ INSERT INTO app_config(config_key, config_value, config_description, config_grou
 ('enable_rsvp_system', 'false', 'Enable RSVP system', 'rsvp'),
 ('enable_push_notifications', 'false', 'Enable push notifications', 'rsvp'),
 ('default_booking_enabled', 'false', 'RSVP enabled by default', 'match_settings'),
-('default_invite_mode', 'all', 'Default invite mode', 'match_settings'),
+('default_auto_pilot_enabled', 'false', 'Auto-pilot enabled by default', 'match_settings'),
+('default_auto_pilot_send_mode', 'scheduled', 'Auto-pilot send mode: immediate or scheduled', 'match_settings'),
+('default_auto_pilot_send_hours_before', '24', 'Auto-pilot: hours before kickoff to send teams', 'match_settings'),
+('default_auto_balance_method', 'performance', 'Default balance method', 'match_settings'),
+('enable_tiered_booking', 'false', 'Enable tiered booking windows (power user)', 'match_settings'),
 ('tier_b_offset_hours', '24', 'Tier B offset hours', 'match_settings'),
 ('tier_c_offset_hours', '48', 'Tier C offset hours', 'match_settings'),
-('default_auto_balance_enabled', 'false', 'Auto-balance by default', 'match_settings'),
-('default_auto_balance_method', 'performance', 'Default balance method', 'match_settings'),
-('default_auto_lock_when_full', 'false', 'Auto-lock when full', 'match_settings'),
 ('enable_ringer_self_book', 'false', 'Allow guest self-booking', 'rsvp_policies'),
 ('include_ringers_in_invites', 'false', 'Include guests in invites', 'rsvp_policies'),
 ('block_unknown_players', 'true', 'Block unknown phone numbers', 'rsvp_policies'),
@@ -464,6 +610,64 @@ INSERT INTO app_config(config_key, config_value, config_description, config_grou
 ('default_phone_country', 'GB', 'Phone normalization country', 'rsvp_advanced')
 ON CONFLICT (config_key) DO NOTHING;
 ```
+
+### **3.5 Tiered Mode: Progressive Disclosure (v5.0.0)**
+
+Tiered booking is a **power-user feature** hidden by default. Most clubs use "All at once" mode.
+
+**Design Principle:** Build the full tier system, but hide UI unless `enable_tiered_booking = true`.
+
+**Default Experience (tiered OFF):**
+- Players list: No "Tier" column visible
+- Match RSVP: No tier window settings
+- Booking: Opens immediately for everyone
+- Player `tier` column exists with default 'C', but invisible in UI
+
+**Power-User Experience (tiered ON):**
+- Players list: Shows "Tier" column (A/B/C)
+- Match RSVP: Shows tier window configuration
+- Booking: Respects tier windows
+
+**Toggle Location:** Setup → Standard → Matches tab
+
+```
+Match Creation Defaults
+├── Days Between Matches: 7
+├── Default Team Size: 9
+├── [▸ Advanced RSVP Settings] ← collapsed by default
+│   └── ☑️ Enable tiered booking windows
+│       "Prioritize regular players with staggered booking windows"
+│       
+│       When enabled:
+│       ├── Tier B opens: [24] hours before match
+│       └── Tier C opens: [48] hours before match
+│       (Tier A always opens immediately)
+```
+
+**UI Conditional Logic:**
+```typescript
+const { data: config } = useAppConfig('match_settings');
+const tieredEnabled = config?.enable_tiered_booking === 'true';
+
+// Players list - conditionally show tier column
+{tieredEnabled && <TableColumn header="Tier">...</TableColumn>}
+
+// Match RSVP - conditionally show tier windows
+{tieredEnabled && <TierWindowConfig matchId={matchId} />}
+
+// Booking API - skip tier validation if disabled
+if (!tieredEnabled) {
+  // Everyone can book immediately
+  return { canBook: true };
+}
+return validateTierWindow(player.tier, match);
+```
+
+**Benefits:**
+- 90% of clubs never see tier complexity
+- Power users can enable when needed
+- Zero code duplication (same feature, just hidden)
+- Easy marketing: "Advanced features for power users"
 
 ---
 
@@ -603,6 +807,46 @@ return NextResponse.json({ data }, {
 });
 ```
 
+**Cache Invalidation Strategy (MANDATORY):**
+
+Successful writes must invalidate related queries:
+
+```typescript
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
+
+function useRsvpMutation(matchId: number) {
+  const queryClient = useQueryClient();
+  const { profile } = useAuth();
+  
+  return useMutation({
+    mutationFn: (data) => submitRsvpResponse(matchId, data),
+    onSuccess: () => {
+      // Invalidate all related caches on successful write
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.rsvpMatch(profile.tenantId, matchId) 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.matchPlayerPool(profile.tenantId, matchId) 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.waitlistStatus(profile.tenantId, matchId) 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.matchActivity(profile.tenantId, matchId) 
+      });
+    },
+  });
+}
+```
+
+| Mutation | Invalidate Keys |
+|----------|-----------------|
+| RSVP respond (IN/OUT/WAITLIST) | `rsvpMatch`, `matchPlayerPool`, `waitlistStatus`, `matchActivity` |
+| Admin add/remove player | `matchPlayerPool`, `matchActivity` |
+| Admin toggle RSVP | `rsvpMatch`, `matchPlayerPool` |
+| Capacity change | `rsvpMatch`, `matchPlayerPool`, `waitlistStatus` |
+
 ### **4.3 Transaction Patterns**
 
 ```typescript
@@ -616,6 +860,126 @@ export async function processRSVPResponse<T>(
   return withTenantMatchLock(tenantId, matchId, operation);
 }
 ```
+
+### **4.3.1 Atomic Waitlist Claim (v6.0.0)**
+
+Waitlist offers are claimed via a single ACID-compliant transaction to prevent overselling:
+
+```typescript
+async function claimWaitlistOffer(
+  tenantId: string,
+  matchId: number,
+  playerId: number
+): Promise<ClaimResult> {
+  return withTenantMatchLock(tenantId, matchId, async (tx) => {
+    // 1. Check offer is still active
+    const offer = await tx.match_player_pool.findFirst({
+      where: withTenantFilter(tenantId, {
+        upcoming_match_id: matchId,
+        player_id: playerId,
+        response_status: 'WAITLIST',
+        offer_expires_at: { gt: new Date() }
+      })
+    });
+    
+    if (!offer) {
+      return { success: false, error: 'OFFER_EXPIRED_OR_CLAIMED' };
+    }
+    
+    // 2. Check capacity available
+    const inCount = await tx.match_player_pool.count({
+      where: withTenantFilter(tenantId, {
+        upcoming_match_id: matchId,
+        response_status: 'IN'
+      })
+    });
+    
+    const match = await tx.upcoming_matches.findUnique({
+      where: { upcoming_match_id: matchId }
+    });
+    
+    if (inCount >= match.capacity) {
+      return { success: false, error: 'MATCH_NOW_FULL' };
+    }
+    
+    // 3. Claim the spot atomically
+    await tx.match_player_pool.update({
+      where: { id: offer.id },
+      data: {
+        response_status: 'IN',
+        waitlist_position: null,
+        offer_expires_at: null,
+        response_timestamp: new Date()
+      }
+    });
+    
+    // 4. Log success
+    await tx.notification_ledger.create({
+      data: {
+        tenant_id: tenantId,
+        upcoming_match_id: matchId,
+        player_id: playerId,
+        kind: 'waitlist/claimed',
+        sent_at: new Date()
+      }
+    });
+    
+    // 5. Trigger auto-pilot re-adjustment if needed (see Section 4.3.2)
+    await triggerAutoPilotReAdjustment(tenantId, matchId);
+    
+    return { success: true };
+  });
+}
+```
+
+**Key guarantees:**
+- Only one player can claim a spot (advisory lock on match)
+- Offer expiry and capacity checked within transaction
+- All-or-nothing: either claim succeeds completely or fails completely
+- Prevents overselling even under concurrent requests
+
+### **4.3.2 Auto-Pilot Re-Adjustment Flow (v6.0.0)**
+
+When pool changes after teams have been sent, auto-pilot triggers re-balance and re-send:
+
+```typescript
+async function triggerAutoPilotReAdjustment(tenantId: string, matchId: number) {
+  const match = await prisma.upcoming_matches.findUnique({
+    where: { upcoming_match_id: matchId }
+  });
+  
+  // Only trigger if:
+  // 1. Auto-pilot is enabled
+  // 2. Teams have already been sent (teams_sent_at is set)
+  if (!match.auto_pilot_enabled || !match.teams_sent_at) {
+    return;
+  }
+  
+  // Re-balance teams
+  await balanceTeams(matchId, match.auto_balance_method);
+  await prisma.upcoming_matches.update({
+    where: { upcoming_match_id: matchId },
+    data: { teams_balanced_at: new Date() }
+  });
+  
+  // Re-send updated teams notification
+  await sendTeamsNotification(matchId, { isUpdate: true });
+  await prisma.upcoming_matches.update({
+    where: { upcoming_match_id: matchId },
+    data: { teams_sent_at: new Date() }
+  });
+  
+  // Log to activity feed
+  await logActivity(matchId, 'audit/auto_pilot_readjusted');
+}
+```
+
+**Triggers:**
+- Waitlist player claims spot (WAITLIST → IN)
+- Player drops out (IN → OUT) after teams sent
+- Admin adds/removes player after teams sent
+
+**Condition:** Only if `auto_pilot_enabled=true` AND `teams_sent_at` is set
 
 ### **4.4 Security & Tenant Resolution**
 
@@ -648,7 +1012,27 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+### **4.4.1 Invite Token Purpose (v6.0.0)**
+
+The `invite_token_hash` is a time-bound, tenant-scoped token embedded in the single RSVP deep link. Its purpose:
+
+1. **Grant temporary access:** Allows unauthenticated users to view match status before phone verification
+2. **Simplify initial flow:** Player clicks link → sees match → then verifies phone to respond
+3. **Single link for all:** One link shared in WhatsApp, works for everyone
+4. **Security:** Token is hashed, time-limited (kickoff+24h), and tenant-scoped
+
 **Deep Link Pattern:** `capo://match/{matchId}?token={inviteToken}`
+
+Example: `capo://match/123?token=a1b2c3d4e5f6...`
+
+**Flow:**
+```
+1. Admin shares link in WhatsApp group
+2. Player taps link → Opens app (or web)
+3. Token validated → Match status shown (unauthenticated view)
+4. Player clicks "I'm In" → Phone verification required
+5. After OTP → Response recorded, player fully authenticated
+```
 
 **Token Security & Hashing Strategy:** 
 - **Token generation:** 32+ byte URL-safe random tokens (crypto.randomBytes)
@@ -673,14 +1057,17 @@ export function hashInviteToken(token: string): string {
     .digest('hex');
 }
 
-// Validation
+// Validation - Hash client token first, then index seek (O(1) not O(n))
+// Uses index: uniq_upcoming_matches_tenant_token_hash for fast lookup
 export async function validateInviteToken(
   tenantId: string, 
   matchId: number, 
   token: string
 ): Promise<boolean> {
+  // Hash the raw token from client before DB lookup
   const tokenHash = hashInviteToken(token);
   
+  // Index seek on (tenant_id, invite_token_hash) - fast!
   const invite = await prisma.upcoming_matches.findFirst({
     where: withTenantFilter(tenantId, {
       upcoming_match_id: matchId,
@@ -842,7 +1229,6 @@ const players = await prisma.match_player_pool.findMany({
 Complex business logic in version-controlled SQL files (deployed via `deploy_all.ps1`):
 - `rsvp_process_waitlist_cascade.sql` - Expire offers, auto-cascade
 - `rsvp_calculate_notification_targets.sql` - Filter eligible players
-- `rsvp_adjust_match_capacity.sql` - LIFO demotion on capacity decrease
 
 ---
 
@@ -903,7 +1289,8 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// PATCH /api/admin/matches/[id]/toggle-rsvp (v4.5.0)
+// PATCH /api/admin/matches/[id]/toggle-auto-pilot (v6.0.0)
+// Note: booking_enabled is locked at creation. Only auto_pilot_enabled can toggle.
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -912,10 +1299,9 @@ export async function PATCH(
     try {
       await requireAdminRole(request);
       
-      const { enabled, config } = await request.json();
+      const { auto_pilot_enabled, send_mode, send_hours_before } = await request.json();
       const matchId = parseInt(params.id);
       
-      // State guard: only Draft state
       const match = await prisma.upcoming_matches.findUnique({
         where: withTenantFilter(tenantId, {
           upcoming_match_id: matchId
@@ -929,68 +1315,28 @@ export async function PATCH(
         );
       }
       
-      if (match.state !== 'Draft') {
+      // Auto-pilot only makes sense for RSVP matches
+      if (!match.booking_enabled) {
         return NextResponse.json(
-          fail(
-            'RSVP mode can only be changed in Draft state',
-            RSVP_ERROR_CODES.STATE_LOCKED
-          ),
+          fail('Auto-pilot requires RSVP mode', RSVP_ERROR_CODES.MANUAL_MODE),
           { status: 400 }
         );
       }
       
-      // FUTURE: Check payment lock
-      // if (match.locked_for_payments) {
-      //   return NextResponse.json(
-      //     fail(
-      //       'Cannot change RSVP settings - payments have been processed',
-      //       RSVP_ERROR_CODES.PAYMENTS_LOCKED
-      //     ),
-      //     { status: 403 }
-      //   );
-      // }
+      // Update auto-pilot settings (can toggle anytime)
+      await prisma.upcoming_matches.update({
+        where: withTenantFilter(tenantId, {
+          upcoming_match_id: matchId
+        }),
+        data: {
+          auto_pilot_enabled: auto_pilot_enabled ?? match.auto_pilot_enabled,
+          auto_pilot_send_mode: send_mode ?? match.auto_pilot_send_mode,
+          auto_pilot_send_hours_before: send_hours_before ?? match.auto_pilot_send_hours_before
+        }
+      });
       
-      if (enabled) {
-        // Enable RSVP: set config, generate token if needed
-        const inviteToken = match.invite_token_hash || generateInviteToken();
-        
-        await prisma.upcoming_matches.update({
-          where: withTenantFilter(tenantId, {
-            upcoming_match_id: matchId
-          }),
-          data: {
-            booking_enabled: true,
-            invite_token_hash: hashInviteToken(inviteToken),
-            invite_mode: config?.inviteMode || 'all',
-            a_open_at: config?.tierWindows?.a_open_at,
-            b_open_at: config?.tierWindows?.b_open_at,
-            c_open_at: config?.tierWindows?.c_open_at,
-            auto_balance_enabled: config?.autoBalance?.enabled || false,
-            auto_balance_method: config?.autoBalance?.method || 'performance',
-            auto_lock_when_full: config?.autoBalance?.autoLockWhenFull || false
-          }
-        });
-        
-        // Set existing pool players to PENDING if not already set
-        await prisma.match_player_pool.updateMany({
-          where: withTenantFilter(tenantId, {
-            upcoming_match_id: matchId,
-            response_status: null
-          }),
-          data: { response_status: 'PENDING' }
-        });
-        
-      } else {
-        // Disable RSVP: preserve data, close link, expire active offers
-        await prisma.upcoming_matches.update({
-          where: withTenantFilter(tenantId, {
-            upcoming_match_id: matchId
-          }),
-          data: {
-            booking_enabled: false
-            // NOTE: Preserve invite_token_hash for audit trail
-          }
-        });
+      // Log to activity feed
+      await logActivity(matchId, auto_pilot_enabled ? 'audit/auto_pilot_enabled' : 'audit/auto_pilot_disabled');
         
         // Expire all active waitlist offers
         await prisma.match_player_pool.updateMany({
@@ -1282,15 +1628,17 @@ Max 3 dropout/last-call pushes per player per match. Tier-open and waitlist offe
 
 Use `notification_ledger.batch_key` to coalesce events.
 
-### **6.3 Grace Period**
+### **6.3 Grace Period (Simplified v5.0.0)**
 
-Dynamic grace post-dropout: 5min normally, 2min if <24h, 1min if <3h. Cancel if player returns to IN.
+**Fixed 3-minute grace period** after any dropout. If player switches back to IN within 3 minutes, dropout is cancelled and no waitlist offers are sent.
+
+**Why 3 minutes:** Long enough for "oops" corrections, short enough to not delay waitlist significantly. Simpler than dynamic timing with minimal real-world impact.
 
 ---
 
 ## **7) Waitlist Details**
 
-Top-3 simultaneous offers. Dynamic TTL: 4h normally, 1h if <24h, 30min if <3h, instant if <15min. Clamped to kickoff−15m, minimum 5min when using hold period.
+Top-3 simultaneous offers. **Simplified TTL (v5.0.0):** 2 hours normally, 30 minutes if <3h to kickoff. Clamped to kickoff−15m.
 
 First to claim wins (transactional). Others get "spot filled", remain on waitlist.
 
@@ -1300,12 +1648,12 @@ First to claim wins (transactional). Others get "spot filled", remain on waitlis
 
 **Edge Cases:**
 - **Capacity increase:** Auto-promote earliest WAITLIST players by queue order with notification
-- **Capacity decrease with active offers:** 
-  - System demotes most-recent IN players to WAITLIST (LIFO)
-  - Revokes ALL outstanding waitlist offers (prevents over-capacity)
-  - Sends "capacity reduced" notification to affected players
-  - Waitlist positions recalculated from scratch
-  - Activity feed logs `audit/admin_capacity_change` event
+- **Capacity decrease (v5.0.0 - Simplified):** 
+  - If `newCapacity < confirmedCount`: **Block the reduction**
+  - Admin must manually remove players first
+  - Prevents automatic demotion and associated drama
+  - Error: "Can't reduce to X - Y players already confirmed. Remove Z players first."
+  - Activity feed logs `audit/admin_capacity_change` only for successful changes
 - **RSVP toggled OFF (v4.5.0):**
   - Expire ALL active waitlist offers immediately (set offer_expires_at = now())
   - Preserve all waitlist positions and queue data
@@ -1462,17 +1810,50 @@ export function RSVPModeView({ matchId }: { matchId: number }) {
 **New Admin Components:**
 
 ```typescript
-// src/components/admin/matches/ActivityFeed.component.tsx  
-// Minimal reverse-chronological activity timeline (no filters/search)
+// src/components/admin/matches/ActivitySlideOut.component.tsx  
+// Slide-out panel triggered by 📋 icon in Pool step header
+// Shows ALL activity (including admin actions, waitlist offers sent)
+// Minimal reverse-chronological timeline (no filters/search)
 // Props: events: ActivityEvent[] from GET /api/admin/matches/{id}/activity
 // Displays: timestamp (relative), emoji + copy, masked player names
 // See Section 10 for activity kind display mapping
 
 // src/components/admin/matches/PlayerTierManager.component.tsx
-// Manage player tiers (A/B/C)
+// Manage player tiers (A/B/C) - only visible if enable_tiered_booking=true
 // Integrates with existing player management
 // Tooltip: "Tier C = casual/default. All players start here unless assigned A or B."
 ```
+
+**Admin Activity Slide-Out Panel:**
+
+```
+Pool step header:
+┌─────────────────────────────────────────────────────────┐
+│ Player Pool           16/18              [📋]          │
+│                                           ↑             │
+│                               Tap to open activity panel│
+└─────────────────────────────────────────────────────────┘
+
+Slide-out panel (from right):
+┌──────────────────────────────────────┐
+│ Match Activity              [✕]     │
+├──────────────────────────────────────┤
+│ 2m    ✅ Ian marked IN (app)        │
+│ 5m    ❌ Bob dropped out            │
+│ 8m    🎯 Waitlist offer → Carl      │
+│ 10m   👤 Admin added Dave           │
+│ 12m   ✅ Alex claimed spot          │
+│ 1h    📣 Booking opened             │
+│ ...                                 │
+└──────────────────────────────────────┘
+```
+
+**Admin sees ALL events** (unlike player feed which is filtered):
+- Player actions (IN/OUT/waitlist)
+- Waitlist offers sent and claimed
+- Admin actions (add/remove player, capacity change)
+- System events (auto-balance triggered)
+- RSVP mode changes
 
 **Toggle Button Behavior:**
 
@@ -1522,9 +1903,9 @@ export function TeamsStep({ matchId }: { matchId: number }) {
 
 Result and Done steps remain unchanged - they are not affected by RSVP mode.
 
-### **8.2 Mobile App**
+### **8.2 Player Mobile App (v5.0.0)**
 
-**Unified RSVP page:**
+**Match RSVP Page with Social Activity Feed:**
 
 ```typescript
 // src/app/player/upcoming/match/[id]/page.tsx
@@ -1535,8 +1916,96 @@ Result and Done steps remain unchanged - they are not affected by RSVP mode.
 // One-tap IN/OUT/WAITLIST buttons
 // Waitlist offer banner with countdown
 // Deep-link handling from WhatsApp
-// Context-aware: phone entry for web users, skip for app users
 ```
+
+**Player UI Layout:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ ⚽ Sunday 8th December               [← Back]          │
+├─────────────────────────────────────────────────────────┤
+│                    14/18 confirmed                      │
+│                                                         │
+│ Your status: IN ✓                                      │
+│                                                         │
+│ [✅ I'm In]  [❌ Can't Make It]                        │
+├─────────────────────────────────────────────────────────┤
+│ Activity                                                │
+│ ─────────────────────────────────────────               │
+│ 2m    Ian is IN ✅                                     │
+│ 5m    Bob can't make it ❌                             │
+│ 8m    Carl joined the waitlist 📋                      │
+│ 12m   Alex claimed a spot! 🎯                          │
+│ 1h    Match created                                    │
+│ ...                                                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Social Activity Feed Events (Player View):**
+
+| Event | Display Text | Emoji |
+|-------|--------------|-------|
+| Player marks IN | "{name} is IN" | ✅ |
+| Player marks OUT | "{name} can't make it" | ❌ |
+| Player joins waitlist | "{name} joined waitlist" | 📋 |
+| Player claims offer | "{name} claimed a spot!" | 🎯 |
+| Spot opened | "A spot opened up!" | 🔓 |
+| Match full | "Match is full!" | 🔒 |
+| Teams announced | "Teams are set! Check yours" | 📝 |
+
+**Events NOT shown to players (admin-only):**
+- Admin manually adding/removing players
+- Waitlist offers being sent (only claims)
+- Capacity changes
+- RSVP mode toggle
+
+**Implementation:**
+
+```typescript
+// src/components/rsvp/PlayerActivityFeed.component.tsx
+
+interface ActivityEvent {
+  id: string;
+  kind: 'player_in' | 'player_out' | 'waitlist_join' | 'offer_claimed' | 
+        'spot_opened' | 'match_full' | 'teams_saved';
+  playerName?: string;  // For player actions
+  timestamp: Date;
+}
+
+const PLAYER_VISIBLE_EVENTS = [
+  'player_in', 'player_out', 'waitlist_join', 'offer_claimed',
+  'spot_opened', 'match_full', 'teams_saved'
+];
+
+export function PlayerActivityFeed({ matchId }: { matchId: number }) {
+  const { data: events } = useQuery({
+    queryKey: queryKeys.matchActivity(tenantId, matchId),
+    queryFn: () => fetchPlayerActivity(matchId),
+    refetchInterval: 30_000,  // Poll every 30 seconds
+  });
+  
+  return (
+    <div className="divide-y">
+      <h3 className="font-semibold text-slate-700 py-2">Activity</h3>
+      {events?.map(event => (
+        <ActivityRow key={event.id} event={event} />
+      ))}
+    </div>
+  );
+}
+```
+
+**API Endpoint:**
+
+```typescript
+// GET /api/player/matches/[id]/activity
+// Returns filtered activity (player-safe events only)
+// Excludes admin actions, waitlist offers sent, etc.
+```
+
+**Real-Time Updates (Future):**
+- MVP: 30-second polling via React Query `refetchInterval`
+- Future: Supabase Realtime subscription for instant updates
 
 ### **8.3 Public Web**
 
@@ -1587,52 +2056,52 @@ export const RSVP_JOB_TYPES = {
 };
 ```
 
-**AUTO_BALANCE_PROCESSOR implementation:**
+**AUTO_LOCK_AND_BALANCE_PROCESSOR implementation (v5.0.0):**
 
-Uses existing balance system. Worker makes HTTP call to balance endpoint.
+Uses the combined lock-pool endpoint (December 2025 Match Control Centre update).
+Worker makes HTTP call to lock-pool endpoint which handles both locking AND balancing atomically.
 
-**Deduplication:** Prevents rapid-fire rebalance jobs during dropout/refill churn:
+**Deduplication:** Prevents rapid-fire auto-lock jobs during dropout/refill churn:
 
 ```typescript
-const REBALANCE_COOLDOWN_MS = 60_000; // 1 minute cooldown per match
-const rebalanceTimestamps = new Map<string, number>();
+const AUTO_LOCK_COOLDOWN_MS = 60_000; // 1 minute cooldown per match
+const autoLockTimestamps = new Map<string, number>();
 
-export async function processAutoBalanceJob(jobId: string, payload: AutoBalanceJobPayload) {
+export async function processAutoLockAndBalanceJob(jobId: string, payload: AutoLockJobPayload) {
   const { matchId, method, tenantId, playerIds, state_version } = payload;
   
-  // Deduplication: Skip if rebalanced within last minute
+  // Deduplication: Skip if auto-locked within last minute
   const cooldownKey = `${tenantId}:${matchId}`;
-  const lastRebalance = rebalanceTimestamps.get(cooldownKey);
+  const lastAutoLock = autoLockTimestamps.get(cooldownKey);
   const now = Date.now();
   
-  if (lastRebalance && (now - lastRebalance) < REBALANCE_COOLDOWN_MS) {
-    console.log(`[AUTO_BALANCE] Skipping duplicate job for match ${matchId} (cooldown active)`);
+  if (lastAutoLock && (now - lastAutoLock) < AUTO_LOCK_COOLDOWN_MS) {
+    console.log(`[AUTO_LOCK] Skipping duplicate job for match ${matchId} (cooldown active)`);
     await updateJobStatus(jobId, 'skipped');
     return;
   }
   
-  rebalanceTimestamps.set(cooldownKey, now);
+  autoLockTimestamps.set(cooldownKey, now);
   
-  // Map UI method names to API
-  const apiMethod = method === 'ability' ? 'balanceByRating' 
-    : method === 'performance' ? 'balanceByPerformance' 
-    : 'random';
+  // Use combined lock-pool endpoint (handles lock + balance atomically)
+  // This is the same endpoint the admin UI uses via LockPoolWithBalanceModal
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/upcoming-matches/${matchId}/lock-pool`,
+    {
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.WORKER_API_KEY}`
+      },
+      body: JSON.stringify({ 
+        playerIds: playerIds.map(id => id.toString()),
+        balanceMethod: method, // 'ability' | 'performance' | 'random'
+        state_version 
+      })
+    }
+  );
   
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin/balance-teams`, {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.WORKER_API_KEY}`
-    },
-    body: JSON.stringify({ 
-      matchId: matchId.toString(), 
-      playerIds: playerIds.map(id => id.toString()), 
-      method: apiMethod,
-      state_version 
-    })
-  });
-  
-  if (!response.ok) throw new Error(`Balance failed: ${await response.text()}`);
+  if (!response.ok) throw new Error(`Lock & Balance failed: ${await response.text()}`);
   
   // Log to activity feed
   await prisma.notification_ledger.create({
@@ -1644,12 +2113,14 @@ export async function processAutoBalanceJob(jobId: string, payload: AutoBalanceJ
       batch_key: `autobalance:${matchId}:${Date.now()}`,
       details: { 
         triggered_by: 'capacity_reached', 
+        method: method,
         timestamp: new Date().toISOString() 
       }
     }
   });
   
-  // Set auto_balanced_at for UI messaging in Teams step (v4.5.0)
+  // Set auto_balanced_at for UI messaging in Teams step
+  // NOTE: teams_saved_at stays NULL - admin must click "Save Teams" for players to see
   await prisma.upcoming_matches.update({
     where: { upcoming_match_id: matchId },
     data: { auto_balanced_at: new Date() }
@@ -1659,23 +2130,91 @@ export async function processAutoBalanceJob(jobId: string, payload: AutoBalanceJ
 }
 ```
 
-**Trigger logic:**
-- When IN count reaches capacity: Enqueue AUTO_BALANCE_PROCESSOR
-- On dropout below capacity: Set `is_balanced=false`, clear team assignments, **clear `auto_balanced_at`**
-- On refill to capacity: Auto-balance triggers again, **sets new `auto_balanced_at`**
-- Teams can be balanced multiple times during dropout/refill churn
-- Admin can manually lock pool to finalize
-- Admin manual rebalance: **clears `auto_balanced_at`** (not auto-constructed)
+**Auto-Pilot Processor (v6.0.0):**
 
-**State handling:**
-- `auto_lock_when_full=false` (default): Keep Draft, balance & publish teams
-- `auto_lock_when_full=true`: Lock → Balance → TeamsBalanced state
+Replaces the old AUTO_LOCK_AND_BALANCE_PROCESSOR. Runs every 5 minutes.
+
+```typescript
+// AUTO_PILOT_PROCESSOR
+async function processAutoPilotMatches() {
+  const matches = await prisma.upcoming_matches.findMany({
+    where: {
+      auto_pilot_enabled: true,
+      is_pool_closed: false,
+      state: 'Draft'  // Only process draft matches
+    }
+  });
+  
+  for (const match of matches) {
+    const inCount = await getInCount(match.id);
+    const isFull = inCount >= match.capacity;
+    
+    // Auto-balance when pool fills
+    if (isFull && !match.teams_balanced_at) {
+      await balanceTeams(match.id, match.auto_balance_method);
+      await prisma.upcoming_matches.update({
+        where: { upcoming_match_id: match.id },
+        data: { teams_balanced_at: new Date() }
+      });
+    }
+    
+    // Auto-send at scheduled time (or immediately if configured)
+    if (match.teams_balanced_at && !match.teams_sent_at && isFull) {
+      const shouldSend = match.auto_pilot_send_mode === 'immediate'
+        || isWithinSendWindow(match.match_date, match.auto_pilot_send_hours_before);
+      
+      if (shouldSend) {
+        await sendTeamsNotification(match.id);
+        await prisma.upcoming_matches.update({
+          where: { upcoming_match_id: match.id },
+          data: { teams_sent_at: new Date() }
+        });
+      }
+    }
+  }
+}
+
+// Check if we're within the send window
+function isWithinSendWindow(matchDate: Date, hoursBefore: number): boolean {
+  const sendTime = new Date(matchDate.getTime() - hoursBefore * 60 * 60 * 1000);
+  return new Date() >= sendTime;
+}
+```
+
+**Auto-pilot Sequence (v6.0.0):**
+```
+1. Player books final spot → IN count = capacity
+2. AUTO_PILOT_PROCESSOR detects full pool (next 5-min run)
+3. System balances teams (no state change!)
+4. teams_balanced_at = now() (UI shows Teams pane)
+5. At scheduled time (or immediately if configured):
+   - teams_sent_at = now()
+   - "Teams Announced" notification sent
+   - Players can now see teams
+6. If dropout after teams sent:
+   - Waitlist fills spot
+   - System re-balances
+   - System re-sends "Updated Teams" notification
+```
+
+**Key changes from v5.0.0:**
+- NO state changes during auto-pilot (stays in Draft)
+- NO PoolLocked state used
+- UI driven by `teams_balanced_at` timestamp
+- Player visibility driven by `teams_sent_at` timestamp
+- Re-balancing and re-sending happen automatically on pool changes
+
+**Dropout handling (Auto-pilot enabled):**
+- Waitlist auto-promotes to fill vacancy
+- System re-balances when pool refills
+- If teams already sent: System re-sends updated teams
+- NO state bouncing (stays in Draft throughout)
 
 **Other job implementations:**
 
-- **tier_open_notifications:** Cron at tier times, target `is_ringer=false`, send push
-- **dropout_grace_processor:** Every minute, dynamic grace (5m/2m/1m), trigger offers after grace
-- **waitlist_offer_processor:** Every 5 min, expire offers (4h/1h/30min TTL), auto-cascade, log to `notification_ledger`
+- **tier_open_notifications:** Cron at tier times, target `is_ringer=false`, send push (only if `enable_tiered_booking=true`)
+- **dropout_grace_processor:** Fixed 3-minute grace period, then trigger waitlist offers
+- **waitlist_offer_processor:** Every 5 min, expire offers (2hr or 30min TTL based on time-to-kickoff), auto-cascade, log to `notification_ledger`
 - **notification_batcher:** Teams released (participants only), cancellation (all confirmed+waitlist), respect caps
 - **last_call_processor:** T-12h and T-3h windows, target unresponded + OUT flexible, exclude muted, set timestamp for idempotency
 
@@ -1894,10 +2433,168 @@ cancellation → "🛑 Match cancelled"
 audit/admin_add_player → "👤 Admin added {player}"
 audit/admin_remove_player → "➖ Admin removed {player}"
 audit/admin_capacity_change → "📏 Capacity changed {old}→{new}"
-audit/admin_booking_disabled → "🔒 RSVP disabled" (v4.5.0)
+audit/admin_booking_disabled → "🔒 RSVP disabled"
 autobalance.balanced → "⚖️ Teams auto-balanced"
 teams.published → "📝 Teams published"
 ```
+
+---
+
+## **10.5) Email Templates (v5.0.0)**
+
+**Note:** All email templates are documented in `docs/SPEC_Communications.md` for centralized management.
+Email delivery uses Resend (already integrated for auth flows).
+
+**RSVP-Specific Email Templates:**
+
+**Match Invitation (tier_open):**
+```
+Subject: ⚽ {club_name} - Match on {date_friendly}
+From: {club_name} <noreply@caposport.com>
+
+Hi {player_name},
+
+You're invited to play on {date_friendly} at {time}.
+
+{spots_remaining} spots remaining. Tap to confirm:
+[I'm In] [Can't Make It]
+
+See you there!
+{club_name}
+
+---
+Unsubscribe: {unsubscribe_link}
+```
+
+**Teams Announced (teams_saved):**
+```
+Subject: 📋 Teams are set for {date_friendly}
+From: {club_name} <noreply@caposport.com>
+
+Hi {player_name},
+
+Teams for {date_friendly} are ready!
+
+You're on Team {team_name}.
+
+View full teams: {match_link}
+
+See you there!
+{club_name}
+
+---
+Unsubscribe: {unsubscribe_link}
+```
+
+**Waitlist Offer (waitlist_offer):**
+```
+Subject: 🎯 Spot opened for {date_friendly}!
+From: {club_name} <noreply@caposport.com>
+
+Hi {player_name},
+
+Someone dropped out! A spot just opened for {date_friendly}.
+
+You have {time_remaining} to claim it (first to claim wins).
+
+[Claim Spot Now]
+
+If you miss this one, you're still #{waitlist_position} on the waitlist.
+
+{club_name}
+
+---
+Unsubscribe: {unsubscribe_link}
+```
+
+**Last Call (last_call):**
+```
+Subject: ⚡ We're {n} short for {date_friendly}
+From: {club_name} <noreply@caposport.com>
+
+Hi {player_name},
+
+We're {n} players short for {date_friendly}. Can you make it?
+
+[I'm In] [Can't Make It]
+
+Kick-off: {time}
+
+{club_name}
+
+---
+Unsubscribe: {unsubscribe_link}
+```
+
+**Match Cancelled (cancellation):**
+```
+Subject: 🛑 Match on {date_friendly} cancelled
+From: {club_name} <noreply@caposport.com>
+
+Hi {player_name},
+
+Unfortunately, the match on {date_friendly} has been cancelled.
+
+{cancellation_reason}
+
+We'll be in touch about the next game.
+
+{club_name}
+
+---
+Unsubscribe: {unsubscribe_link}
+```
+
+**Notification Delivery Logic (v5.0.0):**
+
+```typescript
+async function sendNotification(playerId: number, type: string, payload: any) {
+  const player = await getPlayer(playerId);
+  const pushToken = await getPushToken(playerId);
+  const prefs = await getNotificationPrefs(playerId);
+  
+  // Check if this notification type is enabled
+  if (!prefs[type]) return;
+  
+  // Try push if user has app installed
+  if (pushToken) {
+    await sendPush(pushToken, payload);
+  }
+  
+  // Send email if:
+  // 1. User has no app (email is only channel), OR
+  // 2. User explicitly wants email copies
+  if (!pushToken || prefs.emailCopies) {
+    await sendEmail(player.email, payload);
+  }
+}
+```
+
+| User Type | Push | Email |
+|-----------|------|-------|
+| Has app (push token registered) | ✅ Primary | Only if "email copies" ON |
+| No app (no push token) | ❌ Can't send | ✅ Always send |
+
+**Player Notification Settings UI:**
+
+```
+Match Notifications
+├── Booking Opens                [ON]
+├── Last-Call Reminders          [ON]
+├── Team Announcements           [ON]
+└── Waitlist Offers              [ON]
+
+Email Preferences
+├── 📧 Send email copies         [OFF]
+│   "Get emails even when using the app"
+│
+└── ℹ️ "If you don't have the app, you'll always receive emails."
+```
+
+**Unsubscribe Handling:**
+- Each email has unique unsubscribe token
+- Clicking unsubscribe sets `match_player_pool.muted = true`
+- Muted players still get transactional emails (cancellation, teams) but not promotional (tier open, last call)
 
 ---
 
@@ -1944,74 +2641,94 @@ teams.published → "📝 Teams published"
 
 ## **12) Integration with Existing System**
 
-### **Match Lifecycle & 4-Step Architecture (v4.5.0)**
+### **Match Lifecycle & Simplified State Machine (v6.0.0 - December 2025)**
 
-The Match Control Centre maintains its established 4-step architecture. RSVP integrates cleanly into Step 1 without requiring structural changes:
+**IMPORTANT CHANGE (v6.0.0):** State machine simplified. UI driven by timestamps, not states.
+
+```
+OLD States: Draft → PoolLocked → TeamsBalanced → Completed
+NEW States: Draft → TeamsBalanced → Completed
+```
+
+**UI is now driven by timestamps:**
+- `teams_balanced_at` = NULL → Show Pool UI
+- `teams_balanced_at` = SET → Show Teams UI
+- `state` = TeamsBalanced → Show Result UI
+- `state` = Completed → Show Summary UI
+
+**Database States vs UI Steps (v6.0.0):**
+
+| DB State | teams_balanced_at | teams_sent_at | UI Step | Player View |
+|----------|-------------------|---------------|---------|-------------|
+| Draft | NULL | NULL | Pool (1) | "Match on [date]" |
+| Draft | SET | NULL | Teams (2) | "Teams being finalised..." |
+| Draft | SET | SET | Teams (2) | Full team lists |
+| TeamsBalanced | SET | SET | Done (3) | Full team lists |
+| Completed | SET | SET | Done (3) | Result + teams |
+
+**The 3-Step UI Flow:**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Step 1: PLAYERS (Draft state only)                         │
+│ Step 1: POOL (teams_balanced_at = NULL)                    │
 ├─────────────────────────────────────────────────────────────┤
-│ Two modes (toggleable only in Draft):                      │
+│ Three modes (booking_enabled set at creation):             │
 │                                                             │
-│ Mode A: Manual (booking_enabled = OFF)                     │
+│ Mode A: Manual (booking_enabled = FALSE)                   │
 │   - Admin adds/removes players                             │
 │   - No public booking link                                 │
-│   - Standard PlayerPoolTable UI                            │
 │                                                             │
-│ Mode B: RSVP (booking_enabled = ON)                        │
+│ Mode B: RSVP (booking_enabled = TRUE, auto_pilot = FALSE)  │
 │   - Players self-book via link                             │
-│   - Admin can still add/remove                             │
-│   - Shows: link, counters, waitlist, activity             │
-│   - Compact settings + collapsible advanced                │
+│   - Admin clicks "Balance Teams" when ready                │
+│   - Admin clicks "Send Teams" to notify players            │
 │                                                             │
-│ Lock Pool → State: PoolLocked                              │
-│ (booking_enabled becomes READ-ONLY after this)             │
+│ Mode C: Auto-pilot (booking_enabled = TRUE, auto_pilot = TRUE) │
+│   - System auto-balances when pool fills                   │
+│   - System auto-sends at scheduled time (or immediately)   │
+│                                                             │
+│ "Balance Teams" → sets teams_balanced_at (shows Teams UI)  │
+│ "Close Pool" → sets is_pool_closed (escape hatch)          │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Step 2: TEAMS (PoolLocked or TeamsBalanced)                │
+│ Step 2: TEAMS (teams_balanced_at IS SET, state = Draft)    │
 ├─────────────────────────────────────────────────────────────┤
-│ - Balance teams (manual or via existing balance API)       │
-│ - If auto-balanced: show banner with timestamp             │
-│ - Review and adjust team assignments                       │
-│ - Confirm Teams → State: TeamsBalanced                     │
+│ - Review balanced teams, drag/drop to adjust               │
+│ - Re-Balance button to try different method                │
+│ - "Send Teams" → sets teams_sent_at (players notified)     │
+│ - "Enter Result" → transitions state to TeamsBalanced      │
 │                                                             │
-│ RSVP integration:                                           │
-│   - Player source badges visible (App/Web/Admin/Guest)     │
-│   - Banner if auto_balanced_at is set                      │
+│ RSVP/Auto-pilot specifics:                                  │
+│   - Pool still fluid (changes allowed unless is_pool_closed)│
+│   - If dropout: waitlist fills, system re-balances         │
+│   - If re-balance: teams_balanced_at updated               │
+│   - If teams change after sent: auto re-send notification  │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Step 3: RESULT (TeamsBalanced only)                        │
+│ Step 3: DONE (state = TeamsBalanced or Completed)          │
 ├─────────────────────────────────────────────────────────────┤
-│ - No-show checkboxes (uncheck = don't save)               │
-│ - Team swap arrows (actual_team field)                     │
-│ - Enter scores                                             │
-│ - Complete Match → State: Completed                        │
+│ TeamsBalanced substep:                                     │
+│   - No-show checkboxes                                     │
+│   - Team swap arrows                                       │
+│   - Enter scores, "Save Result"                            │
 │                                                             │
-│ RSVP integration:                                           │
-│   - FUTURE: Auto-uncheck players with status='OUT'         │
-│   - NO other RSVP-specific changes                         │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Step 4: DONE (Completed state)                             │
-├─────────────────────────────────────────────────────────────┤
-│ - Match archived to history                                │
-│ - Stats calculated and aggregated                          │
-│ - NO RSVP-specific behavior                                │
+│ Completed substep:                                         │
+│   - Match archived to history                              │
+│   - Stats calculated and aggregated                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key Lifecycle Rules:**
+**Key Lifecycle Rules (v6.0.0):**
 
-1. **RSVP mode (booking_enabled) can ONLY toggle in Draft state**
-2. **Toggle does NOT affect match lifecycle state** (Draft remains Draft)
-3. **Toggle OFF preserves ALL match_player_pool data** (no deletion)
-4. **Once PoolLocked: RSVP mode becomes read-only** (UI shows locked toggle)
-5. **RSVP data persists through all states** (available for audit/reporting)
-6. **FUTURE: locked_for_payments will also prevent toggling** (payment phase)
+1. **booking_enabled locked at match creation** (can't change after)
+2. **auto_pilot_enabled toggleable anytime** (admin can take over or hand off)
+3. **UI driven by timestamps** (`teams_balanced_at`, `teams_sent_at`)
+4. **State only changes for result entry** (Draft → TeamsBalanced)
+5. **Pool always fluid** until `is_pool_closed` or kickoff
+6. **Balancing and sending are decoupled** (can happen independently)
+7. **No state bouncing** (removed PoolLocked state entirely)
 
 ### **Player Pool Extension**
 
@@ -2038,132 +2755,20 @@ Extend existing worker with RSVP job types. Use existing database connection, er
 
 ---
 
-## **12.5) RSVP Mode State Machine (v4.5.0)**
+## **12.5) Quick Reference: Where to Find What (v6.0.0)**
 
-This section defines the explicit behavior of the `booking_enabled` toggle and its state guards.
-
-### **State Transition Guards**
-
-```typescript
-// State guard: Can only toggle in Draft state
-function canToggleRSVP(match: UpcomingMatch): boolean {
-  // ONLY allowed in Draft state
-  if (match.state !== 'Draft') return false;
-  
-  // FUTURE: Check payment lock (not yet implemented)
-  // if (match.locked_for_payments) return false;
-  
-  return true;
-}
-```
-
-### **Toggle ON Behavior (Draft only)**
-
-```typescript
-async function enableRSVP(matchId: number, config: RSVPConfig) {
-  // 1. Set booking_enabled = true
-  // 2. Generate invite_token_hash if not exists
-  // 3. Set invite_mode, tier windows, auto-balance settings from config
-  // 4. Preserve ALL existing match_player_pool rows
-  // 5. Set response_status = 'PENDING' for manually-added players (if null)
-  // 6. Admin retains full control (can still add/remove players)
-}
-```
-
-### **Toggle OFF Behavior (Draft only)**
-
-```typescript
-async function disableRSVP(matchId: number) {
-  // 1. Set booking_enabled = false
-  // 2. PRESERVE invite_token_hash (for audit trail)
-  // 3. PRESERVE all match_player_pool data:
-  //    - response_status values (IN/OUT/WAITLIST/PENDING)
-  //    - timestamps (invited_at, response_timestamp)
-  //    - waitlist_position values
-  //    - All source, tier, and metadata fields
-  // 4. Expire ALL active waitlist offers (set offer_expires_at = now())
-  // 5. Block player self-updates (API returns ERR_BOOKING_CLOSED)
-  // 6. Link becomes inactive (token validation fails)
-  // 7. Admin retains full control over pool
-  // 8. Log to activity feed: audit/admin_booking_disabled
-}
-```
-
-### **State Transition Diagram**
-
-```
-Draft state RSVP toggle rules:
-┌─────────────────────────────────────┐
-│ booking_enabled = OFF (default)     │
-│ - Admin adds/removes players        │
-│ - No public link active             │
-│ - Standard manual pool management   │
-└──────────────┬──────────────────────┘
-               │ Admin clicks "Enable RSVP"
-               │ (only if state = Draft)
-               ▼
-┌─────────────────────────────────────┐
-│ booking_enabled = ON                │
-│ - Players can self-book via link    │
-│ - Admin can still add/remove        │
-│ - Manually-added players preserved  │
-│ - RSVP interface shown in UI        │
-└──────────────┬──────────────────────┘
-               │ Admin clicks "Disable RSVP"
-               │ (only if state = Draft)
-               ▼
-┌─────────────────────────────────────┐
-│ booking_enabled = OFF               │
-│ - Link deactivated                  │
-│ - All player data PRESERVED         │
-│ - Players cannot update status      │
-│ - Admin has full control            │
-│ - Back to manual mode UI            │
-└─────────────────────────────────────┘
-
-❌ Once PoolLocked: booking_enabled becomes READ-ONLY
-⏳ Future: locked_for_payments also prevents toggling
-```
-
-### **API Error Responses**
-
-```typescript
-// When player tries to RSVP while booking_enabled = false
-return NextResponse.json(
-  fail('Booking is closed for this match', RSVP_ERROR_CODES.BOOKING_CLOSED),
-  { status: 403 }
-);
-
-// When admin tries to toggle after Draft state
-return NextResponse.json(
-  fail('RSVP mode can only be changed in Draft state', RSVP_ERROR_CODES.STATE_LOCKED),
-  { status: 400 }
-);
-
-// FUTURE: When payments have been processed
-return NextResponse.json(
-  fail('Cannot change RSVP settings - payments have been processed', RSVP_ERROR_CODES.PAYMENTS_LOCKED),
-  { status: 403 }
-);
-```
-
-### **Key Architectural Principles**
-
-1. **Toggle affects WHO can modify pool, not WHAT data exists**
-   - Toggling OFF preserves all RSVP data for audit trail
-   - No data loss when switching modes
-
-2. **RSVP mode is independent of match lifecycle state**
-   - Toggle doesn't change Draft/PoolLocked/etc status
-   - Match state transitions are unaffected by RSVP mode
-
-3. **State guard prevents disruption**
-   - Once PoolLocked: teams are being constructed, RSVP locked
-   - Future payment lock: financial records immutable
-
-4. **Admin always retains control**
-   - RSVP ON: Admin can still manually add/remove players
-   - RSVP OFF: Admin has exclusive control
+| Topic | Section |
+|-------|---------|
+| Three modes (Manual/RSVP/Auto-pilot) | Section 2 |
+| Mode selection rules | Section 2 |
+| Auto-pilot configuration | Section 2 |
+| Escape hatch (Close Pool) | Section 2 |
+| Auto-pilot processor job | Section 9 |
+| Atomic waitlist claim | Section 4.3.1 |
+| Auto-pilot re-adjustment flow | Section 4.3.2 |
+| UI rendering logic | Section 12 (state mapping table) |
+| API error codes | Section 4.1 |
+| Database schema | Section 3.2 |
 
 ---
 
@@ -2254,9 +2859,9 @@ export async function processAutoBalance(tenantId: string, matchId: number) {
 
 **Offer TTL calculation** clamps to kickoff−15m; <15m switches to instant claim.
 
-**Drop-out grace period** (5m/2m/1m) cancels if player returns to IN during grace.
+**Drop-out grace period** (fixed 3 minutes) cancels if player returns to IN during grace.
 
-**Auto-balance triggers** when IN count reaches capacity or via admin manual trigger. On dropout below capacity, teams unbalance (`is_balanced=false`, assignments cleared). On refill to capacity, auto-balance triggers again.
+**Auto-balance triggers** when IN count reaches capacity (auto-pilot mode) or via admin manual trigger. In auto-pilot mode, if dropout occurs below capacity, `teams_balanced_at` is cleared and waitlist fills the spot. When capacity is reached again, auto-balance re-triggers. No state changes occur during this process (stays in Draft).
 
 **Background jobs** use existing tenant-scoped infrastructure and are idempotent with `batch_key` scoping.
 
@@ -2312,8 +2917,8 @@ All RSVP events logged to `notification_ledger` with masked player identifiers. 
 
 ### **Core Principle: Lock Backwards, Flex Forward**
 
-Once payments are enabled OR RSVP deadline passes:
-- ❌ Cannot go back to Draft or PoolLocked (prevents payment/RSVP disruption)
+Once payments are enabled OR match is in result-entry phase:
+- ❌ Cannot go back to Draft (prevents payment/RSVP disruption)
 - ❌ Cannot remove players from pool/teams via planning screens
 - ✅ Handle all real-world chaos via "Match Day Adjustments" on results screen
 
@@ -2417,8 +3022,8 @@ ALTER TABLE upcoming_matches
    ```
 
 2. **Prevents backwards navigation:**
-   - Cannot unlock from PoolLocked → Draft
-   - Cannot unlock from TeamsBalanced → PoolLocked
+   - Cannot go back from TeamsBalanced → Draft
+   - Cannot clear teams_balanced_at/teams_sent_at once payments processed
    - UI shows 🔒 "Locked for payments" badge
 
 3. **UI Changes:**
@@ -2513,41 +3118,6 @@ See `SPEC_match-control-centre.md` for complete Phase 1 implementation details.
 
 ---
 
-## **16) Developer Guide**
-
-### **Phone Normalization**
-
-All phone inputs must normalize to E.164 before storage:
-
-```typescript
-import { normalizeToE164, isValidUKPhone } from '@/utils/phone.util';
-const normalizedPhone = normalizeToE164(userInput);
-```
-
-### **Deep Links**
-
-Configure iOS Associated Domains and Android App Links:
-- Custom scheme: `capo://match/123`
-- Universal links: `https://capo.app/match/123`
-
-### **Token Management**
-
-Generate 32+ byte URL-safe random tokens. Hash with bcrypt before storage. Never store or log raw tokens. Auto-expire at kickoff+24h.
-
-### **Timezone Handling**
-
-Store UTC in database. Render in local timezone for display. Use `match_timezone` field for UI rendering only.
-
-### **Copy Templates**
-
-Centralize all user-facing copy with variables for date/time, slots left, player names. Never include raw phone numbers or tokens in copy.
-
-### **Privacy & Logging**
-
-Redact phone numbers in logs. Normalize to E.164 before storage. Never log `invite_token` or push tokens. Mask phone numbers in UI as `+447******789`.
-
----
-
 ## **16) Technical Requirements**
 
 ### **Dependencies**
@@ -2559,15 +3129,305 @@ Redact phone numbers in logs. Normalize to E.164 before storage. Never log `invi
 
 ### **New Libraries**
 
-- Phone validation library for E.164 normalization
-- Firebase Admin SDK for push notifications
-- Rate limiting middleware for API protection
+```bash
+# Push notifications
+npm install firebase-admin @capacitor/push-notifications
 
-### **Infrastructure**
+# Phone validation (if not already installed)
+npm install libphonenumber-js
+```
 
-- Firebase project with FCM setup
-- App Store/Google Play developer accounts (optional)
-- Background job scaling for enhanced worker capacity
+### **16.1 Push Notification Infrastructure (REQUIRED)**
+
+Push notifications are **core to RSVP** - not optional. Players must receive instant notifications for:
+- Booking windows opening
+- Waitlist offers (time-sensitive!)
+- Last-call alerts
+- Teams announced
+
+**Architecture:**
+```
+Your Backend (Render Worker)
+    ↓ Firebase Admin SDK
+Firebase Cloud Messaging (FCM)
+    ↓                    ↓
+Android Device      APNs (Apple)
+                        ↓
+                   iOS Device
+```
+
+### **16.2 Firebase Project Setup**
+
+**Step 1: Create Firebase Project**
+```
+1. Go to console.firebase.google.com
+2. Click "Create Project" → Name: "Capo"
+3. Disable Google Analytics (not needed)
+4. Create project
+```
+
+**Step 2: Add iOS App**
+```
+1. Project Settings → Add App → iOS
+2. Bundle ID: com.caposport.capo (match your app)
+3. Download GoogleService-Info.plist
+4. Add to ios/App/App/GoogleService-Info.plist
+```
+
+**Step 3: Add Android App**
+```
+1. Project Settings → Add App → Android
+2. Package name: com.caposport.capo
+3. Download google-services.json
+4. Add to android/app/google-services.json
+```
+
+**Step 4: Create Service Account Key (for backend)**
+```
+1. Project Settings → Service Accounts
+2. Generate New Private Key
+3. Download JSON file
+4. Store securely (environment variable or secrets manager)
+```
+
+### **16.3 iOS APNs Configuration**
+
+**Required for iOS push notifications:**
+
+```
+1. Apple Developer Console → Certificates, Identifiers & Profiles
+2. Keys → Create New Key
+3. Enable "Apple Push Notifications service (APNs)"
+4. Download .p8 file (save securely - only downloadable once!)
+5. Note the Key ID and Team ID
+
+6. Firebase Console → Project Settings → Cloud Messaging
+7. iOS app → APNs Authentication Key
+8. Upload .p8 file, enter Key ID and Team ID
+```
+
+### **16.4 Capacitor Configuration**
+
+**Install plugin:**
+```bash
+npm install @capacitor/push-notifications
+npx cap sync
+```
+
+**iOS: Update `ios/App/App/AppDelegate.swift`:**
+```swift
+import UIKit
+import Capacitor
+import FirebaseCore  // Add this
+import FirebaseMessaging  // Add this
+
+@UIApplicationMain
+class AppDelegate: UIResponder, UIApplicationDelegate {
+
+  func application(_ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+    FirebaseApp.configure()  // Add this
+    return true
+  }
+  
+  // Add these methods for push token handling
+  func application(_ application: UIApplication, 
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    Messaging.messaging().apnsToken = deviceToken
+    NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+  }
+  
+  func application(_ application: UIApplication, 
+    didFailToRegisterForRemoteNotificationsWithError error: Error) {
+    NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+  }
+}
+```
+
+**Android: Update `android/app/build.gradle`:**
+```gradle
+apply plugin: 'com.google.gms.google-services'  // Add at bottom
+```
+
+**Android: Update `android/build.gradle`:**
+```gradle
+dependencies {
+    classpath 'com.google.gms:google-services:4.3.15'  // Add this
+}
+```
+
+### **16.5 Frontend Token Registration**
+
+```typescript
+// src/lib/pushNotifications.ts
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
+import { apiFetch } from '@/lib/apiConfig';
+
+export async function initPushNotifications() {
+  if (!Capacitor.isNativePlatform()) {
+    console.log('Push notifications only available on native platforms');
+    return;
+  }
+
+  // Request permission
+  const permission = await PushNotifications.requestPermissions();
+  if (permission.receive !== 'granted') {
+    console.log('Push permission denied');
+    return;
+  }
+
+  // Register with APNs/FCM
+  await PushNotifications.register();
+
+  // Listen for registration success
+  PushNotifications.addListener('registration', async (token) => {
+    console.log('Push token:', token.value);
+    
+    // Send token to backend
+    await apiFetch('/push/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        token: token.value,
+        platform: Capacitor.getPlatform(), // 'ios' or 'android'
+      })
+    });
+  });
+
+  // Listen for push notifications
+  PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    console.log('Push received:', notification);
+    // Handle in-app notification display
+  });
+
+  // Listen for notification taps
+  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    const data = action.notification.data;
+    if (data.matchId) {
+      // Navigate to match
+      window.location.href = `/player/upcoming/match/${data.matchId}`;
+    }
+  });
+}
+
+// Call on app startup (after auth)
+// initPushNotifications();
+```
+
+### **16.6 Backend Push Sending**
+
+```typescript
+// src/lib/pushService.ts
+import admin from 'firebase-admin';
+
+// Initialize once at startup
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    })
+  });
+}
+
+interface PushPayload {
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+}
+
+export async function sendPushNotification(
+  token: string, 
+  payload: PushPayload
+): Promise<boolean> {
+  try {
+    await admin.messaging().send({
+      token,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      data: payload.data,
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          }
+        }
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          channelId: 'rsvp',
+        }
+      }
+    });
+    return true;
+  } catch (error: any) {
+    // Handle invalid tokens (uninstalled app, etc)
+    if (error.code === 'messaging/registration-token-not-registered') {
+      // Remove invalid token from database
+      await removeInvalidToken(token);
+    }
+    console.error('Push send failed:', error);
+    return false;
+  }
+}
+
+export async function sendPushToPlayers(
+  playerIds: number[],
+  tenantId: string,
+  payload: PushPayload
+): Promise<void> {
+  // Get all tokens for these players
+  const tokens = await prisma.push_tokens.findMany({
+    where: withTenantFilter(tenantId, {
+      player_id: { in: playerIds }
+    }),
+    select: { fcm_token: true }
+  });
+
+  // Send in batches of 500 (FCM limit)
+  const tokenValues = tokens.map(t => t.fcm_token);
+  for (let i = 0; i < tokenValues.length; i += 500) {
+    const batch = tokenValues.slice(i, i + 500);
+    await admin.messaging().sendEachForMulticast({
+      tokens: batch,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      data: payload.data,
+    });
+  }
+}
+```
+
+### **16.7 Environment Variables**
+
+Add to `.env` and deployment config:
+
+```bash
+# Firebase Admin SDK
+FIREBASE_PROJECT_ID=capo-xxxxx
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@capo-xxxxx.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+### **Infrastructure Summary**
+
+| Component | Provider | Cost |
+|-----------|----------|------|
+| Push Gateway | Firebase FCM | Free (unlimited) |
+| iOS Delivery | APNs via FCM | Free |
+| Android Delivery | FCM direct | Free |
+| Backend SDK | firebase-admin | Free |
+| Token Storage | Supabase (push_tokens table) | Existing |
+
+**Total additional cost: $0**
 
 ---
 
@@ -2636,18 +3496,18 @@ All database changes are additive. Can disable RSVP via feature flags without da
 
 ### **B) Dropout & Waitlist**
 
-1. Night before, 1 player drops OUT; 5-min grace starts
-2. After grace, capacity frees → push waitlist_offer to top-3 with 4h TTL
+1. Night before, 1 player drops OUT; 3-min grace starts
+2. After grace, capacity frees → push waitlist_offer to top-3 with 2hr TTL (or 30min if <3hr to kickoff)
 3. First to tap Claim wins; others get "spot filled"
 4. If enabled, auto-balance triggers to rebalance teams
 
 ### **C) Capacity Adjustment**
 
 1. Match at 20/20, all IN
-2. Admin lowers capacity to 18
-3. System demotes 2 most-recent IN players to WAITLIST (LIFO)
-4. Sends polite notifications to demoted players
-5. Teams unbalance, ready for manual rebalancing
+2. Admin tries to lower capacity to 18
+3. System blocks: "Can't reduce to 18 - 20 players already confirmed. Remove 2 players first."
+4. Admin removes 2 players manually (chooses who)
+5. Admin can now reduce capacity to 18
 
 ---
 
@@ -2706,291 +3566,19 @@ Most "future enhancements" in this section can be deferred until hitting scale t
 
 ## **20) Final Summary**
 
-This consolidated specification delivers a **production-ready multi-tenant RSVP system**:
+**Key v6.0.0 Architectural Decisions:**
 
-✅ **Streamlined RSVP** with unified experience for all users  
-✅ **Auto-balance integration** leveraging existing team balancing system  
-✅ **Admin-only guest management** without complex approval flows  
-✅ **Real-time activity feed** with comprehensive event tracking  
-✅ **Fixed last-call windows** (T-12h/T-3h) with timestamp-based idempotency  
-✅ **Enhanced waitlist** with offer logging and batch tracking  
-✅ **Production security** with token hashing, rate limiting, tenant isolation  
-✅ **WhatsApp-simple workflow** optimized for casual football matches
+| Decision | Rationale |
+|----------|-----------|
+| Three modes (Manual/RSVP/Auto-pilot) | Flexibility for different admin styles |
+| `booking_enabled` locked at creation | Prevent mid-match disruption |
+| `auto_pilot_enabled` toggleable | Admin can take over or hand off anytime |
+| Simplified states (no PoolLocked) | Cleaner, timestamp-driven UI |
+| Pool always fluid | Changes allowed until kickoff |
+| Decoupled balance/send | Balancing ≠ notifying players |
 
-### **Key Architectural Decisions**
-
-- **Multi-tenant from day one** (all 33+ tables tenant-scoped)
-- **Phone-only authentication** (UK mobile numbers initially)
-- **App-first experience** (Capacitor wrapper with deep links)
-- **Conservative defaults** (booking OFF, auto-balance OFF, auto-lock OFF)
-- **Dropout/refill rebalancing** (teams unbalance when below capacity)
-- **Worker HTTP calls** for balance (not RPC, matches existing pattern)
-- **Type-safe tenant filtering** (`withTenantFilter()` helper mandatory)
-- **Explicit over implicit** (RLS disabled, application-level security)
-
-### **Database Changes**
-
-- **6 tables enhanced** with RSVP fields:
-  - `players` (+2 fields: tier, last_verified_at)
-  - `upcoming_matches` (+13 fields: booking config, tier windows, auto-balance)
-  - `match_player_pool` (+8 fields: waitlist, offers, timestamps)
-- **3 new tables:** match_invites, notification_ledger, push_tokens
-- **25+ tenant-scoped indexes** with security constraints
-- **Audit trail protection** (ON DELETE SET NULL for notification ledger)
-- **Idempotency safeguards** (unique indexes prevent double-offers, double-taps)
-
-### **Security Enhancements**
-
-- **HMAC-SHA256 token hashing** (faster than bcrypt for lookups)
-- **Machine-readable error codes** (20+ error types for frontend UX)
-- **Idempotency protection** (5-second window prevents double-submissions)
-- **Rebalance job deduplication** (1-minute cooldown prevents thrashing)
-- **Active offer prevention** (unique index prevents race-condition double-offers)
-- **Audit trail preservation** (SET NULL keeps history when players deleted)
-
-### **Implementation Phases**
-
-5-6 week roadmap covering database, backend, admin UI, mobile app, and production testing. Phased rollout with feature flags ensures safe deployment.
-
-The specification maintains **backward compatibility** throughout. Teams using manual-only workflow see zero impact. RSVP is purely additive functionality.
+**Implementation:** 5-6 week roadmap. Phased rollout with feature flags. Backward compatible - manual workflow unchanged.
 
 ---
 
-## **21) Implementation Guidance (v4.5.0 Updates)**
-
-### **Key Architectural Changes from v4.4.0**
-
-**v4.5.0 adds explicit RSVP mode toggle architecture:**
-
-1. **RSVP Mode Toggle (booking_enabled):**
-   - Can ONLY change in Draft state
-   - Toggle OFF preserves all data (no deletion)
-   - New endpoint: `PATCH /api/admin/matches/[id]/toggle-rsvp`
-   - New error codes: ERR_STATE_LOCKED, ERR_PAYMENTS_LOCKED
-
-2. **Unified Component Architecture:**
-   - Single `PlayersStep.component.tsx` with mode switching
-   - Replaces separate PlayerPoolPane + RSVPBookingPane pattern
-   - Activity feed as separate tab (Players | Activity)
-   - Advanced settings in collapsible section
-
-3. **Auto-Balance Tracking:**
-   - New field: `auto_balanced_at` timestamp
-   - UI shows "Teams auto-constructed" banner in Teams step
-   - Cleared when teams unbalanced or manually rebalanced
-
-4. **State Machine Documentation:**
-   - New Section 12.5 with explicit toggle behavior
-   - State transition guards documented
-   - Forward compatibility with payment lock prepared
-
-### **Key Pattern Changes from v4.2.0**
-
-**1. All API Routes Use withTenantContext Wrapper:**
-```typescript
-// ✅ NEW PATTERN (v4.3.0)
-export async function GET(request: NextRequest) {
-  return withTenantContext(request, async (tenantId) => {
-    try {
-      await requireAdminRole(request);
-      const data = await prisma.players.findMany({
-        where: withTenantFilter(tenantId)
-      });
-      return NextResponse.json({ success: true, data });
-    } catch (error) {
-      return handleTenantError(error);
-    }
-  });
-}
-
-// ❌ OLD PATTERN (v4.2.0) - DEPRECATED
-// Uses deprecated @supabase/auth-helpers-nextjs package
-export async function GET(request: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
-  const tenantId = session.user.app_metadata?.tenant_id;
-  // ... manual tenant handling
-}
-```
-
-**2. All Queries Use withTenantFilter Helper:**
-```typescript
-// ✅ NEW PATTERN (v4.3.0)
-const players = await prisma.match_player_pool.findMany({
-  where: withTenantFilter(tenantId, {
-    response_status: 'WAITLIST'
-  })
-});
-
-// ❌ OLD PATTERN (v4.2.0)
-const players = await prisma.match_player_pool.findMany({
-  where: { 
-    tenant_id: tenantId,
-    response_status: 'WAITLIST'
-  }
-});
-```
-
-**3. Background Jobs Use withBackgroundTenantContext:**
-```typescript
-// ✅ NEW PATTERN (v4.3.0)
-async function processJob(job: JobData) {
-  const { tenant_id } = job.payload;
-  return withBackgroundTenantContext(tenant_id, async () => {
-    const offers = await prisma.match_player_pool.findMany({
-      where: withTenantFilter(tenant_id, { ... })
-    });
-  });
-}
-
-// ❌ OLD PATTERN (v4.2.0)
-async function processJob(job: JobData) {
-  const { tenant_id } = job.payload;
-  await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenant_id}, false)`;
-  // ... manual RLS context
-}
-```
-
-**4. React Query Keys Follow Established Pattern:**
-```typescript
-// ✅ NEW PATTERN (v4.3.0)
-export const queryKeys = {
-  rsvpMatch: (tenantId: string | null, matchId: number | null) => 
-    ['rsvpMatch', tenantId, matchId] as const,
-} as const;
-
-export function useRsvpMatch(matchId: number | null) {
-  const { profile } = useAuth();
-  const tenantId = profile.tenantId;
-  
-  return useQuery({
-    queryKey: queryKeys.rsvpMatch(tenantId, matchId),
-    queryFn: () => fetchRsvpMatch(tenantId, matchId),
-    staleTime: 30 * 1000,
-    // NO enabled condition - avoids race condition
-  });
-}
-```
-
-### **Fields Already Implemented**
-
-Don't add these to the database (already exist from auth implementation):
-- ✅ `players.phone` (E.164 format)
-- ✅ `players.email` (nullable)
-- ✅ `players.auth_user_id` (link to Supabase auth)
-- ✅ `players.is_admin` (admin flag)
-- ✅ `players.tenant_id` (multi-tenancy)
-- ✅ `idx_players_phone` index
-
-Only add RSVP-specific fields:
-- ⭕ `players.tier` (A/B/C for booking priority)
-- ⭕ `players.last_verified_at` (phone verification tracking)
-
-### **Security Reminders**
-
-**RLS is NOT enforcing on operational tables:**
-- Only `auth.*`, `tenants`, `admin_profiles` have RLS enabled
-- All RSVP tables rely on explicit `withTenantFilter()` helper
-- Missing `withTenantFilter()` = security vulnerability
-- See `SPEC_multi_tenancy.md` Section Q for architecture decision
-
-**HTTP Cache Headers Required:**
-All RSVP endpoints must include:
-```typescript
-headers: {
-  'Cache-Control': 'no-store, must-revalidate',
-  'Pragma': 'no-cache',
-  'Vary': 'Cookie',
-}
-```
-
-### **Reference Implementations**
-
-Study these existing files before implementing RSVP:
-- **API Pattern**: `src/app/api/admin/match-player-pool/route.ts`
-- **React Query**: `src/hooks/queries/useLatestPlayerStatus.hook.ts`
-- **Query Keys**: `src/lib/queryKeys.ts`
-- **Tenant Filtering**: `src/lib/tenantFilter.ts`
-- **Tenant Context**: `src/lib/tenantContext.ts`
-- **Auth Helpers**: `src/lib/auth/apiAuth.ts`
-- **Advisory Locks**: `src/lib/tenantLocks.ts`
-
----
-
-## **22) Schema Reconciliation Summary (v4.4.0)**
-
-This section documents all schema and behavioral changes made during reconciliation with Match Control Centre and Auth specs.
-
-### **Schema Corrections Applied**
-
-**1. matches table (referenced, not modified by RSVP):**
-- ✅ `upcoming_match_id INT NOT NULL` (migration complete, no longer nullable)
-- ✅ `team_a_own_goals INT DEFAULT 0, team_b_own_goals INT DEFAULT 0` (added)
-- ❌ `is_completed BOOLEAN` (deprecated, use `upcoming_matches.state` instead)
-
-**2. player_matches table (referenced, not modified by RSVP):**
-- ✅ `result TEXT`, `heavy_win BOOLEAN`, `heavy_loss BOOLEAN`, `clean_sheet BOOLEAN` (exist)
-- ✅ `actual_team TEXT` (for match-day team swaps)
-- ⚠️ `is_no_show BOOLEAN` (column exists but UNUSED, absence of row = no-show)
-
-**3. upcoming_matches table (RSVP adds fields to existing table):**
-- ✅ `state` is source of truth (Draft, PoolLocked, TeamsBalanced, Completed, Cancelled)
-- ✅ `actual_size_a INT`, `actual_size_b INT` (uneven teams support)
-- ❌ `is_completed BOOLEAN`, `is_active BOOLEAN` (deprecated, use `state` instead)
-- ⏳ `locked_for_payments BOOLEAN` (FUTURE - not yet implemented)
-
-**4. players table (RSVP adds 2 fields only):**
-- ✅ `phone`, `email`, `auth_user_id`, `is_admin` already exist from Auth v6.6
-- ⭕ `tier TEXT` (RSVP adds for booking priority)
-- ⭕ `last_verified_at TIMESTAMPTZ` (RSVP adds for RSVP phone verification)
-
-### **Behavioral Clarifications**
-
-**Concurrency:**
-- Most operations enforce `state_version` for optimistic concurrency
-- Match completion intentionally bypasses `state_version` (prevents orphaned matches)
-- See Section 14 for full details
-
-**Security:**
-- RLS policies exist but postgres role bypasses them (rolbypassrls = true)
-- Application-level `withTenantFilter()` is the ONLY security layer
-- Missing filter = security vulnerability
-
-**Match Lifecycle:**
-- Active tab: `state IN ('Draft', 'PoolLocked', 'TeamsBalanced')`
-- History tab: `state = 'Completed'`
-- Cancelled state: defined but currently UNUSED (deletion is destructive)
-
-**No-Show Handling:**
-- Checkbox controls `player_matches` row creation
-- No row = player did not attend (no filtering needed)
-- `is_no_show` column exists but is NOT used
-
-**Future Features Documented:**
-- `locked_for_payments` for payment stability (not yet implemented)
-- Auto-mark no-shows from RSVP status (Phase 2)
-- Backwards navigation locking (Phase 2 with payments)
-
-### **Cross-Spec Dependencies**
-
-This spec now correctly references:
-- **Auth v6.6**: Phone-only auth, OTP-before-join, email notifications
-- **Match Control Centre**: Uneven teams, no-shows, own goals, state lifecycle
-- **Multi-Tenancy v2.1**: `withTenantFilter()` security model, explicit filtering
-
-### **Implementation Status**
-
-**Ready to Implement:**
-- All RSVP-specific schema additions (players.tier, match_player_pool enhancements)
-- All API endpoints as documented
-- All background jobs and notification systems
-- All UI components for booking and waitlist
-
-**No Breaking Changes:**
-- RSVP is purely additive to existing match system
-- Manual match workflow unchanged
-- Phase 1 no-show/swap features work independently
-
----
-
-**End of Consolidated Specification v4.4.0-reconciled**
+**End of RSVP Specification v6.0.0**

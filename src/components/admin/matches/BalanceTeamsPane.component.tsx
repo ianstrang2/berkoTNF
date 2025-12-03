@@ -4,7 +4,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import { PlayerInPool } from '@/types/player.types';
 import Card from '@/components/ui-kit/Card.component';
-import { GripVertical, Copy, Trash2 } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
+import ShareMenu from '@/components/ui-kit/ShareMenu.component';
 import BalanceOptionsModal from './BalanceOptionsModal.component';
 import TornadoChart from '@/components/team/TornadoChart.component';
 import PerformanceTornadoChart from '@/components/team/PerformanceTornadoChart.component';
@@ -304,8 +305,7 @@ const BalanceTeamsPane = ({
   const [balanceMethod, setBalanceMethod] = useState<'ability' | 'performance' | 'random' | null>(initialBalanceMethod);
   const [isTeamsModified, setIsTeamsModified] = useState<boolean>(false);
 
-  // Copy functionality states
-  const [copySuccess, setCopySuccess] = useState<boolean>(false);
+  // No longer need copySuccess state - ShareMenu handles it internally
   
   // Extract config values from React Query hook
   const teamAName = useMemo(() => {
@@ -490,10 +490,10 @@ const BalanceTeamsPane = ({
     finally { setIsBalancing(false); }
   };
 
-  const handleCopyTeams = async () => {
+  // Generate teams text for sharing
+  const generateTeamsText = (): string => {
     if (teamA.length === 0 && teamB.length === 0) {
-      onShowToast('No teams to copy.', 'error');
-      return;
+      return '';
     }
 
     const formatTeam = (team: PlayerInPool[]) => {
@@ -516,17 +516,10 @@ const BalanceTeamsPane = ({
     const finalTeamAName = teamAName || 'Team A';
     const finalTeamBName = teamBName || 'Team B';
 
-    const textToCopy = `--- ${finalTeamAName.toUpperCase()} ---\n${formatTeam(teamA)}\n\n--- ${finalTeamBName.toUpperCase()} ---\n${formatTeam(teamB)}`;
-
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy teams: ', err);
-      onShowToast('Failed to copy teams. Please try again.', 'error');
-    }
+    return `--- ${finalTeamAName.toUpperCase()} ---\n${formatTeam(teamA)}\n\n--- ${finalTeamBName.toUpperCase()} ---\n${formatTeam(teamB)}`;
   };
+
+  const teamsText = generateTeamsText();
 
   const renderPlayer = (player: PlayerInPool) => {
     // Truncate name to 12 characters max for compact display
@@ -638,17 +631,14 @@ const BalanceTeamsPane = ({
                   Discard
                 </Button>
               )}
-              {/* Copy Teams - only show when saved AND no unsaved changes */}
-              {teamsSavedAt && !hasUnsavedChanges && (
-                <Button 
-                  variant={copySuccess ? "primary" : "secondary"}
+              {/* Share Teams - only show when saved AND no unsaved changes */}
+              {teamsSavedAt && !hasUnsavedChanges && teamsText && (
+                <ShareMenu
+                  text={teamsText}
+                  context="teams"
                   size="sm"
-                  className={copySuccess ? "bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-sm" : "shadow-soft-sm"}
-                  onClick={handleCopyTeams} 
                   disabled={unassigned.length > 0}
-                >
-                  {copySuccess ? 'Copied!' : 'Copy'}
-                </Button>
+                />
               )}
               <Button 
                 variant="secondary" 

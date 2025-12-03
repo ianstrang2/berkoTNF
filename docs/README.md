@@ -35,7 +35,8 @@
 | `SPEC_Marketing.md` | 142 | ✅ Clean | Marketing pages, analytics, safe areas | Marketing pages, Plausible, attribution |
 | `SPEC_balance_by_rating_algorithm.md` | 98 | ✅ Clean | Team balancing (position-based) | Position-based team balancing |
 | `SPEC_PlayerSettings.md` | 380 | ✅ Ready | Player settings page (name, email, club) | Implementing player profile management |
-| `SPEC_RSVP.md` | 2473 | 📋 Design only | RSVP system (NOT BUILT) | Future RSVP implementation (detailed design reference) |
+| `SPEC_RSVP.md` | ~3600 | 📋 Design v6.0 | RSVP system (NOT BUILT) | Three modes (Manual/RSVP/Auto-pilot), simplified states, timestamps-driven UI |
+| `SPEC_Communications.md` | ~300 | 📋 New | All emails & notifications inventory | Editing notification copy, adding new communications |
 
 ### Key Patterns
 

@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
-import Button from '@/components/ui-kit/Button.component';
+import ShareMenu from '@/components/ui-kit/ShareMenu.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import { LeaderData, formatLeaderText } from '@/utils/timeline.util';
@@ -55,8 +55,6 @@ const PB_METRIC_DETAILS_FOR_COPY: { [key: string]: { name: string; unit: string 
 };
 
 const LatestMatch: React.FC = () => {
-  const [copySuccess, setCopySuccess] = useState<boolean>(false);
-  
   // React Query hooks - automatic caching and deduplication!
   const { data: matchData, isLoading: matchLoading, error: matchError } = useMatchReport();
   const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
@@ -425,18 +423,10 @@ const LatestMatch: React.FC = () => {
     return report;
   };
 
-  const handleCopyMatchReport = async () => {
-    if (!matchData) return;
-    const reportText = formatMatchReportForCopy(matchData, personalBestsData, showOnFireConfig, showGrimReaperConfig);
-
-    try {
-      await navigator.clipboard.writeText(reportText);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy match report: ', err);
-    }
-  };
+  // Generate match report text for sharing
+  const matchReportText = matchData 
+    ? formatMatchReportForCopy(matchData, personalBestsData, showOnFireConfig, showGrimReaperConfig)
+    : '';
 
   const renderPlayerName = (playerName: string) => {
     const cleanPlayerName = playerName.replace(/\s*\(\d+\)$/, '').trim();
@@ -607,14 +597,12 @@ const LatestMatch: React.FC = () => {
       </div>
 
       <div className="mt-4 sm:mt-6 lg:mt-8 flex justify-center">
-        <Button
-          variant={copySuccess ? "primary" : "secondary"}
-          className={`rounded-lg text-sm ${copySuccess ? "bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md" : "shadow-soft-md"}`}
-          onClick={handleCopyMatchReport}
+        <ShareMenu
+          text={matchReportText}
+          context="match-report"
+          size="md"
           disabled={!matchData || loading}
-        >
-          {copySuccess ? 'Copied Report!' : 'Copy Match Report'}
-        </Button>
+        />
       </div>
     </div>
   );
