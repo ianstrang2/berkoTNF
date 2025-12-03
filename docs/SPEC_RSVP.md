@@ -100,7 +100,8 @@ At match creation, admin chooses how to manage the match:
 
 **Watch real-time updates** in Match Control Centre:
 - Live counters: "Booked 15/20" • "Waitlist 3"
-- Player lists with source badges: 📱 App, 🌐 Web, 👤 Admin, 🎯 Guest
+- Player lists with source badges: 📱 App, 🌐 Web, 👤 Admin
+- Push status icon: 🔔 (green = has push token, grey = no token) - helps admin know who gets notifications
 - Activity feed showing timeline of all RSVP events
 
 **Add guests manually** using existing "Add Player" modal (works in all modes).
@@ -202,7 +203,8 @@ Add RSVP functionality to keep matches full with minimal admin effort.
 
 **`booking_enabled` (Manual vs RSVP):**
 - Set at match creation
-- **Cannot change after creation** (too disruptive to switch mid-match)
+- **Fully locked after creation** - cannot change in either direction
+- Made a mistake? Delete the match and create a new one (30 seconds)
 - Controls whether RSVP link exists and players can self-book
 
 **`auto_pilot_enabled` (RSVP vs Auto-pilot):**
@@ -225,13 +227,30 @@ Auto-pilot Settings:
 - `auto_pilot_send_mode`: `'immediate'` | `'scheduled'`
 - `auto_pilot_send_hours_before`: number (only if scheduled)
 
-### **Escape Hatch: Close Pool**
+**Tiered Mode + Auto-pilot Interaction:**
+If tiered mode enabled AND auto-pilot enabled:
+- Auto-pilot waits for ALL tier windows to open before auto-balancing/sending
+- **What if pool fills with A+B before C opens?** Pool is "full" but auto-pilot WAITS until C window opens
+- After C opens, if still full → auto-balance + send
+- If C players join and push capacity → normal waitlist rules apply
+- **UI copy:** "18/18 confirmed • Tier C opens in 6h" (so players know it's not stuck)
 
-Admin can click "Close Pool" at any time to stop accepting RSVP responses:
-- Sets `is_pool_closed = true`
-- RSVP link returns "Pool is closed for this match"
-- Useful for: "We have 16 players, let's just go with that"
-- Does NOT affect existing pool or teams
+**`is_pool_closed` + Auto-pilot Interaction:**
+If `is_pool_closed = true`, auto-pilot is PAUSED:
+- No new RSVPs accepted (public link blocked)
+- No auto re-balancing on changes
+- Admin must manually manage or reopen pool
+- Auto-pilot resumes if pool reopened
+
+### **Escape Hatch: Close/Reopen Pool**
+
+Admin can toggle pool open/closed at any time:
+- **Close Pool:** Sets `is_pool_closed = true` → RSVP link returns "Pool is closed"
+- **Reopen Pool:** Sets `is_pool_closed = false` → RSVP link works again
+- Useful for: "We have 16, let's go" → "Wait, two more want in, reopen it"
+- Does NOT affect existing pool or teams - just controls whether new RSVPs accepted
+
+**UI when pool closed:** Show "+ Add player (admin only)" button prominently so admin knows they can still manually add. Public link is blocked, but admin override works.
 
 ### **How Each Mode Works**
 
@@ -331,6 +350,10 @@ Option A: Guest stays dormant until next invite
 Option B: Admin promotes to regular (is_guest = false, assign tier)
 ```
 
+**Guest Promotion Requirements:**
+1. **Tier assignment:** UI must require admin to assign a tier (A/B/C). Default 'C' may not be appropriate.
+2. **Phone verification:** Guest cannot become a Regular who can log into the app until `auth_user_id` is established. If guest was added without verified phone, promotion flow triggers SMS invite: "You've been promoted to a member. Click to claim your account."
+
 **Database:**
 ```sql
 -- Already exists on players table
@@ -379,13 +402,25 @@ ALTER TABLE upcoming_matches
   
   -- Timestamps for UI (replaces state-based UI logic)
   ADD COLUMN teams_balanced_at TIMESTAMPTZ NULL,  -- When teams were last calculated
-  ADD COLUMN teams_sent_at TIMESTAMPTZ NULL,  -- When teams were sent to players
+  ADD COLUMN teams_sent_at TIMESTAMPTZ NULL;  -- When teams were sent to players
+
+-- Prevent timestamp desync (sent can't happen before balanced)
+ALTER TABLE upcoming_matches
+  ADD CONSTRAINT teams_sent_after_balanced
+  CHECK (teams_sent_at IS NULL OR (teams_balanced_at IS NOT NULL AND teams_sent_at >= teams_balanced_at));
   
   -- Tiered booking (optional)
   ADD COLUMN invite_mode TEXT NOT NULL DEFAULT 'all'
     CHECK (invite_mode IN ('all','tiered')),
   ADD COLUMN invite_token_hash TEXT,
-  ADD COLUMN invite_token_created_at TIMESTAMPTZ NULL,
+  ADD COLUMN invite_token_created_at TIMESTAMPTZ NULL;
+  
+-- One invite token per match (prevents token reuse confusion)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_invite_token_per_match
+  ON upcoming_matches (tenant_id, upcoming_match_id)
+  WHERE invite_token_hash IS NOT NULL;
+
+ALTER TABLE upcoming_matches
   ADD COLUMN a_open_at TIMESTAMPTZ NULL,
   ADD COLUMN b_open_at TIMESTAMPTZ NULL,
   ADD COLUMN c_open_at TIMESTAMPTZ NULL,
@@ -463,8 +498,12 @@ See `SPEC_match-control-centre.md` sections 2, 10, 11 for complete schema detail
 
 ```sql
 -- Current: match_player_pool(id, tenant_id, upcoming_match_id, player_id, response_status, ...) ✅ EXISTS
--- Response status values: 'IN' (confirmed), 'OUT' (cannot attend), 'MAYBE' (soft interest), 
--- 'WAITLIST' (wants to attend but full), 'PENDING' (no response)
+-- Response status values:
+--   'IN'       = Confirmed attending (counts toward capacity)
+--   'OUT'      = Cannot attend (does not count toward capacity)
+--   'MAYBE'    = Soft interest (does NOT count toward capacity, receives notifications)
+--   'WAITLIST' = Wants to attend but match full (does NOT count, receives offer notifications)
+--   'PENDING'  = No response yet (does NOT count, receives reminder notifications)
 
 ALTER TABLE match_player_pool
   ADD COLUMN invited_at TIMESTAMPTZ NULL,
@@ -473,10 +512,15 @@ ALTER TABLE match_player_pool
   ADD COLUMN muted BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN out_flexible BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN waitlist_position INTEGER NULL,
-  ADD COLUMN offer_expires_at TIMESTAMPTZ NULL,
+  ADD COLUMN offer_expires_at TIMESTAMPTZ NULL, -- NULL = no active offer (add comment in schema)
   ADD COLUMN response_timestamp TIMESTAMPTZ NULL,
-  ADD COLUMN source TEXT NULL CHECK (source IN ('app', 'web', 'admin', 'guest_link'));
-  -- source: 📱 'app' = mobile app, 🌐 'web' = browser, 👤 'admin' = admin-added, 🎯 'guest_link' = guest invite
+  ADD COLUMN dropout_pending_until TIMESTAMPTZ NULL, -- Grace period: if set, waitlist offers delayed until this time
+  ADD COLUMN source TEXT NULL CHECK (source IN ('app', 'web', 'admin')),
+  -- source: 📱 'app' = mobile app, 🌐 'web' = browser, 👤 'admin' = admin-added
+  -- Note: Removed 'guest_link' - guests cannot self-book, always admin-added
+  ADD COLUMN is_team_pinned BOOLEAN NOT NULL DEFAULT FALSE;
+  -- is_team_pinned: If admin manually assigns team, auto-pilot won't move this player during re-balance
+  -- UI: Add "📌 Pin" toggle in admin player list (Teams step) - pinned players show lock icon
 
 ALTER TABLE match_player_pool 
   DROP CONSTRAINT IF EXISTS match_player_pool_response_status_check;
@@ -489,6 +533,14 @@ CREATE INDEX IF NOT EXISTS idx_mpp_tenant_match_waitpos
 CREATE INDEX IF NOT EXISTS idx_mpp_tenant_waitlist_active
   ON match_player_pool (tenant_id, upcoming_match_id, waitlist_position)
   WHERE response_status='WAITLIST' AND offer_expires_at IS NULL;
+-- Waitlist position ordering (for calculating next position)
+CREATE INDEX IF NOT EXISTS idx_mpp_waitlist_order
+  ON match_player_pool (tenant_id, upcoming_match_id, waitlist_position ASC NULLS LAST)
+  WHERE response_status = 'WAITLIST';
+-- Fast IN count queries (used frequently for capacity checks)
+CREATE INDEX IF NOT EXISTS idx_mpp_confirmed_count
+  ON match_player_pool (tenant_id, upcoming_match_id)
+  WHERE response_status = 'IN';
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_mpp_tenant_waitpos_per_match
   ON match_player_pool (tenant_id, upcoming_match_id, waitlist_position)
   WHERE response_status = 'WAITLIST' AND waitlist_position IS NOT NULL;
@@ -499,6 +551,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_mpp_active_offer_per_player
 ALTER TABLE match_player_pool
   ADD CONSTRAINT offer_expiry_only_for_waitlist
   CHECK (offer_expires_at IS NULL OR response_status='WAITLIST');
+
+-- Waitlist entries MUST have a position (prevents ambiguous ordering)
+ALTER TABLE match_player_pool
+  ADD CONSTRAINT waitlist_must_have_position
+  CHECK (response_status != 'WAITLIST' OR waitlist_position IS NOT NULL);
 ```
 
 ### **3.4 New Tables**
@@ -546,6 +603,9 @@ CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_kind
 CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_audit
   ON notification_ledger(tenant_id, upcoming_match_id, kind, sent_at DESC)
   WHERE kind LIKE 'audit/%';
+-- Activity feed queries (recent first)
+CREATE INDEX IF NOT EXISTS idx_notif_ledger_activity_feed
+  ON notification_ledger(tenant_id, upcoming_match_id, sent_at DESC);
 ```
 
 **Design Notes:**
@@ -553,6 +613,12 @@ CREATE INDEX IF NOT EXISTS idx_notif_ledger_tenant_audit
 - `details` is **JSONB** (not TEXT) to store structured metadata (e.g., capacity changes, offer TTLs)
 - `actor_name` stores masked player name for display (since player_id may be NULL after deletion)
 - `batch_key` groups related notifications (e.g., all tier-open pushes in one wave)
+
+**GDPR Compliance:** On player deletion (Right to be Forgotten):
+1. `player_id` → SET NULL (automatic via FK)
+2. `actor_name` → "Deleted User" (via trigger/app code)
+3. `details` JSONB → scrub any PII fields (player names, phone numbers)
+Masked names like "J*** S****" may still be identifiable in small groups - full anonymization is safer.
 
 **Push Tokens:**
 ```sql
@@ -565,10 +631,21 @@ CREATE TABLE IF NOT EXISTS push_tokens (
   fcm_token TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, player_id, device_id, platform)
+  -- Note: iOS tokens can change on reinstall. Use ON CONFLICT DO UPDATE in insert
 );
 CREATE INDEX IF NOT EXISTS idx_push_tokens_tenant_player
   ON push_tokens(tenant_id, player_id);
 ```
+
+**Guest Push Token Block:** Guests cannot register push tokens (they won't have the app):
+```typescript
+// In POST /api/player/push-token
+if (player.is_guest) {
+  return fail('Guests cannot register for push notifications');
+}
+```
+
+**Guest Communication:** Guests never receive push notifications (no app). If admin adds a guest to a match, admin must notify them manually via WhatsApp. The push status icon (🔔 grey) in player list reminds admin that guest won't get automated notifications.
 
 **Tenant Integrity:**
 ```sql
@@ -581,6 +658,10 @@ BEGIN
   IF NEW.tenant_id IS DISTINCT FROM (SELECT tenant_id FROM players WHERE player_id = NEW.player_id) THEN
     RAISE EXCEPTION 'tenant mismatch between player pool and player';
   END IF;
+  -- Prevent guest self-booking (source must be 'admin' for guests)
+  IF NEW.source != 'admin' AND EXISTS (SELECT 1 FROM players WHERE player_id = NEW.player_id AND is_guest = true) THEN
+    RAISE EXCEPTION 'guests cannot self-book, must be admin-added';
+  END IF;
   RETURN NEW;
 END; $$ LANGUAGE plpgsql;
 
@@ -590,9 +671,13 @@ CREATE TRIGGER trg_mpp_tenant_enforce
   FOR EACH ROW EXECUTE FUNCTION enforce_tenant_match_pool();
 ```
 
-**Feature Flags:**
+**Feature Flags (Per-Tenant):**
+
+Note: `app_config` table is tenant-scoped (`tenant_id` column). Each club has their own config.
+
 ```sql
-INSERT INTO app_config(config_key, config_value, config_description, config_group) VALUES
+-- Per-tenant config (each club can have different settings)
+INSERT INTO app_config(tenant_id, config_key, config_value, config_description, config_group) VALUES
 ('enable_rsvp_system', 'false', 'Enable RSVP system', 'rsvp'),
 ('enable_push_notifications', 'false', 'Enable push notifications', 'rsvp'),
 ('default_booking_enabled', 'false', 'RSVP enabled by default', 'match_settings'),
@@ -616,6 +701,8 @@ ON CONFLICT (config_key) DO NOTHING;
 Tiered booking is a **power-user feature** hidden by default. Most clubs use "All at once" mode.
 
 **Design Principle:** Build the full tier system, but hide UI unless `enable_tiered_booking = true`.
+
+**IMPORTANT:** `invite_mode` ('all' vs 'tiered') is set at match creation and **locked thereafter**. Changing mid-match would confuse players (sudden tier restrictions appearing). Same pattern as `booking_enabled`.
 
 **Default Experience (tiered OFF):**
 - Players list: No "Tier" column visible
@@ -700,6 +787,7 @@ export const RSVP_ERROR_CODES = {
   // Capacity errors
   MATCH_FULL: 'ERR_MATCH_FULL',
   CAPACITY_REACHED: 'ERR_CAPACITY_REACHED',
+  CAPACITY_REDUCTION_BLOCKED: 'ERR_CAPACITY_REDUCTION_BLOCKED',
   
   // Waitlist errors
   WAITLIST_OFFER_EXPIRED: 'ERR_WAITLIST_OFFER_EXPIRED',
@@ -861,6 +949,29 @@ export async function processRSVPResponse<T>(
 }
 ```
 
+**CRITICAL: Concurrent Dropout Race Prevention**
+
+Two concurrent dropouts could trigger 6 waitlist offers for 2 spots if not handled correctly. 
+
+**Rule:** Dropout processing AND waitlist offer issuance MUST be in the same `withTenantMatchLock` call:
+
+```typescript
+// CORRECT: Single locked operation
+await withTenantMatchLock(tenantId, matchId, async (tx) => {
+  // 1. Process dropout (IN → OUT)
+  await processDropout(tx, playerId);
+  
+  // 2. Set grace period
+  await setDropoutGrace(tx, playerId); // dropout_pending_until = NOW() + 3min
+  
+  // 3. Schedule SINGLE job for this match (not per-dropout)
+  await scheduleWaitlistOfferJob(matchId, { runAt: dropoutPendingUntil });
+});
+
+// Job deduplication: Only one pending waitlist job per match at a time
+// New dropouts extend the existing job, don't create new ones
+```
+
 ### **4.3.1 Atomic Waitlist Claim (v6.0.0)**
 
 Waitlist offers are claimed via a single ACID-compliant transaction to prevent overselling:
@@ -955,22 +1066,38 @@ async function triggerAutoPilotReAdjustment(tenantId: string, matchId: number) {
     return;
   }
   
-  // Re-balance teams
-  await balanceTeams(matchId, match.auto_balance_method);
-  await prisma.upcoming_matches.update({
-    where: { upcoming_match_id: matchId },
-    data: { teams_balanced_at: new Date() }
-  });
+  // Re-balance teams (respects pinned players)
+  // Players with is_team_pinned=true are NOT moved during auto-rebalance
+  // This allows admin manual overrides to persist through auto-pilot
+  await balanceTeams(matchId, match.auto_balance_method, { respectPins: true });
   
-  // Re-send updated teams notification
+  // IMPLEMENTATION NOTE: The balance algorithm must:
+  // 1. Query pinned players first: WHERE is_team_pinned = true
+  // 2. Lock their team assignments as constraints
+  // 3. Balance remaining players around them
+  // If balancer ignores pins, auto-pilot will undo admin fixes = angry admins
+  
+  // Re-send updated teams notification (only to affected players)
   await sendTeamsNotification(matchId, { isUpdate: true });
+  
+  // IMPORTANT: Update both timestamps atomically to prevent UI flash
   await prisma.upcoming_matches.update({
     where: { upcoming_match_id: matchId },
-    data: { teams_sent_at: new Date() }
+    data: { 
+      teams_balanced_at: new Date(),
+      teams_sent_at: new Date()
+    }
   });
   
-  // Log to activity feed
   await logActivity(matchId, 'audit/auto_pilot_readjusted');
+}
+
+// NOTIFICATION STRATEGY: Send to ALL confirmed players on every team update
+// Rationale: Players want to know the full lineup - it's exciting!
+// Players can disable "Team Lineup" notifications in settings if they find it too frequent
+async function sendTeamsNotification(matchId: number, options?: { isUpdate: boolean }) {
+  const title = options?.isUpdate ? "Updated teams" : "Teams announced! 🎉";
+  return sendToAllConfirmedPlayers(matchId, { title, body: "Check your team for the match" });
 }
 ```
 
@@ -1335,6 +1462,13 @@ export async function PATCH(
         }
       });
       
+      // IMPORTANT: If disabling auto-pilot, cancel any pending scheduled jobs
+      // This prevents the system from "taking over" after admin makes manual changes
+      if (auto_pilot_enabled === false && match.auto_pilot_enabled === true) {
+        await cancelPendingAutoPilotJobs(matchId);
+        // Jobs to cancel: AUTO_PILOT_SEND, AUTO_PILOT_REBALANCE
+      }
+      
       // Log to activity feed
       await logActivity(matchId, auto_pilot_enabled ? 'audit/auto_pilot_enabled' : 'audit/auto_pilot_disabled');
         
@@ -1411,6 +1545,23 @@ export async function GET(
 - `POST /api/admin/matches/[id]/autobalance` - Manual auto-balance trigger
 - `POST /api/admin/waitlist/reissue` - Re-issue waitlist offers
 - `POST /api/admin/dropout/process-now` - Skip grace period for dropout
+- `POST /api/admin/waitlist/force-claim` - Force claim spot for specific waitlist player
+- `POST /api/admin/waitlist/reorder` - Reorder waitlist positions
+
+**Admin Force Claim:** When player #1-3 on waitlist are unresponsive but #4 is standing next to admin:
+```typescript
+// POST /api/admin/waitlist/force-claim
+// { matchId, playerId } - Admin gives spot to any waitlist player
+// Bypasses normal offer cascade - logs "admin_force_claim" to activity feed
+```
+
+**Admin Waitlist Reorder:** GK is #3 but team is desperate for a keeper:
+```typescript
+// POST /api/admin/waitlist/reorder
+// { matchId, playerId, newPosition } - Move player up/down in queue
+// UI: Simple ↑/↓ arrows in WaitlistCard - just swaps positions
+// Logs "admin_waitlist_reorder" to activity feed
+```
 
 ### **5.2 Public Booking Endpoints**
 
@@ -1615,6 +1766,20 @@ export async function GET(
 - Cancellation → push to confirmed + waitlist
 - Teams released → push to participants only
 
+**Match Cancellation Handler (prevents stale UI):**
+```typescript
+// When admin cancels a match with teams already sent:
+await prisma.upcoming_matches.update({
+  where: { upcoming_match_id: matchId },
+  data: {
+    state: 'Cancelled',
+    teams_balanced_at: null,  // Clear to prevent stale teams in history
+    teams_sent_at: null
+  }
+});
+await sendCancellationPush(matchId);
+```
+
 **Admin Notifications:**
 - Payment failed (FUTURE) → push to admins
 
@@ -1628,17 +1793,76 @@ Max 3 dropout/last-call pushes per player per match. Tier-open and waitlist offe
 
 Use `notification_ledger.batch_key` to coalesce events.
 
-### **6.3 Grace Period (Simplified v5.0.0)**
+### **6.3 Grace Period (v6.0.0 - Clarified Sequence)**
 
-**Fixed 3-minute grace period** after any dropout. If player switches back to IN within 3 minutes, dropout is cancelled and no waitlist offers are sent.
+**Fixed 3-minute grace period** with explicit sequence to prevent race conditions:
 
-**Why 3 minutes:** Long enough for "oops" corrections, short enough to not delay waitlist significantly. Simpler than dynamic timing with minimal real-world impact.
+```
+1. Player A drops out (IN → OUT)
+   └── Set dropout_pending_until = NOW() + 3 minutes
+   └── NO waitlist offers sent yet
+   └── Background job scheduled for dropout_pending_until
+
+2. During grace period (0-3 mins):
+   └── Player A can return (OUT → IN) 
+   └── If returns: clear dropout_pending_until, cancel job
+   └── Waitlist players see nothing (no false hope)
+
+3. After grace period expires (job fires):
+   └── Check dropout_pending_until still set (not cancelled)
+   └── Clear dropout_pending_until
+   └── Waitlist engine fires: Top-3 simultaneous offers
+   └── First to claim wins
+```
+
+**Why `dropout_pending_until` column:** Server restarts/crashes won't lose grace state. Background job reads from DB, not memory.
+
+**Why delayed offers:** Prevents race where waitlist player claims spot, then original player "undoes" - both think they have the spot.
+
+**Why 3 minutes:** Long enough for "oops" corrections, short enough to not delay waitlist significantly.
+
+**Clarification - Grace Period vs TTL:**
+- **Grace period (3 min):** Delay BEFORE sending waitlist offers (dropout → wait 3 min → send offers)
+- **TTL (graduated):** Time waitlist player has TO CLAIM once offer is sent (2h/1h/45m/30m/15m depending on kickoff)
+- These are separate timers, not the same thing!
 
 ---
 
 ## **7) Waitlist Details**
 
-Top-3 simultaneous offers. **Simplified TTL (v5.0.0):** 2 hours normally, 30 minutes if <3h to kickoff. Clamped to kickoff−15m.
+Top-3 simultaneous offers. **Graduated TTL (v6.0.0):**
+
+| Time to Kickoff | Offer TTL |
+|-----------------|-----------|
+| >24h | 2 hours |
+| 6h – 24h | 1 hour |
+| 3h – 6h | 45 min |
+| 1h – 3h | 30 min |
+| 15min – 1h | 15 min |
+| <15min | Instant claim |
+
+All TTLs clamped to kickoff−15m max. Smoother experience than binary 2h/30min cutoff.
+
+**TTL Calculation Function:**
+```sql
+CREATE OR REPLACE FUNCTION calculate_offer_ttl(kickoff_time TIMESTAMPTZ)
+RETURNS INTERVAL AS $$
+DECLARE
+  hours_until NUMERIC;
+BEGIN
+  hours_until := EXTRACT(EPOCH FROM (kickoff_time - NOW())) / 3600;
+  
+  RETURN CASE
+    WHEN hours_until > 24 THEN INTERVAL '2 hours'
+    WHEN hours_until > 6  THEN INTERVAL '1 hour'
+    WHEN hours_until > 3  THEN INTERVAL '45 minutes'
+    WHEN hours_until > 1  THEN INTERVAL '30 minutes'
+    WHEN hours_until > 0.25 THEN INTERVAL '15 minutes' -- 15 min
+    ELSE INTERVAL '0 seconds' -- Instant claim
+  END;
+END;
+$$ LANGUAGE plpgsql;
+```
 
 First to claim wins (transactional). Others get "spot filled", remain on waitlist.
 
@@ -1648,12 +1872,35 @@ First to claim wins (transactional). Others get "spot filled", remain on waitlis
 
 **Edge Cases:**
 - **Capacity increase:** Auto-promote earliest WAITLIST players by queue order with notification
-- **Capacity decrease (v5.0.0 - Simplified):** 
+- **Capacity decrease (v6.0.0 - Simplified):** 
   - If `newCapacity < confirmedCount`: **Block the reduction**
   - Admin must manually remove players first
   - Prevents automatic demotion and associated drama
-  - Error: "Can't reduce to X - Y players already confirmed. Remove Z players first."
   - Activity feed logs `audit/admin_capacity_change` only for successful changes
+  
+  **API Implementation (atomic check):**
+  ```typescript
+  // PATCH /api/admin/matches/[id]/capacity
+  const inCount = await prisma.match_player_pool.count({
+    where: withTenantFilter(tenantId, {
+      upcoming_match_id: matchId,
+      response_status: 'IN'
+    })
+  });
+  
+  if (newCapacity < inCount) {
+    return fail(
+      `Can't reduce to ${newCapacity} - ${inCount} players already confirmed. Remove ${inCount - newCapacity} players first.`,
+      RSVP_ERROR_CODES.CAPACITY_REDUCTION_BLOCKED
+    );
+  }
+  
+  // Check passed - update capacity
+  await prisma.upcoming_matches.update({
+    where: { upcoming_match_id: matchId },
+    data: { capacity: newCapacity }
+  });
+  ```
 - **RSVP toggled OFF (v4.5.0):**
   - Expire ALL active waitlist offers immediately (set offer_expires_at = now())
   - Preserve all waitlist positions and queue data
@@ -1682,6 +1929,21 @@ The Match Control Centre maintains its existing 4-step flow. RSVP integrates int
 ```
 Step 1: PLAYERS → Step 2: TEAMS → Step 3: RESULT → Step 4: DONE
 (RSVP here)      (Auto-balance)    (Unchanged)      (Unchanged)
+```
+
+**CRITICAL UI COPY (Prevent Confusion):**
+
+Admins often confuse "Balance" with "Send". Obsessive copy needed:
+
+| Button | Tooltip | Effect |
+|--------|---------|--------|
+| "Balance Teams" | "Calculate fair teams (players cannot see yet)" | Sets `teams_balanced_at` |
+| "Send Teams" | "Publish teams to players (triggers push)" | Sets `teams_sent_at` |
+
+**Warning Banner (required):** If `teams_balanced_at` is set but `teams_sent_at` is null:
+```
+⚠️ Teams calculated but not sent yet — players cannot see them
+[Send Teams Now]
 ```
 
 **Step 1: Players - Unified Component with Mode Switching**
@@ -1929,6 +2191,8 @@ Result and Done steps remain unchanged - they are not affected by RSVP mode.
 │ Your status: IN ✓                                      │
 │                                                         │
 │ [✅ I'm In]  [❌ Can't Make It]                        │
+├─────────────────────────────────────────────────────────┤
+│ 📋 Teams being finalised – notification at 6pm Sat     │  ← NEW: scheduled mode banner
 ├─────────────────────────────────────────────────────────┤
 │ Activity                                                │
 │ ─────────────────────────────────────────               │
@@ -2725,10 +2989,18 @@ NEW States: Draft → TeamsBalanced → Completed
 1. **booking_enabled locked at match creation** (can't change after)
 2. **auto_pilot_enabled toggleable anytime** (admin can take over or hand off)
 3. **UI driven by timestamps** (`teams_balanced_at`, `teams_sent_at`)
-4. **State only changes for result entry** (Draft → TeamsBalanced)
+4. **State only changes for result entry** (Draft → TeamsBalanced when admin clicks "Enter Result")
 5. **Pool always fluid** until `is_pool_closed` or kickoff
 6. **Balancing and sending are decoupled** (can happen independently)
 7. **No state bouncing** (removed PoolLocked state entirely)
+
+**State vs Timestamp Clarification:**
+- `teams_balanced_at` is updated on EVERY balance (initial, re-balance, auto-pilot)
+- `teams_sent_at` is updated on EVERY send (initial, re-send)
+- `state` column ONLY changes when:
+  - Admin clicks "Enter Result" → `Draft` → `TeamsBalanced`
+  - Admin clicks "Save Result" → `TeamsBalanced` → `Completed`
+- Auto-pilot re-balancing does NOT change state (stays `Draft`)
 
 ### **Player Pool Extension**
 
@@ -3394,7 +3666,7 @@ export async function sendPushToPlayers(
   const tokenValues = tokens.map(t => t.fcm_token);
   for (let i = 0; i < tokenValues.length; i += 500) {
     const batch = tokenValues.slice(i, i + 500);
-    await admin.messaging().sendEachForMulticast({
+    const response = await admin.messaging().sendEachForMulticast({
       tokens: batch,
       notification: {
         title: payload.title,
@@ -3402,7 +3674,22 @@ export async function sendPushToPlayers(
       },
       data: payload.data,
     });
+    
+    // IMPORTANT: Clean up invalid tokens from batch response
+    // Prevents wasting resources on uninstalled/expired tokens
+    response.responses.forEach((resp, idx) => {
+      if (!resp.success && resp.error?.code === 'messaging/registration-token-not-registered') {
+        removeInvalidToken(batch[idx]);  // Fire and forget
+      }
+    });
   }
+}
+
+// Remove invalid tokens immediately when FCM reports them
+async function removeInvalidToken(token: string): Promise<void> {
+  await prisma.push_tokens.deleteMany({
+    where: { fcm_token: token }
+  });
 }
 ```
 
@@ -3516,6 +3803,8 @@ All database changes are additive. Can disable RSVP via feature flags without da
 ### **Near-Term (Post-MVP)**
 
 **RSVP-Specific:**
+- **Re-balance threshold:** Skip re-balance/re-send if team imbalance change is <10% (reduces notification spam when similar-rated player fills in)
+- **Min capacity:** Add `min_capacity` field - "lock at 14, but keep waitlist open until 18". Auto-balance when `IN >= min_capacity`, not just when full.
 - **WebSocket real-time updates:** Replace 30s polling with live match fill counter
 - **Email/SMS fallback:** Notification delivery via Twilio if push fails
 - **Auto-tier promotion:** Promote to Tier B after X attendances (reduces admin burden)
