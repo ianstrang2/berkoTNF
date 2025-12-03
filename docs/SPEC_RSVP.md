@@ -151,7 +151,7 @@ Enhanced booking panel with live counters, invite mode selection, auto-balance c
 
 ### **7) Guests explained**
 
-Guest players admin brings occasionally. Don't self-book, admin adds manually, don't get invite/last-call pushes, DO get transactional pushes. Can be promoted to regulars via `is_ringer=false` toggle.
+Guest players admin brings occasionally. Don't self-book, admin adds manually, don't get invite/last-call pushes, admin must WhatsApp them manually. Can be promoted to regulars via `is_guest=false` toggle.
 
 ---
 
@@ -229,11 +229,11 @@ Auto-pilot Settings:
 
 **Tiered Mode + Auto-pilot Interaction:**
 If tiered mode enabled AND auto-pilot enabled:
-- Auto-pilot waits for ALL tier windows to open before auto-balancing/sending
-- **What if pool fills with A+B before C opens?** Pool is "full" but auto-pilot WAITS until C window opens
-- After C opens, if still full → auto-balance + send
-- If C players join and push capacity → normal waitlist rules apply
-- **UI copy:** "18/18 confirmed • Tier C opens in 6h" (so players know it's not stuck)
+- Auto-pilot balances when pool hits capacity - **does NOT wait for lower tiers**
+- Tiered booking = "priority access" for higher tiers, not "hold spots for everyone"
+- **Example:** Pool fills with A+B at 18/18 → auto-balance + send immediately
+- Lower tier players who join late go to waitlist (normal rules)
+- **Why:** Waiting for all tiers causes "Tier C flood" chaos when 10 casuals pile in after window opens
 
 **`is_pool_closed` + Auto-pilot Interaction:**
 If `is_pool_closed = true`, auto-pilot is PAUSED:
@@ -518,9 +518,6 @@ ALTER TABLE match_player_pool
   ADD COLUMN source TEXT NULL CHECK (source IN ('app', 'web', 'admin')),
   -- source: 📱 'app' = mobile app, 🌐 'web' = browser, 👤 'admin' = admin-added
   -- Note: Removed 'guest_link' - guests cannot self-book, always admin-added
-  ADD COLUMN is_team_pinned BOOLEAN NOT NULL DEFAULT FALSE;
-  -- is_team_pinned: If admin manually assigns team, auto-pilot won't move this player during re-balance
-  -- UI: Add "📌 Pin" toggle in admin player list (Teams step) - pinned players show lock icon
 
 ALTER TABLE match_player_pool 
   DROP CONSTRAINT IF EXISTS match_player_pool_response_status_check;
@@ -688,8 +685,8 @@ INSERT INTO app_config(tenant_id, config_key, config_value, config_description, 
 ('enable_tiered_booking', 'false', 'Enable tiered booking windows (power user)', 'match_settings'),
 ('tier_b_offset_hours', '24', 'Tier B offset hours', 'match_settings'),
 ('tier_c_offset_hours', '48', 'Tier C offset hours', 'match_settings'),
-('enable_ringer_self_book', 'false', 'Allow guest self-booking', 'rsvp_policies'),
-('include_ringers_in_invites', 'false', 'Include guests in invites', 'rsvp_policies'),
+('enable_guest_self_book', 'false', 'Allow guest self-booking', 'rsvp_policies'),
+('include_guests_in_invites', 'false', 'Include guests in invites', 'rsvp_policies'),
 ('block_unknown_players', 'true', 'Block unknown phone numbers', 'rsvp_policies'),
 ('rsvp_burst_guard_enabled', 'true', 'Enable burst protection', 'rsvp_advanced'),
 ('default_phone_country', 'GB', 'Phone normalization country', 'rsvp_advanced')
@@ -1059,28 +1056,59 @@ async function triggerAutoPilotReAdjustment(tenantId: string, matchId: number) {
     where: { upcoming_match_id: matchId }
   });
   
-  // Only trigger if:
-  // 1. Auto-pilot is enabled
-  // 2. Teams have already been sent (teams_sent_at is set)
-  if (!match.auto_pilot_enabled || !match.teams_sent_at) {
+  // GUARD 1: Auto-pilot must be enabled (re-check in case toggled off)
+  if (!match.auto_pilot_enabled) {
     return;
   }
   
-  // Re-balance teams (respects pinned players)
-  // Players with is_team_pinned=true are NOT moved during auto-rebalance
-  // This allows admin manual overrides to persist through auto-pilot
-  await balanceTeams(matchId, match.auto_balance_method, { respectPins: true });
+  // GUARD 2: Teams must have been sent already
+  if (!match.teams_sent_at) {
+    return;
+  }
   
-  // IMPLEMENTATION NOTE: The balance algorithm must:
-  // 1. Query pinned players first: WHERE is_team_pinned = true
-  // 2. Lock their team assignments as constraints
-  // 3. Balance remaining players around them
-  // If balancer ignores pins, auto-pilot will undo admin fixes = angry admins
+  // GUARD 3: Cooldown - no re-send within 15 minutes of last send
+  // Prevents infinite loop if player flips IN↔OUT repeatedly
+  const minutesSinceLastSend = (Date.now() - match.teams_sent_at.getTime()) / 60000;
+  if (minutesSinceLastSend < 15) {
+    await logActivity(matchId, 'audit/auto_pilot_cooldown_skipped');
+    return;
+  }
   
-  // Re-send updated teams notification (only to affected players)
+  // GUARD 4: Max 2 automatic re-sends per match
+  // After 2, admin must manually trigger "Send update"
+  const autoResendCount = await prisma.notification_ledger.count({
+    where: { upcoming_match_id: matchId, kind: 'audit/auto_pilot_readjusted' }
+  });
+  if (autoResendCount >= 2) {
+    await logActivity(matchId, 'audit/auto_pilot_max_resends_reached');
+    return; // Admin must manually send updates now
+  }
+  
+  // GUARD 5: Per-player flapping detection
+  // Skip if same player changed status 2+ times in last 15 minutes
+  const recentChanges = await prisma.notification_ledger.count({
+    where: {
+      upcoming_match_id: matchId,
+      player_id: triggeringPlayerId,
+      kind: { in: ['dropout', 'rsvp_in'] },
+      sent_at: { gt: new Date(Date.now() - 15 * 60 * 1000) }
+    }
+  });
+  if (recentChanges >= 2) {
+    await logActivity(matchId, 'audit/player_flapping_detected', { player_id: triggeringPlayerId });
+    return; // Don't let one flaky player spam everyone
+  }
+  
+  // Re-balance teams
+  await balanceTeams(matchId, match.auto_balance_method);
+  
+  // NOTE: If admin made manual team changes, they should disable auto-pilot
+  // for that match. No pinning system - just turn off auto-pilot.
+  
+  // Re-send updated teams notification
   await sendTeamsNotification(matchId, { isUpdate: true });
   
-  // IMPORTANT: Update both timestamps atomically to prevent UI flash
+  // Update both timestamps atomically
   await prisma.upcoming_matches.update({
     where: { upcoming_match_id: matchId },
     data: { 
@@ -1826,6 +1854,12 @@ Use `notification_ledger.batch_key` to coalesce events.
 - **TTL (graduated):** Time waitlist player has TO CLAIM once offer is sent (2h/1h/45m/30m/15m depending on kickoff)
 - These are separate timers, not the same thing!
 
+**Near-kickoff exception:** If <30min to kickoff, SKIP grace period entirely:
+- Send waitlist offers immediately on dropout
+- Use 5-minute TTL minimum (even at "instant claim" time)
+- **Why:** At 10min to kickoff, 3min grace + 0 TTL = no time for anyone to see the push
+- **Minimum TTL clamp:** 5-min floor ensures push can be delivered + player has time to tap
+
 ---
 
 ## **7) Waitlist Details**
@@ -1849,17 +1883,20 @@ CREATE OR REPLACE FUNCTION calculate_offer_ttl(kickoff_time TIMESTAMPTZ)
 RETURNS INTERVAL AS $$
 DECLARE
   hours_until NUMERIC;
+  raw_ttl INTERVAL;
 BEGIN
   hours_until := EXTRACT(EPOCH FROM (kickoff_time - NOW())) / 3600;
   
-  RETURN CASE
+  raw_ttl := CASE
     WHEN hours_until > 24 THEN INTERVAL '2 hours'
     WHEN hours_until > 6  THEN INTERVAL '1 hour'
     WHEN hours_until > 3  THEN INTERVAL '45 minutes'
     WHEN hours_until > 1  THEN INTERVAL '30 minutes'
-    WHEN hours_until > 0.25 THEN INTERVAL '15 minutes' -- 15 min
-    ELSE INTERVAL '0 seconds' -- Instant claim
+    WHEN hours_until > 0.25 THEN INTERVAL '15 minutes'
+    ELSE INTERVAL '5 minutes' -- Minimum floor (so push can be delivered + seen)
   END;
+  
+  RETURN raw_ttl;
 END;
 $$ LANGUAGE plpgsql;
 ```
@@ -1894,6 +1931,9 @@ First to claim wins (transactional). Others get "spot filled", remain on waitlis
       RSVP_ERROR_CODES.CAPACITY_REDUCTION_BLOCKED
     );
   }
+  
+  // UI NOTE: When showing this error, include a "Remove players" button
+  // that opens the player list filtered to confirmed players for easy removal
   
   // Check passed - update capacity
   await prisma.upcoming_matches.update({
@@ -2423,7 +2463,9 @@ async function processAutoPilotMatches() {
     }
     
     // Auto-send at scheduled time (or immediately if configured)
-    if (match.teams_balanced_at && !match.teams_sent_at && isFull) {
+    // CRITICAL: Re-check auto_pilot_enabled inside transaction
+    // Admin may have toggled it OFF since job was scheduled
+    if (match.auto_pilot_enabled && match.teams_balanced_at && !match.teams_sent_at && isFull) {
       const shouldSend = match.auto_pilot_send_mode === 'immediate'
         || isWithinSendWindow(match.match_date, match.auto_pilot_send_hours_before);
       
@@ -2476,7 +2518,7 @@ function isWithinSendWindow(matchDate: Date, hoursBefore: number): boolean {
 
 **Other job implementations:**
 
-- **tier_open_notifications:** Cron at tier times, target `is_ringer=false`, send push (only if `enable_tiered_booking=true`)
+- **tier_open_notifications:** Cron at tier times, target `is_guest=false`, send push (only if `enable_tiered_booking=true`)
 - **dropout_grace_processor:** Fixed 3-minute grace period, then trigger waitlist offers
 - **waitlist_offer_processor:** Every 5 min, expire offers (2hr or 30min TTL based on time-to-kickoff), auto-cascade, log to `notification_ledger`
 - **notification_batcher:** Teams released (participants only), cancellation (all confirmed+waitlist), respect caps
@@ -3133,7 +3175,12 @@ export async function processAutoBalance(tenantId: string, matchId: number) {
 
 **Drop-out grace period** (fixed 3 minutes) cancels if player returns to IN during grace.
 
-**Auto-balance triggers** when IN count reaches capacity (auto-pilot mode) or via admin manual trigger. In auto-pilot mode, if dropout occurs below capacity, `teams_balanced_at` is cleared and waitlist fills the spot. When capacity is reached again, auto-balance re-triggers. No state changes occur during this process (stays in Draft).
+**Auto-balance triggers** when IN count reaches capacity (auto-pilot mode) or via admin manual trigger.
+
+**teams_balanced_at persistence:** Once set, `teams_balanced_at` is NEVER cleared (except on match cancellation). If dropout occurs:
+- Waitlist fills spot → re-balance → update `teams_balanced_at` to new time
+- If waitlist empty and pool is 17/18 → show "17/18 – waiting for 1 more" banner, keep existing teams visible
+- **Why:** Clearing causes UI confusion ("Teams announced but now 17 players — which teams are valid?")
 
 **Background jobs** use existing tenant-scoped infrastructure and are idempotent with `batch_key` scoping.
 
