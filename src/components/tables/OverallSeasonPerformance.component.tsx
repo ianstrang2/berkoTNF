@@ -276,7 +276,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
     <div className="flex flex-wrap justify-start -mx-3">
       {/* Year Selector */}
       <div className="w-full max-w-full px-3 mb-4">
-        <div className="flex justify-end">
+        <div className="flex justify-start">
           <div className="w-40 relative">
             {isClient && (
               <select 
