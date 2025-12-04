@@ -1,6 +1,7 @@
 -- sql/export_individual_player_for_profile.sql
 -- Smart export function: League context + individual player data only
 -- Optimized for single-player profile generation with comparative insights
+-- FIXED: Added tenant filtering throughout for multi-tenant support
 
 CREATE OR REPLACE FUNCTION export_individual_player_for_profile(
     target_player_id INT,
@@ -42,7 +43,7 @@ BEGIN
                 ELSE (SELECT COUNT(*) FROM matches WHERE tenant_id = target_tenant_id) END FROM matches WHERE tenant_id = target_tenant_id
             ),
             'league_records', (SELECT to_jsonb(ar.*) FROM aggregated_records ar WHERE tenant_id = target_tenant_id LIMIT 1),
-            'season_honours', (SELECT jsonb_agg(to_jsonb(ash.*)) FROM aggregated_season_honours ash LIMIT 10)
+            'season_honours', (SELECT jsonb_agg(to_jsonb(ash.*)) FROM aggregated_season_honours ash WHERE tenant_id = target_tenant_id LIMIT 10)
         ),
         'target_player', (
             SELECT jsonb_build_object(
@@ -72,7 +73,7 @@ BEGIN
                     FROM (
                         SELECT ass.*
                         FROM aggregated_season_stats ass
-                        WHERE ass.player_id = p.player_id
+                        WHERE ass.player_id = p.player_id AND ass.tenant_id = target_tenant_id
                         ORDER BY ass.season_start_date DESC
                         LIMIT 10  -- More seasons for individual analysis
                     ) ass
@@ -80,7 +81,7 @@ BEGIN
                 'hall_of_fame_entries', (
                     SELECT jsonb_agg(to_jsonb(hof.*))
                     FROM aggregated_hall_of_fame hof
-                    WHERE hof.player_id = p.player_id
+                    WHERE hof.player_id = p.player_id AND hof.tenant_id = target_tenant_id
                 ),
                 'match_streaks', to_jsonb(ams.*),
                 'performance_ratings', to_jsonb(apr.*),
@@ -91,8 +92,8 @@ BEGIN
                     FROM (
                         SELECT amr.*
                         FROM aggregated_match_report amr
-                        JOIN player_matches pm ON amr.match_id = pm.match_id
-                        WHERE pm.player_id = p.player_id
+                        JOIN player_matches pm ON amr.match_id = pm.match_id AND pm.tenant_id = target_tenant_id
+                        WHERE pm.player_id = p.player_id AND amr.tenant_id = target_tenant_id
                         ORDER BY amr.match_date DESC
                         LIMIT 5
                     ) amr
@@ -100,8 +101,8 @@ BEGIN
                 'personal_bests', (
                     SELECT jsonb_agg(to_jsonb(apb.*))
                     FROM aggregated_personal_bests apb
-                    JOIN player_matches pm ON apb.match_id = pm.match_id
-                    WHERE pm.player_id = p.player_id
+                    JOIN player_matches pm ON apb.match_id = pm.match_id AND pm.tenant_id = target_tenant_id
+                    WHERE pm.player_id = p.player_id AND apb.tenant_id = target_tenant_id
                     LIMIT 10  -- More context for individual analysis
                 )
             )

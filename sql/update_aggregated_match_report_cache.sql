@@ -307,7 +307,7 @@ BEGIN
             pm.goals,
             pm.result,
             pm.clean_sheet,
-            pm.team,
+            COALESCE(pm.actual_team, pm.team) AS team,  -- Use actual team if swapped
             m.team_a_score, m.team_b_score
         FROM players p
         JOIN player_matches pm ON p.player_id = pm.player_id

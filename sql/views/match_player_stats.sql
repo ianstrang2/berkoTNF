@@ -2,7 +2,10 @@
 -- Provides a denormalized view of player match data with calculated fields
 -- Used by trigger functions and stats calculations
 
-CREATE OR REPLACE VIEW match_player_stats AS
+-- Drop and recreate to allow column changes
+DROP VIEW IF EXISTS match_player_stats CASCADE;
+
+CREATE VIEW match_player_stats AS
 SELECT 
     pm.player_match_id,
     pm.player_id,

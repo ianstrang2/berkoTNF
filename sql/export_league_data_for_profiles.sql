@@ -1,6 +1,7 @@
 -- sql/export_league_data_for_profiles.sql
 -- Enhanced data export function for LLM player profile generation
 -- Features: bulk context, dynamic league inference, token optimization, pagination
+-- FIXED: Added tenant filtering throughout for multi-tenant support
 
 CREATE OR REPLACE FUNCTION export_league_data_for_profiles(
     recent_days_threshold INT DEFAULT 7,
@@ -29,15 +30,15 @@ BEGIN
                 'start_date', (SELECT MIN(match_date) FROM matches WHERE tenant_id = target_tenant_id),
                 'end_date', (SELECT MAX(match_date) FROM matches WHERE tenant_id = target_tenant_id)
             ),
-            'league_age_years', (SELECT EXTRACT(YEAR FROM AGE(MAX(match_date), MIN(match_date))) FROM matches),
-            'max_games_played', (SELECT MAX(games_played) FROM aggregated_player_profile_stats),
+            'league_age_years', (SELECT EXTRACT(YEAR FROM AGE(MAX(match_date), MIN(match_date))) FROM matches WHERE tenant_id = target_tenant_id),
+            'max_games_played', (SELECT MAX(games_played) FROM aggregated_player_profile_stats WHERE tenant_id = target_tenant_id),
             'avg_games_per_year', (
                 SELECT CASE WHEN EXTRACT(YEAR FROM AGE(MAX(match_date), MIN(match_date))) > 0 
-                THEN (SELECT COUNT(*) FROM matches) / EXTRACT(YEAR FROM AGE(MAX(match_date), MIN(match_date)))
-                ELSE (SELECT COUNT(*) FROM matches) END FROM matches
+                THEN (SELECT COUNT(*) FROM matches WHERE tenant_id = target_tenant_id) / EXTRACT(YEAR FROM AGE(MAX(match_date), MIN(match_date)))
+                ELSE (SELECT COUNT(*) FROM matches WHERE tenant_id = target_tenant_id) END FROM matches WHERE tenant_id = target_tenant_id
             ),
-            'league_records', (SELECT to_jsonb(ar.*) FROM aggregated_records ar LIMIT 1),
-            'season_honours', (SELECT jsonb_agg(to_jsonb(ash.*)) FROM aggregated_season_honours ash LIMIT 10)
+            'league_records', (SELECT to_jsonb(ar.*) FROM aggregated_records ar WHERE tenant_id = target_tenant_id LIMIT 1),
+            'season_honours', (SELECT jsonb_agg(to_jsonb(ash.*)) FROM aggregated_season_honours ash WHERE tenant_id = target_tenant_id LIMIT 10)
         ),
         'all_players', (
             SELECT jsonb_object_agg(
@@ -54,7 +55,9 @@ BEGIN
                             SELECT MAX(m.match_date) 
                             FROM player_matches pm 
                             JOIN matches m ON pm.match_id = m.match_id 
-                            WHERE pm.player_id = p.player_id
+                            WHERE pm.player_id = p.player_id 
+                              AND pm.tenant_id = target_tenant_id 
+                              AND m.tenant_id = target_tenant_id
                         )
                     ),
                     'profile_stats', to_jsonb(pps.*),
@@ -63,13 +66,13 @@ BEGIN
                     'season_stats', (
                         SELECT jsonb_agg(to_jsonb(ass.*))
                         FROM aggregated_season_stats ass
-                        WHERE ass.player_id = p.player_id
+                        WHERE ass.player_id = p.player_id AND ass.tenant_id = target_tenant_id
                         LIMIT 5
                     ),
                     'hall_of_fame_entries', (
                         SELECT jsonb_agg(to_jsonb(hof.*))
                         FROM aggregated_hall_of_fame hof
-                        WHERE hof.player_id = p.player_id
+                        WHERE hof.player_id = p.player_id AND hof.tenant_id = target_tenant_id
                         LIMIT 5
                     ),
                     'match_streaks', to_jsonb(ams.*),
@@ -81,8 +84,8 @@ BEGIN
                         FROM (
                             SELECT amr.*
                             FROM aggregated_match_report amr
-                            JOIN player_matches pm ON amr.match_id = pm.match_id
-                            WHERE pm.player_id = p.player_id
+                            JOIN player_matches pm ON amr.match_id = pm.match_id AND pm.tenant_id = target_tenant_id
+                            WHERE pm.player_id = p.player_id AND amr.tenant_id = target_tenant_id
                             ORDER BY amr.match_date DESC
                             LIMIT 5
                         ) amr
@@ -90,22 +93,23 @@ BEGIN
                     'personal_bests', (
                         SELECT jsonb_agg(to_jsonb(apb.*))
                         FROM aggregated_personal_bests apb
-                        JOIN player_matches pm ON apb.match_id = pm.match_id
-                        WHERE pm.player_id = p.player_id
+                        JOIN player_matches pm ON apb.match_id = pm.match_id AND pm.tenant_id = target_tenant_id
+                        WHERE pm.player_id = p.player_id AND apb.tenant_id = target_tenant_id
                         LIMIT 5
                     )
                 )
             )
             FROM players p
-            LEFT JOIN aggregated_player_profile_stats pps ON p.player_id = pps.player_id
-            LEFT JOIN aggregated_all_time_stats ats ON p.player_id = ats.player_id
-            LEFT JOIN aggregated_half_season_stats ahs ON p.player_id = ahs.player_id
-            LEFT JOIN aggregated_match_streaks ams ON p.player_id = ams.player_id
-            LEFT JOIN aggregated_performance_ratings apr ON p.player_id = apr.player_id
-            LEFT JOIN aggregated_player_power_ratings appr ON p.player_id = appr.player_id
-            LEFT JOIN aggregated_recent_performance arp ON p.player_id = arp.player_id
+            LEFT JOIN aggregated_player_profile_stats pps ON p.player_id = pps.player_id AND pps.tenant_id = target_tenant_id
+            LEFT JOIN aggregated_all_time_stats ats ON p.player_id = ats.player_id AND ats.tenant_id = target_tenant_id
+            LEFT JOIN aggregated_half_season_stats ahs ON p.player_id = ahs.player_id AND ahs.tenant_id = target_tenant_id
+            LEFT JOIN aggregated_match_streaks ams ON p.player_id = ams.player_id AND ams.tenant_id = target_tenant_id
+            LEFT JOIN aggregated_performance_ratings apr ON p.player_id = apr.player_id AND apr.tenant_id = target_tenant_id
+            LEFT JOIN aggregated_player_power_ratings appr ON p.player_id = appr.player_id AND appr.tenant_id = target_tenant_id
+            LEFT JOIN aggregated_recent_performance arp ON p.player_id = arp.player_id AND arp.tenant_id = target_tenant_id
             WHERE p.is_ringer = FALSE
-            AND pps.games_played >= 5
+              AND p.tenant_id = target_tenant_id
+              AND pps.games_played >= 5
             OFFSET p_offset LIMIT p_limit
         ),
         'target_players', (
@@ -127,17 +131,19 @@ BEGIN
                 )
             )
             FROM players p
-            LEFT JOIN aggregated_player_profile_stats aps ON p.player_id = aps.player_id
+            LEFT JOIN aggregated_player_profile_stats aps ON p.player_id = aps.player_id AND aps.tenant_id = target_tenant_id
             LEFT JOIN (
                 SELECT 
                     pm.player_id,
                     MAX(m.match_date) as last_match_date
                 FROM player_matches pm
-                JOIN matches m ON pm.match_id = m.match_id
+                JOIN matches m ON pm.match_id = m.match_id AND m.tenant_id = target_tenant_id
+                WHERE pm.tenant_id = target_tenant_id
                 GROUP BY pm.player_id
             ) player_last_match ON p.player_id = player_last_match.player_id
             WHERE p.is_ringer = FALSE
-            AND aps.games_played >= 5
+              AND p.tenant_id = target_tenant_id
+              AND aps.games_played >= 5
             OFFSET p_offset LIMIT p_limit
         )
     ) INTO result;

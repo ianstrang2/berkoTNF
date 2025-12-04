@@ -99,8 +99,17 @@ function parseProfilesFromResponse(response: string, targetPlayers: any[]): Reco
 serve(async (req) => {
   try {
     console.log('Starting individual player profile generation...');
-    const { recent_days_threshold = 7, offset = 0, limit = 20 } = await req.json().catch(() => ({}));
-
+    const { 
+      recent_days_threshold = 7, 
+      offset = 0, 
+      limit = 20,
+      tenant_id,
+      tenantId  // Support both naming conventions
+    } = await req.json().catch(() => ({}));
+    
+    // Extract tenant ID from request body or use default (matches other edge functions)
+    const targetTenantId = tenant_id || tenantId || '00000000-0000-0000-0000-000000000001';
+    console.log(`[generate-player-profiles] Using tenant ID: ${targetTenantId}`);
     console.log(`Using ${recent_days_threshold}-day threshold for profile generation`);
 
     // First, get list of target players who need profiles
@@ -108,7 +117,8 @@ serve(async (req) => {
       .rpc('export_league_data_for_profiles', { 
         recent_days_threshold, 
         p_offset: offset, 
-        p_limit: limit
+        p_limit: limit,
+        target_tenant_id: targetTenantId
       });
     
     if (playersError) throw playersError;
@@ -131,7 +141,8 @@ serve(async (req) => {
         const { data: playerData, error: dataError } = await supabase
           .rpc('export_individual_player_for_profile', { 
             target_player_id: targetPlayer.player_id,
-            recent_days_threshold 
+            recent_days_threshold,
+            target_tenant_id: targetTenantId
           });
         
         if (dataError) {
