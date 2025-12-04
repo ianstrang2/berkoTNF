@@ -269,7 +269,9 @@ export default function SystemHealthPage() {
   }, [jobStatusData]);
 
   const handleUpdateStats = async () => {
-    setIsUpdatingStats(true);
+    // Optimistic UI - flash immediately
+    setUpdateSuccess(true);
+    setTimeout(() => setUpdateSuccess(false), 2000);
     setError(null);
     
     try {
@@ -286,19 +288,15 @@ export default function SystemHealthPage() {
       const result = await response.json();
       console.log('Stats update result:', result);
       
-      setUpdateSuccess(true);
-      setTimeout(() => setUpdateSuccess(false), 3000);
-      
-      await Promise.all([
-        fetchJobStatus(),
-        fetchSystemHealth()
-      ]);
+      // Refresh job list after a delay
+      setTimeout(() => {
+        fetchJobStatus();
+        fetchSystemHealth();
+      }, 2000);
       
     } catch (err: any) {
       console.error('Error triggering stats update:', err);
       setError(err.message || 'Failed to trigger stats update.');
-    } finally {
-      setIsUpdatingStats(false);
     }
   };
 
@@ -487,9 +485,9 @@ export default function SystemHealthPage() {
                         updateSuccess ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : ''
                       }`}
                       onClick={handleUpdateStats} 
-                      disabled={isUpdatingStats}
+                      disabled={updateSuccess}
                     >
-                      {isUpdatingStats ? 'Updating All Tenants...' : updateSuccess ? 'Updated!' : 'Update All Tenants Stats'}
+                      {updateSuccess ? 'Queued!' : 'Update All Tenants Stats'}
                     </Button>
                     <div className="text-xs text-slate-500 mt-1">
                       Triggers stats update for all tenants in the platform
@@ -589,6 +587,11 @@ export default function SystemHealthPage() {
                                       ⚡ Fallback
                                     </span>
                                   )}
+                                  {job.job_type === 'player_profile_generation' && (
+                                    <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium" title="LLM player profile generation">
+                                      🎭 Profiles
+                                    </span>
+                                  )}
                                 </div>
                                 {job.job_payload.matchId && (
                                   <span className="text-xs text-slate-500">
@@ -619,7 +622,7 @@ export default function SystemHealthPage() {
                                 {job.results?.function_results ? (
                                   <details className="cursor-pointer">
                                     <summary className={job.status === 'failed' ? 'text-red-600 hover:text-red-800 font-medium' : 'text-green-600 hover:text-green-800'}>
-                                      {job.results.successful_functions}/{job.results.total_functions} functions succeeded
+                                      {job.results.successful_functions}/{job.results.total_functions} {job.job_type === 'player_profile_generation' ? 'profiles generated' : 'functions succeeded'}
                                       {(job.results.failed_functions ?? 0) > 0 && ` • ${job.results.failed_functions} failed`}
                                     </summary>
                                     <div className="mt-2 p-3 bg-slate-50 rounded text-xs space-y-1 max-h-64 overflow-y-auto">
@@ -629,7 +632,10 @@ export default function SystemHealthPage() {
                                           <div className="flex-1">
                                             <div className="font-medium">{result.function}</div>
                                             <div className="text-slate-500">
-                                              {result.duration}ms
+                                              {job.job_type === 'player_profile_generation' && result.action && (
+                                                <span className="text-purple-600 mr-2">{result.action}</span>
+                                              )}
+                                              {result.duration > 0 && `${result.duration}ms`}
                                               {result.error && <span className="text-red-600 ml-2">• {result.error}</span>}
                                             </div>
                                           </div>

@@ -73,6 +73,10 @@ export default function TenantMetricsPage() {
   const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
   const [profileResetSuccess, setProfileResetSuccess] = useState(false);
 
+  // Stats refresh state
+  const [isRefreshingStats, setIsRefreshingStats] = useState(false);
+  const [statsRefreshSuccess, setStatsRefreshSuccess] = useState(false);
+
   // Fetch tenant list
   useEffect(() => {
     fetchTenants();
@@ -149,8 +153,11 @@ export default function TenantMetricsPage() {
   const handleUpdateProfiles = async () => {
     if (!selectedTenantId) return;
     
-    setIsUpdatingProfiles(true);
+    // Optimistic UI - flash immediately
+    setProfileUpdateSuccess(true);
+    setTimeout(() => setProfileUpdateSuccess(false), 2000);
     setError(null);
+    
     try {
       const response = await apiFetch('/admin/trigger-player-profiles', {
         method: 'POST',
@@ -161,15 +168,11 @@ export default function TenantMetricsPage() {
       if (!response.ok) {
         throw new Error('Failed to trigger profile update');
       }
-
-      setProfileUpdateSuccess(true);
-      setTimeout(() => setProfileUpdateSuccess(false), 2000);
       
-      await fetchMetrics(selectedTenantId);
+      // Refresh after delay to show progress
+      setTimeout(() => fetchMetrics(selectedTenantId), 3000);
     } catch (err: any) {
       setError(err.message || 'Failed to trigger profile update');
-    } finally {
-      setIsUpdatingProfiles(false);
     }
   };
 
@@ -179,8 +182,11 @@ export default function TenantMetricsPage() {
       return;
     }
 
-    setIsResettingProfiles(true);
+    // Optimistic UI - flash immediately
+    setProfileResetSuccess(true);
+    setTimeout(() => setProfileResetSuccess(false), 2000);
     setError(null);
+    
     try {
       const response = await apiFetch('/admin/reset-player-profiles', {
         method: 'POST'
@@ -189,15 +195,36 @@ export default function TenantMetricsPage() {
       if (!response.ok) {
         throw new Error('Failed to reset profiles');
       }
-
-      setProfileResetSuccess(true);
-      setTimeout(() => setProfileResetSuccess(false), 2000);
       
-      await fetchMetrics(selectedTenantId);
+      // Refresh after delay to show progress
+      setTimeout(() => fetchMetrics(selectedTenantId), 3000);
     } catch (err: any) {
       setError(err.message || 'Failed to reset profiles');
-    } finally {
-      setIsResettingProfiles(false);
+    }
+  };
+
+  const handleRefreshStats = async () => {
+    if (!selectedTenantId) return;
+    
+    // Optimistic UI - flash immediately
+    setStatsRefreshSuccess(true);
+    setTimeout(() => setStatsRefreshSuccess(false), 2000);
+    setError(null);
+    
+    try {
+      const response = await apiFetch('/admin/trigger-stats-update', {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to trigger stats refresh');
+      }
+      
+      // Refresh after delay to show updated cache timestamps
+      setTimeout(() => fetchMetrics(selectedTenantId), 5000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to refresh stats');
     }
   };
 
@@ -326,6 +353,18 @@ export default function TenantMetricsPage() {
                     </table>
                   </div>
                 </div>
+                <div className="p-4 border-t border-gray-200 bg-white rounded-b-2xl">
+                  <Button 
+                    variant={statsRefreshSuccess ? "primary" : "secondary"}
+                    className={`rounded-lg shadow-soft-sm ${
+                      statsRefreshSuccess ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : ''
+                    }`}
+                    onClick={handleRefreshStats} 
+                    disabled={statsRefreshSuccess}
+                  >
+                    {statsRefreshSuccess ? 'Queued!' : 'Refresh Stats'}
+                  </Button>
+                </div>
               </div>
               </div>
 
@@ -372,19 +411,19 @@ export default function TenantMetricsPage() {
                         profileUpdateSuccess ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : ''
                       }`}
                       onClick={handleUpdateProfiles} 
-                      disabled={isUpdatingProfiles || isResettingProfiles}
+                      disabled={profileUpdateSuccess || profileResetSuccess}
                     >
-                      {isUpdatingProfiles ? 'Updating...' : profileUpdateSuccess ? 'Updated' : 'Update Profiles'}
+                      {profileUpdateSuccess ? 'Queued!' : 'Update Profiles'}
                     </Button>
                     <Button 
                       variant={profileResetSuccess ? "primary" : "secondary"}
                       className={`rounded-lg shadow-soft-sm ${
-                        profileResetSuccess ? 'bg-gradient-to-tl from-red-700 to-pink-500 text-white' : ''
+                        profileResetSuccess ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : ''
                       }`}
                       onClick={handleResetProfiles}
-                      disabled={isUpdatingProfiles || isResettingProfiles}
+                      disabled={profileUpdateSuccess || profileResetSuccess}
                     >
-                      {isResettingProfiles ? 'Resetting...' : profileResetSuccess ? 'Reset' : 'Reset & Regenerate'}
+                      {profileResetSuccess ? 'Queued!' : 'Reset & Regenerate'}
                     </Button>
                   </div>
                 </div>
