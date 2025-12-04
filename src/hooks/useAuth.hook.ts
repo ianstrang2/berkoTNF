@@ -81,21 +81,33 @@ export function useAuth() {
     };
   }, [authData]);
 
-  // Listen for auth changes
+  // Listen for auth changes including token refresh
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Log auth events for debugging session issues
+      console.log(`[AUTH_EVENT] ${event}`, { 
+        hasSession: !!session,
+        expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
+      });
+      
       // On auth events, invalidate and refetch
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+      // TOKEN_REFRESHED is CRITICAL - ensures app recognizes refreshed sessions
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
         queryClient.invalidateQueries({ queryKey: queryKeys.authProfile() });
+      }
+      
+      // Log warning if session refresh fails
+      if (event === 'SIGNED_OUT' && session === null) {
+        console.warn('[AUTH_WARNING] Session ended - user will need to re-authenticate');
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, queryClient]);
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();

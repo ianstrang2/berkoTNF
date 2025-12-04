@@ -1,6 +1,5 @@
 'use client';
 import React from 'react';
-import Link from 'next/link';
 import Button from '@/components/ui-kit/Button.component';
 
 interface FinalCTAProps {
@@ -36,15 +35,15 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onGetApp }) => {
           >
             Get the App
           </Button>
-          <Link href="/auth/login">
+          <a href="https://app.caposport.com/auth/login">
             <Button
               variant="outline"
               size="lg"
               className="text-base px-8 py-4 border-white text-white hover:bg-white/10"
             >
-              Login
+              Open App
             </Button>
-          </Link>
+          </a>
         </div>
 
         <p className="text-white/80 text-base">

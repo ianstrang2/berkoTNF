@@ -23,13 +23,18 @@ DECLARE
     v_previous_max_scoring_streak INT;
     v_player_pb_array JSONB;
     v_final_json_payload JSONB;
-    MIN_GOALS_FOR_PB CONSTANT INT := 2;
-    MIN_STREAK_FOR_PB CONSTANT INT := 4;
+    -- NOW FROM CONFIG (was CONSTANT)
+    MIN_GOALS_FOR_PB INT;
+    MIN_STREAK_FOR_PB INT;
 BEGIN
     -- Phase 2: Set RLS context for this function (required for prisma_app role)
     PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
     
-    RAISE NOTICE 'Starting update_aggregated_personal_bests processing (v2 with player names)...';
+    -- Fetch platform-wide config (FAILS if missing)
+    MIN_GOALS_FOR_PB := get_superadmin_config_value('min_goals_for_pb')::int;
+    MIN_STREAK_FOR_PB := get_superadmin_config_value('min_streak_for_pb')::int;
+    
+    RAISE NOTICE 'Starting update_aggregated_personal_bests with MIN_GOALS=%, MIN_STREAK=%', MIN_GOALS_FOR_PB, MIN_STREAK_FOR_PB;
 
     SELECT match_id, match_date INTO v_latest_match_id, v_latest_match_date
     FROM public.matches

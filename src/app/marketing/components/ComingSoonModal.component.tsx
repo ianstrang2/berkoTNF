@@ -1,6 +1,5 @@
 'use client';
 import React, { useEffect } from 'react';
-import Link from 'next/link';
 import Button from '@/components/ui-kit/Button.component';
 
 interface ComingSoonModalProps {
@@ -85,7 +84,7 @@ const ComingSoonModal: React.FC<ComingSoonModalProps> = ({ isOpen, onClose }) =>
           </p>
 
           <div className="space-y-3">
-            <Link href="/auth/login" className="block">
+            <a href="https://app.caposport.com/auth/login" className="block">
               <Button
                 variant="primary"
                 size="lg"
@@ -94,7 +93,7 @@ const ComingSoonModal: React.FC<ComingSoonModalProps> = ({ isOpen, onClose }) =>
               >
                 Try the Web App →
               </Button>
-            </Link>
+            </a>
 
             <button
               onClick={onClose}

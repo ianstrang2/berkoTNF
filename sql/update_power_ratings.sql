@@ -8,11 +8,14 @@ RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
     half_life numeric;
     lambda_val numeric;
-    prior_weight CONSTANT numeric := 5;  -- Bayesian prior strength
+    prior_weight numeric;  -- NOW FROM CONFIG (was CONSTANT := 5)
     qualification_threshold numeric;
 BEGIN
     -- Phase 2: Set RLS context for this function (required for prisma_app role)
     PERFORM set_config('app.tenant_id', target_tenant_id::text, false);
+    
+    -- Fetch platform-wide config (FAILS if missing)
+    prior_weight := get_superadmin_config_value('prior_weight')::numeric;
     
     -- Fetch configuration values from app_config table (tenant-scoped)
     SELECT COALESCE(

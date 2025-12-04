@@ -54,10 +54,10 @@ const Footer: React.FC = () => {
             <p className="text-white/80 text-sm font-semibold mb-4 uppercase tracking-wide">Quick Links</p>
             <div className="flex flex-col gap-3">
               <a 
-                href="/auth/login" 
+                href="https://app.caposport.com/auth/login" 
                 className="text-base text-white/70 hover:text-white transition-colors hover:translate-x-1 inline-block"
               >
-                Login
+                Open App
               </a>
               <a 
                 href="mailto:hello@caposport.com" 

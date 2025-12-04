@@ -14,8 +14,9 @@
 - **CLARIFIED** UI driven by timestamps, not state
 - **ALIGNED** Email templates and notifications (Section 10.5)
 - **SIMPLIFIED** Tiered booking: Hidden power-user feature (Section 3.5)
-- **SIMPLIFIED** Grace period: Fixed 3 minutes
-- **SIMPLIFIED** Waitlist TTL: 2hr or 30min based on time to kickoff
+- **SIMPLIFIED** Grace period: Configurable (default 3 minutes) via `superadmin_config`
+- **GRADUATED** Waitlist TTL: Configurable via `superadmin_config` (see Section 7)
+- **CONFIGURABLE** All timing values stored in `superadmin_config` table (see Section 0.1)
 - **ADDED** Push notification setup guide (Firebase/FCM)
 
 *Previous versions: v4.5.0 (RSVP toggle), v4.4.0 (schema reconciliation), v4.3.0 (multi-tenancy), v4.2.0 (consolidation) - see git history*
@@ -56,6 +57,50 @@ This specification builds on **fully implemented infrastructure**:
 - `SPEC_match-control-centre.md` - Match lifecycle, uneven teams, no-shows
 - All authentication, match lifecycle, and tenant logic is defined in those specs
 - This spec focuses **only** on RSVP booking logic
+
+---
+
+## **0.1) Platform Configuration (superadmin_config)**
+
+**⚠️ DO NOT HARDCODE** timing values. All RSVP timing configuration is stored in the `superadmin_config` table and managed via `/superadmin/settings`.
+
+### Config Keys (RSVP Display Group)
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `grace_period_minutes` | 3 | Minutes to wait after dropout before sending waitlist offers |
+| `waitlist_ttl_over_24h` | 120 | TTL (minutes) for offers when >24h to kickoff |
+| `waitlist_ttl_6h_to_24h` | 60 | TTL (minutes) for offers when 6-24h to kickoff |
+| `waitlist_ttl_3h_to_6h` | 45 | TTL (minutes) for offers when 3-6h to kickoff |
+| `waitlist_ttl_1h_to_3h` | 30 | TTL (minutes) for offers when 1-3h to kickoff |
+| `waitlist_ttl_15min_to_1h` | 15 | TTL (minutes) for offers when 15min-1h to kickoff |
+| `waitlist_ttl_under_15min` | 5 | TTL floor (minutes) for offers when <15min to kickoff |
+| `last_call_hours_before` | "12,3" | Comma-separated hours before kickoff for last-call notifications |
+
+### Accessing Config Values
+
+**From SQL functions** (use `SECURITY DEFINER` pattern - bypasses RLS):
+```sql
+-- Fail-loudly: raises exception if key not found
+grace_minutes := get_superadmin_config_value('grace_period_minutes')::int;
+ttl_minutes := get_superadmin_config_value('waitlist_ttl_over_24h')::int;
+```
+
+**From API routes** (tenant context NOT required - these are platform-wide):
+```typescript
+// Direct Supabase query (superadmin_config has read access for all authenticated users)
+const { data } = await supabaseAdmin
+  .from('superadmin_config')
+  .select('config_value')
+  .eq('config_key', 'grace_period_minutes')
+  .single();
+
+const gracePeriodMinutes = parseInt(data.config_value);
+```
+
+**Multi-tenancy note:** These are **platform-wide settings**, not per-tenant. All tenants share the same RSVP timing configuration. The `superadmin_config` table has RLS that allows:
+- **Read:** All authenticated users (tenants can read config values)
+- **Write:** Superadmin only (via `/superadmin/settings` UI)
 
 ---
 
@@ -125,9 +170,9 @@ At match creation, admin chooses how to manage the match:
 
 **Real-time updates:** Live booking count, push notifications, view teams once balanced.
 
-**Waitlist system:** Top-3 simultaneous offers when someone drops out, first to claim wins. TTL: 2 hours normally, 30 minutes if <3 hours to kickoff.
+**Waitlist system:** Top-3 simultaneous offers when someone drops out, first to claim wins. Graduated TTL based on time to kickoff (2h → 1h → 45m → 30m → 15m → 5m floor).
 
-**Last-call notifications:** Fixed windows at T-12h and T-3h if match is short.
+**Last-call notifications:** Configurable windows (default T-12h and T-3h, via `last_call_hours_before` in superadmin_config) if match is short.
 
 ### **3) Who gets invited when**
 
@@ -139,7 +184,7 @@ At match creation, admin chooses how to manage the match:
 
 ### **4) Waitlist & offers**
 
-Fixed 3-minute grace period after dropout (cancel if player returns to IN). Top-3 simultaneous offers, first to claim wins. TTL: 2hr normally, 30min if <3hr to kickoff. Auto-cascade until spot claimed or waitlist empty.
+Fixed 3-minute grace period after dropout (cancel if player returns to IN). Top-3 simultaneous offers, first to claim wins. Graduated TTL: 2h (>24h) → 1h (6-24h) → 45m (3-6h) → 30m (1-3h) → 15m (15m-1h) → 5m floor (<15m). Auto-cascade until spot claimed or waitlist empty.
 
 ### **5) Smart notifications**
 
@@ -431,9 +476,11 @@ ALTER TABLE upcoming_matches
   ADD COLUMN auto_balance_method TEXT NOT NULL DEFAULT 'performance'
     CHECK (auto_balance_method IN ('ability','performance','random')),
   
-  -- Notification tracking
-  ADD COLUMN last_call_12_sent_at TIMESTAMPTZ NULL,
-  ADD COLUMN last_call_3_sent_at TIMESTAMPTZ NULL;
+  -- Notification tracking (JSON to support configurable last_call_hours_before)
+  ADD COLUMN last_call_sent_at JSONB NOT NULL DEFAULT '{}'::JSONB;
+  -- Format: {"12": "2025-01-15T10:00:00Z", "3": "2025-01-15T19:00:00Z"}
+  -- Keys are hours-before-kickoff, values are when notification was sent
+  -- Hours are configured via superadmin_config.last_call_hours_before (e.g., "12,3")
 
 COMMENT ON COLUMN upcoming_matches.booking_enabled IS 
   'RSVP mode. Set at match creation, CANNOT change after.
@@ -1790,7 +1837,7 @@ export async function GET(
 **Player Notifications:**
 - Tier open → push to that tier
 - Waitlist offer (after grace) → push top-3 with TTL
-- Last-call (T-12h/T-3h if short) → push likely responders
+- Last-call (configurable hours via `superadmin_config.last_call_hours_before`, default T-12h/T-3h if short) → push likely responders
 - Cancellation → push to confirmed + waitlist
 - Teams released → push to participants only
 
@@ -1823,15 +1870,16 @@ Use `notification_ledger.batch_key` to coalesce events.
 
 ### **6.3 Grace Period (v6.0.0 - Clarified Sequence)**
 
-**Fixed 3-minute grace period** with explicit sequence to prevent race conditions:
+**Configurable grace period** (default 3 minutes, see Section 0.1) with explicit sequence to prevent race conditions:
 
 ```
 1. Player A drops out (IN → OUT)
-   └── Set dropout_pending_until = NOW() + 3 minutes
+   └── grace_minutes := get_superadmin_config_value('grace_period_minutes')::int
+   └── Set dropout_pending_until = NOW() + grace_minutes minutes
    └── NO waitlist offers sent yet
    └── Background job scheduled for dropout_pending_until
 
-2. During grace period (0-3 mins):
+2. During grace period:
    └── Player A can return (OUT → IN) 
    └── If returns: clear dropout_pending_until, cancel job
    └── Waitlist players see nothing (no false hope)
@@ -1847,7 +1895,7 @@ Use `notification_ledger.batch_key` to coalesce events.
 
 **Why delayed offers:** Prevents race where waitlist player claims spot, then original player "undoes" - both think they have the spot.
 
-**Why 3 minutes:** Long enough for "oops" corrections, short enough to not delay waitlist significantly.
+**Why configurable:** Default 3 minutes is long enough for "oops" corrections, short enough to not delay waitlist significantly. Superadmin can adjust based on real-world usage patterns.
 
 **Clarification - Grace Period vs TTL:**
 - **Grace period (3 min):** Delay BEFORE sending waitlist offers (dropout → wait 3 min → send offers)
@@ -1864,41 +1912,56 @@ Use `notification_ledger.batch_key` to coalesce events.
 
 ## **7) Waitlist Details**
 
-Top-3 simultaneous offers. **Graduated TTL (v6.0.0):**
+Top-3 simultaneous offers. **Graduated TTL (v6.0.0) - All values configurable via `superadmin_config` (Section 0.1):**
 
-| Time to Kickoff | Offer TTL |
-|-----------------|-----------|
-| >24h | 2 hours |
-| 6h – 24h | 1 hour |
-| 3h – 6h | 45 min |
-| 1h – 3h | 30 min |
-| 15min – 1h | 15 min |
-| <15min | Instant claim |
+| Time to Kickoff | Config Key | Default |
+|-----------------|------------|---------|
+| >24h | `waitlist_ttl_over_24h` | 120 min (2h) |
+| 6h – 24h | `waitlist_ttl_6h_to_24h` | 60 min (1h) |
+| 3h – 6h | `waitlist_ttl_3h_to_6h` | 45 min |
+| 1h – 3h | `waitlist_ttl_1h_to_3h` | 30 min |
+| 15min – 1h | `waitlist_ttl_15min_to_1h` | 15 min |
+| <15min | `waitlist_ttl_under_15min` | 5 min (floor) |
 
 All TTLs clamped to kickoff−15m max. Smoother experience than binary 2h/30min cutoff.
 
-**TTL Calculation Function:**
+**TTL Calculation Function (reads from superadmin_config):**
 ```sql
 CREATE OR REPLACE FUNCTION calculate_offer_ttl(kickoff_time TIMESTAMPTZ)
 RETURNS INTERVAL AS $$
 DECLARE
   hours_until NUMERIC;
   raw_ttl INTERVAL;
+  ttl_over_24h INT;
+  ttl_6h_24h INT;
+  ttl_3h_6h INT;
+  ttl_1h_3h INT;
+  ttl_15m_1h INT;
+  ttl_under_15m INT;
 BEGIN
   hours_until := EXTRACT(EPOCH FROM (kickoff_time - NOW())) / 3600;
   
+  -- Fetch configurable TTL values from superadmin_config (fail-loudly if missing)
+  ttl_over_24h := get_superadmin_config_value('waitlist_ttl_over_24h')::int;
+  ttl_6h_24h := get_superadmin_config_value('waitlist_ttl_6h_to_24h')::int;
+  ttl_3h_6h := get_superadmin_config_value('waitlist_ttl_3h_to_6h')::int;
+  ttl_1h_3h := get_superadmin_config_value('waitlist_ttl_1h_to_3h')::int;
+  ttl_15m_1h := get_superadmin_config_value('waitlist_ttl_15min_to_1h')::int;
+  ttl_under_15m := get_superadmin_config_value('waitlist_ttl_under_15min')::int;
+  
   raw_ttl := CASE
-    WHEN hours_until > 24 THEN INTERVAL '2 hours'
-    WHEN hours_until > 6  THEN INTERVAL '1 hour'
-    WHEN hours_until > 3  THEN INTERVAL '45 minutes'
-    WHEN hours_until > 1  THEN INTERVAL '30 minutes'
-    WHEN hours_until > 0.25 THEN INTERVAL '15 minutes'
-    ELSE INTERVAL '5 minutes' -- Minimum floor (so push can be delivered + seen)
+    WHEN hours_until > 24 THEN (ttl_over_24h || ' minutes')::INTERVAL
+    WHEN hours_until > 6  THEN (ttl_6h_24h || ' minutes')::INTERVAL
+    WHEN hours_until > 3  THEN (ttl_3h_6h || ' minutes')::INTERVAL
+    WHEN hours_until > 1  THEN (ttl_1h_3h || ' minutes')::INTERVAL
+    WHEN hours_until > 0.25 THEN (ttl_15m_1h || ' minutes')::INTERVAL
+    ELSE (ttl_under_15m || ' minutes')::INTERVAL -- Floor (so push can be delivered + seen)
   END;
   
   RETURN raw_ttl;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- SECURITY DEFINER: Bypasses RLS to read superadmin_config
 ```
 
 First to claim wins (transactional). Others get "spot filled", remain on waitlist.
@@ -2519,10 +2582,10 @@ function isWithinSendWindow(matchDate: Date, hoursBefore: number): boolean {
 **Other job implementations:**
 
 - **tier_open_notifications:** Cron at tier times, target `is_guest=false`, send push (only if `enable_tiered_booking=true`)
-- **dropout_grace_processor:** Fixed 3-minute grace period, then trigger waitlist offers
-- **waitlist_offer_processor:** Every 5 min, expire offers (2hr or 30min TTL based on time-to-kickoff), auto-cascade, log to `notification_ledger`
+- **dropout_grace_processor:** Configurable grace period (via `superadmin_config.grace_period_minutes`, default 3 min), then trigger waitlist offers
+- **waitlist_offer_processor:** Every 5 min, expire offers (graduated TTL from `superadmin_config.waitlist_ttl_*` based on time-to-kickoff), auto-cascade, log to `notification_ledger`
 - **notification_batcher:** Teams released (participants only), cancellation (all confirmed+waitlist), respect caps
-- **last_call_processor:** T-12h and T-3h windows, target unresponded + OUT flexible, exclude muted, set timestamp for idempotency
+- **last_call_processor:** Windows configured via `superadmin_config.last_call_hours_before` (default "12,3" = T-12h and T-3h), target unresponded + OUT flexible, exclude muted, track sent times in `last_call_sent_at` JSONB for idempotency
 
 ---
 

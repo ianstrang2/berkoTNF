@@ -1,8 +1,62 @@
 # Marketing & Analytics Specification
 
-**Version:** 1.0.0  
-**Last Updated:** January 8, 2025  
+**Version:** 1.1.0  
+**Last Updated:** December 4, 2025  
 **Status:** ✅ Active
+
+---
+
+## Domain Architecture (CRITICAL)
+
+**Marketing and App are on SEPARATE domains for auth cookie isolation.**
+
+### Domain Split
+
+| Domain | Purpose | Auth State | Pages |
+|--------|---------|------------|-------|
+| `caposport.com` | Marketing | **None** - "dumb" pages | `/`, `/privacy` |
+| `app.caposport.com` | Main App | **Full auth** - cookies here | `/admin/*`, `/player/*`, `/auth/*`, `/join/*`, etc. |
+
+### Why Two Domains?
+
+**Auth cookies are domain-specific.** If a user logs in at `app.caposport.com`, their session cookie is only valid there. Marketing pages at `caposport.com` cannot see that cookie.
+
+**Benefits:**
+- Clear separation of concerns
+- Marketing pages load fast (no auth checks)
+- Mobile apps always use `app.caposport.com` (consistent)
+- No session confusion when switching between domains
+
+### Implementation
+
+**Marketing pages are "dumb":**
+- NO `useAuthContext()` or Supabase auth checks
+- All login/app links point to `https://app.caposport.com/...`
+- Button labels: "Open App" (not "Login" - user might already be logged in)
+
+**App pages are "smart":**
+- Full auth checking via `useAuthContext()` or middleware
+- If logged in → show dashboard
+- If not logged in → show login form
+
+### Redirects (next.config.mjs)
+
+App routes accessed from root domain are automatically redirected:
+
+```
+caposport.com/admin/*     → app.caposport.com/admin/*
+caposport.com/player/*    → app.caposport.com/player/*
+caposport.com/auth/*      → app.caposport.com/auth/*
+caposport.com/join/*      → app.caposport.com/join/*
+caposport.com/signup/*    → app.caposport.com/signup/*
+caposport.com/api/*       → app.caposport.com/api/*
+```
+
+### Supabase Configuration Required
+
+**Dashboard → Authentication → URL Configuration:**
+- **Site URL:** `https://app.caposport.com`
+- **Redirect URLs:** `https://app.caposport.com/**`
 
 ---
 

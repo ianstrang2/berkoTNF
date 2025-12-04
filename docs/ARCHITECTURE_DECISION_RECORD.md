@@ -1,6 +1,34 @@
-# Architecture Decision Record - November 26, 2025
+# Architecture Decision Record
 
-## ✅ **Decision: One Codebase, One Standard Environment Variable**
+**Last Updated:** December 4, 2025
+
+---
+
+## ✅ **Decision: Domain Separation for Auth Cookie Isolation** (Dec 2025)
+
+### **What Changed:**
+
+**Previously:**
+- Both `caposport.com` and `app.caposport.com` served the full app
+- Users could accidentally use either domain
+- Auth cookies are domain-specific → sessions didn't transfer between domains
+- User confusion: "Why do I keep having to log in?"
+
+**Now (Dec 2025):**
+- ✅ **Marketing domain:** `caposport.com` - Only `/` and `/privacy` pages
+- ✅ **App domain:** `app.caposport.com` - All authenticated routes
+- ✅ **Automatic redirects** in `next.config.mjs` for app routes on root domain
+- ✅ **Marketing pages are "dumb"** - No auth checks, just link to app domain
+
+### **Implementation:**
+- Marketing components use absolute URLs: `https://app.caposport.com/auth/login`
+- Button labels: "Open App" (not "Login")
+- Redirects configured in `next.config.mjs`
+- Supabase Site URL: `https://app.caposport.com`
+
+---
+
+## ✅ **Decision: One Codebase, One Standard Environment Variable** (Nov 2025)
 
 ### **What Changed:**
 
@@ -12,7 +40,6 @@
 **Now (Standardized):**
 - ✅ **One codebase** (Next.js) for everything
 - ✅ **One environment variable**: `NEXT_PUBLIC_APP_URL`
-- ✅ **One deployment** domain: `app.caposport.com`
 - ✅ Clear architecture documentation
 
 ---
@@ -21,11 +48,16 @@
 
 ```
 ONE CODEBASE (Next.js)
-└── Vercel Deployment
+└── Vercel Deployment (serves both domains)
 
-DOMAINS:
-├── app.caposport.com → The app (admin, player, API)
-└── caposport.com → Marketing pages (same codebase, future: may separate)
+DOMAINS (CRITICAL - Different purposes!):
+├── caposport.com       → Marketing ONLY (/, /privacy)
+│   └── No auth cookies, "dumb" pages
+│   └── All app links → https://app.caposport.com/...
+│
+└── app.caposport.com   → The App (admin, player, auth, API)
+    └── Full auth cookies here
+    └── Mobile apps use this domain
 
 ENVIRONMENT VARIABLES:
 ├── NEXT_PUBLIC_APP_URL=https://app.caposport.com (✅ Standard)
@@ -109,16 +141,32 @@ ENVIRONMENT VARIABLES:
 
 Use this to verify the architecture is correct:
 
+**Environment & Deployment:**
 - [ ] All code uses `NEXT_PUBLIC_APP_URL` (not `NEXT_PUBLIC_SITE_URL`)
 - [ ] Vercel has `NEXT_PUBLIC_APP_URL=https://app.caposport.com`
 - [ ] Render has `NEXT_PUBLIC_APP_URL=https://app.caposport.com`
-- [ ] Capacitor config points to `https://app.caposport.com`
+- [ ] Both domains (`caposport.com` and `app.caposport.com`) point to Vercel
+
+**Auth & Supabase:**
 - [ ] Supabase Site URL is `https://app.caposport.com`
-- [ ] No references to `capo-marketing` repo in active docs
+- [ ] Supabase Redirect URLs include `https://app.caposport.com/**`
+
+**Mobile:**
+- [ ] Capacitor config points to `https://app.caposport.com`
 - [ ] Mobile docs reflect webview wrapper architecture
+
+**Marketing Pages:**
+- [ ] `/` (homepage) has NO auth checks
+- [ ] Marketing login links use absolute URL: `https://app.caposport.com/auth/login`
+- [ ] Button labels say "Open App" not "Login"
+
+**Redirects (next.config.mjs):**
+- [ ] `/admin/*` redirects to `app.caposport.com` when on root domain
+- [ ] `/player/*` redirects to `app.caposport.com` when on root domain
+- [ ] `/auth/*` redirects to `app.caposport.com` when on root domain
 
 ---
 
-**Last Updated:** November 26, 2025  
+**Last Updated:** December 4, 2025  
 **Next Review:** When considering architectural changes
 

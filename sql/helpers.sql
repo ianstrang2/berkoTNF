@@ -107,7 +107,8 @@ RETURNS DATE LANGUAGE sql STABLE AS $$
     END;
 $$;
 
--- Function to fetch a single config value with default
+-- Function to fetch a single TENANT config value with default
+-- UPDATED: Now warns on missing config (fail-loudly pattern)
 CREATE OR REPLACE FUNCTION get_config_value(p_config_key TEXT, p_default_value TEXT, target_tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'::UUID)
 RETURNS TEXT LANGUAGE plpgsql STABLE AS $$
 DECLARE
@@ -121,6 +122,38 @@ BEGIN
     WHERE config_key = p_config_key AND tenant_id = target_tenant_id
     LIMIT 1;
 
-    RETURN COALESCE(v_config_value, p_default_value);
+    IF v_config_value IS NULL THEN
+        -- Log warning but use default for backwards compatibility
+        RAISE WARNING 'Missing tenant config: % for tenant %. Using default: %', 
+            p_config_key, target_tenant_id, p_default_value;
+        RETURN p_default_value;
+    END IF;
+
+    RETURN v_config_value;
 END;
-$$; 
+$$;
+
+-- Function to fetch a single SUPERADMIN (platform-wide) config value
+-- FAILS if missing - no silent defaults for platform config
+CREATE OR REPLACE FUNCTION get_superadmin_config_value(p_config_key TEXT)
+RETURNS TEXT 
+LANGUAGE plpgsql 
+STABLE
+SECURITY DEFINER  -- Bypasses RLS so SQL functions can always read
+AS $$
+DECLARE
+    v_config_value TEXT;
+BEGIN
+    SELECT config_value INTO v_config_value
+    FROM superadmin_config
+    WHERE config_key = p_config_key;
+    
+    IF v_config_value IS NULL THEN
+        RAISE EXCEPTION 'CRITICAL: Missing superadmin config: %', p_config_key;
+    END IF;
+    
+    RETURN v_config_value;
+END;
+$$;
+
+COMMENT ON FUNCTION get_superadmin_config_value IS 'Fetches platform-wide config from superadmin_config. Raises exception if missing (fail-loudly pattern).'; 

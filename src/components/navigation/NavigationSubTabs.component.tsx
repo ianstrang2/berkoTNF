@@ -11,13 +11,42 @@ interface NavigationSubTabsProps {
 export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className = '' }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { primarySection, secondarySection, isAdminMode, isAdminAuthenticated } = useNavigation();
+  const { primarySection, secondarySection, isAdminMode, isAdminAuthenticated, isSuperadmin } = useNavigation();
 
   // Get current view from search params
   const currentView = searchParams?.get('view');
 
   // Get tertiary navigation options based on primary and secondary sections
   const getTertiaryOptions = () => {
+    // Superadmin tertiary navigation (check first)
+    if (primarySection === 'superadmin' && isSuperadmin) {
+      if (secondarySection === 'settings') {
+        const currentSettingsSection = searchParams?.get('section') || 'stats';
+        
+        return [
+          {
+            key: 'stats',
+            label: 'Stats',
+            href: '/superadmin/settings?section=stats',
+            active: currentSettingsSection === 'stats'
+          },
+          {
+            key: 'rsvp',
+            label: 'RSVP',
+            href: '/superadmin/settings?section=rsvp',
+            active: currentSettingsSection === 'rsvp'
+          },
+          {
+            key: 'system',
+            label: 'System',
+            href: '/superadmin/settings?section=system',
+            active: currentSettingsSection === 'system'
+          }
+        ];
+      }
+      return [];
+    }
+
     if (isAdminMode && isAdminAuthenticated) {
       // Admin tertiary navigation
       switch (secondarySection) {

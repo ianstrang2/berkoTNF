@@ -28,7 +28,82 @@ const nextConfig = {
   // Increase timeout for builds
   staticPageGenerationTimeout: 180,
   
-  // Add any rewrites or redirects here as needed
+  // ===================================================================
+  // DOMAIN SEPARATION REDIRECTS
+  // ===================================================================
+  // Marketing: caposport.com (/, /privacy)
+  // App: app.caposport.com (/admin/*, /player/*, /auth/*, etc.)
+  //
+  // These redirects send app routes to the app subdomain when accessed
+  // from the root marketing domain. This ensures auth cookies work correctly.
+  // ===================================================================
+  async redirects() {
+    return [
+      // Admin routes → app subdomain
+      {
+        source: '/admin/:path*',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/admin/:path*',
+        permanent: true,
+      },
+      // Player routes → app subdomain
+      {
+        source: '/player/:path*',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/player/:path*',
+        permanent: true,
+      },
+      // Auth routes → app subdomain
+      {
+        source: '/auth/:path*',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/auth/:path*',
+        permanent: true,
+      },
+      // Join routes → app subdomain
+      {
+        source: '/join/:path*',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/join/:path*',
+        permanent: true,
+      },
+      // Signup routes → app subdomain
+      {
+        source: '/signup/:path*',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/signup/:path*',
+        permanent: true,
+      },
+      // Superadmin routes → app subdomain
+      {
+        source: '/superadmin/:path*',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/superadmin/:path*',
+        permanent: true,
+      },
+      // Open (universal entry) → app subdomain
+      {
+        source: '/open',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/open',
+        permanent: true,
+      },
+      // Unauthorized → app subdomain
+      {
+        source: '/unauthorized',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/unauthorized',
+        permanent: true,
+      },
+      // API routes → app subdomain (for any direct API calls from root domain)
+      {
+        source: '/api/:path*',
+        has: [{ type: 'host', value: 'caposport.com' }],
+        destination: 'https://app.caposport.com/api/:path*',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

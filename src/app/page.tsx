@@ -1,7 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthContext } from '@/contexts/AuthContext';
+import React, { useState } from 'react';
 import { useAttribution } from '@/hooks/useAttribution.hook';
 import PlausibleScript from '@/components/analytics/PlausibleScript.component';
 
@@ -20,22 +18,17 @@ import FinalCTA from './marketing/components/FinalCTA.component';
 import Footer from './marketing/components/Footer.component';
 import ComingSoonModal from './marketing/components/ComingSoonModal.component';
 
+/**
+ * Marketing Landing Page
+ * 
+ * This page is "dumb" - it doesn't check auth state.
+ * Auth checks happen on app.caposport.com when user clicks "Login" or "Open App".
+ * 
+ * Domain Strategy:
+ * - caposport.com → Marketing pages (this page, /privacy)
+ * - app.caposport.com → App pages (/admin/*, /player/*, /auth/*)
+ */
 export default function MarketingPage() {
-  const router = useRouter();
-  const { profile, loading } = useAuthContext();
-  
-  // Redirect authenticated users to their dashboard
-  useEffect(() => {
-    if (!loading && profile.isAuthenticated) {
-      console.log('[HOMEPAGE] Authenticated user detected, redirecting to dashboard');
-      if (profile.isAdmin) {
-        router.push('/admin/matches');
-      } else {
-        router.push('/player/dashboard');
-      }
-    }
-  }, [loading, profile, router]);
-  
   // Capture marketing attribution on first visit
   useAttribution();
   

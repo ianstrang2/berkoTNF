@@ -84,7 +84,8 @@ const NAVIGATION_CONFIG = {
     secondary: {
       tenants: { label: 'Tenants' },
       'system-health': { label: 'System Health' },
-      'tenant-metrics': { label: 'Tenant Metrics' }
+      'tenant-metrics': { label: 'Tenant Metrics' },
+      settings: { label: 'Settings' }
     }
   }
 };

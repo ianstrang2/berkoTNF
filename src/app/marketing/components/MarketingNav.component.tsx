@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import Button from '@/components/ui-kit/Button.component';
 
@@ -62,20 +61,20 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
             >
               Get the App
             </Button>
-            <Link href="/auth/login">
+            <a href="https://app.caposport.com/auth/login">
               <Button variant="primary" size="md">
-                Login
+                Open App
               </Button>
-            </Link>
+            </a>
           </div>
 
           {/* Mobile Navigation */}
           <div className="flex md:hidden items-center gap-3">
-            <Link href="/auth/login">
+            <a href="https://app.caposport.com/auth/login">
               <Button variant="primary" size="sm">
-                Login
+                Open App
               </Button>
-            </Link>
+            </a>
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className={`p-2 rounded-lg transition-colors ${

@@ -1,11 +1,15 @@
 -- match_player_stats.sql
 -- Provides a denormalized view of player match data with calculated fields
 -- Used by trigger functions and stats calculations
+--
+-- SECURITY: Uses security_invoker=true (PostgreSQL 15+) to ensure queries
+-- run with the invoking user's permissions, not the view owner's.
 
 -- Drop and recreate to allow column changes
 DROP VIEW IF EXISTS match_player_stats CASCADE;
 
-CREATE VIEW match_player_stats AS
+CREATE VIEW match_player_stats 
+WITH (security_invoker = true) AS
 SELECT 
     pm.player_match_id,
     pm.player_id,
