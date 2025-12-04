@@ -30,27 +30,17 @@ export interface AuthProfileData {
 }
 
 async function fetchAuthProfile(): Promise<AuthProfileData | null> {
-  console.log('[AUTH_PROFILE] Fetching auth profile...');
   const response = await apiFetch('/auth/profile');
   
   if (!response.ok) {
     if (response.status === 401) {
-      // Not authenticated - return null
-      console.log('[AUTH_PROFILE] Not authenticated (401)');
+      // Not authenticated - return null (expected for logged-out users)
       return null;
     }
-    console.error(`[AUTH_PROFILE] API error: ${response.status}`);
     throw new Error(`Auth profile API returned ${response.status}`);
   }
   
-  const result: AuthProfileData = await response.json();
-  console.log('[AUTH_PROFILE] Profile loaded successfully', { 
-    userId: result.user.id,
-    isAdmin: result.profile.isAdmin,
-    tenantId: result.profile.tenantId 
-  });
-  
-  return result;
+  return await response.json();
 }
 
 export function useAuthProfile() {
