@@ -32,16 +32,15 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo with Launch Badge */}
           <div className="flex items-center gap-2 md:gap-3">
-            <Link href="/" className="flex items-center">
+            <a href="/" className="flex items-center">
               <Image
                 src={isScrolled ? '/img/logo-with-text-purple.png' : '/img/logo-with-text-white.png'}
                 alt="Capo - 5-a-side football app"
                 width={580}
                 height={160}
                 className="h-7 w-auto md:h-8"
-                priority
               />
-            </Link>
+            </a>
             <span className="px-2 py-1 text-xs md:text-sm font-semibold text-white rounded-full bg-gradient-to-br from-pink-500 to-purple-600 whitespace-nowrap">
               Launching Jan 26
             </span>
