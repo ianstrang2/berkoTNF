@@ -18,14 +18,15 @@ const config: CapacitorConfig = {
   webDir: 'public', // Not used in webview mode, but required by Capacitor
   
   // Server configuration based on environment
+  // Entry point is /open (smart router) - skips marketing, goes to login or dashboard
   ...(isDev ? {
     server: {
-      url: 'http://localhost:3000',
+      url: 'http://localhost:3000/open',
       cleartext: true, // Allow HTTP for local dev
     }
   } : {
     server: {
-      url: 'https://app.caposport.com',
+      url: 'https://app.caposport.com/open',
       cleartext: false, // HTTPS only for production
     }
   }),
