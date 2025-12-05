@@ -147,12 +147,12 @@ const Milestones: React.FC = () => {
   // Helper function to render section headers with appropriate links
   const renderSectionHeader = (sectionName: string): React.ReactNode => {
     const linkMap: { [key: string]: string } = {
-      'Half-Season Goals': '/table/half?view=goals',
-      'Half-Season Points Leader': '/table/half',
-      'Half-Season Points': '/table/half',
-      'Season Goals': '/table/whole?view=goals',
-      'Season Points Leader': '/table/whole',
-      'Season Points': '/table/whole'
+      'Half-Season Goals': '/player/table/half?view=goals',
+      'Half-Season Points Leader': '/player/table/half',
+      'Half-Season Points': '/player/table/half',
+      'Season Goals': '/player/table/whole?view=goals',
+      'Season Points Leader': '/player/table/whole',
+      'Season Points': '/player/table/whole'
     };
 
     const url = linkMap[sectionName];
