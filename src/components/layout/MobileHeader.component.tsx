@@ -10,7 +10,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Capacitor } from '@capacitor/core';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -19,6 +19,7 @@ import { apiFetch } from '@/lib/apiConfig';
 
 export const MobileHeader: React.FC = () => {
   const pathname = usePathname() || '';
+  const router = useRouter();
   const { profile, loading } = useAuthContext();
   const [showMenu, setShowMenu] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -26,6 +27,7 @@ export const MobileHeader: React.FC = () => {
   const [platform, setPlatform] = useState<'ios' | 'android' | 'web'>('web');
 
   const isInAdminView = pathname.startsWith('/admin');
+  const isInPlayerView = pathname.startsWith('/player');
   const showAuthContent = !loading;
 
   useEffect(() => {
@@ -66,25 +68,41 @@ export const MobileHeader: React.FC = () => {
   const MenuDropdown = () => (
     <div className="absolute right-4 w-56 bg-white rounded-xl shadow-soft-xl border border-gray-200 py-2 z-50"
          style={{ top: platform === 'ios' ? '16px' : 'calc(3.5rem + var(--safe-top, 0px))' }}>
-      {/* Settings */}
-      <a href="/player/settings" className="block px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-          <span>Settings</span>
-        </div>
-      </a>
-      <div className="border-t border-gray-100 my-1"></div>
+      {/* Settings - Only show in player view */}
+      {isInPlayerView && (
+        <>
+          <button 
+            onClick={() => {
+              router.push('/player/settings');
+              setShowMenu(false);
+            }}
+            className="w-full text-left block px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <span>Settings</span>
+            </div>
+          </button>
+          <div className="border-t border-gray-100 my-1"></div>
+        </>
+      )}
 
       {/* Admin-Player: Show view switching */}
       {profile.isAdmin && profile.linkedPlayerId && (
         <>
           {isInAdminView ? (
-            <a href="/player/dashboard" className="block px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors">
+            <button 
+              onClick={() => {
+                router.push('/player/dashboard');
+                setShowMenu(false);
+              }}
+              className="w-full text-left block px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -93,9 +111,15 @@ export const MobileHeader: React.FC = () => {
                 </div>
                 <span>View as Player</span>
               </div>
-            </a>
+            </button>
           ) : (
-            <a href="/admin/matches" className="block px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors">
+            <button 
+              onClick={() => {
+                router.push('/admin/matches');
+                setShowMenu(false);
+              }}
+              className="w-full text-left block px-4 py-3 text-sm text-slate-600 hover:bg-gradient-to-tl hover:from-purple-50 hover:to-pink-50 transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -104,7 +128,7 @@ export const MobileHeader: React.FC = () => {
                 </div>
                 <span>View as Admin</span>
               </div>
-            </a>
+            </button>
           )}
           <div className="border-t border-gray-100 my-1"></div>
         </>
@@ -176,12 +200,15 @@ export const MobileHeader: React.FC = () => {
             </>
           ) : (
             // Unauthenticated: Centered logo
-            <a href="/auth/login" className="flex items-center justify-center flex-1">
+            <button 
+              onClick={() => router.push('/auth/login')}
+              className="flex items-center justify-center flex-1"
+            >
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
                 <img src="/img/logo.png" alt="Capo Logo" className="w-full h-full object-contain" />
               </div>
               <span className="text-white font-semibold text-lg ml-3">Capo</span>
-            </a>
+            </button>
           )}
         </div>
       </header>

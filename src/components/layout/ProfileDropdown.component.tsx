@@ -184,12 +184,12 @@ export const ProfileDropdown: React.FC = () => {
       // Longer delay to ensure cache clear fully settles (150-200ms recommended)
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Force hard reload to ensure completely clean state
+      // Navigate to new view (router.push works on web + mobile)
       console.log('🔄 Redirecting to new view...');
       if (view === 'admin') {
-        window.location.replace('/admin/matches');
+        router.push('/admin/matches');
       } else if (view === 'player') {
-        window.location.replace('/player/dashboard');
+        router.push('/player/dashboard');
       }
     } catch (error) {
       console.error('Error switching view:', error);

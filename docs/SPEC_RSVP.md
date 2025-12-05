@@ -3687,7 +3687,7 @@ export async function initPushNotifications() {
     const data = action.notification.data;
     if (data.matchId) {
       // Navigate to match
-      window.location.href = `/player/upcoming/match/${data.matchId}`;
+      router.push(`/player/upcoming/match/${data.matchId}`);
     }
   });
 }

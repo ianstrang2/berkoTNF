@@ -7,6 +7,9 @@ interface FinalCTAProps {
 }
 
 const FinalCTA: React.FC<FinalCTAProps> = ({ onGetApp }) => {
+  // Get app URL from env, or use current origin (adapts to any port in dev)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  
   return (
     <section className="relative py-32 md:py-40 overflow-hidden">
       {/* Background Gradient */}
@@ -35,7 +38,7 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ onGetApp }) => {
           >
             Get the App
           </Button>
-          <a href="https://app.caposport.com/auth/login">
+          <a href={`${appUrl}/auth/login`}>
             <Button
               variant="outline"
               size="lg"

@@ -213,7 +213,7 @@ function AdminSignupForm() {
       clearAttribution();
 
       // Success! Redirect to admin dashboard
-      window.location.href = '/admin/matches';
+      router.push('/admin/matches');
     } catch (error: any) {
       console.error('❌ Error creating club:', error);
       console.error('Error details:', {

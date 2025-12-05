@@ -64,7 +64,6 @@ const PlayerManager: React.FC = () => {
   const [formError, setFormError] = useState<string>('');
   const [mobileView, setMobileView] = useState<'overview' | 'stats'>('overview');
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [codeCopied, setCodeCopied] = useState<boolean>(false);
   const [showTooltip, setShowTooltip] = useState<boolean>(false);
   const [tooltipMessage, setTooltipMessage] = useState<string>('');
   
@@ -293,35 +292,7 @@ const PlayerManager: React.FC = () => {
                   {profile.clubCode}
                 </span>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(profile.clubCode!);
-                      setCodeCopied(true);
-                      setTimeout(() => setCodeCopied(false), 2000);
-                    } catch (err) {
-                      console.error('Failed to copy:', err);
-                    }
-                  }}
-                  className={`inline-block px-3 py-1.5 text-xs font-medium text-center uppercase align-middle transition-all rounded-lg cursor-pointer leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 ${
-                    codeCopied
-                      ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md border-0'
-                      : 'text-slate-500 bg-white border border-slate-200 hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs shadow-none'
-                  }`}
-                  disabled={codeCopied}
-                >
-                {codeCopied ? (
-                  <span className="flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                    Copied!
-                  </span>
-                ) : 'Copy Code'}
-                </button>
-                <ClubInviteLinkButton />
-              </div>
+              <ClubInviteLinkButton />
             </div>
           </div>
         )}

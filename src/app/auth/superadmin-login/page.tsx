@@ -40,7 +40,7 @@ function SuperadminLoginForm() {
 
         if (profileData.profile?.adminRole === 'superadmin') {
           // Redirect to superadmin dashboard
-          window.location.href = '/superadmin/tenants';
+          router.push('/superadmin/tenants');
         } else {
           // Not a superadmin - log them out
           await supabase.auth.signOut();

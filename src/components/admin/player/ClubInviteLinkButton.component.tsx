@@ -1,143 +1,80 @@
 /**
- * Club Invite Link Button
+ * Club Invite Share Button
  * 
- * Displays club invite link with copy-to-clipboard functionality
+ * Fetches club invite link and displays ShareMenu for sharing
  */
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/apiConfig';
+import ShareMenu from '@/components/ui-kit/ShareMenu.component';
+import { useAuth } from '@/hooks/useAuth.hook';
 
 export const ClubInviteLinkButton: React.FC = () => {
-  const [showModal, setShowModal] = useState(false);
+  const { profile } = useAuth();
   const [inviteUrl, setInviteUrl] = useState('');
   const [tenantName, setTenantName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const fetchInviteLink = async () => {
-    setLoading(true);
-    try {
-      const response = await apiFetch('/admin/club-invite');
-      const data = await response.json();
-      
-      if (data.success) {
-        setInviteUrl(data.data.inviteUrl);
-        setTenantName(data.data.tenantName);
-        setShowModal(true);
-      } else {
-        alert('Failed to get invite link');
+  // Fetch invite link on mount
+  useEffect(() => {
+    const fetchInviteLink = async () => {
+      try {
+        const response = await apiFetch('/admin/club-invite');
+        const data = await response.json();
+        
+        if (data.success) {
+          setInviteUrl(data.data.inviteUrl);
+          setTenantName(data.data.tenantName);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error('Error fetching invite link:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching invite link:', err);
-      alert('Failed to get invite link');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(inviteUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      alert('Failed to copy link');
-    }
-  };
+    fetchInviteLink();
+  }, []);
 
-  const closeModal = () => {
-    setShowModal(false);
-    setCopied(false);
-  };
-
-  const whatsappMessage = `Join ${tenantName} on Capo ⚽
+  // Build the invite message with club code included
+  const inviteMessage = `Join ${tenantName} on Capo ⚽
 
 All match invites and RSVPs happen in the Capo app.
 Download to get notifications and secure your spot:
 
-👉 ${inviteUrl}`;
+👉 ${inviteUrl}
 
-  const copyMessage = async () => {
-    try {
-      await navigator.clipboard.writeText(whatsappMessage);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      alert('Failed to copy message');
-    }
-  };
+Or use your club code ${profile.clubCode || ''}`;
+
+  if (loading) {
+    return (
+      <button
+        disabled
+        className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-400 uppercase align-middle bg-white border border-slate-200 rounded-lg opacity-50 cursor-not-allowed"
+      >
+        Loading...
+      </button>
+    );
+  }
+
+  if (error || !inviteUrl) {
+    return null; // Don't show button if invite link failed to load
+  }
 
   return (
-    <>
-      <button
-        onClick={fetchInviteLink}
-        disabled={loading}
-        className="inline-block px-3 py-1.5 text-xs font-medium text-center text-slate-500 uppercase align-middle transition-all bg-white border border-slate-200 rounded-lg shadow-none cursor-pointer hover:scale-102 active:opacity-85 hover:text-slate-800 hover:shadow-soft-xs leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 disabled:opacity-50"
-      >
-        {loading ? 'Loading...' : 'Get Link'}
-      </button>
-
-      {showModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-center justify-center min-h-screen p-4">
-            {/* Background overlay */}
-            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={closeModal} aria-hidden="true"></div>
-            
-            {/* Modal panel */}
-            <div className="relative bg-white rounded-2xl max-w-lg w-full mx-auto shadow-soft-xl transform transition-all p-6" onClick={(e) => e.stopPropagation()}>
-              {/* Header */}
-              <h3 className="text-lg font-semibold text-slate-700 mb-5">
-                Club Invite Link
-              </h3>
-
-              {/* Content */}
-              <div className="mb-6">
-                <p className="text-sm text-slate-600 mb-3">
-                  Copy and paste this into WhatsApp or your team group:
-                </p>
-
-                {/* Message Display */}
-                <div className="border border-slate-200 rounded-lg p-4">
-                  <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans">{whatsappMessage}</pre>
-                </div>
-              </div>
-
-              {/* Action buttons - Standardized to match SoftUI pattern */}
-              <div className="flex justify-center gap-3 mt-6">
-                <button
-                  onClick={copyMessage}
-                  className={`inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase rounded-lg transition-all leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 ${
-                    copied 
-                      ? 'bg-green-600' 
-                      : 'bg-gradient-to-tl from-purple-700 to-pink-500 hover:scale-102 active:opacity-85 shadow-soft-md'
-                  }`}
-                  disabled={copied}
-                >
-                  {copied ? (
-                    <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Copied!
-                    </span>
-                  ) : 'Copy'}
-                </button>
-                <button
-                  onClick={closeModal}
-                  className="inline-block px-4 py-2 text-xs font-medium text-center text-slate-700 uppercase rounded-lg transition-all bg-gradient-to-tl from-slate-100 to-slate-200 hover:scale-102 active:opacity-85 shadow-soft-md leading-pro ease-soft-in tracking-tight-soft bg-150 bg-x-25 ml-3"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <ShareMenu
+      text={inviteMessage}
+      context="custom"
+      emailSubject={`Join ${tenantName} on Capo`}
+      title={`Join ${tenantName}`}
+      size="sm"
+    />
   );
 };
 

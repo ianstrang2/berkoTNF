@@ -23,6 +23,7 @@ function PlayerLoginForm() {
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [phoneExists, setPhoneExists] = useState(false); // Track if phone was found in pre-check
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   
   // Join form fields (shown after OTP for new phones)
   const [clubCode, setClubCode] = useState('');
@@ -42,19 +43,23 @@ function PlayerLoginForm() {
         if (session) {
           // User is already logged in - redirect to returnUrl or dashboard
           console.log('[LOGIN] User already authenticated, redirecting');
+          setRedirecting(true); // Prevent form from flashing
           const destination = returnUrl || '/admin/matches';
           router.push(destination);
+          // Keep spinner showing, don't set checkingAuth to false
           return;
         }
+        
+        // No session - show login form
+        setCheckingAuth(false);
       } catch (error) {
         console.error('[LOGIN] Error checking session:', error);
-      } finally {
         setCheckingAuth(false);
       }
     };
     
     checkSession();
-  }, [router, supabase]);
+  }, [router, returnUrl]);
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,11 +157,11 @@ function PlayerLoginForm() {
               
               // Redirect based on returnUrl or role
               if (returnUrl) {
-                window.location.href = returnUrl;
+                router.push(returnUrl);
               } else if (linkData.player.is_admin) {
-                window.location.href = '/admin/matches';
+                router.push('/admin/matches');
               } else {
-                window.location.href = '/player/dashboard';
+                router.push('/player/dashboard');
               }
             } else {
               // Shouldn't happen (pre-check said exists), but handle gracefully
@@ -182,13 +187,13 @@ function PlayerLoginForm() {
     }
   };
 
-  // Show loading state while checking auth
-  if (checkingAuth) {
+  // Show loading state while checking auth or redirecting
+  if (checkingAuth || redirecting) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-700 to-pink-500 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
-          <p className="mt-4 text-slate-600">Checking session...</p>
+          <p className="mt-4 text-slate-600">{redirecting ? 'Redirecting...' : 'Checking session...'}</p>
         </div>
       </div>
     );

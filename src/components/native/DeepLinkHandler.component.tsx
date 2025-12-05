@@ -38,8 +38,8 @@ export const DeepLinkHandler = () => {
         console.log('[DeepLink] Navigating to:', path);
         router.push(path);
       }
-      // Handle localhost/development links
-      else if (url.includes('localhost:3000') || url.includes('10.0.2.2:3000')) {
+      // Handle localhost/development links (any port)
+      else if (url.includes('localhost:') || url.includes('10.0.2.2:') || url.includes('127.0.0.1:')) {
         const urlObj = new URL(url);
         const path = urlObj.pathname + urlObj.search;
         console.log('[DeepLink] Navigating to:', path);

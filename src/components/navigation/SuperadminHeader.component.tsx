@@ -63,8 +63,8 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
       const result = await response.json();
 
       if (result.success) {
-        // Just navigate - session will update on page load
-        window.location.href = '/admin/matches';
+        // Navigate using router to stay in webview
+        router.push('/admin/matches');
       } else {
         alert(result.error || 'Failed to switch tenant');
         setSwitching(false);
@@ -89,8 +89,8 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
       const result = await response.json();
 
       if (result.success) {
-        // Just navigate - session will update on page load
-        window.location.href = '/superadmin/tenants';
+        // Navigate using router to stay in webview
+        router.push('/superadmin/tenants');
       } else {
         alert(result.error || 'Failed to return to platform');
         setSwitching(false);
@@ -129,7 +129,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
     try {
       if (mode === 'platform') {
         // Return to platform view
-        window.location.href = '/superadmin/tenants';
+        router.push('/superadmin/tenants');
       } else if (mode === 'admin') {
         // Switch to admin view for tenant
         const response = await apiFetch('/auth/superadmin/switch-tenant', {
@@ -138,7 +138,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
           body: JSON.stringify({ tenantId }),
         });
         if ((await response.json()).success) {
-          window.location.href = '/admin/matches';
+          router.push('/admin/matches');
         }
       } else if (mode === 'player') {
         // Switch to player view for tenant
@@ -148,7 +148,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({
           body: JSON.stringify({ tenantId }),
         });
         if ((await response.json()).success) {
-          window.location.href = '/';
+          router.push('/');
         }
       }
     } catch (error) {

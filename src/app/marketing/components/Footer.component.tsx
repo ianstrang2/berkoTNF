@@ -2,6 +2,9 @@
 import React from 'react';
 
 const Footer: React.FC = () => {
+  // Get app URL from env, or use current origin (adapts to any port in dev)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  
   return (
     <footer className="bg-neutral-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -54,7 +57,7 @@ const Footer: React.FC = () => {
             <p className="text-white/80 text-sm font-semibold mb-4 uppercase tracking-wide">Quick Links</p>
             <div className="flex flex-col gap-3">
               <a 
-                href="https://app.caposport.com/auth/login" 
+                href={`${appUrl}/auth/login`} 
                 className="text-base text-white/70 hover:text-white transition-colors hover:translate-x-1 inline-block"
               >
                 Open App

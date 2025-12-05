@@ -8,6 +8,9 @@ interface ComingSoonModalProps {
 }
 
 const ComingSoonModal: React.FC<ComingSoonModalProps> = ({ isOpen, onClose }) => {
+  // Get app URL from env, or use current origin (adapts to any port in dev)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -84,7 +87,7 @@ const ComingSoonModal: React.FC<ComingSoonModalProps> = ({ isOpen, onClose }) =>
           </p>
 
           <div className="space-y-3">
-            <a href="https://app.caposport.com/auth/login" className="block">
+            <a href={`${appUrl}/auth/login`} className="block">
               <Button
                 variant="primary"
                 size="lg"

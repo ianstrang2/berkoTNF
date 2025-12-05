@@ -81,6 +81,7 @@
 ### Key Mobile Patterns
 
 **API Calls:** Always use `apiFetch('/path')` - works on web, iOS, Android (218 uses, 62 files)  
+**Navigation:** Always use `router.push()` for internal links (NOT `window.location` or `<a href>`)  
 **Build Modes:** Dev (live reload) vs Prod (static + Xcode/Android Studio)  
 **Safe Areas:** Use `.pt-safe` CSS class for iOS notch/Android status bar  
 **Deep Links:** `capo://` custom scheme + universal links configured

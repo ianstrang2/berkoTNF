@@ -10,6 +10,9 @@ interface MarketingNavProps {
 const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Get app URL from env, or use current origin (adapts to any port in dev)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,7 +63,7 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
             >
               Get the App
             </Button>
-            <a href="https://app.caposport.com/auth/login">
+            <a href={`${appUrl}/auth/login`}>
               <Button variant="primary" size="md">
                 Open App
               </Button>
@@ -69,7 +72,7 @@ const MarketingNav: React.FC<MarketingNavProps> = ({ onGetApp }) => {
 
           {/* Mobile Navigation */}
           <div className="flex md:hidden items-center gap-3">
-            <a href="https://app.caposport.com/auth/login">
+            <a href={`${appUrl}/auth/login`}>
               <Button variant="primary" size="sm">
                 Open App
               </Button>

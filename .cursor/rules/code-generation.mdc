@@ -441,6 +441,34 @@ const response = await fetch('/api/players');
 
 **See:** `docs/MOBILE_SPEC.md` for architecture details
 
+## Mobile Navigation Pattern (MANDATORY for Mobile Compatibility)
+
+**For internal navigation in components, ALWAYS use Next.js `router.push()` (NOT `window.location` or `<a href>`)**
+
+```typescript
+import { useRouter } from 'next/navigation';
+
+const router = useRouter();
+
+// ✅ CORRECT: Stays in app webview on iOS/Android
+router.push('/admin/matches');
+router.push('/player/dashboard');
+
+// ❌ WRONG: Opens Safari/Chrome browser on mobile
+window.location.href = '/admin/matches';
+window.location.replace('/player/dashboard');
+<a href="/admin/matches">Admin</a>
+```
+
+**Why:** On iOS/Android, `window.location` and `<a href>` trigger external browser navigation, breaking the app experience.
+
+**Exceptions (when `window.location` is OK):**
+- Logout redirects to homepage: `window.location.href = '/'` (full reload after auth clear)
+- External links: App Store, social media (use `target="_blank"`)
+- Deep links: `capo://` scheme, `https://play.google.com/...`
+
+**Migration Status:** ✅ All internal navigation uses `router.push()` as of Dec 2025
+
 ## Documentation Standards
 
 **ALL documentation MUST live in `/docs` folder with standard prefixes:**
