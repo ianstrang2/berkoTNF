@@ -82,7 +82,6 @@ export async function GET(request: NextRequest) {
     } else if (matchId) {
       // Get specific match
       // Multi-tenant: Query scoped to current tenant only
-      console.log(`[UPCOMING_MATCHES] Fetching match ${matchId} for tenant ${tenantId}`);
       
       // Use withTenantFilter for type-safe tenant isolation
       const match = await prisma.upcoming_matches.findUnique({
@@ -124,28 +123,10 @@ export async function GET(request: NextRequest) {
         }, { status: 404 });
       }
 
-      console.log(`[UPCOMING_MATCHES] Found match ${matchId} in state ${match.state} with ${(match as any).upcoming_match_players?.length || 0} players`);
-      
-      // DEBUG: Log the raw match data structure
-      console.log(`[UPCOMING_MATCHES] DEBUG: Match upcoming_match_players structure:`, 
-        JSON.stringify((match as any).upcoming_match_players?.slice(0, 2), null, 2));
-
       // Format the response
       const { upcoming_match_players, ...matchData } = match as any;
       
-      if (!upcoming_match_players || upcoming_match_players.length === 0) {
-        console.error(`[UPCOMING_MATCHES] ERROR: No upcoming_match_players found for match ${matchId}`);
-      } else {
-        // Check first player for nested data
-        const firstPlayer = upcoming_match_players[0];
-        console.log(`[UPCOMING_MATCHES] DEBUG: First player structure:`, JSON.stringify(firstPlayer, null, 2));
-        
-        if (!firstPlayer.players) {
-          console.error(`[UPCOMING_MATCHES] ERROR: Missing 'players' relationship in upcoming_match_players`);
-        }
-      }
-      
-      formattedMatch = {
+      const formattedMatch = {
         ...matchData,
         players: upcoming_match_players.map(p => toPlayerInPool(p))
       };
@@ -160,7 +141,6 @@ export async function GET(request: NextRequest) {
     } else {
       // Fetch all upcoming matches
       // Multi-tenant: Using withTenantFilter for defense-in-depth
-      console.log(`[UPCOMING_MATCHES] Fetching all matches for tenant ${tenantId}`);
       
       const matches = await prisma.upcoming_matches.findMany({
         where: withTenantFilter(tenantId),
@@ -173,8 +153,6 @@ export async function GET(request: NextRequest) {
           }
         }
       });
-      
-      console.log(`[UPCOMING_MATCHES] Found ${matches.length} total matches`);
 
       return NextResponse.json({ success: true, data: matches }, {
         headers: {
