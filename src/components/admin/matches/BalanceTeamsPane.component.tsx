@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 import Button from '@/components/ui-kit/Button.component';
 import { PlayerInPool } from '@/types/player.types';
 import Card from '@/components/ui-kit/Card.component';
@@ -54,6 +54,10 @@ interface BalanceTeamsPaneProps {
   teamsSavedAt: string | null;
   onUnsavedChangesChange?: (hasChanges: boolean) => void;
   initialBalanceMethod?: 'ability' | 'performance' | 'random' | null;
+}
+
+export interface BalanceTeamsPaneHandle {
+  getCurrentPlayers: () => PlayerInPool[];
 }
 
 const useTeamDragAndDrop = (
@@ -273,7 +277,7 @@ const useTeamDragAndDrop = (
   };
 };
 
-const BalanceTeamsPane = ({ 
+const BalanceTeamsPane = forwardRef<BalanceTeamsPaneHandle, BalanceTeamsPaneProps>(({ 
   matchId, 
   teamSize, 
   actualSizeA,
@@ -287,7 +291,7 @@ const BalanceTeamsPane = ({
   teamsSavedAt,
   onUnsavedChangesChange,
   initialBalanceMethod = null
-}: BalanceTeamsPaneProps) => {
+}, ref) => {
   // React Query hooks - automatic deduplication and caching!
   const { data: teamTemplate = null } = useTeamTemplate(teamSize);
   const { data: configData = [] } = useAppConfig('match_settings');
@@ -355,6 +359,11 @@ const BalanceTeamsPane = ({
   useEffect(() => {
     onUnsavedChangesChange?.(hasUnsavedChanges);
   }, [hasUnsavedChanges, onUnsavedChangesChange]);
+
+  // Expose getCurrentPlayers method to parent via ref
+  useImperativeHandle(ref, () => ({
+    getCurrentPlayers: () => players
+  }), [players]);
 
   // NOTE: We intentionally don't auto-detect balance method on mount.
   // The user can click "Re-Balance" to choose a method and see the appropriate chart.
@@ -694,6 +703,8 @@ const BalanceTeamsPane = ({
       />
     </>
   );
-};
+});
+
+BalanceTeamsPane.displayName = 'BalanceTeamsPane';
 
 export default BalanceTeamsPane; 

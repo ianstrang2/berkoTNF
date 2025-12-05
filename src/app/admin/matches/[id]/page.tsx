@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/apiConfig';
 import { splitSizesFromPool, getPoolValidation, COPY_CONSTANTS } from '@/utils/teamSplit.util';
 import { areAllSlotsFilled, getTeamCompletionStatus } from '@/utils/teamValidation.util';
 import PlayerPoolPane from '@/components/admin/matches/PlayerPoolPane.component';
-import BalanceTeamsPane from '@/components/admin/matches/BalanceTeamsPane.component';
+import BalanceTeamsPane, { BalanceTeamsPaneHandle } from '@/components/admin/matches/BalanceTeamsPane.component';
 import CompleteMatchForm from '@/components/admin/matches/CompleteMatchForm.component';
 import AdminLayout from '@/components/layout/AdminLayout.layout';
 import Button from '@/components/ui-kit/Button.component';
@@ -39,6 +39,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   const [playerPoolIds, setPlayerPoolIds] = useState<string[]>([]);
   const [isCompleteFormSubmitting, setIsCompleteFormSubmitting] = useState(false);
   const completeFormRef = useRef<CompleteFormHandle>(null);
+  const balanceTeamsPaneRef = useRef<BalanceTeamsPaneHandle>(null);
 
   // Edit/Delete modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -142,7 +143,18 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   // Handler for saving teams
   const handleSaveTeams = useCallback(async (teamAssignments?: any[]) => {
     try {
-      await actions.saveTeams({ teamAssignments });
+      // If no team assignments provided, get them from BalanceTeamsPane ref
+      let assignments = teamAssignments;
+      if (!assignments && balanceTeamsPaneRef.current) {
+        const currentPlayers = balanceTeamsPaneRef.current.getCurrentPlayers();
+        assignments = currentPlayers.map(player => ({
+          player_id: player.id,
+          team: player.team,
+          slot_number: player.slot_number
+        }));
+      }
+      
+      await actions.saveTeams({ teamAssignments: assignments });
       setHasUnsavedTeamChanges(false);
       // Show success flash for 1.5 seconds
       setSaveTeamsSuccess(true);
@@ -325,6 +337,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
       case 'PoolLocked':
         return (
           <BalanceTeamsPane 
+            ref={balanceTeamsPaneRef}
             matchId={matchId} 
             teamSize={matchData.teamSize} 
             actualSizeA={matchData.actualSizeA} 

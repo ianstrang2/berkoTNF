@@ -171,7 +171,7 @@ response_timestamp: DateTime
 **`POST /api/admin/upcoming-matches/[id]/save-teams`**
 - Saves current team assignments as "official"
 - Sets `teams_saved_at = NOW()`
-- Body: `{ players: [{ id, team, slot_number }] }`
+- Body: `{ state_version, teamAssignments: [{ player_id, team, slot_number }] }`
 - Players can now see teams
 
 **`POST /api/admin/upcoming-matches/[id]/complete`**
