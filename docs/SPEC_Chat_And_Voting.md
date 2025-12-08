@@ -1,9 +1,9 @@
 # Chat & Voting Specification
 
-**Version:** 1.0.0  
-**Last Updated:** December 2024  
+**Version:** 1.1.0  
+**Last Updated:** December 8, 2025  
 **Status:** Ready for Implementation  
-**Dependencies:** None (self-contained feature)
+**Dependencies:** Existing background job worker (Render), Supabase Realtime (to be enabled)
 
 ---
 
@@ -118,9 +118,10 @@ Single global chat stream for the entire club. Replaces WhatsApp group.
 1. User types `@` → autocomplete dropdown appears
 2. Dropdown shows ALL players (active first, then retired in separate "Retired" section)
 3. User selects player → `@PlayerName` inserted
-4. Mentioned player sees badge on Chat tab (if they have unread messages)
-5. Mention renders with visual highlight (bold or colored)
-6. If user manually types `@NonExistent`, treat as plain text
+4. Mention renders with visual highlight (bold or colored)
+5. If user manually types `@NonExistent`, treat as plain text
+
+**Note:** Mentioned players see the mention when they open chat (normal unread flow). No special mention-specific badge — just the standard unread count.
 
 **Why include retired players?** Club banter often references past players ("Remember when @OldLegend did that?"). They're part of club history.
 
@@ -135,10 +136,13 @@ Single global chat stream for the entire club. Replaces WhatsApp group.
 4. Tap same emoji again to remove
 5. Reactions display as small row under message with counts
 
+**Not allowed on:**
+- System messages (no reaction picker shown)
+- Deleted messages (picker disabled)
+
 **Deleted messages:**
-- Reaction picker disabled on deleted messages
 - Existing reactions are hidden (not displayed under "[This message was deleted]")
-- Reactions are cascade-deleted from DB when message is soft-deleted
+- Reactions are **hard-deleted** in the same transaction as the soft-delete (see Message Deletion section)
 
 ### Message Deletion
 
@@ -153,6 +157,38 @@ Single global chat stream for the entire club. Replaces WhatsApp group.
 - **Audit trail:** `deleted_by_player_id` tracks who deleted (admin's player_id or self)
 
 **Why 5-minute window?** People make typos or post something they immediately regret. Longer than 5 mins = it's been read, too late to take back.
+
+**API implementation (CRITICAL):**
+```typescript
+// DELETE /api/chat/messages/[id]
+// 1. Check ownership and time window
+if (!isAdmin && message.author_player_id !== currentPlayerId) {
+  return error(403, 'Cannot delete others messages');
+}
+if (!isAdmin && (now - message.created_at) > 5 * 60 * 1000) {
+  return error(400, 'Can only delete messages within 5 minutes');
+}
+
+// 2. Soft-delete message AND hard-delete reactions in same transaction
+await prisma.$transaction([
+  prisma.chat_messages.update({
+    where: { id: messageId },
+    data: { deleted_at: new Date(), deleted_by_player_id: currentPlayerId }
+  }),
+  prisma.chat_reactions.deleteMany({
+    where: { message_id: messageId }
+  })
+]);
+```
+
+**Note:** `ON DELETE CASCADE` only fires on hard deletes. For soft-deletes, we must manually delete reactions in the same transaction.
+
+**Realtime event flow for message deletion:**
+1. Backend soft-deletes message + hard-deletes reactions (same transaction)
+2. Clients receive `DELETE` events on `chat_reactions` → remove reactions from UI
+3. Clients receive `UPDATE` event on `chat_messages` (`deleted_at` set) → render "[This message was deleted]"
+
+**No archive:** Deleted message content is NOT preserved anywhere. This is intentional — no audit trail of chat content. If moderation logging is needed in future, add a separate `moderation_log` table.
 
 ### Chat UI Layout
 
@@ -271,21 +307,33 @@ Match result entered (latest match only)
 ### Survey Creation Rules
 
 **Trigger conditions (ALL must be true):**
-1. Match is the chronologically LATEST match
-2. Result is being submitted (not edited)
+1. **First-time result submission** — `result_submitted_at` transitions from `NULL` → timestamp
+2. Match is the chronologically **LATEST match**
 3. No survey already exists for this match
-4. Survey feature is enabled in admin config
+4. Survey feature is enabled in admin config (`voting_enabled = true`)
+
+**🚨 CRITICAL: Survey creation MUST NEVER occur on:**
+- Match edits (score corrections, player adjustments)
+- Match re-saves
+- Historical match edits (any non-latest match)
+- Re-running the stats worker manually
+- Match deletion + recreation (new match_id = no survey link)
+
+**Only the first-time result submission of the latest match qualifies.**
 
 **Survey immutability:**
-- Player list is **snapshotted** at creation time
+- Player list is **snapshotted** at creation time (`eligible_player_ids`)
 - Edits to match AFTER survey creation do NOT affect voting eligibility
 - Admin sees warning if editing match with active survey
 
 **API validation (IMPORTANT):** On vote submission, always validate against the snapshotted `eligible_player_ids` array in `match_surveys`, NOT the current `player_matches` table. Error message: "You weren't marked as playing in that match when voting opened, so you can't vote."
 
-**Historical match protection:**
-- Editing old matches (not the latest) NEVER creates a survey
-- Prevents accidental surveys for 2021 matches
+**Note:** Eligibility is enforced at the **API layer only**. The database allows any valid `player_id` in `match_votes` (no FK to `eligible_player_ids`). This is intentional for flexibility — the API is the source of truth for eligibility checks.
+
+**Match Deletion Cascade:**
+- When a match is deleted, **cascade delete** its survey, votes, and awards
+- No orphaned records — foreign keys handle cleanup automatically
+- See Appendix: Survey Creation Rules for full cascade details
 
 ### Award Display Duration
 
@@ -312,10 +360,12 @@ WHERE pa.tenant_id = ?
     JOIN matches m ON ms.match_id = m.match_id
     WHERE ms.tenant_id = ?
       AND ms.is_open = false
-    ORDER BY m.match_date DESC
+    ORDER BY m.match_date DESC, m.match_id DESC  -- match_id as tie-breaker
     LIMIT 1
   );
 ```
+
+**"Latest match" definition:** `match_date` is date-only (no time component). For multiple matches on the same day (rare), the one with highest `match_id` is considered "latest".
 
 ### Award History Tracking
 
@@ -371,9 +421,11 @@ Accessed via "Vote Now" banner on Dashboard/Home.
 - Submit always enabled - selecting "No-one / Skip" for all categories is valid (clears any existing votes)
 
 **API handling:**
-- `mom: null` or `mom: 'skip'` = **DELETE** the existing `match_votes` row for that category (not update to null)
+- `mom: null` = **DELETE** the existing `match_votes` row for that category (clears the vote)
 - `mom: 123` = **UPSERT** vote for player 123 (insert or update existing row)
-- Missing key (e.g., `mom` not in request) = no change to that category
+- Key omitted (e.g., `mom` not in request body) = **NO CHANGE** to that category
+
+**Note:** Use `null` to clear/skip. Do NOT use string `'skip'` — keep the API clean.
 
 ### Voting Banner on Dashboard
 
@@ -455,9 +507,15 @@ When user is in Chat, Stats, or Upcoming AND a match report is published:
 
 ### Implementation
 
-Store `last_read_chat_timestamp` per user. Compare with latest message timestamp to determine unread count.
+**Chat badge:** Store `last_read_at` per user in `chat_user_state`. Compare with latest message timestamp.
 
-Store `last_viewed_match_report_id` per user. Compare with latest match to determine if new report exists.
+**Home badge:** Store `last_viewed_match_id` per user in `user_app_state`. Compare with latest match.
+
+**Row creation timing:**
+- Rows are created **lazily on first open** of Chat/Home tab
+- `last_read_at` defaults to `now()` — so existing history is marked as "read" on first visit
+- This means new users don't see a badge with "500 unread" from historical messages
+- Only messages posted AFTER their first visit will count as unread
 
 ---
 
@@ -467,26 +525,45 @@ Automated messages posted to chat for key events.
 
 ### System Message Triggers
 
-| Event | Message Template | Trigger |
-|-------|------------------|---------|
-| Match report (voting enabled) | "📊 Match report is live! {score} to {winningTeam} · 🗳️ Voting open (closes in {duration}h)" | After stats update completes + survey created |
-| Match report (voting disabled) | "📊 Match report is live! {score} to {winningTeam}" | After stats update completes (no survey) |
-| Voting closed (has awards) | "🏆 Voting closed — check the match report for awards!" | When survey closes with at least one winner |
-| Voting closed (no awards) | "🗳️ Voting closed — no awards this week" | When survey closes but all categories were skipped |
-| Teams published | "⚽ Teams published for {dayOfWeek}'s match!" | When admin saves teams |
-| New player joined | "👋 Welcome {playerName} to the club!" | When join request approved |
+| Event | Message Template | Trigger Location |
+|-------|------------------|------------------|
+| Match report live | "📊 Match report is live!" | **Worker** — after stats job completes |
+| Voting open | "🗳️ Voting is open! Closes in {duration}h" | **Worker** — after survey creation |
+| Voting closed (has awards) | "🏆 Voting closed — check the match report for awards!" | **Cron job** — `/api/voting/close-expired` |
+| Voting closed (no awards) | "🗳️ Voting closed — no awards this week" | **Cron job** — when all categories skipped |
+| Teams published | "⚽ Teams published for {dayOfWeek}'s match!" | **API** — save-teams route |
+| New player joined | "👋 Welcome {playerName} to the club!" | **API** — join request approval |
 
 **Dynamic values:**
-- `{score}` = e.g., "3-0" (from match result)
-- `{winningTeam}` = Team A/B name from config (e.g., "Orange", "Green")
 - `{duration}` = from `voting_duration_hours` config
 - `{dayOfWeek}` = Calculated from match date
 - `{playerName}` = From approved join request
 
+### Why Worker-Based Triggers (Match Report + Voting)
+
+**Worker triggers system messages** because:
+1. Worker knows exactly when stats are complete
+2. Frontend polling is unreliable (users might not open app for hours)
+3. Messages appear even with no active users
+4. Consistent with other system message patterns
+
+**Flow:**
+```
+Match Completed → Stats Job Queued → Worker Processes Stats
+                                            ↓
+                              Stats Complete → Post "Match report live!"
+                                            ↓
+                              Check voting config → Create survey if enabled
+                                            ↓
+                              Survey created → Post "Voting is open!"
+```
+
 **Notes:**
-- Match report and voting open are bundled into one message to reduce notification noise
-- Voting part only included if a survey was actually created (voting may be disabled in config)
-- Voting closed has two variants: "check the match report" (has winners) vs "no awards this week" (all skipped)
+- Match report and voting open are **separate messages** (not bundled)
+- Voting message only posted if survey was actually created
+- Voting closed message variant determined AFTER tally completes:
+  - "check the match report for awards" = at least one category has votes > 0
+  - "no awards this week" = ALL categories have zero votes (everyone skipped)
 
 ### System Message Styling
 
@@ -505,6 +582,56 @@ Automated messages posted to chat for key events.
 /* No avatar for system messages */
 ```
 
+### System Message Helper Function
+
+**Location:** `src/lib/chat/systemMessage.ts` (shared by API routes, worker, and cron)
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+interface SystemMessageOptions {
+  tenantId: string;
+  content: string;
+}
+
+/**
+ * Posts a system message to the chat.
+ * Uses Supabase client (not Prisma) to trigger Realtime events.
+ */
+export async function postSystemMessage({ tenantId, content }: SystemMessageOptions): Promise<void> {
+  const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  
+  const { error } = await supabase
+    .from('chat_messages')
+    .insert({
+      tenant_id: tenantId,
+      content,
+      is_system_message: true,
+      author_player_id: null,
+      mentions: []
+    });
+  
+  if (error) {
+    console.error('Failed to post system message:', error);
+    throw error;
+  }
+}
+```
+
+**Consistent usage everywhere:**
+```typescript
+await postSystemMessage({ tenantId, content: '📊 Match report is live!' });
+await postSystemMessage({ tenantId, content: `⚽ Teams published for ${dayOfWeek}'s match!` });
+```
+
+**Why Supabase client (not Prisma)?**
+- System messages use Supabase client to trigger Realtime events immediately
+- Normal messages, deletions, and cleanup use Prisma/SQL
+- This is intentional — Realtime subscriptions listen to Supabase changes
+
 ---
 
 ## 6. Database Schema
@@ -519,10 +646,10 @@ Automated messages posted to chat for key events.
 -- Chat messages
 CREATE TABLE chat_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
+  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
   
   -- Author (NULL for system messages)
-  author_player_id INTEGER REFERENCES players(player_id),
+  author_player_id INTEGER REFERENCES players(player_id) ON DELETE SET NULL,
   is_system_message BOOLEAN NOT NULL DEFAULT false,
   
   -- Content
@@ -536,7 +663,7 @@ CREATE TABLE chat_messages (
   -- Metadata
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ,  -- Soft delete (player self-delete or admin moderation)
-  deleted_by_player_id INTEGER REFERENCES players(player_id),  -- Who deleted (NULL = admin)
+  deleted_by_player_id INTEGER REFERENCES players(player_id) ON DELETE SET NULL,  -- Who deleted
   
   CONSTRAINT content_length CHECK (char_length(content) <= 500)
 );
@@ -551,9 +678,9 @@ CREATE INDEX idx_chat_messages_mentions
 -- Note: When a message is soft-deleted, delete its reactions in the same transaction
 CREATE TABLE chat_reactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
-  message_id UUID NOT NULL REFERENCES chat_messages(id),
-  player_id INTEGER NOT NULL REFERENCES players(player_id),
+  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+  message_id UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
   emoji TEXT NOT NULL CHECK (emoji IN ('👍', '😂', '🔥', '❤️', '😮', '👎')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   
@@ -566,8 +693,8 @@ CREATE INDEX idx_chat_reactions_message
 
 -- User chat state (for badge tracking)
 CREATE TABLE chat_user_state (
-  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
-  player_id INTEGER NOT NULL REFERENCES players(player_id),
+  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
   last_read_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   
   PRIMARY KEY (tenant_id, player_id)
@@ -580,12 +707,15 @@ CREATE TABLE chat_user_state (
 -- Post-match surveys
 CREATE TABLE match_surveys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
-  match_id INTEGER NOT NULL REFERENCES matches(match_id),
+  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+  match_id INTEGER NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
   
   -- Snapshotted data (immutable after creation)
   eligible_player_ids INTEGER[] NOT NULL,  -- Players who played
   enabled_categories TEXT[] NOT NULL,      -- ['mom', 'dod', 'mia']
+  
+  -- Constraint: only valid category values allowed
+  CONSTRAINT valid_categories CHECK (enabled_categories <@ ARRAY['mom','dod','mia']::TEXT[])
   
   -- State
   is_open BOOLEAN NOT NULL DEFAULT true,
@@ -610,15 +740,15 @@ CREATE INDEX idx_match_surveys_match
 -- Individual votes
 CREATE TABLE match_votes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
+  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
   survey_id UUID NOT NULL REFERENCES match_surveys(id) ON DELETE CASCADE,
   
   -- Voter
-  voter_player_id INTEGER NOT NULL REFERENCES players(player_id),
+  voter_player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
   
   -- Vote
   award_type TEXT NOT NULL CHECK (award_type IN ('mom', 'dod', 'mia')),
-  voted_for_player_id INTEGER NOT NULL REFERENCES players(player_id),
+  voted_for_player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
   
   -- Metadata
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -635,10 +765,10 @@ CREATE INDEX idx_match_votes_survey
 -- Historical award records
 CREATE TABLE player_awards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
-  player_id INTEGER NOT NULL REFERENCES players(player_id),
-  match_id INTEGER NOT NULL REFERENCES matches(match_id),
-  survey_id UUID NOT NULL REFERENCES match_surveys(id),
+  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+  match_id INTEGER NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
+  survey_id UUID NOT NULL REFERENCES match_surveys(id) ON DELETE CASCADE,
   
   award_type TEXT NOT NULL CHECK (award_type IN ('mom', 'dod', 'mia')),
   vote_count INTEGER NOT NULL,
@@ -660,10 +790,10 @@ CREATE INDEX idx_player_awards_match
 -- ============================================
 
 CREATE TABLE user_app_state (
-  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
-  player_id INTEGER NOT NULL REFERENCES players(player_id),
+  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
   
-  last_viewed_match_id INTEGER REFERENCES matches(match_id),
+  last_viewed_match_id INTEGER REFERENCES matches(match_id) ON DELETE SET NULL,
   last_viewed_at TIMESTAMPTZ,
   
   PRIMARY KEY (tenant_id, player_id)
@@ -673,11 +803,16 @@ CREATE TABLE user_app_state (
 ### Schema Notes
 
 1. **Multi-tenancy:** All tables have `tenant_id` and will use `withTenantFilter()`
-2. **Soft deletes:** Chat messages use `deleted_at` for admin moderation
-3. **Vote upsert:** `UNIQUE(survey_id, voter_player_id, award_type)` enables vote changing via upsert
-4. **Snapshotted players:** `eligible_player_ids` frozen at survey creation
-5. **Award history:** `player_awards` tracks all historical awards for future features
-6. **Atomic updates:** When survey closes, update `match_surveys.results` AND insert `player_awards` rows in the same transaction to prevent sync issues
+2. **Cascade deletes:** All FK relationships use `ON DELETE CASCADE` or `ON DELETE SET NULL`
+   - Tenant deletion → all related data deleted
+   - Match deletion → survey, votes, awards deleted
+   - Player deletion → votes deleted, chat author set to NULL (preserves messages)
+3. **Soft deletes:** Chat messages use `deleted_at` for admin moderation (not hard delete)
+4. **Vote upsert:** `UNIQUE(survey_id, voter_player_id, award_type)` enables vote changing via upsert
+5. **Snapshotted players:** `eligible_player_ids` frozen at survey creation
+6. **Award history:** `player_awards` tracks all historical awards for future features
+7. **Atomic updates:** When survey closes, update `match_surveys.results` AND insert `player_awards` rows in the same transaction to prevent sync issues
+8. **Source of truth:** `player_awards` is the canonical source for award data. `match_surveys.results` is a denormalized cache for quick lookups. Always query `player_awards` for display.
 
 ### Chat Cleanup Job
 
@@ -718,7 +853,12 @@ SELECT cron.schedule('cleanup-chat-messages', '0 3 * * *', 'SELECT cleanup_old_c
 
 **Alternative:** Use Supabase Edge Function with cron trigger if pg_cron is not available.
 
-**Important:** Reactions must be deleted BEFORE messages to avoid FK constraint violations.
+**Important notes:**
+- Reactions must be deleted BEFORE messages to avoid FK constraint violations
+- Soft-deleted messages (`deleted_at IS NOT NULL`) still count toward the 1,000 limit
+- This is intentional — we want to prune oldest messages regardless of state
+- Result: "[This message was deleted]" placeholders eventually get cleaned up too
+- **Limit is per-tenant:** Each tenant keeps their own 1,000 messages (via `PARTITION BY tenant_id`)
 
 ---
 
@@ -780,7 +920,7 @@ POST   /api/internal/chat/system-message    - Post system message
 
 ```typescript
 // Query params
-?before=<message_id>  // For pagination (load older)
+?before=<message_id>  // For pagination (load older messages)
 &limit=50             // Default 50, max 100
 
 // Response
@@ -792,6 +932,41 @@ POST   /api/internal/chat/system-message    - Post system message
 
 // Note: Client reverses array to display oldest-to-newest (standard chat UX)
 ```
+
+**Soft-deleted messages:**
+- Include soft-deleted messages in response (they have `deleted_at` set)
+- Client renders them as "[This message was deleted]"
+- This preserves conversation flow and context
+
+**Pagination semantics:**
+- `before` is a **message ID** (UUID)
+- Server looks up that message's `(created_at, id)`, then returns messages where:
+  - `(created_at, id) < (anchor.created_at, anchor.id)`
+  - Ordered by `(created_at DESC, id DESC)`
+- This prevents duplicates/gaps when messages have identical timestamps
+- Query uses composite index `(tenant_id, created_at DESC)` for efficiency
+- If `before` is omitted, returns the most recent messages
+- **If anchor message was deleted by cleanup job:** Server should return 200 with `hasMore: false` (not 404). Client treats this as "end of history".
+
+#### GET /api/chat/unread-count
+
+```typescript
+// Response
+{
+  success: true;
+  unreadCount: number;  // Messages since last_read_at
+}
+```
+
+**Logic:**
+```sql
+SELECT COUNT(*) FROM chat_messages
+WHERE tenant_id = ?
+  AND created_at > (SELECT last_read_at FROM chat_user_state WHERE ...)
+  AND deleted_at IS NULL  -- Exclude soft-deleted messages
+```
+
+**Row creation:** If `chat_user_state` row doesn't exist for this user, create it with `last_read_at = now()` before counting. This ensures new users don't see old history as "unread".
 
 #### POST /api/voting/submit
 
@@ -817,6 +992,10 @@ POST   /api/internal/chat/system-message    - Post system message
 - 400: You are not eligible to vote
 - 400: Invalid player selection
 ```
+
+**Client error handling:**
+- On `400: Survey is closed` → Refetch `/api/voting/active`, update UI to show results
+- On `400: You are not eligible` → Show error, hide voting UI for this user
 
 ---
 
@@ -930,49 +1109,60 @@ src/app/player/
 
 ### Phase 1: Foundation (Week 1)
 
-1. **Database migration** - Create all new tables
+1. **Database migration** - Create all new tables (chat + voting)
 2. **Navigation restructure** - Merge Tables+Records → Stats, rename Dashboard → Home
 3. **Route migration** - Set up new routes with redirects from old
 4. **Update NavigationContext** - Add Chat section, update NAVIGATION_CONFIG
+5. **Supabase Realtime setup** - Enable publication on chat tables
 
 ### Phase 2: Chat Core (Week 1-2)
 
-5. **Chat API routes** - CRUD for messages
-6. **Supabase Realtime setup** - Configure for chat_messages table
-7. **ChatContainer + ChatMessage** - Basic chat display
-8. **ChatInput** - Message posting
-9. **Chat page** - `/player/chat` with ChatContainer
+6. **Chat API routes** - CRUD for messages
+7. **System message helper** - `postSystemMessage()` utility function
+8. **ChatContainer + ChatMessage** - Basic chat display with Realtime subscription
+9. **ChatInput** - Message posting
+10. **Chat page** - `/player/chat` with ChatContainer
 
 ### Phase 3: Chat Polish (Week 2)
 
-10. **@Mention system** - Autocomplete + highlighting
-11. **Reactions** - Add/remove reactions UI
-12. **Admin moderation** - Delete message functionality
-13. **Badge system** - Unread count on Chat tab
-14. **System messages** - Styling + posting infrastructure
+11. **@Mention system** - Autocomplete + highlighting
+12. **Reactions** - Add/remove reactions UI
+13. **Message deletion** - Self (5 min) + admin (anytime)
+14. **Badge system** - Unread count on Chat tab
+15. **System messages** - Styling (grey, centered)
 
 ### Phase 4: Voting Core (Week 2-3)
 
-15. **Voting admin config** - New setup section
-16. **Survey creation** - Trigger on match result (background job integration)
-17. **VotingBanner** - Show on Dashboard when voting active
-18. **VotingModal** - Vote submission UI
-19. **Vote API** - Submit/update votes
+16. **Voting admin config** - New setup section in `/admin/setup`
+17. **Worker integration** - Add survey creation after stats complete
+18. **VotingBanner** - Show on Dashboard when voting active
+19. **VotingModal** - Vote submission UI
+20. **Vote API** - Submit/update votes with eligibility check
 
 ### Phase 5: Voting Results (Week 3)
 
-20. **Survey closing** - Scheduled job to close and tally
-21. **VotingResults** - Display in MatchReport
-22. **Award icons** - Create MoM/DoD/MiA icons
-23. **Award display** - Show icons by player names everywhere
-24. **Award history** - Track in player_awards table
+21. **Cron job setup** - Add `/api/voting/close-expired` to `vercel.json`
+22. **Survey closing** - Close + tally + post system message
+23. **VotingResults** - Display in MatchReport
+24. **Award icons** - Create MoM/DoD/MiA icons (SVG + PNG)
+25. **Award display** - Show icons by player names everywhere
 
 ### Phase 6: Integration (Week 3)
 
-25. **System messages** - Auto-post for match report, voting open/close, teams, new players
-26. **Home badge** - Badge when match report published while in other tab
-27. **"Open Chat" CTA** - Add to bottom of MatchReport
-28. **Testing & polish**
+26. **Worker system messages** - Match report + voting open (after stats)
+27. **API system messages** - Teams published + player joined
+28. **Home badge** - Badge when match report published
+29. **"Open Chat" CTA** - Add to bottom of MatchReport
+30. **Chat cleanup cron** - Daily job to keep last 1,000 messages
+31. **Testing & polish**
+
+### Deployment Checklist
+
+- [ ] Run database migration (all new tables)
+- [ ] Enable Supabase Realtime on chat tables
+- [ ] Deploy worker update (survey creation logic)
+- [ ] Deploy `vercel.json` with new cron jobs
+- [ ] Add voting config defaults to `app_config` for each tenant
 
 ---
 
@@ -984,7 +1174,6 @@ src/app/player/
 - [ ] Messages appear in real-time for all users
 - [ ] @mentions autocomplete with all players (active first, then retired)
 - [ ] @mentions visually highlighted in messages
-- [ ] Mentioned player sees badge on Chat tab
 - [ ] Fixed set of reaction emojis (👍 😂 🔥 ❤️ 😮 👎)
 - [ ] Reactions display with counts under messages
 - [ ] Reactions update in real-time (Supabase Realtime subscription)
@@ -999,21 +1188,35 @@ src/app/player/
 
 ### Voting
 
-- [ ] Survey created automatically when latest match result entered
+**Survey Creation (CRITICAL):**
+- [ ] Survey created ONLY on first-time result submission (`result_submitted_at` NULL → timestamp)
+- [ ] Survey created ONLY for the latest match (chronologically)
+- [ ] Survey NOT created for match edits, re-saves, or score corrections
 - [ ] Survey NOT created for historical match edits
-- [ ] Only players who played can vote
+- [ ] Survey NOT created when re-running stats worker manually
+- [ ] Match deletion cascade deletes survey, votes, and awards
+
+**Voting Flow:**
+- [ ] Only players who played can vote (validated against snapshotted `eligible_player_ids`)
 - [ ] Only players who played appear as candidates
 - [ ] "No-one / Skip" option appears first in each category
 - [ ] Players can skip categories or clear previous votes
 - [ ] Players can change votes before closing
 - [ ] Voting closes after configured duration (default 12h)
+
+**Results & Awards:**
 - [ ] Results show after voting closes
 - [ ] Ties result in co-winners
 - [ ] Award icons appear by winner names until next match report
 - [ ] Vote counts displayed with results
 - [ ] Voting banner stays visible until close (shows "Change Vote" after voting)
-- [ ] "No awards this week" message if all categories skipped
+- [ ] "No awards this week" system message if all categories skipped
 - [ ] Awards section omits categories with zero votes (no empty blocks)
+
+**Survey Closing:**
+- [ ] Cron job runs every 30 minutes to close expired surveys
+- [ ] Lazy evaluation closes on access if cron hasn't run yet
+- [ ] System message posted when survey closes
 
 ### Admin Config
 
@@ -1041,10 +1244,21 @@ src/app/player/
 
 ### System Messages
 
-- [ ] "Match report is live! Voting open" bundled message when match report published
-- [ ] "Voting closed" message posted when survey closes (conditional: awards vs no awards variant)
-- [ ] "Teams published!" posted when admin saves teams
-- [ ] "Welcome [Name]!" posted when new player approved
+**Worker-triggered (after stats complete):**
+- [ ] "Match report is live!" posted by worker after stats job finishes
+- [ ] "Voting is open!" posted by worker after survey creation (if voting enabled)
+
+**Cron-triggered:**
+- [ ] "Voting closed — check the match report for awards!" posted when survey closes with winners
+- [ ] "Voting closed — no awards this week" posted when all categories skipped
+
+**API-triggered:**
+- [ ] "Teams published!" posted when admin saves teams (save-teams API)
+- [ ] "Welcome [Name]!" posted when new player approved (approval API)
+
+**General:**
+- [ ] System messages styled differently (grey, centered, no avatar)
+- [ ] System messages appear in real-time via Supabase Realtime
 
 ---
 
@@ -1151,6 +1365,407 @@ useEffect(() => {
 ```
 
 **Note:** We use UPDATE events for messages (soft delete via `deleted_at`) and DELETE events for reactions (hard delete).
+
+**Multi-tenancy:** The `filter: tenant_id=eq.${tenantId}` ensures clients only receive events for their tenant. Per the project's architecture, RLS is disabled on operational tables — the Realtime filter is the tenant isolation mechanism for subscriptions. The `tenantId` comes from the authenticated user's profile (already validated server-side).
+
+**Event ordering:** Supabase Realtime does NOT guarantee event ordering across tables. Clients must handle:
+- Reaction DELETE arriving after message UPDATE → ignore orphaned reaction
+- Message UPDATE arriving before reaction DELETE → temporarily show stale count until DELETE arrives
+
+**Client UPDATE handling:** Only treat UPDATE as deletion if `deleted_at` changed:
+```typescript
+if (payload.new.deleted_at && payload.new.deleted_at !== payload.old?.deleted_at) {
+  // This is a soft-delete, render as "[This message was deleted]"
+}
+```
+
+### Mobile Realtime Behavior
+
+**Expected behavior on iOS/Android (Capacitor):**
+- App goes to background → WebSocket disconnects
+- App returns to foreground → shows "connecting..." briefly (1-2 seconds)
+- Automatically resubscribes and fetches missed messages
+- No user action required
+
+This is standard behavior for all realtime systems (Discord, Slack, WhatsApp). **Acceptable and expected.**
+
+---
+
+## Appendix: Survey Creation Rules (CRITICAL)
+
+### When to Create a Survey
+
+A survey is created **ONLY** when ALL of these conditions are true:
+
+1. **First-time result submission** — `result_submitted_at` transitions from `NULL` → timestamp
+2. **Latest match** — This is the chronologically most recent match
+3. **Voting enabled** — `voting_enabled = true` in app_config
+4. **No existing survey** — No `match_surveys` row exists for this match
+
+### When NOT to Create a Survey
+
+**Survey creation MUST NEVER occur on:**
+
+| Scenario | Why |
+|----------|-----|
+| Match edits | Editing score/players after initial submission |
+| Match re-saves | Admin saves same match again |
+| Score corrections | Fixing typos in goals |
+| Player adjustments | Adding/removing players retroactively |
+| Historical match edits | Editing any non-latest match |
+| Re-running stats worker | Manual stats refresh |
+| Match deletion + recreation | New match_id = no survey link |
+
+**Detection Logic:**
+
+```typescript
+// In worker after stats complete
+async function shouldCreateSurvey(
+  matchId: number, 
+  tenantId: string, 
+  isFirstSubmission: boolean
+): Promise<boolean> {
+  // 1. FIRST CHECK: Was this a first-time submission?
+  // This flag is determined by the API (not frontend) — see Worker Job Types appendix
+  if (!isFirstSubmission) {
+    console.log('Skipping survey: not first submission');
+    return false;
+  }
+  
+  // 2. Check if this is the latest match
+  const isLatestMatch = await checkIsLatestMatch(matchId, tenantId);
+  if (!isLatestMatch) {
+    console.log('Skipping survey: not latest match');
+    return false;
+  }
+  
+  // 3. Check if survey already exists (belt-and-suspenders)
+  const existingSurvey = await prisma.match_surveys.findFirst({
+    where: { match_id: matchId, tenant_id: tenantId }
+  });
+  if (existingSurvey) {
+    console.log('Skipping survey: already exists');
+    return false;
+  }
+  
+  // 4. Check if voting is enabled
+  const votingEnabled = await getConfig('voting_enabled', tenantId);
+  if (!votingEnabled) {
+    console.log('Skipping survey: voting disabled');
+    return false;
+  }
+  
+  return true;
+}
+```
+
+**Note:** `isFirstSubmission` is determined by the `/complete` API route (not frontend) by checking if a match record already exists for that `upcoming_match_id`. This is the primary safeguard.
+
+### Survey Creation — Race Condition Handling
+
+**Concurrent submission protection:**
+```typescript
+// Survey creation must handle unique-constraint conflicts gracefully
+try {
+  await prisma.match_surveys.create({
+    data: { tenant_id, match_id, eligible_player_ids, ... }
+  });
+} catch (error) {
+  if (error.code === 'P2002') {  // Unique constraint violation
+    // Another worker created it first — safe to ignore
+    console.log('Survey already exists, skipping creation');
+    return;
+  }
+  throw error;
+}
+```
+
+The `UNIQUE(tenant_id, match_id)` constraint prevents duplicate surveys even under concurrent worker execution.
+
+### Match Deletion Cascade Rules
+
+When a match is deleted, **cascade delete all related voting data:**
+
+```sql
+-- Foreign key cascades handle this automatically
+-- But for clarity, the deletion order is:
+
+1. player_awards (depends on survey_id, match_id)
+2. match_votes (depends on survey_id)
+3. match_surveys (depends on match_id)
+4. matches (the match itself)
+```
+
+**Schema enforcement:**
+
+```sql
+-- In match_surveys table
+REFERENCES matches(match_id) ON DELETE CASCADE
+
+-- In match_votes table  
+REFERENCES match_surveys(id) ON DELETE CASCADE
+
+-- In player_awards table
+REFERENCES match_surveys(id) ON DELETE CASCADE
+REFERENCES matches(match_id) ON DELETE CASCADE
+```
+
+**Result:** Deleting a match automatically removes its survey, votes, and awards. No orphaned records.
+
+### Edge Cases
+
+| Case | Behavior |
+|------|----------|
+| Delete latest match with active survey | Survey + votes deleted, voting ends |
+| Delete latest match after voting closed | Survey + votes + awards deleted |
+| Delete old match with historical survey | Survey + votes + awards deleted |
+| Delete match that never had a survey | Nothing to clean up |
+| Delete match, then undo (recreate) | New match_id, no survey connection |
+
+---
+
+## Appendix: Survey Closing Mechanism
+
+### Hybrid Approach: Cron + Lazy Evaluation
+
+**Why hybrid?**
+- Cron ensures surveys close even if no users are active
+- Lazy evaluation provides immediate feedback when users access
+
+### Cron Job (Every 30 minutes)
+
+**Add to `vercel.json`:**
+
+```json
+{
+  "path": "/api/voting/close-expired",
+  "schedule": "*/30 * * * *"
+}
+```
+
+**API Route: `/api/voting/close-expired`**
+
+```typescript
+// Called by Vercel cron every 30 minutes (GET is standard for Vercel crons)
+export async function GET(request: NextRequest) {
+  // 1. Find all expired surveys (is_open = true AND voting_closes_at < now)
+  const expiredSurveys = await prisma.match_surveys.findMany({
+    where: {
+      is_open: true,
+      voting_closes_at: { lt: new Date() }
+    }
+  });
+  
+  // 2. Close each — closeSurveyAndTally handles tally + system message
+  let closedCount = 0;
+  for (const survey of expiredSurveys) {
+    const closed = await closeSurveyAndTally(survey.id, survey.tenant_id);
+    if (closed) closedCount++;
+  }
+  
+  return NextResponse.json({ closed: closedCount });
+}
+```
+
+**Note:** `closeSurveyAndTally` is the single source of truth for closing logic. It handles: DB update, tally, awards insertion, AND system message. Both cron and lazy evaluation call it directly.
+
+### Lazy Evaluation (On Access)
+
+When user accesses voting or match report:
+
+```typescript
+// In voting API or match report API
+const survey = await getSurveyForMatch(matchId, tenantId);
+
+if (survey?.is_open && new Date(survey.voting_closes_at) < new Date()) {
+  // Survey expired but not yet closed by cron — close it now
+  await closeSurveyAndTally(survey.id, tenantId);
+}
+```
+
+**Timing:** Max 30-minute delay from exact close time (cron interval), but immediate if user accesses first.
+
+### Idempotent Closing (CRITICAL)
+
+`closeSurveyAndTally()` is the **single source of truth** for closing surveys. It handles:
+1. DB update (set `is_open = false`)
+2. Vote tallying
+3. Award insertion
+4. System message posting
+
+Both cron and lazy evaluation call this function directly.
+
+```typescript
+async function closeSurveyAndTally(surveyId: string, tenantId: string): Promise<boolean> {
+  // Use WHERE is_open = true to prevent double-processing
+  const result = await prisma.match_surveys.updateMany({
+    where: { id: surveyId, is_open: true },  // Only if still open
+    data: { is_open: false, closed_at: new Date() }
+  });
+  
+  if (result.count === 0) {
+    // Already closed by another process — skip everything
+    return false;
+  }
+  
+  // Tally votes and insert awards
+  const hasAwards = await tallyAndInsertAwards(surveyId);
+  
+  // Post system message (only if we actually closed it)
+  const message = hasAwards 
+    ? '🏆 Voting closed — check the match report for awards!'
+    : '🗳️ Voting closed — no awards this week';
+  await postSystemMessage({ tenantId, content: message });
+  
+  return true;
+}
+```
+
+**Why idempotent:** Prevents double system messages when cron and lazy evaluation race. The `WHERE is_open = true` guard ensures only one caller succeeds.
+
+---
+
+## Appendix: System Message Trigger Points
+
+### Message Trigger Architecture
+
+| Message | Trigger Location | Trigger Mechanism |
+|---------|------------------|-------------------|
+| Match report live | Worker | After stats job completes |
+| Voting open | Worker | After survey creation (same as above) |
+| Voting closed | Cron job | `/api/voting/close-expired` |
+| Teams published | API | `/api/admin/upcoming-matches/[id]/save-teams` |
+| New player joined | API | `/api/admin/join-requests/[id]/approve` |
+
+### Worker Integration (Match Report + Voting Open)
+
+**File: `worker/src/jobs/statsUpdateJob.ts`**
+
+```typescript
+export async function processStatsUpdateJob(
+  jobId: string,
+  payload: StatsUpdateJobPayload
+): Promise<void> {
+  // ... existing stats processing ...
+  
+  // After all stats complete successfully:
+  if (payload.triggeredBy === 'post-match' && payload.isFirstSubmission) {
+    await handlePostMatchActions(payload);
+  }
+}
+
+async function handlePostMatchActions(payload: StatsUpdateJobPayload): Promise<void> {
+  const { matchId, tenantId } = payload;
+  
+  // 1. Check if this is the latest match
+  const isLatest = await isLatestMatch(matchId, tenantId);
+  if (!isLatest) return;
+  
+  // 2. Post "Match report is live!" message
+  await postSystemMessage({ tenantId, content: '📊 Match report is live!' });
+  
+  // 3. Create survey if voting enabled
+  const votingEnabled = await getConfig('voting_enabled', tenantId);
+  if (votingEnabled) {
+    const survey = await createSurvey(matchId, tenantId);
+    if (survey) {
+      // 4. Post "Voting is open!" message
+      const durationHours = await getConfig('voting_duration_hours', tenantId);
+      await postSystemMessage({ tenantId, content: `🗳️ Voting is open! Closes in ${durationHours}h` });
+    }
+  }
+}
+```
+
+### API Triggers (Teams Published, Player Joined)
+
+**Teams Published — modify existing route:**
+
+```typescript
+// src/app/api/admin/upcoming-matches/[id]/save-teams/route.ts
+
+// After successful team save:
+await postSystemMessage({ tenantId, content: `⚽ Teams published for ${dayOfWeek}'s match!` });
+```
+
+**Player Joined — modify existing route:**
+
+```typescript
+// src/app/api/admin/join-requests/[id]/approve/route.ts
+
+// After successful approval:
+await postSystemMessage({ tenantId, content: `👋 Welcome ${playerName} to the club!` });
+```
+
+---
+
+## Appendix: Worker Job Types
+
+### Extended Job Type System
+
+**File: `worker/src/types/jobTypes.ts`**
+
+```typescript
+// No new job types needed — survey closing is handled by Vercel cron, not worker queue
+export type JobType = 'stats_update';  // Unchanged
+
+export interface StatsUpdateJobPayload {
+  triggeredBy: 'post-match' | 'admin' | 'cron';
+  matchId?: number;
+  tenantId: string;
+  requestId: string;
+  timestamp: string;
+  isFirstSubmission?: boolean;  // NEW: true only on first result entry
+}
+
+// Note: survey_create is handled inline after stats complete
+// survey_close is handled by cron, not worker queue
+```
+
+### Payload Enhancement for First Submission Detection
+
+**🚨 CRITICAL:** The `isFirstSubmission` flag is the most important safeguard against duplicate surveys.
+
+**Determination logic (in API route, NOT frontend):**
+
+```typescript
+// src/app/api/admin/upcoming-matches/[id]/complete/route.ts
+
+// BEFORE creating the match record, check if this is truly first submission
+const existingMatch = await prisma.matches.findFirst({
+  where: { upcoming_match_id: matchId, tenant_id: tenantId }
+});
+
+const isFirstSubmission = !existingMatch;  // true ONLY if no match record exists yet
+
+// Pass to stats job
+await enqueueStatsJob({
+  triggeredBy: 'post-match',
+  matchId: newMatch.match_id,
+  tenantId,
+  isFirstSubmission  // Determined by API, not frontend
+});
+```
+
+**Why API-side detection?**
+- Frontend doesn't know if match was already submitted
+- API can check database state definitively
+- Prevents race conditions and user manipulation
+
+**File: `src/app/api/admin/enqueue-stats-job/route.ts`**
+
+```typescript
+// Pass through isFirstSubmission in payload
+const payload = {
+  triggeredBy: body.triggeredBy,
+  matchId: body.matchId,
+  tenantId,
+  requestId: body.requestId,
+  isFirstSubmission: body.isFirstSubmission ?? false  // Default false for safety
+};
+```
+
+**Default false = safe:** If flag is missing or undefined, survey is NOT created. This prevents accidental survey creation from manual stats reruns or legacy code paths.
 
 ---
 
