@@ -425,6 +425,8 @@ After voting closes, display results:
 
 **Visibility:** Only shows after voting closes. Hidden during active voting.
 
+**Data source:** Query `player_awards` table separately (not embedded in `aggregated_match_report`). This avoids needing a second background job when voting closes. Query is trivial (<1ms for ~6 rows with index).
+
 **No-winner handling:**
 - If a category has zero votes (everyone skipped), **omit that category entirely** from the display
 - If ALL categories have zero votes, hide the entire Awards section (don't show empty block)
