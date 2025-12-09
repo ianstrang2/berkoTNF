@@ -413,12 +413,25 @@ Accessed via "Vote Now" banner on Dashboard/Home.
 ```
 
 **UI Notes:**
+- **MUST follow mobile-safe modal pattern** from `SPEC_Modals.md` (Pattern 2: Custom Form Modal)
+- Use `items-start` + `justify-center` (NOT `items-center`)
+- Use `maxHeight: calc(100vh - 4rem)` outer, `calc(100vh - 8rem)` inner scroll
 - Match styling from Match Control Centre player lists
 - Show player's selected club badge
 - Single selection per category (radio behavior)
 - **"No-one / Skip" is the first option in each category** (allows clearing a previous vote)
 - Pre-fill existing votes when reopening modal (default to "No-one / Skip" if no vote)
 - Submit always enabled - selecting "No-one / Skip" for all categories is valid (clears any existing votes)
+
+**Button styling (from SPEC_Modals.md):**
+```tsx
+{/* Submit button - purple gradient */}
+<button className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase 
+  bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg shadow-soft-md 
+  hover:scale-102 transition-all">
+  Submit Votes
+</button>
+```
 
 **API handling:**
 - `mom: null` = **DELETE** the existing `match_votes` row for that category (clears the vote)
@@ -567,20 +580,22 @@ Match Completed → Stats Job Queued → Worker Processes Stats
 
 ### System Message Styling
 
-```css
-/* System messages are visually distinct */
-.system-message {
-  color: #6b7280;           /* Grey text */
-  font-size: 0.875rem;      /* Smaller */
-  text-align: center;       /* Centered */
-  background: #f3f4f6;      /* Light grey background */
-  padding: 8px 16px;
-  border-radius: 8px;
-  margin: 8px auto;
-  max-width: 80%;
-}
-/* No avatar for system messages */
+**Use Tailwind classes (not raw CSS):**
+
+```tsx
+{/* System message component */}
+<div className="text-gray-500 text-sm text-center bg-gray-100 px-4 py-2 rounded-lg mx-auto max-w-[80%] my-2">
+  {message.content}
+</div>
 ```
+
+**Key classes:**
+- `text-gray-500` — Grey text (not `#6b7280`)
+- `text-sm` — Smaller font
+- `text-center` — Centered
+- `bg-gray-100` — Light grey background (not `#f3f4f6`)
+- `rounded-lg` — Consistent with app styling
+- No avatar for system messages
 
 ### System Message Helper Function
 
@@ -1044,6 +1059,14 @@ VALUES
 
 ## 9. UI Components
 
+### UI Standards Reference
+
+**MUST follow existing patterns:**
+- **Modals:** See `SPEC_Modals.md` — use mobile-safe pattern for VotingModal
+- **Buttons:** Purple-pink gradient (`from-purple-700 to-pink-500`)
+- **Icons:** SVG only in UI (emojis OK in chat content)
+- **Forms:** Follow `PlayerFormModal` pattern for input styling
+
 ### New Components to Create
 
 ```
@@ -1264,27 +1287,51 @@ src/app/player/
 
 ## Appendix: Icon Assets Required
 
-| Icon | Current | New | Notes |
-|------|---------|-----|-------|
-| On Fire | 💪 Strongman | 🔥 Flame | SVG needed |
-| Man of the Match | — | 💪 Strongman | Repurpose current On Fire |
-| Donkey of the Day | — | 🫏 Donkey | SVG needed |
-| Missing in Action | — | 🦝 Possum | SVG needed |
-| Grim Reaper | 💀 Skull | 💀 Skull | No change |
+### Emojis vs SVG Icons (Per SPEC_Modals.md)
 
-**Action required:** Provide SVG files for Flame, Donkey, Possum icons.
+**❌ NEVER use emojis in UI elements** (buttons, modals, badges, icons next to names)
+
+**✅ Emojis OK in these contexts:**
+- System messages in chat (e.g., "📊 Match report is live!") — these are chat content
+- Chat reactions (👍 😂 🔥 ❤️ 😮 👎) — user content, not UI chrome
+
+**Must be SVG:**
+- Award icons next to player names (MoM, DoD, MiA)
+- Icons in voting modal category headers
+- Any icon in buttons, badges, or UI chrome
+
+### Icon & Image Assets (COMPLETE ✅)
+
+| Status | SVG Component | PNG Image | Usage |
+|--------|---------------|-----------|-------|
+| **On Fire** (streak) | `FlameIcon.component.tsx` | `on-fire.png` | Hot streak indicator |
+| **Man of the Match** | `StrongmanIcon.component.tsx` | `mom.png` | MoM award |
+| **Donkey of the Day** | `DonkeyIcon.component.tsx` | `donkey.png` | DoD award |
+| **Missing in Action** | `PossumIcon.component.tsx` | `possum.png` | MiA award |
+| **Grim Reaper** | `GrimReaperIcon.component.tsx` | `reaper.png` | Loss streak (existing) |
+
+**File Locations:**
+- SVGs: `src/components/icons/`
+- PNGs: `public/img/player-status/`
+
+**SVG ViewBox:** All use `0 0 24 24` (scales to any size, crisp at 16px-48px)
 
 ### Icon Migration Checklist
 
-When implementing, update "On Fire" → Flame icon in ALL locations:
-- [ ] `FireIcon.component.tsx` - Replace strongman SVG with flame
+When implementing, migrate from old `FireIcon` (strongman) to new icons:
+
+**Replace `FireIcon` imports with `FlameIcon` for "On Fire" streak:**
 - [ ] `MatchReport.component.tsx` - On Fire player display
 - [ ] `UpcomingMatchCard.component.tsx` - Player pool fire indicator
-- [ ] `LeaderboardStats.component.tsx` - If On Fire shown here
-- [ ] `PlayerProfile.component.tsx` - If On Fire shown on profile
-- [ ] Any copy/paste team list generation
+- [ ] `CurrentForm.component.tsx` - On Fire section
+- [ ] Any other components using `FireIcon` for streak
 
-The existing "On Fire" logic (streak detection) stays the same — only the icon changes.
+**Add new award icons where needed:**
+- [ ] `StrongmanIcon` - For Man of the Match award
+- [ ] `DonkeyIcon` - For Donkey of the Day award
+- [ ] `PossumIcon` - For Missing in Action award
+
+**Note:** The old `FireIcon.component.tsx` can be kept as an alias to `FlameIcon` for backward compatibility, or deprecated after migration.
 
 ---
 
