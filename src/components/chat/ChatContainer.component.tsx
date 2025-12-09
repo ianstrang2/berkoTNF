@@ -24,32 +24,15 @@ const ChatContainer: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNewMessagesBanner, setShowNewMessagesBanner] = useState(false);
-  const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
+  
+  // Get current player ID from auth context (no extra API call needed!)
+  const currentPlayerId = profile.linkedPlayerId;
   
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
   const isNearBottomRef = useRef(true);
   const initialLoadDoneRef = useRef(false);
-
-  // Fetch current player ID
-  useEffect(() => {
-    const fetchCurrentPlayer = async () => {
-      try {
-        const response = await apiFetch('/auth/profile');
-        const data = await response.json();
-        if (data.success && data.profile?.linkedPlayerId) {
-          setCurrentPlayerId(data.profile.linkedPlayerId);
-        }
-      } catch (err) {
-        console.error('Failed to fetch current player:', err);
-      }
-    };
-    
-    if (profile.isAuthenticated) {
-      fetchCurrentPlayer();
-    }
-  }, [profile.isAuthenticated]);
 
   // Fetch players for mentions
   useEffect(() => {

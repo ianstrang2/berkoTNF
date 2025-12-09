@@ -82,14 +82,22 @@ export function useAuth() {
   }, [authData]);
 
   // Listen for auth changes including token refresh
+  // Debounce to prevent multiple rapid invalidations during init
   useEffect(() => {
+    let lastInvalidation = 0;
+    const DEBOUNCE_MS = 1000; // Don't invalidate more than once per second
+    
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       // On auth events, invalidate and refetch profile
       // TOKEN_REFRESHED is CRITICAL - ensures app recognizes refreshed sessions
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
-        queryClient.invalidateQueries({ queryKey: queryKeys.authProfile() });
+        const now = Date.now();
+        if (now - lastInvalidation > DEBOUNCE_MS) {
+          lastInvalidation = now;
+          queryClient.invalidateQueries({ queryKey: queryKeys.authProfile() });
+        }
       }
     });
 
