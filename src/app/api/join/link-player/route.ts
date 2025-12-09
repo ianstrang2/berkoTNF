@@ -3,43 +3,21 @@
  * 
  * POST /api/join/link-player
  * Automatically links player based on phone number match or creates join request
+ * 
+ * PERFORMANCE FIX (Dec 2025): Uses cached auth via getAuthenticatedUser()
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
+import { getAuthenticatedUser } from '@/lib/auth/cachedAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            try {
-              cookieStore.set({ name, value, ...options });
-            } catch {}
-          },
-          remove(name: string, options: CookieOptions) {
-            try {
-              cookieStore.set({ name, value: '', ...options });
-            } catch {}
-          },
-        },
-      }
-    );
-    
-    // Verify user is authenticated
-    const { data: { user } } = await supabase.auth.getUser();
+    // PERFORMANCE FIX: Use cached auth to prevent redundant getUser() calls
+    const { user } = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json(

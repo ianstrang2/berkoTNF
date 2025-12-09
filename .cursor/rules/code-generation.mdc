@@ -114,6 +114,74 @@ export async function GET(request: NextRequest) {
 - Assume middleware handles authorization (it only checks authentication)
 - Skip auth checks because "it's an internal API" (still exploitable)
 
+### 🚨 CRITICAL: Auth & Tenant Resolution Rules (MANDATORY - Dec 2025)
+
+These rules prevent performance issues (16+ second timeouts) and ensure consistent patterns.
+
+#### 1. Auth (Server-Side)
+
+**All server-side code MUST use `getAuthenticatedUser()` from `src/lib/auth/cachedAuth.ts`.**
+
+```typescript
+// ✅ CORRECT: Uses React cache() to deduplicate calls
+import { getAuthenticatedUser } from '@/lib/auth/cachedAuth';
+
+export async function POST(request: NextRequest) {
+  const { user } = await getAuthenticatedUser();
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  // ... rest of handler
+}
+
+// ✅ ALSO CORRECT: Auth helpers use cached auth internally
+const { user } = await requireAdminRole(request);  // Cached
+const { user } = await requireSuperadmin(request); // Cached
+const { user } = await requireAuth(request);       // Cached
+```
+
+**❌ NEVER do this:**
+```typescript
+// ❌ WRONG: Creates new client, bypasses cache
+const cookieStore = cookies();
+const supabase = createServerClient(...);
+const { data: { user } } = await supabase.auth.getUser();
+```
+
+**Why:** Each direct `getUser()` call hits the Supabase Auth API. On page load with 5 parallel API calls, each creating its own client causes 10+ auth calls → rate limiting → 16+ second timeouts!
+
+**Exception - Middleware:** `src/middleware.ts` runs in a separate execution context (before React request lifecycle) and MUST have its own `getUser()` call. This is correct and expected.
+
+#### 2. Tenant (Server-Side)
+
+**All server-side code that needs tenant information MUST use the existing helpers:**
+- `withTenantContext(request, handler)` - Standard wrapper for API routes
+- `getTenantFromRequest(request)` - Direct tenant resolution (rarely needed)
+
+**❌ NEVER re-implement tenant lookups with ad-hoc Prisma queries:**
+```typescript
+// ❌ WRONG: Re-implementing tenant lookup
+const player = await prisma.players.findFirst({ where: { auth_user_id: user.id } });
+const tenantId = player?.tenant_id;  // Don't do this!
+
+// ✅ CORRECT: Use the standard helper
+return withTenantContext(request, async (tenantId) => {
+  // tenantId is already resolved correctly
+});
+```
+
+**Why `getTenantFromRequest` is NOT cached:** It has side effects (cookie handling, security checks) and should be called once per request via `withTenantContext`, not sprinkled throughout the codebase.
+
+#### 3. Client-Side
+
+**Client-side components MUST NOT call server-only helpers directly:**
+- ❌ `getAuthenticatedUser()` - Server only (uses React `cache()`)
+- ❌ `getTenantFromRequest()` - Server only (uses `cookies()`)
+- ❌ `requireAdminRole()` - Server only
+
+**Tenant and user info on the client should come from:**
+- Server components passing props down
+- API responses (e.g., `/api/auth/profile`)
+- React Context providers (e.g., `useAuth()` hook)
+
 ## React Query - Multi-Tenant Cache Isolation (MANDATORY)
 
 ### 🚨 CRITICAL: All Query Keys MUST Include tenant_id

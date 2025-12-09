@@ -3,11 +3,12 @@
  * 
  * POST /api/admin/create-club
  * Creates a new club and first admin player
+ * 
+ * PERFORMANCE FIX (Dec 2025): Uses cached auth via requireSuperadmin() which
+ * internally calls getAuthenticatedUser(). Removed duplicate getUser() call.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { normalizeToE164 } from '@/utils/phone.util';
 import { requireSuperadmin } from '@/lib/auth/apiAuth';
@@ -20,40 +21,10 @@ export async function POST(request: NextRequest) {
   // There's no tenant_id to set in context yet (chicken-and-egg problem)
   try {
     // SECURITY: Only superadmins can create new clubs
-    await requireSuperadmin(request);
+    // PERFORMANCE FIX: requireSuperadmin uses cached auth - no need for separate getUser() call
+    const { user } = await requireSuperadmin(request);
     
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            try {
-              cookieStore.set({ name, value, ...options });
-            } catch {}
-          },
-          remove(name: string, options: CookieOptions) {
-            try {
-              cookieStore.set({ name, value: '', ...options });
-            } catch {}
-          },
-        },
-      }
-    );
-    
-    // Verify user is authenticated
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
+    // user is guaranteed to be non-null if we reach here (requireSuperadmin throws otherwise)
 
     console.log('[CREATE_CLUB] Authenticated user:', {
       id: user.id,

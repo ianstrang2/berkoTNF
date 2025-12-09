@@ -6,13 +6,16 @@
  * 
  * Phase 2 Update: Uses Supabase service role for auth checks to avoid RLS blocking
  * FIXED (Nov 2025): Migrated from deprecated @supabase/auth-helpers-nextjs to @supabase/ssr
+ * 
+ * PERFORMANCE FIX (Dec 2025): Now uses cached auth via getAuthenticatedUser() to prevent
+ * redundant Supabase Auth API calls. When multiple API helpers are called in the same
+ * request (e.g., withTenantContext + requireAdminRole), only ONE getUser() call is made.
  */
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
+import { getAuthenticatedUser } from './cachedAuth';
 
 /**
  * Authentication error - user is not authenticated
@@ -72,6 +75,10 @@ export interface PlayerAuthResult extends AuthResult {
  * Checks if user has a valid Supabase session
  * Throws AuthenticationError if not authenticated
  * 
+ * PERFORMANCE FIX (Dec 2025): Uses cached auth via getAuthenticatedUser()
+ * This ensures that when both withTenantContext() and requireAuth() are called
+ * in the same request, only ONE Supabase Auth API call is made.
+ * 
  * @param request - Next.js request object
  * @returns User session and Supabase client
  * @throws AuthenticationError if not authenticated
@@ -85,35 +92,9 @@ export interface PlayerAuthResult extends AuthResult {
  * ```
  */
 export async function requireAuth(request: NextRequest): Promise<AuthResult> {
-  const cookieStore = cookies();
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options });
-          } catch {
-            // Cookie setting can fail in some contexts
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options });
-          } catch {
-            // Cookie removal can fail in some contexts
-          }
-        },
-      },
-    }
-  );
-  
-  const { data: { user }, error } = await supabase.auth.getUser();
+  // PERFORMANCE FIX: Use cached auth to prevent redundant getUser() calls
+  // React's cache() ensures only one Supabase Auth call per request
+  const { user, supabase, error } = await getAuthenticatedUser();
   
   if (error || !user) {
     throw new AuthenticationError('Authentication required');

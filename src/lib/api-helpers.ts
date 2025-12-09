@@ -5,11 +5,13 @@
  * 
  * FIXED (Nov 2025): Migrated from deprecated @supabase/auth-helpers-nextjs to @supabase/ssr
  * This fixes session persistence issues where users had to login on every page load
+ * 
+ * PERFORMANCE FIX (Dec 2025): Now uses cached auth via getAuthenticatedUser() to prevent
+ * redundant Supabase Auth API calls within the same request.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { getAuthenticatedUser } from '@/lib/auth/cachedAuth';
 
 /**
  * Handle tenant resolution and authentication errors with proper HTTP status codes
@@ -98,40 +100,17 @@ export interface AuthenticationResult {
  * Require authentication for an API route
  * Throws error if no valid session exists
  * 
+ * PERFORMANCE FIX (Dec 2025): Uses cached auth via getAuthenticatedUser()
+ * This ensures only ONE Supabase Auth API call per request even when
+ * multiple auth helpers are called.
+ * 
  * @param request - NextRequest object
  * @returns Promise<AuthenticationResult> - Session and Supabase client
  * @throws Error if no authenticated user session exists
  */
 export async function requireAuthentication(request?: NextRequest): Promise<AuthenticationResult> {
-  const cookieStore = cookies();
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options });
-          } catch {
-            // Cookie setting can fail in middleware context
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options });
-          } catch {
-            // Cookie removal can fail in middleware context
-          }
-        },
-      },
-    }
-  );
-  
-  const { data: { user }, error } = await supabase.auth.getUser();
+  // PERFORMANCE FIX: Use cached auth to prevent redundant getUser() calls
+  const { user, supabase, error } = await getAuthenticatedUser();
   
   if (error) {
     console.error('[AUTH_ERROR] Failed to get user:', error);
