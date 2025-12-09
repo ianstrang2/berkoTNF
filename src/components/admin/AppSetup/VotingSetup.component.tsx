@@ -1,116 +1,156 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Card from '@/components/ui-kit/Card.component';
+import Button from '@/components/ui-kit/Button.component';
+import InfoPopover from '@/components/ui-kit/InfoPopover.component';
 import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { apiFetch } from '@/lib/apiConfig';
 
 interface ConfigItem {
   config_key: string;
   config_value: string;
+  display_name: string;
+  config_description?: string;
 }
 
-interface ConfigMap {
-  [key: string]: string;
-}
+// Voting config definitions with display metadata
+const VOTING_CONFIGS: ConfigItem[] = [
+  {
+    config_key: 'voting_enabled',
+    config_value: 'true',
+    display_name: 'Enable Voting',
+    config_description: 'Allow players to vote for match awards after games'
+  },
+  {
+    config_key: 'voting_mom_enabled',
+    config_value: 'true',
+    display_name: 'Man of the Match',
+    config_description: 'Enable voting for best player award'
+  },
+  {
+    config_key: 'voting_dod_enabled',
+    config_value: 'true',
+    display_name: 'Donkey of the Day',
+    config_description: 'Enable voting for worst performance award'
+  },
+  {
+    config_key: 'voting_mia_enabled',
+    config_value: 'false',
+    display_name: 'Missing in Action',
+    config_description: 'Enable voting for invisible player award'
+  },
+  {
+    config_key: 'voting_duration_hours',
+    config_value: '12',
+    display_name: 'Duration (Hours)',
+    config_description: 'How long voting stays open after match result is submitted'
+  }
+];
 
-interface Toast {
-  show: boolean;
-  message: string;
-  type: 'success' | 'error' | 'warning';
-}
-
-const DEFAULT_CONFIGS: ConfigMap = {
-  voting_enabled: 'true',
-  voting_mom_enabled: 'true',
-  voting_dod_enabled: 'true',
-  voting_mia_enabled: 'false',
-  voting_duration_hours: '12'
-};
-
-/**
- * VotingSetup - Admin configuration for post-match voting
- * 
- * Settings:
- * - Master enable/disable toggle
- * - Individual category toggles (MoM, DoD, MiA)
- * - Voting duration in hours
- */
 const VotingSetup: React.FC = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [configs, setConfigs] = useState<ConfigMap>({ ...DEFAULT_CONFIGS });
-  const [originalConfigs, setOriginalConfigs] = useState<ConfigMap>({});
-  const [isDirty, setIsDirty] = useState<boolean>(false);
-  const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
-  const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState<boolean>(true);
+  
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [originalData, setOriginalData] = useState<Record<string, string>>({});
+  
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [resetConfirmation, setResetConfirmation] = useState<boolean>(false);
 
+  // Fetch settings on mount
   useEffect(() => {
     fetchSettings();
   }, []);
 
+  // Check for unsaved changes
   useEffect(() => {
-    const hasChanges = JSON.stringify(configs) !== JSON.stringify(originalConfigs);
-    setIsDirty(hasChanges);
-  }, [configs, originalConfigs]);
+    const hasChanges = Object.keys(formData).some(key => formData[key] !== originalData[key]);
+    setHasUnsavedChanges(hasChanges);
+  }, [formData, originalData]);
+
+  // Warn before navigation if unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const fetchSettings = async (): Promise<void> => {
     try {
       setIsLoading(true);
+      setError(null);
+      
       const response = await apiFetch('/admin/app-config?group=voting');
       
       if (!response.ok) throw new Error('Failed to fetch voting settings');
       
       const data = await response.json();
       
-      if (data.success && data.data.length > 0) {
-        const configsObj: ConfigMap = {};
-        data.data.forEach((config: ConfigItem) => {
-          configsObj[config.config_key] = config.config_value;
+      const initialFormData: Record<string, string> = {};
+      
+      // Set defaults first
+      VOTING_CONFIGS.forEach(config => {
+        initialFormData[config.config_key] = config.config_value;
+      });
+      
+      // Override with fetched values
+      if (data.success && data.data) {
+        data.data.forEach((config: { config_key: string; config_value: string }) => {
+          initialFormData[config.config_key] = config.config_value;
         });
-        
-        // Merge with defaults
-        const mergedConfigs = { ...DEFAULT_CONFIGS, ...configsObj };
-        setConfigs(mergedConfigs);
-        setOriginalConfigs(mergedConfigs);
-      } else {
-        // No configs found, use defaults
-        setOriginalConfigs({ ...DEFAULT_CONFIGS });
       }
-    } catch (error) {
-      console.error('Error fetching voting settings:', error);
-      showToast('Failed to load voting settings', 'error');
+      
+      setFormData(initialFormData);
+      setOriginalData(initialFormData);
+    } catch (err) {
+      console.error('Error fetching voting settings:', err);
+      setError('Failed to load voting settings');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleToggle = (key: string): void => {
-    setConfigs(prev => ({
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
       ...prev,
-      [key]: prev[key] === 'true' ? 'false' : 'true'
+      [name]: type === 'checkbox' ? String(checked) : value,
     }));
   };
 
-  const handleDurationChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-    setConfigs(prev => ({
-      ...prev,
-      voting_duration_hours: e.target.value
-    }));
-  };
-
-  const handleSave = async (): Promise<void> => {
-    try {
-      setIsLoading(true);
-      
-      const configsArray: ConfigItem[] = Object.entries(configs).map(([config_key, config_value]) => ({
+  const handleSaveAll = async () => {
+    const modifiedConfigs = Object.entries(formData)
+      .filter(([key, value]) => value !== originalData[key])
+      .map(([config_key, config_value]) => ({
         config_key,
-        config_value
+        config_value,
       }));
+
+    if (modifiedConfigs.length === 0) return;
+
+    try {
+      setIsSaving(true);
+      setError(null);
       
       const response = await apiFetch('/admin/app-config', {
         method: 'PUT',
-        body: JSON.stringify({ configs: configsArray, config_group: 'voting' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          configs: modifiedConfigs,
+          group: 'voting'
+        })
       });
       
       if (!response.ok) throw new Error('Failed to save voting settings');
@@ -118,30 +158,35 @@ const VotingSetup: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        setOriginalConfigs({ ...configs });
+        setOriginalData({ ...formData });
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 2000);
+      } else {
+        throw new Error(data.error || 'Failed to save settings');
       }
-    } catch (error) {
-      console.error('Error saving voting settings:', error);
-      showToast('Failed to save voting settings', 'error');
+    } catch (err: any) {
+      console.error('Error saving voting settings:', err);
+      setError(err.message || 'Failed to save settings');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  const handleResetToDefaults = async (): Promise<void> => {
+  const handleResetSection = () => {
+    setResetConfirmation(true);
+  };
+
+  const confirmResetSection = async () => {
+    setResetConfirmation(false);
+    setError(null);
+
     try {
-      setIsLoading(true);
+      setIsResetting(true);
       
-      const configsArray: ConfigItem[] = Object.entries(DEFAULT_CONFIGS).map(([config_key, config_value]) => ({
-        config_key,
-        config_value
-      }));
-      
-      const response = await apiFetch('/admin/app-config', {
-        method: 'PUT',
-        body: JSON.stringify({ configs: configsArray, config_group: 'voting' })
+      const response = await apiFetch('/admin/app-config/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group: 'voting' })
       });
       
       if (!response.ok) throw new Error('Failed to reset voting settings');
@@ -149,208 +194,171 @@ const VotingSetup: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        setConfigs({ ...DEFAULT_CONFIGS });
-        setOriginalConfigs({ ...DEFAULT_CONFIGS });
-        showToast('Settings reset to defaults', 'success');
+        // Update form data with reset values
+        const newFormData: Record<string, string> = { ...formData };
+        data.data.forEach((config: { config_key: string; config_value: string }) => {
+          newFormData[config.config_key] = config.config_value;
+        });
+        
+        setFormData(newFormData);
+        setOriginalData(newFormData);
+        
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2000);
+      } else {
+        throw new Error(data.error || 'Failed to reset settings');
       }
-    } catch (error) {
-      console.error('Error resetting voting settings:', error);
-      showToast('Failed to reset voting settings', 'error');
+    } catch (err: any) {
+      console.error('Error resetting voting settings:', err);
+      setError(err.message || 'Failed to reset settings');
     } finally {
-      setIsLoading(false);
-      setShowResetConfirmation(false);
+      setIsResetting(false);
     }
   };
 
-  const showToast = (message: string, type: Toast['type']): void => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  const renderConfigItem = (config: ConfigItem) => {
+    const currentValue = formData[config.config_key] || '';
+    const isBoolean = config.config_key.includes('_enabled');
+    const isDisabled = isSaving || isResetting;
+    
+    // For category toggles, disable them if master voting is disabled
+    const isCategoryToggle = ['voting_mom_enabled', 'voting_dod_enabled', 'voting_mia_enabled'].includes(config.config_key);
+    const votingDisabled = formData['voting_enabled'] === 'false';
+    const isEffectivelyDisabled = isDisabled || (isCategoryToggle && votingDisabled);
+
+    return (
+      <div 
+        key={config.config_key} 
+        className={`flex items-center py-1.5 border-b border-slate-100 last:border-0 ${
+          isCategoryToggle && votingDisabled ? 'opacity-50' : ''
+        }`}
+      >
+        <div className="flex-grow flex items-center min-w-0">
+          <span className="text-sm font-medium text-slate-700 truncate">
+            {config.display_name}
+          </span>
+          {config.config_description && (
+            <InfoPopover content={config.config_description} />
+          )}
+        </div>
+        
+        <div className="flex-shrink-0 ml-4">
+          {isBoolean ? (
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                name={config.config_key}
+                checked={currentValue === 'true'}
+                onChange={handleInputChange}
+                className="sr-only peer"
+                disabled={isEffectivelyDisabled}
+              />
+              <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-tl peer-checked:from-purple-700 peer-checked:to-pink-500 ${
+                isEffectivelyDisabled ? 'cursor-not-allowed' : ''
+              }`}></div>
+            </label>
+          ) : (
+            <input
+              type="number"
+              name={config.config_key}
+              value={currentValue}
+              onChange={handleInputChange}
+              className={`w-24 text-right px-2 py-1 text-sm rounded-md border-slate-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 disabled:bg-slate-50 disabled:text-slate-400 ${
+                votingDisabled ? 'opacity-50' : ''
+              }`}
+              disabled={isDisabled || votingDisabled}
+              min="1"
+              max="168"
+            />
+          )}
+        </div>
+      </div>
+    );
   };
 
-  const votingEnabled = configs.voting_enabled === 'true';
+  if (isLoading) {
+    return <div className="p-4 text-center text-slate-600">Loading configuration...</div>;
+  }
+
+  if (error && Object.keys(formData).length === 0) {
+    return <div className="p-4 text-red-600 bg-red-50 rounded-md">{error}</div>;
+  }
 
   return (
-    <>
-      <Card className="mb-4">
-        <div className="p-4">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Post-Match Voting</h2>
-                <p className="text-sm text-gray-500">Configure match awards voting</p>
-              </div>
-            </div>
+    <div className="w-full">
+      {/* Config Section */}
+      <div className="space-y-3">
+        <Card className="shadow-soft-md rounded-xl bg-white overflow-hidden">
+          {/* Section Header - Collapsible */}
+          <div className="w-full flex items-center justify-between p-4 border-b border-slate-100 group">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-2 flex-grow text-left hover:opacity-70 transition-opacity"
+            >
+              <h3 className="text-base font-semibold text-slate-700">Post-Match Voting</h3>
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
             
+            {/* Reset Section Button - Always visible on mobile, hover on desktop */}
             <button
-              onClick={() => setShowResetConfirmation(true)}
-              className="text-sm text-gray-500 hover:text-gray-700 underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleResetSection();
+              }}
+              disabled={isResetting}
+              className="ml-2 p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors md:opacity-0 md:group-hover:opacity-100 opacity-100 disabled:opacity-50"
+              title="Reset section to defaults"
             >
-              Reset to defaults
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
             </button>
           </div>
 
-          {/* Master Toggle */}
-          <div className="flex items-center justify-between py-4 border-b border-gray-100">
-            <div>
-              <h3 className="font-semibold text-gray-900">Enable Voting</h3>
-              <p className="text-sm text-gray-500">Allow players to vote after matches</p>
+          {/* Section Content */}
+          {isExpanded && (
+            <div className="px-4 pb-4 space-y-0">
+              {VOTING_CONFIGS.map(renderConfigItem)}
             </div>
-            <button
-              onClick={() => handleToggle('voting_enabled')}
-              className={`relative w-14 h-8 rounded-full transition-colors ${
-                votingEnabled ? 'bg-purple-600' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                  votingEnabled ? 'translate-x-6' : ''
-                }`}
-              />
-            </button>
-          </div>
+          )}
+        </Card>
+      </div>
 
-          {/* Category Toggles */}
-          <div className={`space-y-4 py-4 ${!votingEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-            <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Award Categories</h3>
-            
-            {/* Man of the Match */}
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">💪</span>
-                <div>
-                  <span className="font-medium text-gray-900">Man of the Match</span>
-                  <p className="text-xs text-gray-500">Best player award</p>
-                </div>
-              </div>
-              <button
-                onClick={() => handleToggle('voting_mom_enabled')}
-                className={`relative w-12 h-7 rounded-full transition-colors ${
-                  configs.voting_mom_enabled === 'true' ? 'bg-purple-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                    configs.voting_mom_enabled === 'true' ? 'translate-x-5' : ''
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Donkey of the Day */}
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🫏</span>
-                <div>
-                  <span className="font-medium text-gray-900">Donkey of the Day</span>
-                  <p className="text-xs text-gray-500">Worst performance award</p>
-                </div>
-              </div>
-              <button
-                onClick={() => handleToggle('voting_dod_enabled')}
-                className={`relative w-12 h-7 rounded-full transition-colors ${
-                  configs.voting_dod_enabled === 'true' ? 'bg-purple-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                    configs.voting_dod_enabled === 'true' ? 'translate-x-5' : ''
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Missing in Action */}
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🦝</span>
-                <div>
-                  <span className="font-medium text-gray-900">Missing in Action</span>
-                  <p className="text-xs text-gray-500">Invisible player award</p>
-                </div>
-              </div>
-              <button
-                onClick={() => handleToggle('voting_mia_enabled')}
-                className={`relative w-12 h-7 rounded-full transition-colors ${
-                  configs.voting_mia_enabled === 'true' ? 'bg-purple-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                    configs.voting_mia_enabled === 'true' ? 'translate-x-5' : ''
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          {/* Duration Setting */}
-          <div className={`py-4 border-t border-gray-100 ${!votingEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Voting Duration</h3>
-                <p className="text-sm text-gray-500">How long voting stays open after match</p>
-              </div>
-              <select
-                value={configs.voting_duration_hours}
-                onChange={handleDurationChange}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="6">6 hours</option>
-                <option value="12">12 hours</option>
-                <option value="24">24 hours</option>
-                <option value="48">48 hours</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <div className="pt-4 border-t border-gray-100">
-            <button
-              onClick={handleSave}
-              disabled={!isDirty || isLoading}
-              className={`w-full px-4 py-3 text-sm font-semibold uppercase rounded-lg shadow-md transition-all ${
-                saveSuccess
-                  ? 'bg-gradient-to-tl from-green-600 to-green-500 text-white'
-                  : isDirty
-                  ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:scale-[1.02] active:scale-[0.98]'
-                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              {isLoading ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
-            </button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Toast */}
-      {toast.show && (
-        <div className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 ${
-          toast.type === 'error' ? 'bg-red-500' : toast.type === 'warning' ? 'bg-yellow-500' : 'bg-green-500'
-        } text-white`}>
-          {toast.message}
+      {/* Floating Save Button */}
+      {hasUnsavedChanges && (
+        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white rounded-full shadow-soft-xl px-2 py-2 border border-slate-200">
+          <Button
+            onClick={handleSaveAll}
+            disabled={isSaving || !hasUnsavedChanges}
+            className={`font-semibold py-2 px-4 rounded-lg transition-all ${
+              saveSuccess
+                ? 'bg-gradient-to-tl from-green-600 to-green-500 text-white'
+                : 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:shadow-lg-purple'
+            }`}
+          >
+            {isSaving ? 'Saving...' : saveSuccess ? 'Saved ✓' : 'SAVE CHANGES?'}
+          </Button>
         </div>
       )}
 
       {/* Reset Confirmation Modal */}
       <SoftUIConfirmationModal
-        isOpen={showResetConfirmation}
-        onClose={() => setShowResetConfirmation(false)}
-        onConfirm={handleResetToDefaults}
-        title="Reset to Defaults?"
-        message="This will reset all voting settings to their default values."
+        isOpen={resetConfirmation}
+        onClose={() => setResetConfirmation(false)}
+        onConfirm={confirmResetSection}
+        title="Reset Post-Match Voting?"
+        message="Are you sure you want to reset voting settings to default values? This will enable voting with MoM and DoD categories, 12-hour duration."
         confirmText="Reset"
         cancelText="Cancel"
         icon="warning"
+        isConfirming={isResetting}
       />
-    </>
+    </div>
   );
 };
 
 export default VotingSetup;
-

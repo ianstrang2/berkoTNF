@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth.hook';
 import { apiFetch } from '@/lib/apiConfig';
 
 interface MatchInfo {
+  match_id?: number;
   match_date: string;
   team_a_score: number;
   team_b_score: number;

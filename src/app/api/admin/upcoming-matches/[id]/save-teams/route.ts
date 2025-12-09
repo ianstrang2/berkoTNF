@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { withTenantContext } from '@/lib/tenantContext';
 import { handleTenantError } from '@/lib/api-helpers';
 import { requireAdminRole } from '@/lib/auth/apiAuth';
+import { postSystemMessage, SystemMessageTemplates, getDayOfWeek } from '@/lib/chat/systemMessage';
 
 /**
  * API route to save/publish teams for an upcoming match.
@@ -90,7 +91,19 @@ export async function POST(
 
       console.log(`[SAVE_TEAMS] Teams saved for match ${matchId}, teams_saved_at: ${updatedMatch.teams_saved_at}`);
 
-      // TODO: Trigger notifications to players (future implementation)
+      // Post system message to chat
+      try {
+        const matchDate = new Date(match.match_date);
+        const dayOfWeek = getDayOfWeek(matchDate);
+        await postSystemMessage({
+          tenantId,
+          content: SystemMessageTemplates.teamsPublished(dayOfWeek)
+        });
+        console.log(`[SAVE_TEAMS] Posted system message for teams published`);
+      } catch (msgError) {
+        // Don't fail the request if system message fails
+        console.error('[SAVE_TEAMS] Failed to post system message:', msgError);
+      }
 
       return NextResponse.json({
         success: true,

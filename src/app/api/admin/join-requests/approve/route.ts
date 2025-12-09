@@ -11,6 +11,7 @@ import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
 import { withTenantContext } from '@/lib/tenantContext';
 import { sendPlayerApprovedEmail } from '@/lib/notifications/email.service';
+import { postSystemMessage, SystemMessageTemplates } from '@/lib/chat/systemMessage';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,6 +149,20 @@ export async function POST(request: NextRequest) {
       } catch (notificationError) {
         // Log error but don't fail approval
         console.error('[APPROVAL] Notification error (approval still succeeded):', notificationError);
+      }
+
+      // Post system message to chat (only for new players, not linking existing)
+      if (!existingPlayerId) {
+        try {
+          await postSystemMessage({
+            tenantId,
+            content: SystemMessageTemplates.playerJoined(linkedPlayer.name)
+          });
+          console.log('[APPROVAL] Posted welcome system message for:', linkedPlayer.name);
+        } catch (msgError) {
+          // Don't fail the request if system message fails
+          console.error('[APPROVAL] Failed to post system message:', msgError);
+        }
       }
 
       return NextResponse.json({

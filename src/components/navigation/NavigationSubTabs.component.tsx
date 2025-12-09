@@ -96,6 +96,12 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
                 label: 'Matches',
                 href: '/admin/setup?level=standard&section=matches',
                 active: currentSection === 'matches'
+              },
+              {
+                key: 'voting',
+                label: 'Voting',
+                href: '/admin/setup?level=standard&section=voting',
+                active: currentSection === 'voting'
               }
             ];
           }

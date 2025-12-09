@@ -2,10 +2,16 @@
 import React from 'react';
 import { useSearchParams } from 'next/navigation';
 import CompactAppConfig from './CompactAppConfig.component';
+import VotingSetup from '@/components/admin/AppSetup/VotingSetup.component';
 
 const StandardSettings: React.FC = () => {
   const searchParams = useSearchParams();
   const section = searchParams?.get('section') || 'general';
+
+  // Voting section uses its own component (not CompactAppConfig)
+  if (section === 'voting') {
+    return <VotingSetup />;
+  }
 
   // Define which config groups to show based on tertiary section
   const getConfigGroups = () => {

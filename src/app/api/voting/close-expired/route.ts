@@ -125,7 +125,7 @@ async function closeExpiredSurveys() {
 }
 
 async function closeSurvey(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   survey: {
     id: string;
     tenant_id: string;

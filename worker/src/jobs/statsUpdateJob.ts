@@ -1,11 +1,13 @@
 /**
  * Background job processor for stats updates
  * Processes all stats functions and handles cache invalidation
+ * Also handles post-match actions (system messages + survey creation)
  */
 
 import { getSupabaseClient, updateJobStatus } from '../lib/supabase.js';
 import { processAllStatsFunctions } from '../lib/statsProcessor.js';
 import { invalidateCache } from '../lib/cache.js';
+import { handlePostMatchActions } from '../lib/postMatchActions.js';
 import { StatsUpdateJobPayload, JobResult } from '../types/jobTypes.js';
 
 export async function processStatsUpdateJob(
@@ -65,13 +67,39 @@ export async function processStatsUpdateJob(
       error: cacheResult.error || 'none'
     });
 
+    // Handle post-match actions (system messages + survey creation)
+    // Only run for post-match triggers when stats succeeded
+    let postMatchResult = null;
+    if (payload.triggeredBy === 'post-match' && payload.matchId && summary.failed === 0) {
+      console.log(`[${new Date().toISOString()}] 📣 Running post-match actions for match ${payload.matchId}`);
+      try {
+        postMatchResult = await handlePostMatchActions(supabase, payload.matchId, payload.tenantId);
+        console.log(`[${new Date().toISOString()}] ✅ Post-match actions completed:`, {
+          matchReportMessagePosted: postMatchResult.matchReportMessagePosted,
+          surveyCreated: postMatchResult.surveyCreated,
+          votingMessagePosted: postMatchResult.votingMessagePosted,
+          errors: postMatchResult.errors.length > 0 ? postMatchResult.errors : 'none'
+        });
+      } catch (postMatchError: any) {
+        console.error(`[${new Date().toISOString()}] ⚠️ Post-match actions failed:`, postMatchError);
+        // Don't fail the entire job for post-match action failures
+      }
+    }
+
     // Prepare final results
     const finalResults = {
       total_functions: summary.total,
       successful_functions: summary.successful,
       failed_functions: summary.failed,
       cache_invalidation_success: cacheResult.success,
-      function_results: jobResults
+      function_results: jobResults,
+      post_match_actions: postMatchResult ? {
+        match_report_message: postMatchResult.matchReportMessagePosted,
+        survey_created: postMatchResult.surveyCreated,
+        survey_id: postMatchResult.surveyId,
+        voting_message: postMatchResult.votingMessagePosted,
+        errors: postMatchResult.errors
+      } : undefined
     };
 
     const totalDuration = Date.now() - startTime;

@@ -5,6 +5,7 @@ import { useNavigation } from '@/contexts/NavigationContext';
 import { NAVIGATION_CONFIG } from '@/contexts/NavigationContext';
 import { useClubConfig } from '@/hooks/useClubConfig.hook';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useChatUnreadCount } from '@/hooks/useChatUnreadCount.hook';
 
 interface DesktopSidebarProps {
   className?: string;
@@ -21,6 +22,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
   
   const { profile } = useAuthContext();
   const { clubName } = useClubConfig();
+  const { unreadCount: chatUnreadCount } = useChatUnreadCount();
   
   // Determine current context from primarySection (set by URL in NavigationContext)
   const isInSuperadminContext = primarySection === 'superadmin';
@@ -149,6 +151,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
         key: 'chat',
         label: 'Chat',
         href: '/player/chat',
+        badge: chatUnreadCount,
         icon: (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -225,12 +228,18 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
               >
-                <span className={`flex-shrink-0 ${sidebarCollapsed ? 'mx-auto' : ''} ${
+                <span className={`relative flex-shrink-0 ${sidebarCollapsed ? 'mx-auto' : ''} ${
                   isActive 
                     ? 'text-purple-400'
                     : ''
                 }`}>
                   {item.icon}
+                  {/* Badge for unread counts */}
+                  {'badge' in item && item.badge !== undefined && item.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
                 </span>
                 {!sidebarCollapsed && (
                   <span className="ml-3 font-medium">{item.label}</span>

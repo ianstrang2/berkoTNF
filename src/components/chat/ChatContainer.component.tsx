@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/apiConfig';
+import { queryKeys } from '@/lib/queryKeys';
 import ChatMessage, { ChatMessageData, MessageReaction } from './ChatMessage.component';
 import ChatInput from './ChatInput.component';
 
@@ -16,6 +18,7 @@ const MESSAGES_PER_PAGE = 50;
 
 const ChatContainer: React.FC = () => {
   const { profile } = useAuthContext();
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [playerMap, setPlayerMap] = useState<Map<number, string>>(new Map());
@@ -27,26 +30,33 @@ const ChatContainer: React.FC = () => {
   
   // Get current player ID from auth context (no extra API call needed!)
   const currentPlayerId = profile.linkedPlayerId;
+  const tenantId = profile.tenantId;
   
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
   const isNearBottomRef = useRef(true);
   const initialLoadDoneRef = useRef(false);
+  const playersLoadedRef = useRef(false);
 
-  // Fetch players for mentions
+  // Fetch players for mentions (only once)
   useEffect(() => {
+    if (playersLoadedRef.current) return;
+    
     const fetchPlayers = async () => {
       try {
         const response = await apiFetch('/players?activeOnly=true');
         const data = await response.json();
-        if (data.success && data.players) {
-          const playerList = data.players.map((p: any) => ({
-            id: p.player_id || p.id,
+        // API returns { data: [...] } format
+        const playersArray = data.data || data.players || [];
+        if (playersArray.length > 0) {
+          const playerList = playersArray.map((p: any) => ({
+            id: parseInt(p.player_id || p.id, 10),
             name: p.name
           }));
           setPlayers(playerList);
           setPlayerMap(new Map(playerList.map((p: Player) => [p.id, p.name])));
+          playersLoadedRef.current = true;
         }
       } catch (err) {
         console.error('Failed to fetch players:', err);
@@ -79,8 +89,10 @@ const ChatContainer: React.FC = () => {
     }
   }, []);
 
-  // Initial load
+  // Initial load (only once)
   useEffect(() => {
+    if (initialLoadDoneRef.current) return;
+    
     const loadInitialMessages = async () => {
       setLoading(true);
       setError(null);
@@ -92,8 +104,11 @@ const ChatContainer: React.FC = () => {
         setHasMore(more);
         initialLoadDoneRef.current = true;
         
-        // Mark as read
+        // Mark as read and invalidate badge
         await apiFetch('/chat/mark-read', { method: 'POST' });
+        if (tenantId) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.chatUnreadCount(tenantId) });
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to load messages');
       } finally {
@@ -102,7 +117,7 @@ const ChatContainer: React.FC = () => {
     };
     
     loadInitialMessages();
-  }, [fetchMessages]);
+  }, [fetchMessages, tenantId, queryClient]);
 
   // Scroll to bottom on initial load
   useEffect(() => {
@@ -192,7 +207,7 @@ const ChatContainer: React.FC = () => {
           table: 'chat_reactions',
           filter: `tenant_id=eq.${profile.tenantId}`
         },
-        async (payload) => {
+        async (payload: any) => {
           // Refetch reactions for the affected message
           const messageId = payload.new?.message_id || payload.old?.message_id;
           if (!messageId) return;
@@ -206,7 +221,7 @@ const ChatContainer: React.FC = () => {
             setMessages(prev => {
               const newMessagesMap = new Map(data.messages.map((m: ChatMessageData) => [m.id, m]));
               return prev.map(m => {
-                const updated = newMessagesMap.get(m.id);
+                const updated = newMessagesMap.get(m.id) as ChatMessageData | undefined;
                 return updated ? { ...m, reactions: updated.reactions } : m;
               });
             });
