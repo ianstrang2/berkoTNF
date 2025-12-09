@@ -141,7 +141,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="stylesheet" href="/assets/css/soft-ui-dashboard-tailwind.css" />
         <link rel="stylesheet" href="/assets/css/nucleo-icons.css" />
         <link rel="stylesheet" href="/assets/css/nucleo-svg.css" />
-        <link rel="stylesheet" href="/assets/css/perfect-scrollbar.css" />
+        {/* perfect-scrollbar.css disabled - using native scrollbars */}
         <link rel="stylesheet" href="/assets/css/datatable.css" />
         {/* Font Awesome is already imported at the top of the file */}
       </head>
@@ -182,20 +182,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
         
-        {/* Perfect Scrollbar JS - Library must load first */}
-        <Script 
-          src="/assets/js/plugins/perfect-scrollbar.min.js" 
-          strategy="afterInteractive"
-        />
-        <Script 
-          src="/assets/js/perfect-scrollbar.js" 
-          strategy="afterInteractive"
-        />
-        
-        {/* Nav Pills JS */}
-        <Script src="/assets/js/nav-pills.js" strategy="afterInteractive" />
-        
-        {/* Soft UI Dashboard Pro JS */}
+        {/* Soft UI Dashboard Pro JS - handles conditional loading of nav-pills and other features */}
         <Script src="/assets/js/soft-ui-dashboard-pro-tailwind.js" strategy="afterInteractive" />
       </body>
     </html>

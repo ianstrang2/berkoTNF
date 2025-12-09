@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useNavigation, NAVIGATION_CONFIG } from '@/contexts/NavigationContext';
 import { useCurrentNavigation } from '@/hooks/useNavigationSync.hook';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useChatUnreadCount } from '@/hooks/useChatUnreadCount.hook';
 
 interface BottomNavItemProps {
   section: 'dashboard' | 'upcoming' | 'stats' | 'chat' | 'admin';
@@ -75,6 +76,7 @@ export const BottomNavigation: React.FC = () => {
   const { isAdminMode, secondarySection } = useNavigation();
   const { primarySection, isActive } = useCurrentNavigation();
   const { profile } = useAuthContext();
+  const { unreadCount } = useChatUnreadCount();
 
   // Navigation icons
   const getIcon = (iconType: string) => {
@@ -175,7 +177,6 @@ export const BottomNavigation: React.FC = () => {
       }));
     } else {
       // Player mode - show main navigation (default for all users)
-      // TODO: Add badge counts for Chat (unread messages) and Home (new match report)
       return [
         {
           section: 'dashboard' as const,
@@ -203,7 +204,8 @@ export const BottomNavigation: React.FC = () => {
           href: '/player/chat',
           icon: getIcon('chat'),
           label: 'Chat',
-          isActive: isActive('chat')
+          isActive: isActive('chat'),
+          badge: unreadCount // Show unread message count
         }
       ];
     }

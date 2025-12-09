@@ -1,6 +1,7 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ShareMenu from '@/components/ui-kit/ShareMenu.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
@@ -12,6 +13,7 @@ import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
 import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 import { usePersonalBests } from '@/hooks/queries/usePersonalBests.hook';
 import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
+import { VotingBanner, VotingModal, VotingResults } from '@/components/voting';
 
 interface PersonalBestsData {
   broken_pbs_data: {
@@ -55,6 +57,9 @@ const PB_METRIC_DETAILS_FOR_COPY: { [key: string]: { name: string; unit: string 
 };
 
 const LatestMatch: React.FC = () => {
+  const router = useRouter();
+  const [showVotingModal, setShowVotingModal] = useState(false);
+  
   // React Query hooks - automatic caching and deduplication!
   const { data: matchData, isLoading: matchLoading, error: matchError } = useMatchReport();
   const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
@@ -577,6 +582,11 @@ const LatestMatch: React.FC = () => {
         </div>
       </div>
       
+      {/* Voting Banner - shows when voting is active */}
+      <div className="mb-4">
+        <VotingBanner onVoteClick={() => setShowVotingModal(true)} />
+      </div>
+      
       {/* Players */}
       <div className="grid grid-cols-2 gap-4 mt-5">
         <div className="text-right pr-2">
@@ -604,6 +614,35 @@ const LatestMatch: React.FC = () => {
           disabled={!matchData || loading}
         />
       </div>
+      
+      {/* Voting Results - shows after voting is closed */}
+      {matchInfo.match_id && (
+        <div className="mt-4">
+          <VotingResults matchId={matchInfo.match_id} />
+        </div>
+      )}
+      
+      {/* Open Chat CTA */}
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={() => router.push('/player/chat')}
+          className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-gradient-to-tl from-purple-700 to-pink-500 rounded-xl shadow-soft-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          Open Chat
+        </button>
+      </div>
+      
+      {/* Voting Modal */}
+      <VotingModal
+        isOpen={showVotingModal}
+        onClose={() => setShowVotingModal(false)}
+        onVoteSubmitted={() => {
+          // Optionally refetch data after voting
+        }}
+      />
     </div>
   );
 };

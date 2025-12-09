@@ -14,25 +14,12 @@
 * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 */
-var page_path = window.location.pathname.split("/");
-var current_page = page_path.pop();
-var parent_page = page_path.pop();
-var root_page = page_path.pop();
-var root = page_path.pop();
+// Fixed for Next.js SPA - always use absolute paths from root
+var to_build = "/";
 
-if (current_page == "documentation.html") {
-  var to_build = "../";
-} else if (current_page == "index.html" || current_page == "") {
-  var to_build = "./";
-} else if(root == "pages"){
-  var to_build = "../../../";
-}
- else {
-  var to_build = "../../";
-}
-
-loadStylesheet(to_build + "assets/css/perfect-scrollbar.css");
-loadJS(to_build + "assets/js/perfect-scrollbar.js", true);
+// PerfectScrollbar disabled for performance - causes forced reflows
+// loadStylesheet(to_build + "assets/css/perfect-scrollbar.css");
+// loadJS(to_build + "assets/js/perfect-scrollbar.js", true);
 
 if (document.querySelector("canvas")) {
   loadJS(to_build + "assets/js/charts.js", false);

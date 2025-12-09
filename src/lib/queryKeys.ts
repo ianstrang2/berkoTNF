@@ -79,6 +79,10 @@ export const queryKeys = {
   // Records Screen APIs (All-Time Stats & Honour Roll)
   allTimeStats: (tenantId: string | null) => ['allTimeStats', tenantId] as const,
   honourRoll: (tenantId: string | null) => ['honourRoll', tenantId] as const,
+  
+  // Chat APIs
+  chatUnreadCount: (tenantId: string | null) => ['chatUnreadCount', tenantId] as const,
+  chatMessages: (tenantId: string | null) => ['chatMessages', tenantId] as const,
 } as const;
 
 // Export type for TypeScript autocomplete
