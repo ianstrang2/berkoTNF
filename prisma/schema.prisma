@@ -442,6 +442,9 @@ model matches {
   upcoming_matches          upcoming_matches?          @relation(fields: [upcoming_match_id], references: [upcoming_match_id], map: "fk_matches_upcoming_match_id")
   seasons                   seasons?                   @relation(fields: [season_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   player_matches            player_matches[]
+  match_surveys             match_surveys[]
+  player_awards             player_awards[]
+  user_app_state            user_app_state[]
 
   @@index([match_date(sort: Desc), match_id(sort: Desc)], map: "idx_matches_match_date_desc")
   @@index([match_date, match_id], map: "idx_matches_match_date_match_id")
@@ -514,6 +517,14 @@ model players {
   upcoming_match_players                                                                            upcoming_match_players[]
   admin_profiles                                                                                    admin_profiles[]
   player_join_requests                                                                              player_join_requests[]
+  chat_messages_authored                                                                            chat_messages[]                   @relation("chat_messages_author")
+  chat_messages_deleted                                                                             chat_messages[]                   @relation("chat_messages_deleted_by")
+  chat_reactions                                                                                    chat_reactions[]
+  chat_user_state                                                                                   chat_user_state[]
+  match_votes_cast                                                                                  match_votes[]                     @relation("match_votes_voter")
+  match_votes_received                                                                              match_votes[]                     @relation("match_votes_voted_for")
+  player_awards                                                                                     player_awards[]
+  user_app_state                                                                                    user_app_state[]
 
   @@unique([tenant_id, name], map: "unique_player_name_per_tenant")
   @@index([auth_user_id], map: "idx_players_auth_user")
@@ -644,6 +655,13 @@ model tenants {
   auth_activity_log                auth_activity_log[]
   club_invite_tokens               club_invite_tokens[]
   player_join_requests             player_join_requests[]
+  chat_messages                    chat_messages[]
+  chat_reactions                   chat_reactions[]
+  chat_user_state                  chat_user_state[]
+  match_surveys                    match_surveys[]
+  match_votes                      match_votes[]
+  player_awards                    player_awards[]
+  user_app_state                   user_app_state[]
 
   @@index([slug], map: "idx_tenants_slug")
 }
@@ -794,4 +812,133 @@ model player_join_requests {
   players          players?  @relation(fields: [linked_player_id], references: [player_id], onDelete: SetNull)
 
   @@unique([tenant_id, phone_number, status])
+}
+
+// ============================================
+// CHAT TABLES
+// ============================================
+
+model chat_messages {
+  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String           @db.Uuid
+  author_player_id     Int?
+  is_system_message    Boolean          @default(false)
+  content              String
+  mentions             Int[]            @default([])
+  created_at           DateTime         @default(now()) @db.Timestamptz(6)
+  deleted_at           DateTime?        @db.Timestamptz(6)
+  deleted_by_player_id Int?
+  
+  tenants              tenants          @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  author               players?         @relation("chat_messages_author", fields: [author_player_id], references: [player_id], onDelete: SetNull)
+  deleted_by           players?         @relation("chat_messages_deleted_by", fields: [deleted_by_player_id], references: [player_id], onDelete: SetNull)
+  reactions            chat_reactions[]
+
+  @@index([tenant_id, created_at(sort: Desc)], map: "idx_chat_messages_tenant_created")
+}
+
+model chat_reactions {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id  String        @db.Uuid
+  message_id String        @db.Uuid
+  player_id  Int
+  emoji      String
+  created_at DateTime      @default(now()) @db.Timestamptz(6)
+  
+  tenants    tenants       @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  message    chat_messages @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  player     players       @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+
+  @@unique([message_id, player_id, emoji])
+  @@index([message_id], map: "idx_chat_reactions_message")
+}
+
+model chat_user_state {
+  tenant_id    String   @db.Uuid
+  player_id    Int
+  last_read_at DateTime @default(now()) @db.Timestamptz(6)
+  
+  tenants      tenants  @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  player       players  @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+
+  @@id([tenant_id, player_id])
+}
+
+// ============================================
+// VOTING TABLES
+// ============================================
+
+model match_surveys {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String        @db.Uuid
+  match_id             Int
+  eligible_player_ids  Int[]
+  enabled_categories   String[]
+  is_open              Boolean       @default(true)
+  voting_closes_at     DateTime      @db.Timestamptz(6)
+  results              Json?
+  created_at           DateTime      @default(now()) @db.Timestamptz(6)
+  closed_at            DateTime?     @db.Timestamptz(6)
+  
+  tenants              tenants       @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  match                matches       @relation(fields: [match_id], references: [match_id], onDelete: Cascade)
+  votes                match_votes[]
+  awards               player_awards[]
+
+  @@unique([tenant_id, match_id])
+  @@index([tenant_id, is_open], map: "idx_match_surveys_tenant_open")
+  @@index([match_id], map: "idx_match_surveys_match")
+}
+
+model match_votes {
+  id                  String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id           String       @db.Uuid
+  survey_id           String       @db.Uuid
+  voter_player_id     Int
+  award_type          String
+  voted_for_player_id Int
+  created_at          DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime     @default(now()) @db.Timestamptz(6)
+  
+  tenants             tenants      @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  survey              match_surveys @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+  voter               players      @relation("match_votes_voter", fields: [voter_player_id], references: [player_id], onDelete: Cascade)
+  voted_for           players      @relation("match_votes_voted_for", fields: [voted_for_player_id], references: [player_id], onDelete: Cascade)
+
+  @@unique([survey_id, voter_player_id, award_type])
+  @@index([survey_id], map: "idx_match_votes_survey")
+}
+
+model player_awards {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id   String        @db.Uuid
+  player_id   Int
+  match_id    Int
+  survey_id   String        @db.Uuid
+  award_type  String
+  vote_count  Int
+  is_co_winner Boolean      @default(false)
+  created_at  DateTime      @default(now()) @db.Timestamptz(6)
+  
+  tenants     tenants       @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  player      players       @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+  match       matches       @relation(fields: [match_id], references: [match_id], onDelete: Cascade)
+  survey      match_surveys @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, match_id, award_type, player_id])
+  @@index([tenant_id, player_id, award_type], map: "idx_player_awards_player")
+  @@index([tenant_id, match_id], map: "idx_player_awards_match")
+}
+
+model user_app_state {
+  tenant_id            String    @db.Uuid
+  player_id            Int
+  last_viewed_match_id Int?
+  last_viewed_at       DateTime? @db.Timestamptz(6)
+  
+  tenants              tenants   @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  player               players   @relation(fields: [player_id], references: [player_id], onDelete: Cascade)
+  last_viewed_match    matches?  @relation(fields: [last_viewed_match_id], references: [match_id], onDelete: SetNull)
+
+  @@id([tenant_id, player_id])
 }

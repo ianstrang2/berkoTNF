@@ -44,6 +44,10 @@
       {
         "path": "/api/admin/trigger-player-profiles", 
         "schedule": "0 23 * * 0"
+      },
+      {
+        "path": "/api/voting/close-expired",
+        "schedule": "*/30 * * * *"
       }
     ]
   }

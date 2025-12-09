@@ -140,6 +140,39 @@ export function usePlayers() {
 
 **Exception:** `authProfile()` key does NOT need tenant_id (auth is global)
 
+## Supabase Explicit FK Hints (MANDATORY)
+
+### 🚨 CRITICAL: Ambiguous Relationships Between players ↔ tenants
+
+**Background:** Multiple tables (`chat_user_state`, `user_app_state`) have foreign keys to BOTH `players` AND `tenants`, creating multiple join paths that confuse PostgREST.
+
+**When embedding players ↔ tenants in `.select()`, you MUST use explicit FK hints:**
+
+```typescript
+// ❌ WRONG - Causes "ambiguous relationship" error
+.from('players')
+.select('player_id, name, tenants(name)')
+
+// ✅ CORRECT - Explicit FK hint
+.from('players')
+.select('player_id, name, tenants!fk_players_tenant(name)')
+
+// ✅ CORRECT - With inner join
+.from('players')
+.select('player_id, name, tenants!fk_players_tenant(name)')
+```
+
+**FK Hint Reference:**
+- From `players` → `tenants`: `tenants!fk_players_tenant(...)`
+- From `tenants` → `players`: `players!fk_players_tenant(...)`
+
+**When NOT needed:** Queries that select fields directly without embedding (e.g., `.select('player_id, tenant_id')`) don't need hints.
+
+**Error you'll see without hint:**
+```
+PGRST201: Could not embed because more than one relationship was found for 'players' and 'tenants'
+```
+
 ## API Response Headers - HTTP Cache (MANDATORY)
 
 ### 🚨 CRITICAL: Disable HTTP Caching for Tenant-Scoped Data

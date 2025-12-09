@@ -4,8 +4,9 @@ import { usePathname, useRouter } from 'next/navigation';
 
 interface NavigationState {
   // Navigation state
-  primarySection: 'dashboard' | 'upcoming' | 'table' | 'records' | 'settings' | 'admin' | 'superadmin';
+  primarySection: 'dashboard' | 'upcoming' | 'stats' | 'chat' | 'settings' | 'admin' | 'superadmin';
   secondarySection?: string;
+  tertiarySection?: string;
   
   // UI state  
   isMobile: boolean;
@@ -24,6 +25,7 @@ interface NavigationContextType extends NavigationState {
   // Actions
   setPrimarySection: (section: NavigationState['primarySection']) => void;
   setSecondarySection: (section: string | undefined) => void;
+  setTertiarySection: (section: string | undefined) => void;
   toggleAdminMode: () => void;
   setNavigationFromUrl: (pathname: string) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -42,7 +44,7 @@ interface NavigationContextType extends NavigationState {
 // Navigation Configuration
 const NAVIGATION_CONFIG = {
   dashboard: {
-    label: 'Dashboard',
+    label: 'Home',  // Renamed from Dashboard
     icon: 'dashboard',
     secondary: null
   },
@@ -51,22 +53,20 @@ const NAVIGATION_CONFIG = {
     icon: 'calendar',
     secondary: null
   },
-  table: {
-    label: 'Table',
-    icon: 'table',
+  stats: {
+    label: 'Stats',  // Merged Table + Records
+    icon: 'stats',
     secondary: {
-      half: { label: 'Half' },
-      whole: { label: 'Whole' }
+      half: { label: 'Half Season' },
+      season: { label: 'Season' },  // Renamed from 'Whole Season'
+      'all-time': { label: 'All Time' },  // Leaderboard, Feats as tertiary
+      legends: { label: 'Legends' }  // Season Winners, Top Scorers as tertiary
     }
   },
-  records: {
-    label: 'Records',
-    icon: 'trophy', 
-    secondary: {
-      leaderboard: { label: 'Leaderboard' },
-      legends: { label: 'Legends' },
-      feats: { label: 'Feats' }
-    }
+  chat: {
+    label: 'Chat',
+    icon: 'chat',
+    secondary: null
   },
   admin: {
     label: 'Admin',
@@ -95,6 +95,7 @@ const NavigationContext = createContext<NavigationContextType | null>(null);
 export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [primarySection, setPrimarySection] = useState<NavigationState['primarySection']>('dashboard');
   const [secondarySection, setSecondarySection] = useState<string | undefined>(undefined);
+  const [tertiarySection, setTertiarySection] = useState<string | undefined>(undefined);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
@@ -156,6 +157,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       setPrimarySection('superadmin');
       setIsAdminMode(true);
       setIsSuperadmin(true);
+      setTertiarySection(undefined);
       
       // Parse superadmin secondary section
       const pathParts = pathname.split('/');
@@ -170,6 +172,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       setPrimarySection('admin');
       setIsAdminMode(true);
       setIsSuperadmin(false);
+      setTertiarySection(undefined);
       
       // Parse admin secondary section
       const pathParts = pathname.split('/');
@@ -182,27 +185,70 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       setPrimarySection('dashboard');
       setIsAdminMode(false);
       setSecondarySection(undefined);
+      setTertiarySection(undefined);
     } else if (pathname.startsWith('/player/upcoming')) {
       setPrimarySection('upcoming');
       setIsAdminMode(false);
       setSecondarySection(undefined);
-    } else if (pathname.startsWith('/player/table/')) {
-      setPrimarySection('table');
+      setTertiarySection(undefined);
+    } else if (pathname.startsWith('/player/chat')) {
+      setPrimarySection('chat');
+      setIsAdminMode(false);
+      setSecondarySection(undefined);
+      setTertiarySection(undefined);
+    } else if (pathname.startsWith('/player/stats/')) {
+      // Stats section with 4 secondary tabs: Half Season, Season, All Time, Legends
+      setPrimarySection('stats');
       setIsAdminMode(false);
       const pathParts = pathname.split('/');
+      // /player/stats/{section}/{tertiary?}
       if (pathParts.length >= 4) {
-        setSecondarySection(pathParts[3]);
+        const statsSection = pathParts[3];
+        setSecondarySection(statsSection);
+        // Tertiary for all-time (leaderboard/feats) and legends (winners/scorers)
+        if ((statsSection === 'all-time' || statsSection === 'legends') && pathParts.length >= 5) {
+          setTertiarySection(pathParts[4]);
+        } else if (statsSection === 'all-time') {
+          setTertiarySection('leaderboard'); // default for all-time
+        } else if (statsSection === 'legends') {
+          setTertiarySection('winners'); // default for legends
+        } else {
+          setTertiarySection(undefined);
+        }
+      } else {
+        setSecondarySection('half'); // default
+        setTertiarySection(undefined);
       }
-    } else if (pathname.startsWith('/player/records/')) {
-      setPrimarySection('records');
+    } else if (pathname.startsWith('/player/table/')) {
+      // Legacy route - redirect handled at page level, but parse for navigation
+      setPrimarySection('stats');
       setIsAdminMode(false);
       const pathParts = pathname.split('/');
       if (pathParts.length >= 4) {
-        setSecondarySection(pathParts[3]);
+        // Map old 'whole' to new 'season'
+        const section = pathParts[3] === 'whole' ? 'season' : pathParts[3];
+        setSecondarySection(section);
+      }
+      setTertiarySection(undefined);
+    } else if (pathname.startsWith('/player/records/')) {
+      // Legacy route - redirect handled at page level, but parse for navigation  
+      setPrimarySection('stats');
+      setIsAdminMode(false);
+      const pathParts = pathname.split('/');
+      if (pathParts.length >= 4) {
+        const recordsSection = pathParts[3];
+        if (recordsSection === 'legends') {
+          setSecondarySection('legends');
+          setTertiarySection('winners');
+        } else {
+          setSecondarySection('all-time');
+          setTertiarySection(recordsSection);
+        }
       }
     } else if (pathname.startsWith('/player/settings')) {
       setPrimarySection('settings' as any);
       setIsAdminMode(false);
+      setTertiarySection(undefined);
       // Parse settings secondary section (profile, security, etc)
       const pathParts = pathname.split('/');
       if (pathParts.length >= 4) {
@@ -214,6 +260,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       setPrimarySection('dashboard');
       setIsAdminMode(false);
       setSecondarySection(undefined);
+      setTertiarySection(undefined);
     }
   };
   
@@ -289,6 +336,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       // State
       primarySection,
       secondarySection,
+      tertiarySection,
       isMobile,
       sidebarCollapsed,
       isAdminMode,
@@ -301,6 +349,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       // Actions
       setPrimarySection,
       setSecondarySection,
+      setTertiarySection,
       toggleAdminMode,
       setNavigationFromUrl,
       setSidebarCollapsed,

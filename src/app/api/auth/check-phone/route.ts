@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     // Query using Supabase admin client (bypasses RLS)
     const { data: allPlayers, error: queryError } = await supabaseAdmin
       .from('players')
-      .select('player_id, name, phone, tenant_id, tenants!inner(name)')
+      .select('player_id, name, phone, tenant_id, tenants!fk_players_tenant(name)')
       .eq('is_ringer', false)
       .eq('is_retired', false)
       .not('phone', 'is', null);

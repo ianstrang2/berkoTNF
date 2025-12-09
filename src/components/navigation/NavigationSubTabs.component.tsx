@@ -137,52 +137,54 @@ export const NavigationSubTabs: React.FC<NavigationSubTabsProps> = ({ className 
       }
     }
 
-    // User mode tertiary navigation - Points/Goals for Table only, Season Winners/Top Scorers for Records > Legends
-    if (primarySection === 'table') {
-      const baseHref = `/player/table/${secondarySection}`;
+    // User mode tertiary navigation - Points/Goals/Race for Stats > Half/Season
+    if (primarySection === 'stats') {
+      // Points/Goals/Race toggle for Half Season and Season views
+      if (secondarySection === 'half' || secondarySection === 'season') {
+        const baseHref = `/player/stats/${secondarySection}`;
+        
+        return [
+          {
+            key: 'points',
+            label: 'Points',
+            href: `${baseHref}?view=points`,
+            active: !currentView || currentView === 'points' // Default to points if no view param
+          },
+          {
+            key: 'goals',
+            label: 'Goals',
+            href: `${baseHref}?view=goals`,
+            active: currentView === 'goals'
+          },
+          {
+            key: 'race',
+            label: 'Race',
+            href: `${baseHref}?view=race`,
+            active: currentView === 'race'
+          }
+        ];
+      }
       
-      // Base options for both half and whole season
-      const baseOptions = [
-        {
-          key: 'points',
-          label: 'Points',
-          href: `${baseHref}?view=points`,
-          active: !currentView || currentView === 'points' // Default to points if no view param
-        },
-        {
-          key: 'goals',
-          label: 'Goals',
-          href: `${baseHref}?view=goals`,
-          active: currentView === 'goals'
-        },
-        {
-          key: 'race',
-          label: 'Race',
-          href: `${baseHref}?view=race`,
-          active: currentView === 'race'
-        }
-      ];
-
-      return baseOptions;
-    }
-
-    if (primarySection === 'records' && secondarySection === 'legends') {
-      const baseHref = `/player/records/legends`;
-      
-      return [
-        {
-          key: 'winners',
-          label: 'Season Winners',
-          href: `${baseHref}?view=winners`,
-          active: !currentView || currentView === 'winners' // Default to winners if no view param
-        },
-        {
-          key: 'scorers',
-          label: 'Top Scorers',
-          href: `${baseHref}?view=scorers`,
-          active: currentView === 'scorers'
-        }
-      ];
+      // Winners/Scorers toggle for All Time > Legends view (handled via tertiarySection in NavigationContext)
+      // This is accessed via pathname check since tertiarySection might not be in this component's scope
+      if (pathname?.includes('/player/stats/all-time/legends')) {
+        const baseHref = `/player/stats/all-time/legends`;
+        
+        return [
+          {
+            key: 'winners',
+            label: 'Season Winners',
+            href: `${baseHref}?view=winners`,
+            active: !currentView || currentView === 'winners' // Default to winners if no view param
+          },
+          {
+            key: 'scorers',
+            label: 'Top Scorers',
+            href: `${baseHref}?view=scorers`,
+            active: currentView === 'scorers'
+          }
+        ];
+      }
     }
 
     return [];

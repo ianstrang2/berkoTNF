@@ -6,14 +6,15 @@ import { useCurrentNavigation } from '@/hooks/useNavigationSync.hook';
 import { useAuthContext } from '@/contexts/AuthContext';
 
 interface BottomNavItemProps {
-  section: 'dashboard' | 'upcoming' | 'table' | 'records' | 'admin';
+  section: 'dashboard' | 'upcoming' | 'stats' | 'chat' | 'admin';
   href: string;
   icon: React.ReactNode;
   label: string;
   isActive: boolean;
+  badge?: number;
 }
 
-const BottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon, label, isActive }) => {
+const BottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon, label, isActive, badge }) => {
   return (
     <Link href={href} className="flex flex-col items-center justify-center h-full">
       <div className={`flex flex-col items-center justify-center transition-all duration-200 ${
@@ -21,12 +22,18 @@ const BottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon, labe
           ? 'text-white' 
           : 'text-gray-400 dark:text-slate-500 hover:text-purple-500 dark:hover:text-purple-400'
       }`}>
-        <div className={`w-6 h-6 mb-1 transition-all duration-200 rounded-lg flex items-center justify-center ${
+        <div className={`relative w-6 h-6 mb-1 transition-all duration-200 rounded-lg flex items-center justify-center ${
           isActive 
             ? 'scale-110 bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-md' 
             : 'scale-100'
         }`}>
           {icon}
+          {/* Badge indicator */}
+          {badge !== undefined && badge > 0 && (
+            <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[14px] h-[14px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
         </div>
         <span className={`text-xs font-medium transition-all duration-200 ${
           isActive ? 'opacity-100 text-gray-900 font-bold' : 'opacity-70'
@@ -84,10 +91,16 @@ export const BottomNavigation: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         );
-      case 'table':
+      case 'stats':
         return (
           <svg className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        );
+      case 'chat':
+        return (
+          <svg className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         );
       case 'trophy':
@@ -162,12 +175,13 @@ export const BottomNavigation: React.FC = () => {
       }));
     } else {
       // Player mode - show main navigation (default for all users)
+      // TODO: Add badge counts for Chat (unread messages) and Home (new match report)
       return [
         {
           section: 'dashboard' as const,
           href: '/player/dashboard',
           icon: getIcon('dashboard'),
-          label: 'Dashboard',
+          label: 'Home',  // Renamed from Dashboard
           isActive: isActive('dashboard')
         },
         {
@@ -178,18 +192,18 @@ export const BottomNavigation: React.FC = () => {
           isActive: isActive('upcoming')
         },
         {
-          section: 'table' as const,
-          href: '/player/table',
-          icon: getIcon('table'),
-          label: 'Table',
-          isActive: isActive('table')
+          section: 'stats' as const,
+          href: '/player/stats/half',
+          icon: getIcon('stats'),
+          label: 'Stats',  // Merged Table + Records
+          isActive: isActive('stats')
         },
         {
-          section: 'records' as const,
-          href: '/player/records/leaderboard',
-          icon: getIcon('trophy'),
-          label: 'Records',
-          isActive: isActive('records')
+          section: 'chat' as const,
+          href: '/player/chat',
+          icon: getIcon('chat'),
+          label: 'Chat',
+          isActive: isActive('chat')
         }
       ];
     }

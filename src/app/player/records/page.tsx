@@ -1,14 +1,6 @@
-'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { redirect } from 'next/navigation';
 
+// Legacy route - redirect to new stats route
 export default function RecordsPage() {
-  const router = useRouter();
-  
-  useEffect(() => {
-    // Redirect to leaderboard by default
-    router.replace('/player/records/leaderboard');
-  }, [router]);
-  
-  return null;
+  redirect('/player/stats/all-time/leaderboard');
 }

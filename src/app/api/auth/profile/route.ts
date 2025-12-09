@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     // Check for player profile (phone auth - club level)
     const { data: playerProfile } = await supabaseAdmin
       .from('players')
-      .select('player_id, name, tenant_id, is_admin, tenants(name, club_code)')
+      .select('player_id, name, tenant_id, is_admin, tenants!fk_players_tenant(name, club_code)')
       .eq('auth_user_id', user.id)
       .maybeSingle();
 

@@ -53,18 +53,23 @@ Home | Upcoming | Stats | Chat
 
 ### Stats Tab Structure
 
-**Secondary navigation:** `Half Season` | `Whole Season` | `All Time`
+**Secondary navigation:** `Half Season` | `Season` | `All Time` | `Legends`
 
-**Tertiary navigation (under All Time only):** `Leaderboard` | `Legends` | `Feats`
+**Tertiary navigation:**
+- Under `Half Season`, `Season`: Points/Goals/Race toggle (existing)
+- Under `All Time`: `Leaderboard` | `Feats`
+- Under `Legends`: `Season Winners` | `Top Scorers`
 
 ```
 Stats
 ├── Half Season     → /player/stats/half (was /player/table/half)
-├── Whole Season    → /player/stats/whole (was /player/table/whole)
-└── All Time
-    ├── Leaderboard → /player/stats/all-time/leaderboard (was /player/records/leaderboard)
-    ├── Legends     → /player/stats/all-time/legends (was /player/records/legends)
-    └── Feats       → /player/stats/all-time/feats (was /player/records/feats)
+├── Season          → /player/stats/season (was /player/stats/whole, /player/table/whole)
+├── All Time
+│   ├── Leaderboard → /player/stats/all-time/leaderboard (was /player/records/leaderboard)
+│   └── Feats       → /player/stats/all-time/feats (was /player/records/feats)
+└── Legends
+    ├── Winners     → /player/stats/legends/winners (was /player/records/legends?view=winners)
+    └── Scorers     → /player/stats/legends/scorers (was /player/records/legends?view=scorers)
 ```
 
 ### Route Migration
@@ -1098,12 +1103,42 @@ src/components/
 ├── dashboard/
 │   └── MatchReport.component.tsx        # Add VotingBanner, Awards section, Chat CTA
 ├── navigation/
-│   ├── BottomNavigation.component.tsx   # Update labels, add Chat, add badges
-│   └── NavigationTabs.component.tsx     # Update for Stats tab structure
+│   ├── BottomNavigation.component.tsx   # Update labels, add Chat, add badges (MOBILE)
+│   ├── DesktopSidebar.component.tsx     # Update labels, add Chat (DESKTOP)
+│   ├── NavigationTabs.component.tsx     # Update for Stats tab structure
+│   └── NavigationSubTabs.component.tsx  # Update table/records → stats references
 ├── icons/
-│   └── FireIcon.component.tsx           # Replace strongman with flame
+│   └── FireIcon.component.tsx           # Alias to FlameIcon for backward compatibility
 └── (various player list components)     # Add award icons by player names
 ```
+
+### ⚠️ CRITICAL: Navigation Changes Checklist
+
+**When modifying navigation structure, ALWAYS update ALL of these together:**
+
+1. **NavigationContext.tsx** - Primary/secondary/tertiary section types and NAVIGATION_CONFIG
+2. **BottomNavigation.component.tsx** - Mobile bottom nav (iOS/Android/mobile web)
+3. **DesktopSidebar.component.tsx** - Desktop sidebar navigation
+4. **NavigationTabs.component.tsx** - Secondary navigation tabs
+5. **NavigationSubTabs.component.tsx** - Tertiary navigation (Points/Goals toggles)
+
+**Failure to update all components will cause TypeScript errors and broken navigation on some platforms.**
+
+### ⚠️ CRITICAL: Supabase Explicit FK Hints (After Chat/Voting)
+
+**The chat/voting tables create multiple FK paths between `players` ↔ `tenants`.**
+
+When using Supabase client to join players with tenants, you MUST use explicit FK hints:
+
+```typescript
+// ❌ WRONG - Ambiguous relationship error
+.select('player_id, name, tenants(name)')
+
+// ✅ CORRECT - Explicit FK hint
+.select('player_id, name, tenants!fk_players_tenant(name)')
+```
+
+**Why:** `chat_user_state` and `user_app_state` have FKs to both `players` AND `tenants`, creating multiple join paths. PostgREST can't disambiguate without the hint.
 
 ### New Pages
 
@@ -1250,10 +1285,11 @@ src/app/player/
 
 ### Navigation
 
-- [ ] Dashboard renamed to Home
-- [ ] Tables + Records merged into Stats
-- [ ] Stats has Half Season / Whole Season / All Time secondary nav
-- [ ] All Time has Leaderboard / Legends / Feats tertiary nav
+- [x] Dashboard renamed to Home
+- [x] Tables + Records merged into Stats
+- [x] Stats has Half Season / Season / All Time / Legends secondary nav
+- [x] All Time has Leaderboard / Feats tertiary nav
+- [x] Legends has Season Winners / Top Scorers tertiary nav
 - [ ] Chat tab appears in navigation
 - [ ] Old routes redirect to new routes
 - [ ] React Query caching still works correctly after migration

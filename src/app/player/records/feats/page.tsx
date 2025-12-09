@@ -1,7 +1,6 @@
-'use client';
-import React from 'react';
-import Feats from '@/components/records/Feats.component';
+import { redirect } from 'next/navigation';
 
+// Legacy route - redirect to new stats route
 export default function FeatsPage() {
-  return <Feats />;
+  redirect('/player/stats/all-time/feats');
 }

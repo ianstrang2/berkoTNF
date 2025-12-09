@@ -1,14 +1,6 @@
-'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { redirect } from 'next/navigation';
 
+// Legacy route - redirect to new stats route
 export default function TablePage() {
-  const router = useRouter();
-  
-  useEffect(() => {
-    // Redirect to half season by default
-    router.replace('/player/table/half');
-  }, [router]);
-  
-  return null;
+  redirect('/player/stats/half');
 }
