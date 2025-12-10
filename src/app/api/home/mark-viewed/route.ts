@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
         }, { status: 404 });
       }
       
-      // Get the latest completed match
+      // Get the latest completed match (score >= 0 filters out null)
       const latestMatch = await prisma.matches.findFirst({
         where: { 
           tenant_id: tenantId,
-          team_a_score: { not: null }
+          team_a_score: { gte: 0 }
         },
         orderBy: [
           { match_date: 'desc' },

@@ -38,11 +38,11 @@ export async function GET(request: NextRequest) {
       }
       
       // Get the latest completed match (one with a match report)
+      // A completed match has a score >= 0 (filters out null scores)
       const latestMatch = await prisma.matches.findFirst({
         where: { 
           tenant_id: tenantId,
-          // Only count matches that have team assignments (i.e., completed)
-          team_a_score: { not: null }
+          team_a_score: { gte: 0 }
         },
         orderBy: [
           { match_date: 'desc' },
