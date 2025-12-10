@@ -510,16 +510,16 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                   <div className="flex justify-center gap-6 sm:gap-10 lg:gap-14">
                     <CompactGauge 
                       percentage={trendData.power_rating_percentile ?? 0}
-                      label="Power Rating"
-                    />
+                          label="Power Rating"
+                        />
                     <CompactGauge 
                       percentage={trendData.goal_threat_percentile ?? 0}
-                      label="Goal Threat"
-                    />
+                          label="Goal Threat"
+                        />
                     <CompactGauge 
                       percentage={trendData.participation_percentile ?? 0}
-                      label="Participation"
-                    />
+                          label="Participation"
+                        />
                   </div>
 
 
@@ -604,36 +604,36 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
             <h6 className="text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Streaks</h6>
           </div>
           <div className="px-4 lg:px-6 pb-4 lg:pb-6">
-            {streaksNormalized && (
+              {streaksNormalized && (
               <div className="space-y-1.5">
                 {/* Positive Streaks */}
                 <StreakBar
-                  label="Attendance"
-                  value={streaksNormalized.attendanceStreak.value}
+                    label="Attendance"
+                    value={streaksNormalized.attendanceStreak.value}
                   maxValue={(profile.streak_records?.attendanceStreak as any)?.max || 80}
                   dates={formatStreakDates((profile as any).attendance_streak_dates, true) || undefined}
-                  variant="positive"
+                    variant="positive"
                 />
                 <StreakBar
-                  label="Unbeaten"
-                  value={streaksNormalized.undefeatedStreak.value}
+                    label="Unbeaten"
+                    value={streaksNormalized.undefeatedStreak.value}
                   maxValue={(profile.streak_records?.undefeatedStreak as any)?.max || 20}
                   dates={formatStreakDates(profile.undefeated_streak_dates, true) || undefined}
-                  variant="positive"
+                    variant="positive"
                 />
                 <StreakBar
-                  label="Win"
-                  value={streaksNormalized.winStreak.value}
+                    label="Win"
+                    value={streaksNormalized.winStreak.value}
                   maxValue={(profile.streak_records?.winStreak as any)?.max || 10}
                   dates={formatStreakDates(profile.win_streak_dates, true) || undefined}
-                  variant="positive"
+                    variant="positive"
                 />
                 <StreakBar
-                  label="Scoring"
-                  value={streaksNormalized.scoringStreak.value}
+                    label="Scoring"
+                    value={streaksNormalized.scoringStreak.value}
                   maxValue={(profile.streak_records?.scoringStreak as any)?.max || 10}
                   dates={formatStreakDates((profile as any).scoring_streak_dates, true) || undefined}
-                  variant="positive"
+                    variant="positive"
                 />
                 
                 {/* Separator */}
@@ -641,21 +641,21 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                 
                 {/* Negative Streaks */}
                 <StreakBar
-                  label="Losing"
-                  value={streaksNormalized.losingStreak.value}
+                    label="Losing"
+                    value={streaksNormalized.losingStreak.value}
                   maxValue={(profile.streak_records?.losingStreak as any)?.max || 10}
                   dates={formatStreakDates(profile.losing_streak_dates, true) || undefined}
-                  variant="negative"
+                    variant="negative"
                 />
                 <StreakBar
-                  label="Winless"
-                  value={streaksNormalized.winlessStreak.value}
+                    label="Winless"
+                    value={streaksNormalized.winlessStreak.value}
                   maxValue={(profile.streak_records?.winlessStreak as any)?.max || 15}
                   dates={formatStreakDates(profile.winless_streak_dates, true) || undefined}
-                  variant="negative"
-                />
+                    variant="negative"
+                  />
               </div>
-            )}
+              )}
           </div>
         </div>
       </div>
@@ -876,10 +876,10 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
             {/* Collapsible Content */}
             {isMatchHistoryExpanded && (
               <div className="border-t border-slate-100">
-                <MatchPerformance 
-                  playerId={id} 
-                  availableYears={availableYearsForMatchPerformance} 
-                />
+          <MatchPerformance 
+            playerId={id} 
+            availableYears={availableYearsForMatchPerformance} 
+          />
               </div>
             )}
           </div>

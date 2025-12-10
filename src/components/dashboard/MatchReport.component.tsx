@@ -557,7 +557,7 @@ const LatestMatch: React.FC = () => {
       </div>
       
       {/* Score section */}
-      <div className="flex items-center justify-center gap-8 sm:gap-12 lg:gap-16 mb-4 sm:mb-6">
+      <div className="flex items-center justify-center gap-8 sm:gap-12 lg:gap-16 mb-3 sm:mb-4">
         <div className="flex flex-col items-center">
           <img 
             src="/img/teams/Team_A.webp" 
@@ -584,13 +584,11 @@ const LatestMatch: React.FC = () => {
         </div>
       </div>
       
-      {/* Voting Banner - shows when voting is active */}
-      <div className="mb-4">
-        <VotingBanner onVoteClick={() => setShowVotingModal(true)} />
-      </div>
+      {/* Voting Banner - shows when voting is active (component handles its own spacing) */}
+      <VotingBanner onVoteClick={() => setShowVotingModal(true)} />
       
       {/* Players */}
-      <div className="grid grid-cols-2 gap-4 mt-5">
+      <div className="grid grid-cols-2 gap-4">
         <div className="text-right pr-2">
           {[...teamAColumns.leftColumn, ...teamAColumns.rightColumn].map((player, index) => (
             <div key={index} className="text-sm sm:text-base text-slate-700 mb-2">

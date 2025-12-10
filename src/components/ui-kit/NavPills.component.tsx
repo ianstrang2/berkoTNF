@@ -33,7 +33,7 @@ export const NavPills = <T extends string>({
           
           return (
             <button
-              key={item.value}
+            key={item.value} 
               type="button"
               onClick={() => onTabChange(item.value)}
               role="tab"

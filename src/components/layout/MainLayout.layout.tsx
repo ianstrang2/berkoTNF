@@ -65,7 +65,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
           
           <NavigationTabs />
           <NavigationSubTabs />
-          <main className="p-2 pb-32 bg-slate-50 min-h-screen sm:p-4 lg:p-6">
+          {/* Bottom padding: h-20 nav (80px) + safe area + extra buffer */}
+          <main className="p-2 bg-slate-50 min-h-screen sm:p-4 lg:p-6" style={{ paddingBottom: 'calc(80px + var(--safe-bottom, 0px) + 16px)' }}>
             <ErrorBoundary>
               {children}
             </ErrorBoundary>
