@@ -259,6 +259,144 @@ PGRST201: Could not embed because more than one relationship was found for 'play
 **Why:** HTTP cache persists across reloads, React Query handles in-memory caching correctly.  
 **Exception:** Auth profile can use 1 min cache max.
 
+## API Response Format Standards (MANDATORY)
+
+### Consistent Response Shapes
+
+**ALL APIs MUST use consistent response formats.** Inconsistency causes frontend bugs.
+
+**Standard patterns:**
+```typescript
+// Success with data array
+{ success: true, data: [...] }
+
+// Success with named data
+{ success: true, players: [...], hasMore: boolean }
+
+// Error
+{ success: false, error: "Error message" }
+```
+
+**❌ NEVER mix patterns** in the same codebase:
+```typescript
+// BAD: Some APIs return { data: [...] }, others return { players: [...] }
+// This causes bugs when frontend expects one format but gets another
+```
+
+**When consuming APIs, handle both formats defensively:**
+```typescript
+const items = response.data || response.players || [];
+```
+
+## Graceful API Error Handling (MANDATORY for User-Facing Features)
+
+### Player-Facing APIs Should NOT Return 500s
+
+**For features that affect UI (badges, counts, status):**
+- Return success with default/empty data instead of 500 errors
+- Log errors server-side but don't break the UI
+
+**Pattern:**
+```typescript
+} catch (error: any) {
+  console.error('Error getting data:', error);
+  // Return success with empty/default data - don't break UI
+  return NextResponse.json({
+    success: true,
+    count: 0,  // Default value
+    warning: 'Could not fetch data'  // Optional: for debugging
+  });
+}
+```
+
+**Why:** 500 errors cause React Query to retry, show error states, and degrade UX.
+
+## React useEffect Duplicate Call Prevention (MANDATORY)
+
+### Guards for Data Fetching in useEffect
+
+**React StrictMode (development) remounts components twice.** Ref-only guards don't prevent duplicate fetches because refs reset on remount.
+
+**Pattern: Use state-based + ref guards together:**
+```typescript
+const fetchingRef = useRef(false);
+const [data, setData] = useState<Item[]>([]);
+
+useEffect(() => {
+  // State-based guard: skip if we already have data
+  if (data.length > 0) return;
+  // Ref-based guard: skip if already fetching
+  if (fetchingRef.current) return;
+  fetchingRef.current = true;
+  
+  const fetchData = async () => {
+    try {
+      const result = await apiFetch('/endpoint');
+      setData(result);
+    } finally {
+      fetchingRef.current = false;
+    }
+  };
+  
+  fetchData();
+}, [data.length]); // Include state in deps
+```
+
+**Why:** `data.length > 0` prevents refetch after successful load. `fetchingRef` prevents concurrent fetches.
+
+## Prisma vs Supabase Client (Guidance)
+
+### When to Use Each
+
+**Use Prisma for:**
+- Upserts (more reliable conflict handling)
+- Complex transactions
+- Type-safe queries with relations
+- Most CRUD operations
+
+**Use Supabase client for:**
+- Realtime subscriptions (frontend)
+- Storage operations
+- Auth operations (use `getAuthenticatedUser()`)
+- RPC calls to SQL functions
+
+**Example - Prisma upsert is more reliable:**
+```typescript
+// ✅ CORRECT: Prisma upsert with composite key
+await prisma.chat_user_state.upsert({
+  where: {
+    tenant_id_player_id: { tenant_id, player_id }
+  },
+  create: { tenant_id, player_id, last_read_at: now },
+  update: { last_read_at: now }
+});
+
+// ⚠️ LESS RELIABLE: Supabase upsert can fail on race conditions
+await supabase.from('chat_user_state').upsert({...}, { onConflict: '...' });
+```
+
+## Admin Setup Section UI Pattern (MANDATORY)
+
+### Use CompactAppConfig Pattern for Admin Settings
+
+**All admin setup sections MUST follow the CompactAppConfig pattern:**
+
+1. **Expandable Card Section** - Collapsible with ChevronUp/ChevronDown
+2. **Section Header** - Title + chevron + reset icon (hover on desktop, always visible on mobile)
+3. **Config Items** - Label + InfoPopover (no visible description text) + right-aligned control
+4. **Toggle Switches** - Purple/pink gradient when checked
+5. **Floating Save Button** - Appears at bottom when `hasUnsavedChanges`, shows "SAVE CHANGES?"
+6. **Reset Per Section** - Icon button in header, confirmation modal before reset
+
+**Reference implementation:** `src/components/admin/config/CompactAppConfig.component.tsx`
+
+**Key state management:**
+```typescript
+const [formData, setFormData] = useState<Record<string, string>>({});
+const [originalData, setOriginalData] = useState<Record<string, string>>({});
+const hasUnsavedChanges = Object.keys(formData).some(k => formData[k] !== originalData[k]);
+```
+
 ## Multi-Tenant Security: RLS Strategy (MANDATORY - October 2025)
 
 ### 🚨 CRITICAL: RLS Architecture Decision

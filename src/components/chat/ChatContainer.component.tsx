@@ -36,12 +36,14 @@ const ChatContainer: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
   const isNearBottomRef = useRef(true);
-  const initialLoadDoneRef = useRef(false);
-  const playersLoadedRef = useRef(false);
+  const fetchingRef = useRef(false);
+  const playersLoadingRef = useRef(false);
 
-  // Fetch players for mentions (only once)
+  // Fetch players for mentions (only once, with loading guard)
   useEffect(() => {
-    if (playersLoadedRef.current) return;
+    // Skip if already have players or already loading
+    if (players.length > 0 || playersLoadingRef.current) return;
+    playersLoadingRef.current = true;
     
     const fetchPlayers = async () => {
       try {
@@ -56,15 +58,16 @@ const ChatContainer: React.FC = () => {
           }));
           setPlayers(playerList);
           setPlayerMap(new Map(playerList.map((p: Player) => [p.id, p.name])));
-          playersLoadedRef.current = true;
         }
       } catch (err) {
         console.error('Failed to fetch players:', err);
+      } finally {
+        playersLoadingRef.current = false;
       }
     };
     
     fetchPlayers();
-  }, []);
+  }, [players.length]);
 
   // Fetch initial messages
   const fetchMessages = useCallback(async (before?: string) => {
@@ -89,9 +92,11 @@ const ChatContainer: React.FC = () => {
     }
   }, []);
 
-  // Initial load (only once)
+  // Initial load (only once, with loading guard)
   useEffect(() => {
-    if (initialLoadDoneRef.current) return;
+    // Skip if already have messages or already fetching
+    if (messages.length > 0 || fetchingRef.current) return;
+    fetchingRef.current = true;
     
     const loadInitialMessages = async () => {
       setLoading(true);
@@ -102,29 +107,32 @@ const ChatContainer: React.FC = () => {
         // Reverse to show oldest first (API returns newest first)
         setMessages(newMessages.reverse());
         setHasMore(more);
-        initialLoadDoneRef.current = true;
         
-        // Mark as read and invalidate badge
-        await apiFetch('/chat/mark-read', { method: 'POST' });
-        if (tenantId) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.chatUnreadCount(tenantId) });
-        }
+        // Mark as read and invalidate badge (fire and forget)
+        apiFetch('/chat/mark-read', { method: 'POST' })
+          .then(() => {
+            if (tenantId) {
+              queryClient.invalidateQueries({ queryKey: queryKeys.chatUnreadCount(tenantId) });
+            }
+          })
+          .catch(err => console.error('Failed to mark as read:', err));
       } catch (err: any) {
         setError(err.message || 'Failed to load messages');
       } finally {
         setLoading(false);
+        fetchingRef.current = false;
       }
     };
     
     loadInitialMessages();
-  }, [fetchMessages, tenantId, queryClient]);
+  }, [fetchMessages, tenantId, queryClient, messages.length]);
 
   // Scroll to bottom on initial load
   useEffect(() => {
-    if (!loading && initialLoadDoneRef.current && messagesEndRef.current) {
+    if (!loading && messages.length > 0 && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
     }
-  }, [loading]);
+  }, [loading, messages.length]);
 
   // Setup Supabase Realtime subscription
   useEffect(() => {
@@ -164,6 +172,15 @@ const ChatContainer: React.FC = () => {
               if (prev.some(m => m.id === newMessage.id)) return prev;
               return [...prev, newMessage];
             });
+            
+            // Mark as read immediately since we're viewing the chat
+            apiFetch('/chat/mark-read', { method: 'POST' })
+              .then(() => {
+                if (tenantId) {
+                  queryClient.invalidateQueries({ queryKey: queryKeys.chatUnreadCount(tenantId) });
+                }
+              })
+              .catch(err => console.error('Failed to mark as read:', err));
             
             // Show banner if not scrolled to bottom
             if (!isNearBottomRef.current) {
@@ -446,7 +463,7 @@ const ChatContainer: React.FC = () => {
           <p className="text-gray-500 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-br from-purple-600 to-pink-500 rounded-lg"
+            className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg"
           >
             Try Again
           </button>
@@ -504,17 +521,42 @@ const ChatContainer: React.FC = () => {
         
         {/* Messages */}
         <div className="py-2">
-          {messages.map((message) => (
-            <ChatMessage
-              key={message.id}
-              message={message}
-              currentPlayerId={currentPlayerId || 0}
-              isAdmin={profile.isAdmin}
-              onReact={handleReact}
-              onDelete={handleDelete}
-              playerMap={playerMap}
-            />
-          ))}
+          {messages.map((message, index) => {
+            // Calculate grouping: messages from same author within 5 minutes
+            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+            
+            const GROUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+            
+            const isSameAuthorAsPrev = prevMessage && 
+              prevMessage.author?.id === message.author?.id &&
+              !prevMessage.isSystemMessage && !message.isSystemMessage &&
+              (new Date(message.createdAt).getTime() - new Date(prevMessage.createdAt).getTime()) < GROUP_WINDOW_MS;
+            
+            const isSameAuthorAsNext = nextMessage && 
+              nextMessage.author?.id === message.author?.id &&
+              !nextMessage.isSystemMessage && !message.isSystemMessage &&
+              (new Date(nextMessage.createdAt).getTime() - new Date(message.createdAt).getTime()) < GROUP_WINDOW_MS;
+            
+            const isFirstInGroup = !isSameAuthorAsPrev;
+            const isLastInGroup = !isSameAuthorAsNext;
+            
+            return (
+              <ChatMessage
+                key={message.id}
+                message={message}
+                currentPlayerId={currentPlayerId || 0}
+                isAdmin={profile.isAdmin}
+                onReact={handleReact}
+                onDelete={handleDelete}
+                playerMap={playerMap}
+                isFirstInGroup={isFirstInGroup}
+                isLastInGroup={isLastInGroup}
+                showAvatar={isLastInGroup}
+                showName={isFirstInGroup}
+              />
+            );
+          })}
         </div>
         
         {/* Scroll anchor */}
