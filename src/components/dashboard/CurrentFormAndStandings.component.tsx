@@ -163,7 +163,7 @@ const CurrentFormAndStandings: React.FC = () => {
       <>
         {playerName}
         {showOnFireConfig && actualPlayerId && actualPlayerId === matchData?.on_fire_player_id && (
-          <FireIcon className="w-4 h-4 ml-1 text-green-500" />
+          <FireIcon className="w-4 h-4 ml-1" />
         )}
         {showGrimReaperConfig && actualPlayerId && actualPlayerId === matchData?.grim_reaper_player_id && (
           <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />

@@ -1,12 +1,16 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ErrorBoundary } from '@/components/ui-kit/ErrorBoundary.component';
 import MatchReport from './MatchReport.component';
 import RecordsAndAchievements from './PersonalBests.component';
 import CurrentStandings from './Milestones.component';
 import CurrentForm from './CurrentForm.component';
+import { useMarkHomeViewed } from '@/hooks/useHomeBadge.hook';
 
 const Dashboard: React.FC = () => {
+  // Mark the home page as viewed (clears badge)
+  useMarkHomeViewed();
+
   return (
     <div className="w-full max-w-full">
       {/* Main Dashboard Grid - 2x2 Layout */}

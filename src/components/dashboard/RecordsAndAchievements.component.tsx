@@ -304,7 +304,7 @@ const RecordsAndAchievements: React.FC = () => {
         ) : (
           <div className="text-center py-8">
             <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <FireIcon className="w-6 h-6 text-slate-400" />
+              <FireIcon className="w-6 h-6" />
             </div>
             <p className="text-slate-500 text-sm">No recent achievements</p>
             <p className="text-slate-400 text-xs mt-1">Records and personal bests will appear here</p>

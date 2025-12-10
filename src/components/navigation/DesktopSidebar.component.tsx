@@ -6,6 +6,7 @@ import { NAVIGATION_CONFIG } from '@/contexts/NavigationContext';
 import { useClubConfig } from '@/hooks/useClubConfig.hook';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useChatUnreadCount } from '@/hooks/useChatUnreadCount.hook';
+import { useHomeBadge } from '@/hooks/useHomeBadge.hook';
 
 interface DesktopSidebarProps {
   className?: string;
@@ -23,6 +24,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
   const { profile } = useAuthContext();
   const { clubName } = useClubConfig();
   const { unreadCount: chatUnreadCount } = useChatUnreadCount();
+  const { hasNewReport } = useHomeBadge();
   
   // Determine current context from primarySection (set by URL in NavigationContext)
   const isInSuperadminContext = primarySection === 'superadmin';
@@ -121,6 +123,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
         key: 'dashboard',
         label: 'Home',  // Renamed from Dashboard
         href: '/player/dashboard',
+        showDot: hasNewReport, // Show dot when new match report exists
         icon: (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2a1 1 0 001-1v-7m-6 0a1 1 0 00-1 1v3" />
@@ -239,6 +242,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ className = '' }
                     <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
+                  )}
+                  {/* Dot badge for Home tab - new match report */}
+                  {'showDot' in item && item.showDot && !isActive && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
                   )}
                 </span>
                 {!sidebarCollapsed && (

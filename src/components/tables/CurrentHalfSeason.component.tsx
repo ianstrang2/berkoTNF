@@ -86,7 +86,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
       <div className="flex items-center">
         <span>{name}</span>
         {showOnFireConfig && playerId === onFirePlayerId && (
-          <FireIcon className="w-4 h-4 ml-1 text-green-500" />
+          <FireIcon className="w-4 h-4 ml-1" />
         )}
         {showGrimReaperConfig && playerId === grimReaperPlayerId && (
           <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />

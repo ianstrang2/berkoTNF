@@ -81,7 +81,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
         <div className="flex items-center">
           <span>{name}</span>
           {isCurrentYear && showOnFireConfig && playerId === onFirePlayerId && (
-            <FireIcon className="w-4 h-4 ml-1 text-green-500" />
+            <FireIcon className="w-4 h-4 ml-1" />
           )}
           {isCurrentYear && showGrimReaperConfig && playerId === grimReaperPlayerId && (
             <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />

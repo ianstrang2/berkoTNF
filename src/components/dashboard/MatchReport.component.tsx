@@ -1,7 +1,6 @@
 'use client';
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import ShareMenu from '@/components/ui-kit/ShareMenu.component';
 import FireIcon from '@/components/icons/FireIcon.component';
 import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
@@ -57,7 +56,6 @@ const PB_METRIC_DETAILS_FOR_COPY: { [key: string]: { name: string; unit: string 
 };
 
 const LatestMatch: React.FC = () => {
-  const router = useRouter();
   const [showVotingModal, setShowVotingModal] = useState(false);
   
   // React Query hooks - automatic caching and deduplication!
@@ -443,7 +441,7 @@ const LatestMatch: React.FC = () => {
       <>
         {playerName}
         {showOnFireConfig && actualPlayerId && actualPlayerId === matchData?.on_fire_player_id && (
-          <FireIcon className="w-4 h-4 ml-1 text-green-500" />
+          <FireIcon className="w-4 h-4 ml-1" />
         )}
         {showGrimReaperConfig && actualPlayerId && actualPlayerId === matchData?.grim_reaper_player_id && (
           <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
@@ -621,19 +619,6 @@ const LatestMatch: React.FC = () => {
           <VotingResults matchId={matchInfo.match_id} />
         </div>
       )}
-      
-      {/* Open Chat CTA */}
-      <div className="mt-6 flex justify-center">
-        <button
-          onClick={() => router.push('/player/chat')}
-          className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-gradient-to-tl from-purple-700 to-pink-500 rounded-xl shadow-soft-md hover:scale-[1.02] active:scale-[0.98] transition-all"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          Open Chat
-        </button>
-      </div>
       
       {/* Voting Modal */}
       <VotingModal

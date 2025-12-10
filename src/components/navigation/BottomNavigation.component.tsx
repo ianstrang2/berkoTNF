@@ -5,6 +5,7 @@ import { useNavigation, NAVIGATION_CONFIG } from '@/contexts/NavigationContext';
 import { useCurrentNavigation } from '@/hooks/useNavigationSync.hook';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useChatUnreadCount } from '@/hooks/useChatUnreadCount.hook';
+import { useHomeBadge } from '@/hooks/useHomeBadge.hook';
 
 interface BottomNavItemProps {
   section: 'dashboard' | 'upcoming' | 'stats' | 'chat' | 'admin';
@@ -13,9 +14,10 @@ interface BottomNavItemProps {
   label: string;
   isActive: boolean;
   badge?: number;
+  showDot?: boolean; // For Home badge (no count, just a dot)
 }
 
-const BottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon, label, isActive, badge }) => {
+const BottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon, label, isActive, badge, showDot }) => {
   return (
     <Link href={href} className="flex flex-col items-center justify-center h-full">
       <div className={`flex flex-col items-center justify-center transition-all duration-200 ${
@@ -29,11 +31,15 @@ const BottomNavItem: React.FC<BottomNavItemProps> = ({ section, href, icon, labe
             : 'scale-100'
         }`}>
           {icon}
-          {/* Badge indicator */}
+          {/* Badge indicator - count badge */}
           {badge !== undefined && badge > 0 && (
             <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[14px] h-[14px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
               {badge > 99 ? '99+' : badge}
             </span>
+          )}
+          {/* Dot badge - for Home tab new match report */}
+          {showDot && !isActive && (
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
           )}
         </div>
         <span className={`text-xs font-medium transition-all duration-200 ${
@@ -77,6 +83,7 @@ export const BottomNavigation: React.FC = () => {
   const { primarySection, isActive } = useCurrentNavigation();
   const { profile } = useAuthContext();
   const { unreadCount } = useChatUnreadCount();
+  const { hasNewReport } = useHomeBadge();
 
   // Navigation icons
   const getIcon = (iconType: string) => {
@@ -183,7 +190,8 @@ export const BottomNavigation: React.FC = () => {
           href: '/player/dashboard',
           icon: getIcon('dashboard'),
           label: 'Home',  // Renamed from Dashboard
-          isActive: isActive('dashboard')
+          isActive: isActive('dashboard'),
+          showDot: hasNewReport // Show dot when new match report exists
         },
         {
           section: 'upcoming' as const,
