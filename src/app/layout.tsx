@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ReactQueryProvider } from '@/providers/ReactQueryProvider';
 import { StatusBarConfig } from '@/components/native/StatusBarConfig.component';
 import { DeepLinkHandler } from '@/components/native/DeepLinkHandler.component';
+import { AppStateHandler } from '@/components/native/AppStateHandler.component';
 import Script from 'next/script';
 // Note: we'll use style tags for CSS in public directory
 
@@ -148,6 +149,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="h-full bg-gray-50">
         <StatusBarConfig />
         <DeepLinkHandler />
+        <AppStateHandler />
         <ReactQueryProvider>
           <AuthProvider>
             <NavigationProvider>

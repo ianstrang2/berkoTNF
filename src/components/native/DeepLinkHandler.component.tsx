@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { App } from '@capacitor/app';
+import type { PluginListenerHandle } from '@capacitor/core';
 
 /**
  * Deep Link Handler
@@ -17,6 +18,8 @@ export const DeepLinkHandler = () => {
     if (typeof window === 'undefined' || !document.documentElement.classList.contains('capacitor')) {
       return;
     }
+
+    let listenerHandle: PluginListenerHandle | null = null;
 
     const handleDeepLink = (data: any) => {
       const url = data.url;
@@ -47,12 +50,16 @@ export const DeepLinkHandler = () => {
       }
     };
 
-    // Add listener
-    App.addListener('appUrlOpen', handleDeepLink);
+    // Add listener and store handle for cleanup
+    App.addListener('appUrlOpen', handleDeepLink).then((handle) => {
+      listenerHandle = handle;
+    });
 
-    // Cleanup
+    // Cleanup: Only remove THIS specific listener, not all listeners
     return () => {
-      App.removeAllListeners();
+      if (listenerHandle) {
+        listenerHandle.remove();
+      }
     };
   }, [router]);
 
