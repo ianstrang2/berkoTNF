@@ -8,9 +8,9 @@ import StatsCard from '@/components/ui-kit/StatsCard.component';
 import Chart from '@/components/ui-kit/Chart.component';
 import NavPills from '@/components/ui-kit/NavPills.component';
 import MatchPerformance from './MatchPerformance.component';
-import PowerRatingGauge from './PowerRatingGauge.component';
 import PowerSlider from './PowerSlider.component';
 import StreakBar from './StreakBar.component';
+import CompactGauge from './CompactGauge.component';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { 
   normalizePowerRatings, 
@@ -479,25 +479,25 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
           ) : (
             // Full version for active players
             <>
-              <div className="p-4 lg:p-6 pb-0">
+              <div className="p-4 lg:p-6 pb-2">
                 {/* Player Name and Club Logo */}
                 {profile.name && (
-                  <div className="flex items-center justify-center mb-10">
+                  <div className="flex items-center justify-center mb-4">
                     {clubInfo && clubInfo.filename && (
                       <img
                         src={`/club-logos/${clubInfo.filename}`}
                         alt={clubInfo.name ? `${clubInfo.name} logo` : 'Club logo'}
-                        className="h-12 w-12 mr-4"
+                        className="h-10 w-10 mr-3"
                         style={{ objectFit: 'contain' }}
                       />
                     )}
-                    <h2 className="text-2xl font-semibold text-slate-700 font-sans">
+                    <h2 className="text-xl font-semibold text-slate-700 font-sans">
                       {profile.name}
                     </h2>
                   </div>
                 )}
               </div>
-              <div className="p-4 lg:p-6 pt-0">
+              <div className="px-4 lg:px-6 pb-4 lg:pb-6">
                 {trendLoading ? (
                   <div className="flex justify-center items-center py-8">
                     <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
@@ -506,39 +506,20 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
                   </div>
                 ) : trendData ? (
                   <>
-                    <div className="grid grid-cols-3 gap-1 sm:gap-3 lg:gap-6 mb-0 px-2 sm:px-0">
-                    {/* Power Rating */}
-                    <div className="flex flex-col items-center">
-                      <div className="scale-75 sm:scale-90 lg:scale-100 transform">
-                        <PowerRatingGauge 
-                          rating={trendData.power_rating_percentile ?? 0}
-                          size="md"
-                          label="Power Rating"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Goal Threat */}
-                    <div className="flex flex-col items-center">
-                      <div className="scale-75 sm:scale-90 lg:scale-100 transform">
-                        <PowerRatingGauge 
-                          rating={trendData.goal_threat_percentile ?? 0}
-                          size="md"
-                          label="Goal Threat"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Participation */}
-                    <div className="flex flex-col items-center">
-                      <div className="scale-75 sm:scale-90 lg:scale-100 transform">
-                        <PowerRatingGauge 
-                          rating={trendData.participation_percentile ?? 0}
-                          size="md"
-                          label="Participation"
-                        />
-                      </div>
-                    </div>
+                    {/* Compact Three-Column Gauge Layout */}
+                  <div className="flex justify-center gap-6 sm:gap-10 lg:gap-14">
+                    <CompactGauge 
+                      percentage={trendData.power_rating_percentile ?? 0}
+                      label="Power Rating"
+                    />
+                    <CompactGauge 
+                      percentage={trendData.goal_threat_percentile ?? 0}
+                      label="Goal Threat"
+                    />
+                    <CompactGauge 
+                      percentage={trendData.participation_percentile ?? 0}
+                      label="Participation"
+                    />
                   </div>
 
 

@@ -93,19 +93,17 @@ const Chart: React.FC<ChartProps> = ({
     return null;
   };
   return (
-    <div className="h-[350px] -ml-4">
+    <div className="h-[280px]">
       <ResponsiveContainer width="100%" height="100%">
         {type === 'bar' ? (
-          <ComposedChart data={enhancedData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+          <ComposedChart data={enhancedData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-current text-gray-200 dark:text-gray-600" />
             <XAxis 
               dataKey="year" 
               className="text-sm fill-current text-gray-600 dark:text-gray-400"
-              angle={-45}
-              textAnchor="end"
-              height={60}
-              interval={0}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 10 }}
+              tickMargin={4}
+              interval={enhancedData.length > 5 ? 1 : 0}
             />
             <YAxis 
               className="text-sm fill-current text-gray-600 dark:text-gray-400"
@@ -147,16 +145,14 @@ const Chart: React.FC<ChartProps> = ({
             </defs>
           </ComposedChart>
         ) : (
-          <LineChart data={enhancedData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+          <LineChart data={enhancedData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-current text-gray-200 dark:text-gray-600" />
             <XAxis 
               dataKey="year" 
               className="text-sm fill-current text-gray-600 dark:text-gray-400"
-              angle={-45}
-              textAnchor="end"
-              height={60}
-              interval={0}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 10 }}
+              tickMargin={4}
+              interval={enhancedData.length > 5 ? 1 : 0}
             />
             <YAxis 
               className="text-sm fill-current text-gray-600 dark:text-gray-400"

@@ -70,11 +70,11 @@ const PowerRatingGauge: React.FC<PowerRatingGaugeProps> = ({
             strokeLinecap="round"
           />
           
-          {/* Gradient Definition */}
+          {/* Gradient Definition - matches from-purple-700 to-pink-500 pattern */}
           <defs>
             <linearGradient id="powerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ec4899" />
-              <stop offset="100%" stopColor="#7c3aed" />
+              <stop offset="0%" stopColor="#7c3aed" />
+              <stop offset="100%" stopColor="#ec4899" />
             </linearGradient>
           </defs>
           
