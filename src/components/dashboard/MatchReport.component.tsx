@@ -560,7 +560,7 @@ const LatestMatch: React.FC = () => {
       <div className="flex items-center justify-center gap-8 sm:gap-12 lg:gap-16 mb-4 sm:mb-6">
         <div className="flex flex-col items-center">
           <img 
-            src="/img/teams/team_a.webp" 
+            src="/img/teams/Team_A.webp" 
             alt={teamAName}
             className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl shadow-soft-md object-cover"
           />
@@ -576,7 +576,7 @@ const LatestMatch: React.FC = () => {
 
         <div className="flex flex-col items-center">
           <img 
-            src="/img/teams/team_b.webp" 
+            src="/img/teams/Team_B.webp" 
             alt={teamBName}
             className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl shadow-soft-md object-cover"
           />

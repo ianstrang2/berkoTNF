@@ -175,24 +175,24 @@ export const MobileHeader: React.FC = () => {
               {platform === 'web' ? (
                 // Web: Logo left, hamburger right
                 <>
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
-                      <img src="/img/logo.png" alt="Capo Logo" className="w-full h-full object-contain" />
-                    </div>
-                    <span className="text-white font-semibold text-lg ml-3">Capo</span>
+                  <div className="flex items-center h-6">
+                    <img src="/img/logo-with-text-white.png" alt="Capo" className="h-full object-contain" />
                   </div>
                   <MenuButton />
                 </>
               ) : platform === 'android' ? (
-                // Android: Hamburger in center (or right)
+                // Android: Logo left, hamburger right
                 <>
-                  <div className="flex-1"></div>
+                  <div className="flex items-center h-6">
+                    <img src="/img/logo-with-text-white.png" alt="Capo" className="h-full object-contain" />
+                  </div>
                   <MenuButton />
-                  <div className="flex-1"></div>
                 </>
               ) : (
-                // iOS: Clean header (button floats below)
-                <div className="flex-1"></div>
+                // iOS: Logo left (floating button stays below)
+                <div className="flex items-center h-6">
+                  <img src="/img/logo-with-text-white.png" alt="Capo" className="h-full object-contain" />
+                </div>
               )}
               
               {/* Dropdown menu */}
@@ -202,12 +202,9 @@ export const MobileHeader: React.FC = () => {
             // Unauthenticated: Centered logo
             <button 
               onClick={() => router.push('/auth/login')}
-              className="flex items-center justify-center flex-1"
+              className="flex items-center justify-center flex-1 h-6"
             >
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
-                <img src="/img/logo.png" alt="Capo Logo" className="w-full h-full object-contain" />
-              </div>
-              <span className="text-white font-semibold text-lg ml-3">Capo</span>
+              <img src="/img/logo-with-text-white.png" alt="Capo" className="h-full object-contain" />
             </button>
           )}
         </div>
