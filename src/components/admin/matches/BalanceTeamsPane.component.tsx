@@ -294,7 +294,7 @@ const BalanceTeamsPane = forwardRef<BalanceTeamsPaneHandle, BalanceTeamsPaneProp
 }, ref) => {
   // React Query hooks - automatic deduplication and caching!
   const { data: teamTemplate = null } = useTeamTemplate(teamSize);
-  const { data: configData = [] } = useAppConfig('match_settings');
+  const { data: configData = [] } = useAppConfig({ groups: ['match_report', 'club_team_names'] });
   const { data: playerStatus = null } = useLatestPlayerStatus();
   const { data: balanceWeights = null } = useBalanceAlgorithm();
   const { data: performanceWeightsState = null } = usePerformanceWeights();

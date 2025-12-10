@@ -76,7 +76,7 @@ export const AdminModeToggle: React.FC<AdminModeToggleProps> = ({ className = ''
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter admin password"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               onKeyPress={(e) => e.key === 'Enter' && handleAuthenticate()}
               autoFocus
             />
@@ -92,7 +92,7 @@ export const AdminModeToggle: React.FC<AdminModeToggleProps> = ({ className = ''
               </button>
               <button
                 onClick={handleAuthenticate}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
               >
                 Login
               </button>

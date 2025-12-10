@@ -506,7 +506,15 @@ After voting closes, display results:
 
 ## 4. Badge Notifications
 
-In-app badges only. No push notifications for chat/voting.
+In-app badges only for initial release. No push notifications for chat/voting in Phase 6.
+
+**Future: Push Notifications (with RSVP implementation)**
+When RSVP is implemented (see `SPEC_RSVP.md` Section 5), push notifications will be added for:
+- `match_report_live` — When match report/stats are published
+- `voting_open` — When post-match voting opens (only to players in that match)
+- `voting_closed` — When voting closes with results
+
+These are included in the `notification_ledger.kind` CHECK constraint in RSVP spec.
 
 ### Badge Logic
 

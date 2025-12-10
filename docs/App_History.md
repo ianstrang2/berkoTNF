@@ -8,11 +8,11 @@
 
 This document chronicles the complete development journey of Capo, a football team management platform built entirely through AI-assisted "vibe coding" with Cursor. What started as a simple single-site stats tracker evolved into a sophisticated multi-tenant SaaS platform with native mobile apps, complex team balancing algorithms, and a bulletproof security architecture.
 
-**Timeline:** ~9 months (January - October 2025)  
+**Timeline:** ~12 months (January - December 2025)  
 **Lines of Code Written by Hand:** 0  
-**Lines of Code Generated:** ~50,000+  
+**Lines of Code Generated:** ~70,000+  
 **Architecture Rewrites:** 3 major pivots  
-**Current Status:** Production-ready across Web, iOS, and Android
+**Current Status:** Production-ready across Web, iOS, and Android with Chat & Voting
 
 ---
 
@@ -27,9 +27,11 @@ This document chronicles the complete development journey of Capo, a football te
 7. [Phase 7: The React Query Revolution - 85% Speed Boost](#phase-7-the-react-query-revolution)
 8. [Phase 8: Going Mobile - iOS & Android](#phase-8-going-mobile)
 9. [Phase 9: Production Polish - Final Push](#phase-9-production-polish)
-10. [What's Next: RSVP & Payments](#whats-next)
-11. [Key Lessons Learned](#key-lessons-learned)
-12. [Technical Metrics](#technical-metrics)
+10. [Phase 10: Feature Polish & Production Hardening](#phase-10-feature-polish--production-hardening-october-2025---january-2025)
+11. [Phase 11: Chat & Voting - Social Engagement Layer](#phase-11-chat--voting---social-engagement-layer-december-2025)
+12. [What's Next: RSVP & Payments](#whats-next)
+13. [Key Lessons Learned](#key-lessons-learned)
+14. [Technical Metrics](#technical-metrics)
 
 ---
 
@@ -1724,12 +1726,165 @@ ROUND((PERCENT_RANK() OVER (ORDER BY power_rating ASC) * 100)::numeric, 1)
 
 ---
 
-**Document Version:** 1.1.0  
-**Last Updated:** November 26, 2025  
-**Status:** Complete development history through Phase 10  
+---
+
+## Phase 11: Chat & Voting - Social Engagement Layer (December 2025)
+
+**Timeline:** December 9-10, 2025  
+**Motivation:** Replace WhatsApp for team banter + add fun post-match awards voting
+
+### What We Built
+
+**Chat System:**
+- Global team chat replacing WhatsApp group
+- Real-time messaging via Supabase Realtime
+- @mentions with autocomplete (all players, including retired)
+- Emoji reactions (👍 😂 🔥 ❤️ 😮 👎)
+- Message deletion (5-min window for players, unlimited for admins)
+- Soft-delete with "[This message was deleted]" display
+- System messages (match report live, voting open, teams published)
+
+**Voting System:**
+- Post-match voting: Man of the Match, Donkey of the Day, Missing in Action
+- Only match participants can vote
+- 12-hour voting window (configurable)
+- Automatic survey creation by worker after stats complete
+- Voting results displayed in Match Report
+
+**Navigation Restructure:**
+```
+Old: Dashboard | Upcoming | Table | Records
+New: Home | Upcoming | Stats | Chat
+```
+- Merged Table + Records → Stats with sub-navigation
+- Added Chat as 4th primary tab
+
+### Technical Implementation
+
+**Database Tables Created:**
+```sql
+chat_messages      -- Messages with soft-delete support
+chat_reactions     -- Emoji reactions (unique per player/message)
+chat_user_state    -- Last read timestamp per player
+user_app_state     -- Last viewed match for Home badge
+match_surveys      -- Post-match voting surveys
+match_votes        -- Individual player votes
+player_awards      -- Voting results (winners)
+```
+
+**Supabase Realtime Integration:**
+```typescript
+// Live message subscription
+supabase.channel(`chat:${tenantId}`)
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, 
+      (payload) => addMessageToUI(payload.new))
+  .subscribe();
+```
+
+**Badge System:**
+- Chat badge: Unread message count (polls every 30s)
+- Home badge: Red dot when new match report exists (polls every 60s)
+- Badges clear when user navigates to respective tab
+
+### Vibe Coding Highlights
+
+**Chat UI Polish:**
+```
+"Make chat messages look like iMessage with left/right alignment"
+→ Cursor analyzes message grouping
+→ Implements bubble "spine" effect (flat corners where bubbles connect)
+→ Adds relative timestamps ("17h", "5m", "now")
+→ Creates avatar/name grouping for consecutive messages
+→ Result: Professional chat UI in one iteration
+```
+
+**Worker Integration:**
+```
+"After stats complete, create voting survey automatically"
+→ Cursor generates postMatchActions.ts
+→ Posts "Match report is live!" system message
+→ Checks voting config, creates survey if enabled
+→ Posts "Voting is open!" system message
+→ All in same worker job flow
+```
+
+**Cron Jobs Added:**
+- `/api/voting/close-expired` - Every 30 mins, closes expired surveys
+- `/api/chat/cleanup` - Daily at 3am, keeps last 1,000 messages per tenant
+
+### UI Polish Pass
+
+**Focus Ring Standardization:**
+- Changed all input focus rings from purple to pink
+- 16 files updated for consistency
+- Documented standard in SPEC_Modals.md: `focus:ring-pink-500`
+
+**Chat Send Button Fix:**
+- Gradient corrected to `to-tl from-purple-700 to-pink-500` (pink/purple standard)
+- Vertical alignment of @ and send icons fixed
+
+### Specification
+
+**Created:** `docs/SPEC_Chat_And_Voting.md` (1,864 lines)
+- Complete UI wireframes
+- Database schema
+- API routes (20+ endpoints)
+- System message triggers
+- Badge logic
+- Admin configuration
+
+### Files Created/Modified
+
+```
+New Files (15):
+├── src/app/api/chat/messages/route.ts
+├── src/app/api/chat/messages/[id]/route.ts
+├── src/app/api/chat/messages/[id]/react/route.ts
+├── src/app/api/chat/mark-read/route.ts
+├── src/app/api/chat/unread-count/route.ts
+├── src/app/api/chat/cleanup/route.ts
+├── src/app/api/home/badge/route.ts
+├── src/app/api/home/mark-viewed/route.ts
+├── src/app/api/voting/active/route.ts
+├── src/app/api/voting/submit/route.ts
+├── src/app/api/voting/results/[matchId]/route.ts
+├── src/app/api/voting/close-expired/route.ts
+├── src/components/chat/ChatContainer.component.tsx
+├── src/components/chat/ChatMessage.component.tsx
+├── src/components/chat/ChatInput.component.tsx
+├── src/components/voting/VotingModal.component.tsx
+├── src/components/voting/VotingBanner.component.tsx
+├── src/components/voting/VotingResults.component.tsx
+├── src/hooks/useChatUnreadCount.hook.ts
+├── src/hooks/useHomeBadge.hook.ts
+├── worker/src/lib/postMatchActions.ts
+
+Modified Files (20+):
+├── Navigation components (badge display)
+├── Dashboard components (VotingBanner integration)
+├── MatchReport (VotingResults display)
+├── Worker stats job (post-match actions hook)
+├── vercel.json (cron jobs)
+└── 16 files for pink focus ring standardization
+```
+
+### Outcome
+
+- **Chat:** Production-ready replacement for WhatsApp group
+- **Voting:** Fun post-match engagement feature
+- **Badges:** Clear visual indicators for new content
+- **System Messages:** Automatic announcements keep chat lively
+
+**Future (with RSVP):** Push notifications will be added for match_report_live, voting_open, and voting_closed events.
+
+---
+
+**Document Version:** 1.2.0  
+**Last Updated:** December 10, 2025  
+**Status:** Complete development history through Phase 11  
 **Next Update:** After RSVP/Billing implementation
 
 ---
 
-*This document was itself created through vibe coding, synthesizing 2,500+ lines of specifications, analyzing 500+ files of code, and organizing 9 months of development history into a coherent narrative. And now it includes the story of tidying that very documentation. Meta on meta.* 🚀
+*This document was itself created through vibe coding, synthesizing 2,500+ lines of specifications, analyzing 500+ files of code, and organizing 11 months of development history into a coherent narrative. And now it includes the story of tidying that very documentation, plus Chat & Voting social features. Meta on meta on meta.* 🚀
 

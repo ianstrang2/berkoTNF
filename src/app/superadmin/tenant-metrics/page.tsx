@@ -248,7 +248,7 @@ export default function TenantMetricsPage() {
             <select
               value={selectedTenantId}
               onChange={(e) => setSelectedTenantId(e.target.value)}
-              className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
             >
               <option value="">Choose a tenant...</option>
               {tenants.map(tenant => (

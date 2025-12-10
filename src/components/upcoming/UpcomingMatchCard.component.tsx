@@ -35,7 +35,7 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
     isExpanded ? match.upcoming_match_id : null
   );
   const { data: playerStatus } = useLatestPlayerStatus();
-  const { data: configData = [] } = useAppConfig('match_settings');
+  const { data: configData = [] } = useAppConfig({ groups: ['club_team_names'] });
 
   // Extract config values
   const teamAName = useMemo(() => {

@@ -139,7 +139,7 @@ const PlayerPool: React.FC<PlayerPoolProps> = ({
               placeholder={hasReachedMaxPlayers ? "Maximum reached" : `Add players (${allPlayers.filter(p => !p.isRetired && !selectedPlayers.some(s => s.id === p.id)).length} available)`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 text-sm text-slate-600"
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-400 text-sm text-slate-600"
               disabled={hasReachedMaxPlayers}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none">

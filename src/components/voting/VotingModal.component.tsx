@@ -1,28 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/apiConfig';
-
-interface EligiblePlayer {
-  id: number;
-  name: string;
-  selectedClub?: string | null;
-}
-
-interface ActiveSurvey {
-  id: string;
-  matchId: number;
-  matchDate?: string;
-  matchScore?: { teamA: number; teamB: number };
-  enabledCategories: string[];
-  eligiblePlayers: EligiblePlayer[];
-  userVotes: Record<string, number | null>;
-  hasVoted: boolean;
-  totalVoters: number;
-  totalEligible: number;
-  votingClosesAt: string;
-  timeRemainingMs: number;
-}
+import { useVotingActive, VotingActiveSurvey } from '@/hooks/queries/useVotingActive.hook';
 
 interface VotingModalProps {
   isOpen: boolean;
@@ -58,8 +38,7 @@ const CATEGORY_INFO: Record<string, { icon: string; title: string; description: 
  * - Shows vote count and time remaining
  */
 const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmitted }) => {
-  const [survey, setSurvey] = useState<ActiveSurvey | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: surveyData, isLoading: loading, refetch, invalidate } = useVotingActive();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -67,48 +46,36 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
   // Track selected votes - null means "No-one / Skip"
   const [selectedVotes, setSelectedVotes] = useState<Record<string, number | null>>({});
   const [timeRemaining, setTimeRemaining] = useState<string>('');
+  
+  // Derive survey from hook data
+  const survey: VotingActiveSurvey | null = surveyData?.survey ?? null;
 
-  // Fetch survey data
-  const fetchSurvey = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await apiFetch('/voting/active');
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch survey');
-      }
-      
-      if (!data.hasActiveSurvey || !data.isEligible) {
-        setError('No active voting available');
-        return;
-      }
-      
-      setSurvey(data.survey);
-      
-      // Initialize selected votes from existing votes
-      // Default to null (skip) for categories without votes
-      const initialVotes: Record<string, number | null> = {};
-      for (const category of data.survey.enabledCategories) {
-        initialVotes[category] = data.survey.userVotes[category] ?? null;
-      }
-      setSelectedVotes(initialVotes);
-      
-    } catch (err: any) {
-      setError(err.message || 'Failed to load voting');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Refetch when modal opens
   useEffect(() => {
     if (isOpen) {
-      fetchSurvey();
+      refetch();
       setSuccess(false);
+      setError(null);
     }
-  }, [isOpen, fetchSurvey]);
+  }, [isOpen, refetch]);
+  
+  // Initialize selected votes when survey data changes
+  useEffect(() => {
+    if (!surveyData?.isEligible || !survey?.enabledCategories) {
+      if (surveyData && !surveyData.isEligible && surveyData.hasActiveSurvey) {
+        setError('No active voting available');
+      }
+      return;
+    }
+    
+    // Initialize selected votes from existing votes
+    // Default to null (skip) for categories without votes
+    const initialVotes: Record<string, number | null> = {};
+    for (const category of survey.enabledCategories) {
+      initialVotes[category] = survey.userVotes?.[category] ?? null;
+    }
+    setSelectedVotes(initialVotes);
+  }, [surveyData, survey]);
 
   // Update countdown timer
   useEffect(() => {
@@ -171,6 +138,9 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
       
       setSuccess(true);
       onVoteSubmitted?.();
+      
+      // Invalidate cache so banner updates
+      invalidate();
       
       // Close modal after brief success message
       setTimeout(() => {

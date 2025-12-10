@@ -36,7 +36,7 @@ const CurrentForm: React.FC = () => {
   // React Query hooks - automatic caching and deduplication!
   const { data: milestonesData, isLoading: milestonesLoading, error: milestonesError } = useMatchReport();
   const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
-  const { data: configData = [], isLoading: configLoading } = useAppConfig('match_settings');
+  const { data: configData = [], isLoading: configLoading } = useAppConfig({ groups: ['match_report'] });
 
   // Extract config values
   const showOnFireConfig = useMemo(() => {

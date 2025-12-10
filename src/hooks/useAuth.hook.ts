@@ -1,17 +1,19 @@
 /**
  * Authentication Hook
  * 
- * Provides current user's authentication state and profile information
- * Now uses React Query for caching and deduplication!
+ * Provides current user's authentication state and profile information.
+ * Uses React Query for caching and deduplication.
+ * 
+ * NOTE: The auth state change listener is in AuthContext.tsx (runs once only).
+ * Do NOT add onAuthStateChange here - it would multiply with each hook call!
  */
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuthProfile } from './queries/useAuthProfile.hook';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/queryKeys';
 
 export interface UserProfile {
   isAuthenticated: boolean;
@@ -81,37 +83,12 @@ export function useAuth() {
     };
   }, [authData]);
 
-  // Listen for auth changes including token refresh
-  // Debounce to prevent multiple rapid invalidations during init
-  useEffect(() => {
-    let lastInvalidation = 0;
-    const DEBOUNCE_MS = 1000; // Don't invalidate more than once per second
-    
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      // On auth events, invalidate and refetch profile
-      // TOKEN_REFRESHED is CRITICAL - ensures app recognizes refreshed sessions
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
-        const now = Date.now();
-        if (now - lastInvalidation > DEBOUNCE_MS) {
-          lastInvalidation = now;
-          queryClient.invalidateQueries({ queryKey: queryKeys.authProfile() });
-        }
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [queryClient]);
-
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('adminAuth');
     localStorage.removeItem('userProfile');
     queryClient.clear(); // Clear all queries on logout
-  }, [supabase, queryClient]);
+  }, [queryClient]);
 
   const handleRefetch = useCallback(() => refetch(), [refetch]);
 

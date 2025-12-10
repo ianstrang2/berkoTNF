@@ -1,22 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { apiFetch } from '@/lib/apiConfig';
+import { useVotingActive } from '@/hooks/queries/useVotingActive.hook';
 
 interface VotingBannerProps {
   onVoteClick: () => void;
-}
-
-interface ActiveSurveyData {
-  hasActiveSurvey: boolean;
-  isEligible?: boolean;
-  survey?: {
-    id: string;
-    matchId: number;
-    hasVoted: boolean;
-    timeRemainingMs: number;
-    votingClosesAt: string;
-  };
 }
 
 /**
@@ -28,33 +16,8 @@ interface ActiveSurveyData {
  * - Countdown timer showing time remaining
  */
 const VotingBanner: React.FC<VotingBannerProps> = ({ onVoteClick }) => {
-  const [surveyData, setSurveyData] = useState<ActiveSurveyData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: surveyData, isLoading } = useVotingActive();
   const [timeRemaining, setTimeRemaining] = useState<string>('');
-
-  // Fetch active survey on mount
-  useEffect(() => {
-    const fetchSurvey = async () => {
-      try {
-        const response = await apiFetch('/voting/active');
-        const data = await response.json();
-        
-        if (data.success) {
-          setSurveyData(data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch active survey:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchSurvey();
-    
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchSurvey, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Update countdown timer
   useEffect(() => {
@@ -86,7 +49,7 @@ const VotingBanner: React.FC<VotingBannerProps> = ({ onVoteClick }) => {
   }, [surveyData?.survey?.votingClosesAt]);
 
   // Don't show if loading, no active survey, or user not eligible
-  if (loading || !surveyData?.hasActiveSurvey || !surveyData?.isEligible) {
+  if (isLoading || !surveyData?.hasActiveSurvey || !surveyData?.isEligible) {
     return null;
   }
 

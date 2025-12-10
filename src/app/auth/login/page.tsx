@@ -241,7 +241,7 @@ function PlayerLoginForm() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="07XXX XXXXXX"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                   required
                   disabled={loading}
                 />
@@ -274,7 +274,7 @@ function PlayerLoginForm() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="123456"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-2xl tracking-widest font-mono"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-center text-2xl tracking-widest font-mono"
                 required
                 disabled={loading}
                 autoFocus
@@ -383,7 +383,7 @@ function PlayerLoginForm() {
                 onChange={(e) => setClubCode(e.target.value.toUpperCase())}
                 placeholder="FC247"
                 maxLength={5}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-2xl tracking-widest font-mono uppercase"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-center text-2xl tracking-widest font-mono uppercase"
                 required
                 disabled={loading}
                 autoFocus
@@ -405,7 +405,7 @@ function PlayerLoginForm() {
                 onChange={(e) => setPlayerName(e.target.value)}
                 placeholder="John Smith"
                 maxLength={14}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 required
                 disabled={loading}
               />
@@ -426,7 +426,7 @@ function PlayerLoginForm() {
                 value={playerEmail}
                 onChange={(e) => setPlayerEmail(e.target.value)}
                 placeholder="your@email.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 required
                 disabled={loading}
               />

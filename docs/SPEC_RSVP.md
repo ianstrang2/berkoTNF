@@ -188,7 +188,14 @@ Fixed 3-minute grace period after dropout (cancel if player returns to IN). Top-
 
 ### **5) Smart notifications**
 
-Push-only via Capacitor (FCM/APNs). Tier-open, waitlist offers, last-call, teams released, cancellation. Spam protection: max 3 last-call per player per match, 6-hour cooldown, batching.
+Push-only via Capacitor (FCM/APNs). Spam protection: max 3 last-call per player per match, 6-hour cooldown, batching.
+
+**RSVP Notifications:** Tier-open, waitlist offers, last-call, teams released, cancellation.
+
+**Chat & Voting Notifications (from SPEC_Chat_And_Voting.md):**
+- `match_report_live` — Sent when match report/stats are published
+- `voting_open` — Sent when post-match voting opens (only to players in that match)
+- `voting_closed` — Sent when voting closes with results
 
 ### **6) Admin Match Control Centre**
 
@@ -628,10 +635,13 @@ CREATE TABLE IF NOT EXISTS notification_ledger (
   player_id INT NULL REFERENCES players(player_id) ON DELETE SET NULL,
   kind TEXT NOT NULL
     CHECK (kind IN (
+      -- RSVP notifications
       'invite','dropout','waitlist_offer','last_call','cancellation',
       'audit/admin_add_player','audit/admin_remove_player','audit/admin_capacity_change',
       'audit/admin_override_grace','audit/admin_manual_offer','audit/admin_booking_disabled',
-      'waitlist_offer_claimed','autobalance.balanced','teams.published'
+      'waitlist_offer_claimed','autobalance.balanced','teams.published',
+      -- Chat & Voting notifications (from SPEC_Chat_And_Voting.md)
+      'match_report_live','voting_open','voting_closed'
     )),
   batch_key TEXT NULL,
   sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),

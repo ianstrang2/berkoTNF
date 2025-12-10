@@ -253,7 +253,7 @@ const VotingSetup: React.FC = () => {
                 className="sr-only peer"
                 disabled={isEffectivelyDisabled}
               />
-              <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-tl peer-checked:from-purple-700 peer-checked:to-pink-500 ${
+              <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-tl peer-checked:from-purple-700 peer-checked:to-pink-500 ${
                 isEffectivelyDisabled ? 'cursor-not-allowed' : ''
               }`}></div>
             </label>
@@ -263,7 +263,7 @@ const VotingSetup: React.FC = () => {
               name={config.config_key}
               value={currentValue}
               onChange={handleInputChange}
-              className={`w-24 text-right px-2 py-1 text-sm rounded-md border-slate-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 disabled:bg-slate-50 disabled:text-slate-400 ${
+              className={`w-24 text-right px-2 py-1 text-sm rounded-md border-slate-300 shadow-sm focus:ring-pink-500 focus:border-pink-500 disabled:bg-slate-50 disabled:text-slate-400 ${
                 votingDisabled ? 'opacity-50' : ''
               }`}
               disabled={isDisabled || votingDisabled}

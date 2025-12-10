@@ -27,7 +27,7 @@ const TeamSection: React.FC<TeamSectionProps> = ({
   useEffect(() => {
     const fetchTeamNames = async () => {
       try {
-        const response = await apiFetch('/admin/app-config?group=match_settings');
+        const response = await apiFetch('/admin/app-config?groups=club_team_names');
         if (response.ok) {
           const data = await response.json();
           if (data.success) {

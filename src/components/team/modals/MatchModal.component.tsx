@@ -51,7 +51,7 @@ const MatchModal: React.FC<MatchModalProps> = ({
               type="date"
               value={data.date}
               onChange={(e) => onChange('date', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 text-sm text-slate-600"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-400 text-sm text-slate-600"
               required
             />
           </div>
@@ -61,7 +61,7 @@ const MatchModal: React.FC<MatchModalProps> = ({
             <select
               value={data.team_size}
               onChange={(e) => onChange('team_size', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 text-sm text-slate-600"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-400 text-sm text-slate-600"
               required
             >
               {[5, 6, 7, 8, 9, 10, 11].map(size => (

@@ -336,7 +336,7 @@ const PerformanceBalanceSetup: React.FC = () => {
                         id={config.config_key}
                         value={formData[config.config_key] || ''}
                         onChange={(e) => handleFieldChange(config.config_key, e.target.value)}
-                        className="w-full rounded-md border-slate-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                        className="w-full rounded-md border-slate-300 shadow-sm focus:ring-pink-500 focus:border-pink-500 sm:text-sm"
                       >
                         <option value="365">1 Year (365 days)</option>
                         <option value="547">1.5 Years (547 days)</option>
@@ -352,7 +352,7 @@ const PerformanceBalanceSetup: React.FC = () => {
                         max={config.config_key === 'performance_qualification_threshold' ? '50' : undefined}
                         value={formData[config.config_key] || ''}
                         onChange={(e) => handleFieldChange(config.config_key, e.target.value)}
-                        className="w-full rounded-md border-slate-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                        className="w-full rounded-md border-slate-300 shadow-sm focus:ring-pink-500 focus:border-pink-500 sm:text-sm"
                       />
                     )}
                     

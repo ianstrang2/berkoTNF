@@ -179,7 +179,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, players, disabled }) => {
       )}
 
       {/* Input area */}
-      <div className="flex items-end gap-2 p-3">
+      <div className="flex items-center gap-2 p-3">
         {/* @ Mention button */}
         <button
           type="button"
@@ -187,7 +187,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, players, disabled }) => {
           disabled={disabled}
           className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
             showMentionPicker
-              ? 'bg-purple-100 text-purple-600'
+              ? 'bg-pink-100 text-pink-600'
               : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
@@ -204,7 +204,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, players, disabled }) => {
             placeholder="Type a message..."
             disabled={disabled || sending}
             rows={1}
-            className={`w-full px-4 py-2.5 bg-gray-100 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-colors ${
+            className={`w-full px-4 py-2.5 bg-gray-100 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white transition-colors ${
               isOverLimit ? 'ring-2 ring-red-500' : ''
             } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={{ maxHeight: '120px' }}
@@ -225,10 +225,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, players, disabled }) => {
           type="button"
           onClick={handleSend}
           disabled={!content.trim() || isOverLimit || sending || disabled}
-          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
             content.trim() && !isOverLimit && !sending && !disabled
-              ? 'bg-gradient-to-br from-purple-600 to-pink-500 text-white shadow-md hover:shadow-lg active:scale-95'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md hover:shadow-lg hover:scale-105 active:scale-95'
+              : 'bg-gray-100 text-gray-400'
           }`}
         >
           {sending ? (

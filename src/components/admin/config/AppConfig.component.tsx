@@ -364,7 +364,7 @@ const AppConfig: React.FC<AppConfigProps> = ({
                             id={config.config_key}
                             checked={formData[config.config_key] === 'true'}
                             onChange={handleInputChange}
-                            className="h-4 w-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500 focus:ring-offset-0"
+                            className="h-4 w-4 text-purple-600 border-slate-300 rounded focus:ring-pink-500 focus:ring-offset-0"
                             disabled={isSaving === section.title || isResetting === section.title}
                           />
                           <label htmlFor={config.config_key} className="ml-2 block text-sm text-slate-700">
@@ -378,7 +378,7 @@ const AppConfig: React.FC<AppConfigProps> = ({
                           id={config.config_key}
                           value={formData[config.config_key] || ''}
                           onChange={handleInputChange}
-                          className="w-full rounded-md border-slate-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm disabled:bg-slate-50 disabled:text-slate-400"
+                          className="w-full rounded-md border-slate-300 shadow-sm focus:ring-pink-500 focus:border-pink-500 sm:text-sm disabled:bg-slate-50 disabled:text-slate-400"
                           disabled={isSaving === section.title || isResetting === section.title}
                         />
                       )}
@@ -430,7 +430,7 @@ const AppConfig: React.FC<AppConfigProps> = ({
                 onClick={() => handleSaveSection(section.title, section.configs)}
                 disabled={isSaving === section.title || isResetting === section.title || !hasSectionChanges(section.configs)}
                 size="sm"
-                className="bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md text-white font-semibold py-2 px-3 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
+                className="bg-gradient-to-tl from-purple-700 to-pink-500 hover:shadow-lg-purple shadow-soft-md text-white font-semibold py-2 px-3 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-opacity-50"
               >
                 {isSaving === section.title ? 'Saving...' : 'SAVE'}
               </Button>

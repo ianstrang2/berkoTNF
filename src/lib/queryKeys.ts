@@ -83,6 +83,9 @@ export const queryKeys = {
   // Chat APIs
   chatUnreadCount: (tenantId: string | null) => ['chatUnreadCount', tenantId] as const,
   chatMessages: (tenantId: string | null) => ['chatMessages', tenantId] as const,
+  
+  // Voting APIs
+  votingActive: (tenantId: string | null) => ['votingActive', tenantId] as const,
 } as const;
 
 // Export type for TypeScript autocomplete

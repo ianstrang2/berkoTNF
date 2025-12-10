@@ -28,7 +28,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
   const { data: statsData, isLoading: statsLoading, error: statsError } = useCurrentStats(selectedYear);
   const { data: seasons = [], isLoading: seasonsLoading } = useSeasons();
   const { data: matchData, isLoading: matchLoading } = useMatchReport();
-  const { data: configData = [], isLoading: configLoading } = useAppConfig('match_settings');
+  const { data: configData = [], isLoading: configLoading } = useAppConfig({ groups: ['match_report'] });
 
   // Extract config values
   const showOnFireConfig = useMemo(() => {

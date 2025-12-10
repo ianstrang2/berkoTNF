@@ -62,7 +62,7 @@ const LatestMatch: React.FC = () => {
   const { data: matchData, isLoading: matchLoading, error: matchError } = useMatchReport();
   const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
   const { data: personalBestsData, isLoading: pbLoading } = usePersonalBests();
-  const { data: configData = [], isLoading: configLoading } = useAppConfig('match_settings');
+  const { data: configData = [], isLoading: configLoading } = useAppConfig({ groups: ['match_report', 'club_team_names'] });
 
   // Extract config values
   const teamAName = useMemo(() => {

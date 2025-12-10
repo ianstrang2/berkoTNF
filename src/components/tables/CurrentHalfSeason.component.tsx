@@ -35,7 +35,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   // React Query hooks - automatic caching and deduplication!
   const { data: statsData, isLoading: statsLoading, error: statsError } = useHalfSeasonStats();
   const { data: matchData, isLoading: matchLoading } = useMatchReport();
-  const { data: configData = [], isLoading: configLoading } = useAppConfig('match_settings');
+  const { data: configData = [], isLoading: configLoading } = useAppConfig({ groups: ['match_report'] });
 
   // Extract config values
   const showOnFireConfig = useMemo(() => {

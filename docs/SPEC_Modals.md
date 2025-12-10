@@ -164,6 +164,15 @@ import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal
 - `autoFocus` on inputs (prevents keyboard surprise)
 - `items-center` (causes modal to shift off-screen)
 
+### Input Focus Styles
+
+**Standard focus ring for all inputs:**
+```css
+focus:ring-2 focus:ring-pink-500 focus:border-transparent
+```
+
+**Why pink (not purple):** Matches the app's pink/purple gradient where pink is the primary accent color. All input focus states use pink for consistency.
+
 ### When to Use
 
 ✅ **Use for:**

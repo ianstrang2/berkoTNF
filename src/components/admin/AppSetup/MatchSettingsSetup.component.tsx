@@ -45,7 +45,7 @@ const MatchSettingsSetup: React.FC = () => {
   const fetchSettings = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await apiFetch('/admin/app-config?group=match_settings');
+      const response = await apiFetch('/admin/app-config?groups=match_settings,club_team_names');
       
       if (!response.ok) throw new Error('Failed to fetch match settings');
       

@@ -96,7 +96,7 @@ function NoClubForm() {
                 onChange={(e) => setClubCode(e.target.value.toUpperCase())}
                 placeholder="FC247"
                 maxLength={5}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-2xl tracking-widest font-mono uppercase"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-center text-2xl tracking-widest font-mono uppercase"
                 required
                 disabled={loading}
                 autoFocus

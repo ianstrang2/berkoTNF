@@ -228,7 +228,7 @@ const ShareMenu: React.FC<ShareMenuProps> = ({
         disabled={disabled}
         className={`
           inline-flex items-center justify-center font-medium transition-all duration-200
-          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500
+          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500
           rounded shadow-soft-sm
           ${isOpen 
             ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white shadow-soft-md' 

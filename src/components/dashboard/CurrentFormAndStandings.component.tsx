@@ -105,7 +105,7 @@ const CurrentFormAndStandings: React.FC = () => {
       const [matchResponse, playersResponse, configResponse] = await Promise.all([
         apiFetch('/matchReport'),
         apiFetch('/players'),
-        apiFetch('/admin/app-config?group=match_settings')
+        apiFetch('/admin/app-config?groups=match_report,club_team_names')
       ]);
       
       if (!matchResponse.ok) {
