@@ -71,8 +71,10 @@ export function getContextText(
 
 /**
  * Formats streak dates from database format to display format
+ * @param dates - Date range string from DB (e.g., "2023-12-01 to 2024-01-15")
+ * @param compact - If true, uses compact format: "12/01/23 → 01/15/24" (default: true)
  */
-export function formatStreakDates(dates: string | null): string {
+export function formatStreakDates(dates: string | null, compact: boolean = true): string {
   if (!dates) return '';
   
   try {
@@ -83,6 +85,19 @@ export function formatStreakDates(dates: string | null): string {
     const startDate = new Date(parts[0]);
     const endDate = new Date(parts[1]);
     
+    if (compact) {
+      // Compact format: MM/DD/YY → MM/DD/YY
+      const formatCompact = (date: Date): string => {
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const year = date.getFullYear().toString().slice(-2);
+        return `${month}/${day}/${year}`;
+      };
+      
+      return `${formatCompact(startDate)} → ${formatCompact(endDate)}`;
+    }
+    
+    // Legacy format with parentheses
     const formatDate = (date: Date): string => {
       const year = date.getFullYear().toString();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');

@@ -63,9 +63,7 @@ const MatchPerformance: React.FC<MatchPerformanceProps> = ({ playerId, available
   }
 
   return (
-    <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border p-4 lg:p-6">
-      <h6 className="mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Match Performance</h6>
-
+    <div className="p-4 lg:p-6">
       {loading && <div className="text-center text-gray-600 dark:text-gray-300 py-4">Loading all performance data...</div>}
       {error && <div className="text-center text-red-500 py-4">Error: {error}</div>}
 

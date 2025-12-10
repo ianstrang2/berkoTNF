@@ -10,10 +10,13 @@ import NavPills from '@/components/ui-kit/NavPills.component';
 import MatchPerformance from './MatchPerformance.component';
 import PowerRatingGauge from './PowerRatingGauge.component';
 import PowerSlider from './PowerSlider.component';
+import StreakBar from './StreakBar.component';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { 
   normalizePowerRatings, 
   normalizeStreaks, 
-  decimalToNumber 
+  decimalToNumber,
+  formatStreakDates
 } from '@/utils/powerRatingNormalization.util';
 // React Query hooks for automatic deduplication and caching
 import { usePlayerProfile } from '@/hooks/queries/usePlayerProfile.hook';
@@ -148,6 +151,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedStat, setSelectedStat] = useState<string>('PPG');
   const [isProfileExpanded, setIsProfileExpanded] = useState<boolean>(false);
+  const [isMatchHistoryExpanded, setIsMatchHistoryExpanded] = useState<boolean>(false);
   
   // Transform profile data
   const profile = profileData || null;
@@ -612,114 +616,65 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
         </div>
       )}
 
-      {/* NEW: Streaks Section */}
+      {/* Streaks Section - Compact Relative Bar Design */}
       <div className="w-full max-w-full px-3 mb-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="p-4 lg:p-6 pb-0">
-            <h6 className="mb-3 lg:mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Streaks</h6>
+          <div className="p-4 lg:p-6 pb-2">
+            <h6 className="text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Streaks</h6>
           </div>
-          <div className="p-4 lg:p-6 pt-0">
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-              {streaksNormalized && (
-                <>
-                  <PowerSlider
-                    label="Attendance"
-                    value={streaksNormalized.attendanceStreak.value}
-                    percentage={streaksNormalized.attendanceStreak.percentage}
-                    contextText={streaksNormalized.attendanceStreak.dates || 'No dates available'}
-                    variant="positive"
-                    hasVariance={streaksNormalized.attendanceStreak.hasVariance}
-                    showPercentage={false}
-                    showValue={true}
-                    showTooltip={true}
-                    tooltipText={createStreakTooltip(
-                      streaksNormalized.attendanceStreak.value,
-                      (profile.streak_records?.attendanceStreak as any)?.max
-                    )}
-                  />
-                  
-                  <PowerSlider
-                    label="Unbeaten"
-                    value={streaksNormalized.undefeatedStreak.value}
-                    percentage={streaksNormalized.undefeatedStreak.percentage}
-                    contextText={streaksNormalized.undefeatedStreak.dates}
-                    variant="positive"
-                    hasVariance={streaksNormalized.undefeatedStreak.hasVariance}
-                    showPercentage={false}
-                    showValue={true}
-                    showTooltip={true}
-                    tooltipText={createStreakTooltip(
-                      streaksNormalized.undefeatedStreak.value,
-                      (profile.streak_records?.undefeatedStreak as any)?.max
-                    )}
-                  />
-                  
-                  <PowerSlider
-                    label="Win"
-                    value={streaksNormalized.winStreak.value}
-                    percentage={streaksNormalized.winStreak.percentage}
-                    contextText={streaksNormalized.winStreak.dates}
-                    variant="positive"
-                    hasVariance={streaksNormalized.winStreak.hasVariance}
-                    showPercentage={false}
-                    showValue={true}
-                    showTooltip={true}
-                    tooltipText={createStreakTooltip(
-                      streaksNormalized.winStreak.value,
-                      (profile.streak_records?.winStreak as any)?.max
-                    )}
-                  />
-                  
-                  <PowerSlider
-                    label="Scoring"
-                    value={streaksNormalized.scoringStreak.value}
-                    percentage={streaksNormalized.scoringStreak.percentage}
-                    contextText={streaksNormalized.scoringStreak.dates || 'Current streak'}
-                    variant="positive"
-                    hasVariance={streaksNormalized.scoringStreak.hasVariance}
-                    showPercentage={false}
-                    showValue={true}
-                    showTooltip={true}
-                    tooltipText={createStreakTooltip(
-                      streaksNormalized.scoringStreak.value,
-                      (profile.streak_records?.scoringStreak as any)?.max
-                    )}
-                  />
-
-                  <PowerSlider
-                    label="Losing"
-                    value={streaksNormalized.losingStreak.value}
-                    percentage={streaksNormalized.losingStreak.percentage}
-                    contextText={streaksNormalized.losingStreak.dates}
-                    variant="negative"
-                    hasVariance={streaksNormalized.losingStreak.hasVariance}
-                    showPercentage={false}
-                    showValue={true}
-                    showTooltip={true}
-                    tooltipText={createStreakTooltip(
-                      streaksNormalized.losingStreak.value,
-                      (profile.streak_records?.losingStreak as any)?.max
-                    )}
-                  />
-
-                  <PowerSlider
-                    label="Winless"
-                    value={streaksNormalized.winlessStreak.value}
-                    percentage={streaksNormalized.winlessStreak.percentage}
-                    contextText={streaksNormalized.winlessStreak.dates}
-                    variant="negative"
-                    hasVariance={streaksNormalized.winlessStreak.hasVariance}
-                    showPercentage={false}
-                    showValue={true}
-                    showTooltip={true}
-                    tooltipText={createStreakTooltip(
-                      streaksNormalized.winlessStreak.value,
-                      (profile.streak_records?.winlessStreak as any)?.max
-                    )}
-                  />
-                </>
-              )}
-            </div>
+          <div className="px-4 lg:px-6 pb-4 lg:pb-6">
+            {streaksNormalized && (
+              <div className="space-y-1.5">
+                {/* Positive Streaks */}
+                <StreakBar
+                  label="Attendance"
+                  value={streaksNormalized.attendanceStreak.value}
+                  maxValue={(profile.streak_records?.attendanceStreak as any)?.max || 80}
+                  dates={formatStreakDates((profile as any).attendance_streak_dates, true) || undefined}
+                  variant="positive"
+                />
+                <StreakBar
+                  label="Unbeaten"
+                  value={streaksNormalized.undefeatedStreak.value}
+                  maxValue={(profile.streak_records?.undefeatedStreak as any)?.max || 20}
+                  dates={formatStreakDates(profile.undefeated_streak_dates, true) || undefined}
+                  variant="positive"
+                />
+                <StreakBar
+                  label="Win"
+                  value={streaksNormalized.winStreak.value}
+                  maxValue={(profile.streak_records?.winStreak as any)?.max || 10}
+                  dates={formatStreakDates(profile.win_streak_dates, true) || undefined}
+                  variant="positive"
+                />
+                <StreakBar
+                  label="Scoring"
+                  value={streaksNormalized.scoringStreak.value}
+                  maxValue={(profile.streak_records?.scoringStreak as any)?.max || 10}
+                  dates={formatStreakDates((profile as any).scoring_streak_dates, true) || undefined}
+                  variant="positive"
+                />
+                
+                {/* Separator */}
+                <div className="border-t border-slate-100 my-1" />
+                
+                {/* Negative Streaks */}
+                <StreakBar
+                  label="Losing"
+                  value={streaksNormalized.losingStreak.value}
+                  maxValue={(profile.streak_records?.losingStreak as any)?.max || 10}
+                  dates={formatStreakDates(profile.losing_streak_dates, true) || undefined}
+                  variant="negative"
+                />
+                <StreakBar
+                  label="Winless"
+                  value={streaksNormalized.winlessStreak.value}
+                  maxValue={(profile.streak_records?.winlessStreak as any)?.max || 15}
+                  dates={formatStreakDates(profile.winless_streak_dates, true) || undefined}
+                  variant="negative"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -913,13 +868,40 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
         </div>
       </div>
 
-      {/* Match Performance Dots - Keep As-Is */}
+      {/* Full Match History - Collapsible Section */}
       {id && availableYearsForMatchPerformance.length > 0 && (
         <div className="w-full max-w-full px-3 mb-6">
-          <MatchPerformance 
-            playerId={id} 
-            availableYears={availableYearsForMatchPerformance} 
-          />
+          <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+            {/* Collapsible Header */}
+            <button
+              onClick={() => setIsMatchHistoryExpanded(!isMatchHistoryExpanded)}
+              className="w-full flex items-center justify-between p-4 lg:p-6 hover:bg-slate-50 transition-colors rounded-2xl focus:outline-none"
+            >
+              <div className="flex items-center gap-3">
+                <h6 className="text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>
+                  Full Match History
+                </h6>
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {availableYearsForMatchPerformance.length} {availableYearsForMatchPerformance.length === 1 ? 'year' : 'years'}
+                </span>
+              </div>
+              {isMatchHistoryExpanded ? (
+                <ChevronUp className="w-5 h-5 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-slate-400" />
+              )}
+            </button>
+            
+            {/* Collapsible Content */}
+            {isMatchHistoryExpanded && (
+              <div className="border-t border-slate-100">
+                <MatchPerformance 
+                  playerId={id} 
+                  availableYears={availableYearsForMatchPerformance} 
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
