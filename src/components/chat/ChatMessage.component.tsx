@@ -43,21 +43,17 @@ interface ChatMessageProps {
 const ALLOWED_EMOJIS = ['👍', '😂', '🔥', '❤️', '😮', '👎'];
 const DELETE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
-// Format time consistently: "17h", "5m", "Just now"
-const formatTimeAgo = (dateString: string): string => {
-  const now = Date.now();
-  const date = new Date(dateString).getTime();
-  const diffMs = now - date;
+// Format time as exact time: "2:45" or "14:30"
+const formatExactTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
   
-  const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
+  // 12-hour format without AM/PM
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, '0');
   
-  if (days > 0) return `${days}d`;
-  if (hours > 0) return `${hours}h`;
-  if (minutes > 0) return `${minutes}m`;
-  return 'now';
+  return `${displayHours}:${displayMinutes}`;
 };
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -79,7 +75,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   const isOwnMessage = message.author?.id === currentPlayerId;
   const messageAge = Date.now() - new Date(message.createdAt).getTime();
   const canDelete = isAdmin || (isOwnMessage && messageAge < DELETE_WINDOW_MS);
-  const formattedTime = formatTimeAgo(message.createdAt);
+  const formattedTime = formatExactTime(message.createdAt);
 
   // Parse content for @mentions and render them highlighted
   const renderContent = (content: string) => {
@@ -194,12 +190,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   //   Single: All rounded
   
   const getBubbleClasses = () => {
-    const base = 'inline-block px-3.5 py-2';
+    // Compact padding: px-3 (12px horizontal), pt-2 pb-1.5 for balanced spacing
+    const base = 'inline-block px-3 pt-2 pb-1.5';
     const color = message.isDeleted 
       ? 'bg-gray-100 text-gray-400' 
       : isOwnMessage 
-        ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white' 
-        : 'bg-gray-100 text-gray-900';
+        ? 'bg-[#A855F7] text-white' 
+        : 'bg-[#FFFFFF] text-gray-900 border border-gray-200';
     
     // Radius: 18px for outer corners, 4px for connecting corners
     let radius = '';
@@ -245,53 +242,43 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
       onTouchEnd={handleTouchEnd}
       onClick={handleClick}
     >
-      <div className={`flex gap-2 px-4 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} ${isLastInGroup ? 'items-end' : 'items-start'}`}>
-        {/* Avatar spacer or avatar - aligned to bottom */}
-        <div className="flex-shrink-0 w-8 self-end">
-          {showAvatar && isLastInGroup && (
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-              isOwnMessage 
-                ? 'bg-gradient-to-tl from-purple-700 to-pink-500' 
-                : 'bg-slate-400'
-            }`}>
-              {message.author?.name?.charAt(0).toUpperCase() || '?'}
-            </div>
-          )}
-        </div>
+      <div className={`flex gap-2 px-4 ${isOwnMessage ? 'flex-row-reverse justify-start' : 'flex-row'} ${isLastInGroup ? 'items-end' : 'items-start'}`}>
+        {/* Avatar - only show for OTHER users */}
+        {!isOwnMessage && (
+          <div className="flex-shrink-0 w-6 self-end">
+            {showAvatar && isLastInGroup && (
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold bg-purple-400">
+                {message.author?.name?.charAt(0).toUpperCase() || '?'}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Message content */}
         <div className={`flex flex-col max-w-[75%] ${isOwnMessage ? 'items-end' : 'items-start'}`}>
-          {/* Author name and time - only show for OTHER users on first message */}
-          {showName && isFirstInGroup && !isOwnMessage && (
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-xs font-semibold text-gray-700">
-                {message.author?.name || 'Unknown'}
-              </span>
-              <span className="text-[10px] text-gray-400">
-                {formattedTime}
-              </span>
-            </div>
-          )}
-          
-          {/* Timestamp only for own messages - subtle, on first message */}
-          {isFirstInGroup && isOwnMessage && (
-            <div className="flex items-center justify-end mb-0.5">
-              <span className="text-[10px] text-gray-400">
-                {formattedTime}
-              </span>
-            </div>
-          )}
-
           {/* Message bubble */}
           <div className={getBubbleClasses()}>
-            <p className="text-sm break-words whitespace-pre-wrap leading-relaxed">
+            {/* Author name - only show for OTHER users on first message - INSIDE bubble at top-left */}
+            {showName && isFirstInGroup && !isOwnMessage && (
+              <div className="mb-1">
+                <span className="text-xs font-bold text-gray-700">
+                  {message.author?.name || 'Unknown'}
+                </span>
+              </div>
+            )}
+            
+            <p className="text-sm break-words whitespace-pre-wrap leading-tight mb-0">
               {renderContent(message.content)}
             </p>
+            {/* Timestamp inside bubble - aligned right, minimal padding */}
+            <div className={`text-[10px] mt-0.5 text-right ${isOwnMessage ? 'text-white/70' : 'text-gray-400'}`}>
+              {formattedTime}
+            </div>
           </div>
 
-          {/* Reactions bar */}
+          {/* Reactions bar - WhatsApp style: tucked near bubble edge */}
           {message.reactions.length > 0 && !message.isDeleted && (
-            <div className={`reactions-bar flex flex-wrap gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+            <div className={`reactions-bar flex flex-wrap gap-1 -mt-2 ${isOwnMessage ? 'justify-end mr-2' : 'justify-start ml-2'}`}>
               {message.reactions.map((reaction) => (
                 <button
                   key={reaction.emoji}
@@ -299,14 +286,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     e.stopPropagation();
                     onReact(message.id, reaction.emoji);
                   }}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
+                  className={`inline-flex items-center justify-center gap-0.5 px-2 py-1 rounded-full text-xs transition-all bg-[#FFFFFF] border ${
                     hasReacted(reaction.emoji)
-                      ? 'bg-purple-100 border border-purple-300 text-purple-700'
-                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      ? 'border-purple-300 shadow-md'
+                      : 'border-gray-300 shadow-sm hover:shadow-md'
                   }`}
                 >
-                  <span>{reaction.emoji}</span>
-                  <span className="font-medium">{reaction.count}</span>
+                  <span className="text-sm leading-none">{reaction.emoji}</span>
+                  <span className="font-semibold text-xs leading-none text-gray-700">{reaction.count}</span>
                 </button>
               ))}
             </div>

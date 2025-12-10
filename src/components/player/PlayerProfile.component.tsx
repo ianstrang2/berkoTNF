@@ -718,37 +718,35 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
 
 
 
-      {/* NEW: Teammate Chemistry Scatter Plot */}
+      {/* Teammate Chemistry Scatter Plot */}
       <div className="w-full max-w-full px-3 mb-6 mt-6">
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="p-6 pb-0">
-            <h6 className="mb-4 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Teammate Chemistry</h6>
+          <div className="p-4 lg:p-6 pb-0">
+            <h6 className="mb-2 text-base font-semibold leading-[26px]" style={{ color: '#344767' }}>Teammate Chemistry</h6>
           </div>
-          <div className="flex-auto p-6 pt-0">
+          <div className="flex-auto px-2 pb-4 lg:px-4">
             {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.regular.length > 0) ? (
-              <div className="h-[350px]">
+              <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 40 }}>
+                  <ScatterChart margin={{ top: 10, right: 10, bottom: 30, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                                        <XAxis 
+                    <XAxis 
                       type="number" 
                       dataKey="games" 
                       name="Games Together"
                       domain={[10, 'dataMax']}
-                      className="text-sm"
-                      tick={{ fontSize: 12, fill: '#64748b' }}
+                      tick={{ fontSize: 10, fill: '#64748b' }}
                       axisLine={{ stroke: '#cbd5e1' }}
-                      label={{ value: 'Games Played Together', position: 'insideBottom', offset: -10, style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b' } }}
+                      label={{ value: 'Games Together', position: 'insideBottom', offset: -5, style: { textAnchor: 'middle', fontSize: '10px', fill: '#64748b' } }}
                     />
                   <YAxis 
                     type="number" 
                     dataKey="performance" 
                     name="Performance"
                     domain={['dataMin', 'dataMax']}
-                    className="text-sm"
-                    tick={{ fontSize: 12, fill: '#64748b' }}
+                    tick={{ fontSize: 10, fill: '#64748b' }}
                     axisLine={{ stroke: '#cbd5e1' }}
-                    label={{ value: 'Avg Fantasy Points Together', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748b' } }}
+                    width={35}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -822,25 +820,25 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ id }) => {
               </div>
             )}
             
-            {/* Legend */}
+            {/* Legend - compact single line */}
             {(teammateScatterData.best.length > 0 || teammateScatterData.worst.length > 0 || teammateScatterData.regular.length > 0) && (
-              <div className="flex justify-center mt-4 space-x-6 text-sm">
+              <div className="flex justify-center items-center gap-4 mt-2 text-xs text-slate-600">
                 {teammateScatterData.best.length > 0 && (
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2 border border-green-600"></div>
-                    <span>Best Chemistry</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
+                    <span>Best</span>
                   </div>
                 )}
                 {teammateScatterData.worst.length > 0 && (
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2 border border-red-600"></div>
-                    <span>Worst Chemistry</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                    <span>Worst</span>
                   </div>
                 )}
                 {teammateScatterData.regular.length > 0 && (
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2 border border-purple-600"></div>
-                    <span>Regular Chemistry</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 bg-purple-500 rounded-full"></div>
+                    <span>Regular</span>
                   </div>
                 )}
               </div>
