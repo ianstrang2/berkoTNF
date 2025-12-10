@@ -559,9 +559,11 @@ const LatestMatch: React.FC = () => {
       {/* Score section */}
       <div className="flex items-center justify-center gap-8 sm:gap-12 lg:gap-16 mb-4 sm:mb-6">
         <div className="flex flex-col items-center">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
-            <span className="text-lg sm:text-xl lg:text-2xl font-bold">A</span>
-          </div>
+          <img 
+            src="/img/teams/team_a.webp" 
+            alt={teamAName}
+            className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl shadow-soft-md object-cover"
+          />
           <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamAName}</h6>
         </div>
 
@@ -573,9 +575,11 @@ const LatestMatch: React.FC = () => {
         </div>
 
         <div className="flex flex-col items-center">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 text-white flex items-center justify-center shadow-soft-md">
-            <span className="text-lg sm:text-xl lg:text-2xl font-bold">B</span>
-          </div>
+          <img 
+            src="/img/teams/team_b.webp" 
+            alt={teamBName}
+            className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-xl shadow-soft-md object-cover"
+          />
           <h6 className="mt-2 text-sm sm:text-base font-semibold text-slate-700 text-center px-1">{teamBName}</h6>
         </div>
       </div>

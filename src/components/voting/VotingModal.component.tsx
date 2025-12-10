@@ -219,7 +219,7 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
           ) : survey ? (
             <div className="p-4">
               {/* Categories */}
-              {survey.enabledCategories.map((category) => {
+              {(survey.enabledCategories || []).map((category) => {
                 const info = CATEGORY_INFO[category];
                 if (!info) return null;
                 
@@ -264,7 +264,7 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
                       </label>
                       
                       {/* Player options */}
-                      {survey.eligiblePlayers.map((player) => (
+                      {(survey.eligiblePlayers || []).map((player) => (
                         <label 
                           key={player.id}
                           className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${

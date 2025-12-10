@@ -222,12 +222,15 @@ const RecordsAndAchievements: React.FC = () => {
   if (loading && timelineItems.length === 0) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border dark:bg-gray-800">
+        <div className="border-black/12.5 dark:border-white/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+          <h5 className="mb-0 dark:text-white">Records & Achievements</h5>
+        </div>
         <div className="p-4">
           <div className="text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
               <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
             </div>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Loading Records & Achievements...</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Loading...</p>
           </div>
         </div>
       </div>
@@ -237,9 +240,12 @@ const RecordsAndAchievements: React.FC = () => {
   if (error) {
     return (
       <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border dark:bg-gray-800">
+        <div className="border-black/12.5 dark:border-white/12.5 rounded-t-2xl border-b-0 border-solid p-4">
+          <h5 className="mb-0 dark:text-white">Records & Achievements</h5>
+        </div>
         <div className="p-4">
           <div className="text-center text-red-500">
-            <p>Error loading Records & Achievements</p>
+            <p>Error loading data</p>
             <p className="text-sm">{(error as Error).message}</p>
           </div>
         </div>
