@@ -37,6 +37,7 @@
 | `SPEC_PlayerSettings.md` | 380 | ✅ Ready | Player settings page (name, email, club) | Implementing player profile management |
 | `SPEC_RSVP.md` | ~3600 | 📋 Design v6.0 | RSVP system (NOT BUILT) | Three modes (Manual/RSVP/Auto-pilot), simplified states, timestamps-driven UI |
 | `SPEC_Communications.md` | ~300 | 📋 New | All emails & notifications inventory | Editing notification copy, adding new communications |
+| `SPEC_Globalisation.md` | ~450 | ✅ Ready | Global launch prep (timezone, currency, i18n) | International support, phone validation, payments currency |
 
 ### Key Patterns
 
@@ -122,6 +123,10 @@
 | `ARCHITECTURE_DECISION_RECORD.md` | Major architecture decisions log | Understanding why key decisions were made |
 | `Billing_Plan.md` | Future billing system design (NOT BUILT) | Future billing implementation reference |
 | `PLAN_marketing_sandbox_guides.md` | Marketing implementation plan | Marketing page development |
+
+**Related to SPEC_Globalisation.md:**
+- Phase 0 work (timezone, currency, phone) should be done before RSVP
+- See spec for implementation checklist
 
 ### Archived Documentation
 
@@ -224,6 +229,7 @@ Only if BOTH conditions met:
 | **Player settings** | `SPEC_PlayerSettings.md` | `SPEC_auth.md` (roles) |
 | **Creating modals** | `SPEC_Modals.md` | - |
 | **Background jobs** | `SPEC_background_jobs.md` | - |
+| **International/global** | `SPEC_Globalisation.md` | `SPEC_RSVP.md`, `Billing_Plan.md` |
 | **Mobile development** | `MOBILE_SPEC.md` | `MOBILE_USER_GUIDE.md`, `ios/`, `mobile/` |
 | **TestFlight submission** | `TESTFLIGHT_START_HERE.md` | All `TESTFLIGHT_*.md` files |
 | **Marketing pages** | `SPEC_Marketing.md` | `marketing_spec.md` (older version) |
