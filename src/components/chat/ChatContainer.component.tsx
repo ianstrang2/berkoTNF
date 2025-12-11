@@ -437,10 +437,10 @@ const ChatContainer: React.FC = () => {
     }
   };
 
-  // Loading state
+  // Loading state - WhatsApp-like background #ECE5DD
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#F2F0E4]">
+      <div className="flex-1 flex items-center justify-center bg-[#ECE5DD]">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent" />
           <p className="mt-2 text-gray-500">Loading messages...</p>
@@ -449,10 +449,10 @@ const ChatContainer: React.FC = () => {
     );
   }
 
-  // Error state
+  // Error state - WhatsApp-like background
   if (error && messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#F2F0E4] p-6">
+      <div className="flex-1 flex items-center justify-center bg-[#ECE5DD] p-6">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
             <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -472,10 +472,10 @@ const ChatContainer: React.FC = () => {
     );
   }
 
-  // Empty state
+  // Empty state - WhatsApp-like background
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-[#F2F0E4]">
+      <div className="flex flex-col h-full bg-[#ECE5DD]">
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center max-w-sm">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
@@ -498,8 +498,8 @@ const ChatContainer: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#F2F0E4]">
-      {/* Messages list */}
+    <div className="flex flex-col h-full bg-[#ECE5DD]">
+      {/* Messages list - WhatsApp-like background */}
       <div 
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -507,20 +507,20 @@ const ChatContainer: React.FC = () => {
       >
         {/* Load more indicator */}
         {loadingMore && (
-          <div className="flex justify-center py-4">
+          <div className="flex justify-center py-3">
             <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-purple-600 border-r-transparent" />
           </div>
         )}
         
-        {/* No more messages indicator */}
+        {/* No more messages indicator - WhatsApp style: centered, grey, subtle */}
         {!hasMore && messages.length > 0 && (
-          <div className="text-center py-4 text-sm text-gray-400">
+          <div className="text-center py-3 text-[12px] text-[#9da3aa]">
             Beginning of chat history
           </div>
         )}
         
-        {/* Messages */}
-        <div className="py-2">
+        {/* Messages - tighter vertical padding */}
+        <div className="py-1">
           {messages.map((message, index) => {
             // Calculate grouping: messages from same author within 5 minutes
             const prevMessage = index > 0 ? messages[index - 1] : null;
