@@ -174,11 +174,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     setShowMenu(!showMenu);
   };
 
-  // System message
+  // System message - solid pink with white text, extra vertical spacing to stand out
   if (message.isSystemMessage) {
     return (
-      <div className="flex justify-center my-2 px-4">
-        <div className="text-[#9da3aa] text-[12px] text-center bg-white/80 px-3 py-1.5 rounded-lg shadow-sm">
+      <div className="flex justify-center my-6 px-4">
+        <div className="text-white text-[12px] text-center bg-pink-500 px-3 py-1.5 rounded-lg shadow-sm">
           {message.content}
         </div>
       </div>

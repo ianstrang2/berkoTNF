@@ -179,7 +179,9 @@ export const useMatchState = (matchId: number | string) => {
         showMatchCompletedModal(teamAName, teamBName, teamAScore, teamBScore);
         
         // ✅ Trigger stats in background (non-blocking) with feature flag support
-        triggerStatsUpdate('match', typeof matchId === 'string' ? parseInt(matchId) : matchId)
+        // Use the new historical match ID (not the upcoming match ID) for post-match actions
+        const historicalMatchId = responseData.newMatchId || (typeof matchId === 'string' ? parseInt(matchId) : matchId);
+        triggerStatsUpdate('match', historicalMatchId)
           .catch(err => console.warn('Stats update failed:', err));
       }
 

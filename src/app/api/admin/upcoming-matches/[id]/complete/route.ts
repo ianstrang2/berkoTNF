@@ -187,7 +187,11 @@ export async function POST(
           } as any,
         });
 
-        return updatedUpcomingMatch;
+        // Return both the new match and updated upcoming match
+        return {
+          newMatch,
+          updatedUpcomingMatch
+        };
       });
 
       // IMMEDIATE: Invalidate dashboard cache for instant refresh
@@ -209,7 +213,12 @@ export async function POST(
       // which uses the feature flag system and modern background job infrastructure
       console.log(`Match ${matchId} completed - stats will be triggered by frontend hook`);
 
-      return NextResponse.json({ success: true, data: completedMatch });
+      // Return both IDs so frontend can use the correct one for stats
+      return NextResponse.json({ 
+        success: true, 
+        data: completedMatch,
+        newMatchId: completedMatch.newMatch.match_id  // The historical match ID for stats
+      });
     } catch (error: any) {
       console.error('ERROR COMPLETING MATCH:', error);
       console.error('Full error details:', {

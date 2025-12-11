@@ -10,38 +10,27 @@ interface VotingModalProps {
   onVoteSubmitted?: () => void;
 }
 
-const CATEGORY_INFO: Record<string, { icon: string; title: string; description: string }> = {
+const CATEGORY_INFO: Record<string, { imageSrc: string; title: string }> = {
   mom: { 
-    icon: '💪', 
-    title: 'Man of the Match', 
-    description: 'Who was the best player?'
+    imageSrc: '/img/player-status/mom.png', 
+    title: 'Man of the Match'
   },
   dod: { 
-    icon: '🫏', 
-    title: 'Donkey of the Day', 
-    description: 'Who had a nightmare?'
+    imageSrc: '/img/player-status/donkey.png', 
+    title: 'Donkey of the Day'
   },
   mia: { 
-    icon: '🦝', 
-    title: 'Missing in Action', 
-    description: 'Who was invisible?'
+    imageSrc: '/img/player-status/possum.png', 
+    title: 'Missing in Action'
   }
 };
 
-/**
- * VotingModal - Modal for submitting post-match votes
- * 
- * Features:
- * - Shows each enabled category with player list
- * - "No-one / Skip" option at top of each category
- * - Pre-fills existing votes
- * - Shows vote count and time remaining
- */
 const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmitted }) => {
   const { data: surveyData, isLoading: loading, refetch, invalidate } = useVotingActive();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [currentStage, setCurrentStage] = useState(0);
   
   // Track selected votes - null means "No-one / Skip"
   const [selectedVotes, setSelectedVotes] = useState<Record<string, number | null>>({});
@@ -49,6 +38,7 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
   
   // Derive survey from hook data
   const survey: VotingActiveSurvey | null = surveyData?.survey ?? null;
+  const enabledCategories = survey?.enabledCategories || [];
 
   // Refetch when modal opens
   useEffect(() => {
@@ -56,6 +46,7 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
       refetch();
       setSuccess(false);
       setError(null);
+      setCurrentStage(0);
     }
   }, [isOpen, refetch]);
   
@@ -69,7 +60,6 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
     }
     
     // Initialize selected votes from existing votes
-    // Default to null (skip) for categories without votes
     const initialVotes: Record<string, number | null> = {};
     for (const category of survey.enabledCategories) {
       initialVotes[category] = survey.userVotes?.[category] ?? null;
@@ -114,6 +104,22 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
     }));
   };
 
+  // Navigate stages
+  const handleNext = () => {
+    if (currentStage < enabledCategories.length - 1) {
+      setCurrentStage(curr => curr + 1);
+    } else {
+      // Last stage - submit
+      handleSubmit();
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStage > 0) {
+      setCurrentStage(curr => curr - 1);
+    }
+  };
+
   // Submit votes
   const handleSubmit = async () => {
     if (!survey) return;
@@ -156,6 +162,9 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
 
   if (!isOpen) return null;
 
+  const currentCategory = enabledCategories[currentStage];
+  const categoryInfo = currentCategory ? CATEGORY_INFO[currentCategory] : null;
+
   return (
     <div 
       className="fixed inset-0 z-50 flex items-start justify-center pt-8 pb-20 px-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
@@ -170,171 +179,121 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
         style={{ maxHeight: 'calc(100vh - 4rem)' }}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-pink-500 px-4 py-4 flex items-center justify-between z-10">
-          <h2 className="text-lg font-bold text-white">Post-Match Voting</h2>
+        <div className="sticky top-0 bg-gradient-to-br from-pink-500 to-purple-700 px-4 py-3 flex items-center justify-between z-10">
+          <h2 className="text-sm font-bold text-white">Post-Match Voting</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
           >
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Content */}
-        <div 
-          className="overflow-y-auto"
-          style={{ maxHeight: 'calc(100vh - 8rem)' }}
-        >
+        <div className="p-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent" />
             </div>
           ) : error ? (
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <p className="text-gray-700">{error}</p>
+            <div className="text-center py-8">
+              <p className="text-sm text-gray-700">{error}</p>
               <button
                 onClick={onClose}
-                className="mt-4 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="mt-4 px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
                 Close
               </button>
             </div>
           ) : success ? (
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
-                <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="text-center py-8">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-green-100 flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Votes Submitted!</h3>
-              <p className="text-gray-500 mt-1">Thanks for voting</p>
+              <h3 className="text-base font-semibold text-gray-900">Votes Submitted!</h3>
+              <p className="text-xs text-gray-500 mt-1">Thanks for voting</p>
             </div>
-          ) : survey ? (
-            <div className="p-4">
-              {/* Categories */}
-              {(survey.enabledCategories || []).map((category) => {
-                const info = CATEGORY_INFO[category];
-                if (!info) return null;
-                
-                return (
-                  <div key={category} className="mb-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xl">{info.icon}</span>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{info.title}</h3>
-                        <p className="text-xs text-gray-500">{info.description}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1 bg-gray-50 rounded-lg p-2">
-                      {/* Skip option */}
-                      <label 
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                          selectedVotes[category] === null
-                            ? 'bg-purple-100 border-2 border-purple-400'
-                            : 'bg-white border-2 border-transparent hover:bg-gray-100'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={category}
-                          checked={selectedVotes[category] === null}
-                          onChange={() => handleVoteChange(category, null)}
-                          className="sr-only"
-                        />
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          selectedVotes[category] === null
-                            ? 'border-purple-500 bg-purple-500'
-                            : 'border-gray-300'
-                        }`}>
-                          {selectedVotes[category] === null && (
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </div>
-                        <span className="text-gray-600 italic">No-one / Skip</span>
-                      </label>
-                      
-                      {/* Player options */}
-                      {(survey.eligiblePlayers || []).map((player) => (
-                        <label 
-                          key={player.id}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                            selectedVotes[category] === player.id
-                              ? 'bg-purple-100 border-2 border-purple-400'
-                              : 'bg-white border-2 border-transparent hover:bg-gray-100'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={category}
-                            checked={selectedVotes[category] === player.id}
-                            onChange={() => handleVoteChange(category, player.id)}
-                            className="sr-only"
-                          />
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            selectedVotes[category] === player.id
-                              ? 'border-purple-500 bg-purple-500'
-                              : 'border-gray-300'
-                          }`}>
-                            {selectedVotes[category] === player.id && (
-                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="font-medium text-gray-900">{player.name}</span>
-                        </label>
-                      ))}
-                    </div>
+          ) : survey && categoryInfo ? (
+            <>
+              {/* Category header */}
+              <div className="flex flex-col items-center mb-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-purple-700 p-1 shadow-lg">
+                  <div className="w-full h-full rounded-full bg-white p-2 flex items-center justify-center">
+                    <img 
+                      src={categoryInfo.imageSrc} 
+                      alt={categoryInfo.title}
+                      className="w-full h-full object-contain"
+                    />
                   </div>
-                );
-              })}
-            </div>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 mt-2">{categoryInfo.title}</h3>
+                <p className="text-xs text-gray-400 mt-1">{currentStage + 1} of {enabledCategories.length}</p>
+              </div>
+              
+              {/* Player pills grid */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {/* Skip option - behaves like any other selection */}
+                <button
+                  onClick={() => handleVoteChange(currentCategory, null)}
+                  className={`col-span-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    selectedVotes[currentCategory] === null
+                      ? 'bg-gradient-to-br from-pink-500 to-purple-700 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  No-one / Skip
+                </button>
+                
+                {/* Player pills */}
+                {(survey.eligiblePlayers || []).map((player) => (
+                  <button
+                    key={player.id}
+                    onClick={() => handleVoteChange(currentCategory, player.id)}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-all truncate ${
+                      selectedVotes[currentCategory] === player.id
+                        ? 'bg-gradient-to-br from-pink-500 to-purple-700 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {player.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Navigation */}
+              <div className="flex gap-2">
+                {currentStage > 0 && (
+                  <button
+                    onClick={handleBack}
+                    className="flex-1 px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Back
+                  </button>
+                )}
+                <button
+                  onClick={handleNext}
+                  disabled={submitting}
+                  className={`${currentStage === 0 ? 'w-full' : 'flex-1'} px-4 py-2 text-xs font-semibold text-white uppercase bg-gradient-to-br from-pink-500 to-purple-700 rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50`}
+                >
+                  {submitting ? 'Submitting...' : currentStage === enabledCategories.length - 1 ? 'Submit' : 'Next'}
+                </button>
+              </div>
+
+              {/* Footer info */}
+              <div className="flex items-center justify-between text-xs text-gray-500 mt-4 pt-4 border-t border-gray-100">
+                <span>{survey.totalVoters} of {survey.totalEligible} voted</span>
+                <span>{timeRemaining}</span>
+              </div>
+            </>
           ) : null}
         </div>
-
-        {/* Footer */}
-        {survey && !loading && !error && !success && (
-          <div className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-4">
-            {/* Stats row */}
-            <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-              <span>{survey.totalVoters} of {survey.totalEligible} have voted</span>
-              <span>⏱️ {timeRemaining}</span>
-            </div>
-            
-            {/* Submit button */}
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="w-full px-4 py-3 text-sm font-semibold text-white uppercase bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Submitting...
-                </span>
-              ) : (
-                'Submit Votes'
-              )}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
 export default VotingModal;
-

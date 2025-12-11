@@ -56,30 +56,35 @@ const VotingBanner: React.FC<VotingBannerProps> = ({ onVoteClick }) => {
   const hasVoted = surveyData.survey?.hasVoted ?? false;
 
   return (
-    <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-4 mb-4 shadow-lg">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Ballot box icon */}
-          <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-          </div>
+    <div className="bg-gradient-to-br from-pink-500 to-purple-700 rounded-xl p-[2px] mb-4 shadow-soft-lg">
+      <div className="bg-white rounded-[10px] px-4 py-6">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            onClick={onVoteClick}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity min-w-0"
+          >
+            {/* Clipboard icon with gradient */}
+            <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-700 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </div>
+            
+            <div className="flex flex-col text-left">
+              <div className="text-slate-800 font-semibold text-sm">Voting Open</div>
+              <div className="text-slate-600 text-xs">
+                {timeRemaining || 'Vote for match awards'}
+              </div>
+            </div>
+          </button>
           
-          <div>
-            <p className="text-white font-semibold text-sm">Voting Open</p>
-            <p className="text-white/80 text-xs">
-              {timeRemaining ? `⏱️ ${timeRemaining}` : 'Vote for match awards'}
-            </p>
-          </div>
+          <button
+            onClick={onVoteClick}
+            className="px-4 py-2 bg-gradient-to-br from-pink-500 to-purple-700 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-lg active:scale-95 transition-all"
+          >
+            {hasVoted ? 'Change Vote' : 'Vote Now'}
+          </button>
         </div>
-        
-        <button
-          onClick={onVoteClick}
-          className="px-4 py-2 bg-white text-purple-700 font-semibold text-sm rounded-lg shadow-md hover:bg-gray-50 active:scale-95 transition-all"
-        >
-          {hasVoted ? 'Change Vote' : 'Vote Now'}
-        </button>
       </div>
     </div>
   );

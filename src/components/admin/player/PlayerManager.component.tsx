@@ -121,6 +121,8 @@ const PlayerManager: React.FC = () => {
 
       // Refresh player list - React Query automatically refetches
       refetch();
+      // Also invalidate basic players cache for consistency
+      queryClient.invalidateQueries({ queryKey: queryKeys.players(profile.tenantId) });
       alert(data.message);
     } catch (err: any) {
       console.error('Error toggling admin:', err);
@@ -148,7 +150,7 @@ const PlayerManager: React.FC = () => {
         selected_club: formData.club,
       };
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url.replace('/api', ''), {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -171,8 +173,12 @@ const PlayerManager: React.FC = () => {
         setSelectedPlayer(null);
       }, 300);
       
-      // Refetch in background
+      // Refetch admin players list
       refetch();
+      
+      // Also invalidate the basic players query used by Match Control Center
+      // This ensures newly created players appear immediately when navigating to matches
+      queryClient.invalidateQueries({ queryKey: queryKeys.players(profile.tenantId) });
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

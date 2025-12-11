@@ -35,6 +35,13 @@ interface BackgroundJobStatus {
       duration: number;
       error?: string;
     }>;
+    post_match_actions?: {
+      match_report_message: boolean;
+      survey_created: boolean;
+      survey_id?: string;
+      voting_message: boolean;
+      errors: string[];
+    };
   } | null;
   created_at: string;
   tenant_id?: string | null;
@@ -641,6 +648,44 @@ export default function SystemHealthPage() {
                                           </div>
                                         </div>
                                       ))}
+                                      
+                                      {/* Post-Match Actions Section */}
+                                      {job.results.post_match_actions && (
+                                        <div className="mt-3 pt-3 border-t border-slate-200">
+                                          <div className="font-semibold text-purple-700 mb-2">📣 Post-Match Actions</div>
+                                          <div className="space-y-1">
+                                            <div className={`flex items-start gap-2 ${job.results.post_match_actions.match_report_message ? 'text-green-600' : 'text-slate-400'}`}>
+                                              <span className="font-mono font-semibold">{job.results.post_match_actions.match_report_message ? '✓' : '○'}</span>
+                                              <div className="flex-1">
+                                                <div className="font-medium">Match report system message</div>
+                                              </div>
+                                            </div>
+                                            <div className={`flex items-start gap-2 ${job.results.post_match_actions.survey_created ? 'text-green-600' : 'text-slate-400'}`}>
+                                              <span className="font-mono font-semibold">{job.results.post_match_actions.survey_created ? '✓' : '○'}</span>
+                                              <div className="flex-1">
+                                                <div className="font-medium">Survey created</div>
+                                                {job.results.post_match_actions.survey_id && (
+                                                  <div className="text-slate-500 text-xs">ID: {job.results.post_match_actions.survey_id}</div>
+                                                )}
+                                              </div>
+                                            </div>
+                                            <div className={`flex items-start gap-2 ${job.results.post_match_actions.voting_message ? 'text-green-600' : 'text-slate-400'}`}>
+                                              <span className="font-mono font-semibold">{job.results.post_match_actions.voting_message ? '✓' : '○'}</span>
+                                              <div className="flex-1">
+                                                <div className="font-medium">Voting open system message</div>
+                                              </div>
+                                            </div>
+                                            {job.results.post_match_actions.errors && job.results.post_match_actions.errors.length > 0 && (
+                                              <div className="mt-2 p-2 bg-red-50 rounded">
+                                                <div className="text-red-700 font-semibold text-xs mb-1">Errors:</div>
+                                                {job.results.post_match_actions.errors.map((err: string, errIdx: number) => (
+                                                  <div key={errIdx} className="text-red-600 text-xs">• {err}</div>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   </details>
                                 ) : job.error_message ? (

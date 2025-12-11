@@ -259,7 +259,7 @@ await prisma.$transaction([
 | Reactions | 24px tall chip, 3px overlap below bubble | Tap to see who reacted |
 | Reactions modal | Bottom sheet, z-index 10000 | Above bottom nav, slide-up animation |
 | Date separators | `bg-white text-gray-900` pill | Fully opaque, centered, shadow-sm |
-| System messages | `bg-white/80 text-[#9da3aa]` pill | Centered, shadow-sm, no avatar |
+| System messages | `bg-pink-500 text-white` pill | Centered, shadow-sm, no avatar, `my-6` spacing |
 | Deleted messages | `bg-gray-50` shrink-wrap bubble | Gradient trash icon, italic grey text |
 | Collapsed deletes | Centered pill like system message | "X messages deleted" for consecutive |
 
@@ -446,60 +446,84 @@ Store all historical awards for future features (e.g., "Most MoM wins this seaso
 
 ### Voting UI - Modal
 
+**Implementation:** Staged multi-step flow (one category at a time) with compact pill UI.
+
 Accessed via "Vote Now" banner on Dashboard/Home.
 
 ```
 ┌─────────────────────────────────────┐
-│ Post-Match Voting          [Close X]│
+│ Post-Match Voting          [Close X]│  ← Pink→purple gradient header
 ├─────────────────────────────────────┤
 │                                     │
-│ 🏆 Man of the Match                 │
+│        [Category Icon Image]        │  ← Circular frame with gradient border
+│        Man of the Match             │
+│           1 of 3                    │  ← Progress indicator
+│                                     │
 │ ┌─────────────────────────────────┐ │
-│ │ [✓] No-one / Skip               │ │  ← First option
-│ │ [ ] Dave          [Club Badge]  │ │
-│ │ [ ] Steve         [Club Badge]  │ │
-│ │ [ ] Mike          [Club Badge]  │ │
-│ │ [ ] Tom           [Club Badge]  │ │
-│ │ ... (scrollable)                │ │
+│ │    [No-one / Skip]              │ │  ← Full-width, highlights when selected
 │ └─────────────────────────────────┘ │
 │                                     │
-│ 🫏 Donkey of the Day                │
-│ ┌─────────────────────────────────┐ │
-│ │ [✓] No-one / Skip               │ │
-│ │ [ ] Dave          [Club Badge]  │ │
-│ │ [ ] Steve         [Club Badge]  │ │
-│ │ ...                             │ │
-│ └─────────────────────────────────┘ │
+│ ┌────────────┐  ┌────────────┐     │
+│ │   Dave     │  │   Steve    │     │  ← 2-column pill grid
+│ └────────────┘  └────────────┘     │
+│ ┌────────────┐  ┌────────────┐     │
+│ │   Mike     │  │   Tom      │     │
+│ └────────────┘  └────────────┘     │
+│ ... (all 22 players visible)       │
 │                                     │
-│ (MiA section if enabled)            │
-│                                     │
+│ ┌────────┐  ┌─────────────────────┐│
+│ │ Back   │  │   NEXT              ││  ← Navigation buttons
+│ └────────┘  └─────────────────────┘│
 ├─────────────────────────────────────┤
-│ 14 players have voted               │
-│                                     │
-│        [Submit Votes]               │
-│                                     │
-│   ⏱️ Voting closes in 6h 23m        │
+│ 0 of 18 voted           11h 26m    │  ← Footer info
 └─────────────────────────────────────┘
 ```
 
-**UI Notes:**
-- **MUST follow mobile-safe modal pattern** from `SPEC_Modals.md` (Pattern 2: Custom Form Modal)
-- Use `items-start` + `justify-center` (NOT `items-center`)
-- Use `maxHeight: calc(100vh - 4rem)` outer, `calc(100vh - 8rem)` inner scroll
-- Match styling from Match Control Centre player lists
-- Show player's selected club badge
-- Single selection per category (radio behavior)
-- **"No-one / Skip" is the first option in each category** (allows clearing a previous vote)
-- Pre-fill existing votes when reopening modal (default to "No-one / Skip" if no vote)
-- Submit always enabled - selecting "No-one / Skip" for all categories is valid (clears any existing votes)
+**Staged Flow:**
+1. Show one category at a time (MoM first, then DoD, then MiA if enabled)
+2. Progress indicator shows "1 of 3", "2 of 3", etc.
+3. "Back" button appears after first stage
+4. "Next" button on first stages, "Submit" button on final stage
+5. All selections (including Skip) require clicking Next/Submit to advance
 
-**Button styling (from SPEC_Modals.md):**
+**Category Icons:**
+- Use actual images from `/img/player-status/`:
+  - MoM: `mom.png`
+  - DoD: `donkey.png` 
+  - MiA: `possum.png`
+- Display in circular frame: 80px image with pink→purple gradient border + white inner circle
+
+**Player Pills:**
+- 2-column grid (`grid-cols-2 gap-2`)
+- Shows all 22 players without scrolling (compact `text-xs` sizing)
+- Gray when unselected, pink→purple gradient when selected
+- "No-one / Skip" is full-width pill at top (col-span-2)
+- Behaves like player selections (highlights when selected, doesn't auto-advance)
+
+**Font Sizes (Compact):**
+- Header: `text-sm` (14px)
+- Category title: `text-base` (16px)
+- Progress indicator: `text-xs` (12px)
+- Pills: `text-xs` (12px)
+- Footer info: `text-xs` (12px)
+
+**NO Emojis:** Use SVG icons or images only
+
+**Gradient Direction:** `bg-gradient-to-br from-pink-500 to-purple-700` (pink top-left → purple bottom-right)
+
+**Button styling:**
 ```tsx
-{/* Submit button - purple gradient */}
-<button className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase 
-  bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg shadow-soft-md 
-  hover:scale-102 transition-all">
-  Submit Votes
+{/* Next/Submit button - pink→purple gradient */}
+<button className="px-4 py-2 text-xs font-semibold text-white uppercase 
+  bg-gradient-to-br from-pink-500 to-purple-700 rounded-lg shadow-md 
+  hover:shadow-lg transition-all">
+  {isLastStage ? 'SUBMIT' : 'NEXT'}
+</button>
+
+{/* Back button - gray */}
+<button className="px-4 py-2 text-xs font-semibold text-gray-700 
+  bg-gray-100 rounded-lg hover:bg-gray-200">
+  Back
 </button>
 ```
 
@@ -516,15 +540,8 @@ When voting is active AND current user is eligible to vote:
 
 ```
 ┌─────────────────────────────────────┐
-│ 🗳️ Voting Open — 6h 23m left        │
-│                                     │
-│         [Vote Now]                  │  ← Before voting
-└─────────────────────────────────────┘
-
-┌─────────────────────────────────────┐
-│ 🗳️ Voting Open — 6h 23m left        │
-│                                     │
-│       [Change Vote]                 │  ← After voting
+│  [📋]  Voting Open      [Vote Now]  │  ← White background with gradient border
+│        11h 26m left                 │
 └─────────────────────────────────────┘
 ```
 
@@ -533,9 +550,16 @@ When voting is active AND current user is eligible to vote:
 - Only show if current user is in `eligible_player_ids` (they played in the match)
 - Hide for users who didn't play (they can't vote anyway)
 - **Stays visible until voting closes** (allows vote changes)
-- Button text changes: "Vote Now" → "Change Vote" after user has voted
-
-Positioned: Below match score, above match details.
+**Banner styling:**
+- **White background** with pink→purple gradient border (2px border effect using wrapper technique)
+- Clipboard icon with pink→purple gradient background (left side, clickable)
+- "Vote Now" button: pink→purple gradient (`from-pink-500 to-purple-700`), changes to "Change Vote" after voting
+- Text: "Voting Open" on one line, time on second line (no emoji in time)
+- Gradient: `bg-gradient-to-br from-pink-500 to-purple-700` (pink top-left → purple bottom-right)
+- Padding: `py-6 px-4` for proper height
+- Icon + text area is clickable (opens voting modal)
+- Text vertically aligned with icon and button using flexbox
+- Positioned: Below match score, above match details on match report
 
 ### Awards Section in Match Report
 
@@ -661,17 +685,19 @@ Match Completed → Stats Job Queued → Worker Processes Stats
 **Implemented in `ChatMessage.component.tsx`:**
 
 ```tsx
-{/* System message - centered, white bg, subtle shadow */}
-<div className="flex justify-center my-2 px-4">
-  <div className="text-[#9da3aa] text-[12px] text-center bg-white/80 px-3 py-1.5 rounded-lg shadow-sm">
+{/* System message - solid pink with white text, extra vertical spacing */}
+<div className="flex justify-center my-6 px-4">
+  <div className="text-white text-[12px] text-center bg-pink-500 px-3 py-1.5 rounded-lg shadow-sm">
     {message.content}
   </div>
 </div>
 ```
 
 **Key styling:**
-- `text-[#9da3aa]` — Grey text (WhatsApp style)
+- `bg-pink-500` — Solid pink background (brand color)
+- `text-white` — White text for contrast
 - `text-[12px]` — Small font
+- `my-6` — Extra vertical spacing (24px) to stand out
 - `text-center` — Centered
 - `bg-white/80` — Semi-transparent white background
 - `rounded-lg` — Consistent with app styling

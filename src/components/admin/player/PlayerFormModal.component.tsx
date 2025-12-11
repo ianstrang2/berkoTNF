@@ -61,10 +61,41 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [showRoleStatus, setShowRoleStatus] = useState(!!initialData && !!initialData.name); // Expanded if editing existing player
-  const [showRatings, setShowRatings] = useState(!!initialData && !!initialData.name); // Expanded if editing existing player
   
-  const [formData, setFormData] = useState<PlayerFormData>({
+  // Section visibility - Contact Info & Role Status can be open together, 
+  // but Player Ratings is mutually exclusive with them
+  const [showContactInfo, setShowContactInfo] = useState(true);
+  const [showRoleStatus, setShowRoleStatus] = useState(true);
+  const [showRatings, setShowRatings] = useState(false);
+  
+  // Toggle section with mutual exclusivity for ratings
+  const toggleContactInfo = () => {
+    if (!showContactInfo) {
+      setShowRatings(false); // Close ratings when opening contact info
+    }
+    setShowContactInfo(prev => !prev);
+  };
+  
+  const toggleRoleStatus = () => {
+    if (!showRoleStatus) {
+      setShowRatings(false); // Close ratings when opening role status
+    }
+    setShowRoleStatus(prev => !prev);
+  };
+  
+  const toggleRatings = () => {
+    if (!showRatings) {
+      // Close the other two when opening ratings
+      setShowContactInfo(false);
+      setShowRoleStatus(false);
+    }
+    setShowRatings(prev => !prev);
+  };
+  
+  // Track if we're in edit mode
+  const isEditMode = !!initialData && !!initialData.name;
+  
+  const getInitialFormData = (): PlayerFormData => ({
     name: initialData?.name || '',
     phone: initialData?.phone || '',
     email: initialData?.email || '',
@@ -79,28 +110,26 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     resilience: initialData?.resilience || 3,
     club: initialData?.club || null
   });
+  
+  const [formData, setFormData] = useState<PlayerFormData>(getInitialFormData());
+  const [originalData, setOriginalData] = useState<PlayerFormData>(getInitialFormData());
 
   // Effect to update form data when modal opens with initialData
   // Use ref to track if we've already initialized to prevent re-renders during submit
   const initializedRef = useRef(false);
   
   useEffect(() => {
-    if (isOpen && initialData && !initializedRef.current) {
-      setFormData({
-        name: initialData?.name || '',
-        phone: initialData?.phone || '',
-        email: initialData?.email || '',
-        isAdmin: initialData?.isAdmin || false,
-        isRinger: initialData?.isRinger !== undefined ? initialData.isRinger : false,
-        isRetired: initialData?.isRetired || false,
-        goalscoring: initialData?.goalscoring || 3,
-        defending: initialData?.defending || 3,
-        staminaPace: initialData?.staminaPace || 3,
-        control: initialData?.control || 3,
-        teamwork: initialData?.teamwork || 3,
-        resilience: initialData?.resilience || 3,
-        club: initialData?.club || null
-      });
+    if (isOpen && !initializedRef.current) {
+      // Reset form data
+      const newFormData = getInitialFormData();
+      setFormData(newFormData);
+      setOriginalData(newFormData);
+      
+      // Reset section visibility: first 2 open, ratings closed
+      setShowContactInfo(true);
+      setShowRoleStatus(true);
+      setShowRatings(false);
+      
       initializedRef.current = true;
     }
     
@@ -109,6 +138,26 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
       initializedRef.current = false;
     }
   }, [initialData, isOpen]);
+  
+  // Check if form has changes (for edit mode)
+  const hasChanges = (): boolean => {
+    if (!isEditMode) return true; // Always allow submit in create mode
+    
+    return (
+      formData.name !== originalData.name ||
+      formData.email !== originalData.email ||
+      formData.isAdmin !== originalData.isAdmin ||
+      formData.isRinger !== originalData.isRinger ||
+      formData.isRetired !== originalData.isRetired ||
+      formData.goalscoring !== originalData.goalscoring ||
+      formData.defending !== originalData.defending ||
+      formData.staminaPace !== originalData.staminaPace ||
+      formData.control !== originalData.control ||
+      formData.teamwork !== originalData.teamwork ||
+      formData.resilience !== originalData.resilience ||
+      JSON.stringify(formData.club) !== JSON.stringify(originalData.club)
+    );
+  };
 
   // Effect to clear nameError when formData.name changes
   useEffect(() => {
@@ -189,8 +238,8 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
         <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true"></div>
         
       {/* Modal panel - mobile friendly with keyboard support */}
-      <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6 my-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }} onClick={(e) => e.stopPropagation()}>
-        <div className="overflow-y-auto pb-4" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+      <div className="relative bg-white rounded-2xl max-w-md w-full mx-auto shadow-soft-xl transform transition-all p-6 mb-8 flex flex-col" style={{ maxHeight: 'calc(100vh - 4rem)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="overflow-y-auto flex-1 pb-4">
           {/* Header with close button */}
           <div className="flex justify-between items-center mb-5">
             <h3 className="text-lg font-semibold text-slate-700" id="modal-title">
@@ -227,69 +276,92 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               )}
             </div>
 
-            <div className="mb-4">
-              <label className="block text-slate-700 text-sm font-medium mb-2">
-                Phone Number
-              </label>
-              {initialData ? (
-                // Editing existing player - phone is read-only
-                <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-slate-600">
-                  {formData.phone || 'Not set'}
-                </div>
-              ) : (
-                // Creating new player - allow phone entry
-                <>
-                  <input
-                    type="tel"
-                    value={formData.phone || ''}
-                    onChange={(e) => {
-                      setFormData({ ...formData, phone: e.target.value });
-                      setPhoneError(null);
-                    }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none text-sm ${
-                      phoneError 
-                        ? 'border-red-300 focus:border-red-500' 
-                        : 'border-gray-300 focus:border-fuchsia-300'
-                    }`}
-                    placeholder="07XXX XXXXXX or +447XXX XXXXXX"
-                  />
-                  {phoneError && (
-                    <p className="text-xs text-red-500 mt-1">{phoneError}</p>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-slate-700 text-sm font-medium mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={formData.email || ''}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
-                placeholder="player@email.com"
-              />
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-slate-700 text-sm font-medium mb-2">Club (Optional)</label>
-              <ClubSelector 
-                value={formData.club as Club | null}
-                onChange={(club) => setFormData({ ...formData, club: club })}
-              />
-            </div>
-
             {/* Divider */}
-            <div className="my-6 border-t border-gray-200"></div>
-            
-            {/* Collapsible: Role & Status */}
-            <div className="mb-4">
+            <div className="my-4 border-t border-gray-200"></div>
+
+            {/* Collapsible: Contact Info */}
+            <div className="mb-2">
               <button
                 type="button"
-                onClick={() => setShowRoleStatus(!showRoleStatus)}
-                className="w-full flex items-center justify-between text-left mb-3 hover:bg-slate-50 p-2 rounded-lg transition-colors"
+                onClick={toggleContactInfo}
+                className="w-full flex items-center justify-between text-left py-2 px-2 hover:bg-slate-50 rounded-lg transition-colors"
+              >
+                <h4 className="text-sm font-medium text-slate-700">Contact Info</h4>
+                <svg 
+                  className={`w-5 h-5 text-slate-400 transition-transform ${showContactInfo ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showContactInfo && (
+                <div className="space-y-3 pl-2 pt-2">
+                  <div>
+                    <label className="block text-slate-700 text-sm font-medium mb-1">
+                      Phone Number
+                    </label>
+                    {initialData ? (
+                      // Editing existing player - phone is read-only
+                      <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-slate-600">
+                        {formData.phone || 'Not set'}
+                      </div>
+                    ) : (
+                      // Creating new player - allow phone entry
+                      <>
+                        <input
+                          type="tel"
+                          value={formData.phone || ''}
+                          onChange={(e) => {
+                            setFormData({ ...formData, phone: e.target.value });
+                            setPhoneError(null);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none text-sm ${
+                            phoneError 
+                              ? 'border-red-300 focus:border-red-500' 
+                              : 'border-gray-300 focus:border-fuchsia-300'
+                          }`}
+                          placeholder="07XXX XXXXXX or +447XXX XXXXXX"
+                        />
+                        {phoneError && (
+                          <p className="text-xs text-red-500 mt-1">{phoneError}</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 text-sm font-medium mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 text-sm"
+                      placeholder="player@email.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 text-sm font-medium mb-1">Club (Optional)</label>
+                    <ClubSelector 
+                      value={formData.club as Club | null}
+                      onChange={(club) => setFormData({ ...formData, club: club })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Collapsible: Role & Status */}
+            <div className="mb-2">
+              <button
+                type="button"
+                onClick={toggleRoleStatus}
+                className="w-full flex items-center justify-between text-left py-2 px-2 hover:bg-slate-50 rounded-lg transition-colors"
               >
                 <h4 className="text-sm font-medium text-slate-700">Role & Status</h4>
                 <svg 
@@ -400,11 +472,11 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
             </div>
 
             {/* Collapsible: Player Ratings */}
-            <div className="mb-4">
+            <div className="mb-2">
               <button
                 type="button"
-                onClick={() => setShowRatings(!showRatings)}
-                className="w-full flex items-center justify-between text-left mb-3 hover:bg-slate-50 p-2 rounded-lg transition-colors"
+                onClick={toggleRatings}
+                className="w-full flex items-center justify-between text-left py-2 px-2 hover:bg-slate-50 rounded-lg transition-colors"
               >
                 <h4 className="text-sm font-medium text-slate-700">Player Ratings</h4>
                 <svg 
@@ -418,9 +490,9 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               </button>
               
               {showRatings && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 pl-2">
                 {attributeFields.map(({ key, label }) => (
-                  <div key={key} className="mb-2 relative">
+                  <div key={key} className="relative">
                     <div className="flex items-center">
                       <label className="block text-slate-700 text-sm mb-1">
                         {label}
@@ -477,7 +549,7 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               <button
                 type="submit"
                 className="inline-block px-4 py-2 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer hover:scale-102 active:opacity-85 hover:shadow-soft-xs bg-gradient-to-tl from-purple-700 to-pink-500 leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isProcessing || !formData.name || formData.name.length > 14 || !!nameError}
+                disabled={isProcessing || !formData.name || formData.name.length > 14 || !!nameError || !hasChanges()}
               >
                 {isProcessing ? 'Processing...' : submitButtonText}
               </button>
