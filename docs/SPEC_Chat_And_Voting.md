@@ -197,45 +197,83 @@ await prisma.$transaction([
 
 ### Chat UI Layout
 
+**Implementation:** WhatsApp-style chat with date separators.
+
 ```
 ┌─────────────────────────────────────┐
-│ Team Chat                    [badge]│
-├─────────────────────────────────────┤
+│                                     │
+│           Beginning of chat         │
+│                                     │
+│            [ Yesterday ]            │  ← Date separator
 │                                     │
 │  [System] Match report is live!     │
 │                                     │
-│  [Avatar] Dave                12:34 │
+│  [Badge] Ali Wilson          12:34  │  ← Club badge as avatar
 │  Great game yesterday! 🔥           │
-│  👍3 😂1                            │
+│  👍3 😂1                            │  ← Reactions chip (overlaps bubble)
 │                                     │
-│  [Avatar] Steve               12:36 │
-│  @Dave you were lucky with that     │
-│  second goal mate                   │
+│              [ Today ]              │  ← Date separator
+│                                     │
+│  [Badge] Steve               12:36  │
+│  @Ali Wilson you were lucky         │  ← @mention highlighted
+│  with that second goal mate         │
 │                                     │
 │  [System] Voting is open!           │
 │                                     │
-│         ↑ Scroll for history ↑      │
+│                                     │
+│       [ ↓ New messages ]            │  ← Banner when scrolled up
 │                                     │
 ├─────────────────────────────────────┤
 │ Type a message...         [@] [Send]│
 └─────────────────────────────────────┘
 ```
 
+**Key UI Patterns (Implemented):**
+
+| Element | Styling | Notes |
+|---------|---------|-------|
+| Background | Doodle pattern on `#ECE5DD` | `/img/chat-bg.webp` tiled at 300×300px |
+| Outgoing bubbles | `bg-[#A855F7]` (purple) + `shadow-sm` | Aligned right, max 80% width |
+| Incoming bubbles | `bg-white` + `shadow-sm` | Aligned left, max 80% width |
+| Bubble corners | `rounded-xl` (12px) | Uniform corners, no "tail" effect |
+| Avatar | 24px club badge | Uses `selected_club.filename` from player data |
+| Avatar position | Bottom-left of last message in group | `showAvatar={isLastInGroup}` |
+| Sender name | 15px semibold purple | First message in group only |
+| Message text | 15px, line-height 1.4 | Inline timestamp after text |
+| Timestamp | 11px, 60% opacity | Inline with text, not absolutely positioned |
+| Reactions | 24px tall chip, 3px overlap below bubble | Emoji + count, shadow background |
+| Date separators | `bg-white text-gray-900` pill | Fully opaque, centered, shadow-sm |
+| System messages | `bg-white/80 text-[#9da3aa]` pill | Centered, shadow-sm, no avatar |
+
+**Date Separator Format:**
+- Today: "Today"
+- Yesterday: "Yesterday"
+- Within 7 days: Day name (e.g., "Friday")
+- Older: "Wed, 3 Dec" format
+
+**Background Pattern:**
+- Image: `/public/img/chat-bg.webp` (tileable doodle pattern)
+- Fallback: `#ECE5DD` (beige) if image fails to load
+- Tile size: `300px × 300px` (adjustable for density)
+
 ### Empty State
 
-When no messages exist:
+When no messages exist (implemented in `ChatContainer.component.tsx`):
+
 ```
 ┌─────────────────────────────────────┐
 │                                     │
-│         💬                          │
+│         [Chat icon - grey]          │
 │                                     │
-│   No chat yet?                      │
-│   Be the first to say something!    │
+│       No chat yet?                  │
+│  Be the first to say something!     │
 │                                     │
-│         [Start chatting]            │
-│                                     │
+├─────────────────────────────────────┤
+│ Type a message...         [@] [Send]│
 └─────────────────────────────────────┘
 ```
+
+**Note:** Uses SVG chat icon (not emoji). Input area is always visible.
 
 ### Chat Loading Pattern
 
@@ -593,22 +631,45 @@ Match Completed → Stats Job Queued → Worker Processes Stats
 
 ### System Message Styling
 
-**Use Tailwind classes (not raw CSS):**
+**Implemented in `ChatMessage.component.tsx`:**
 
 ```tsx
-{/* System message component */}
-<div className="text-gray-500 text-sm text-center bg-gray-100 px-4 py-2 rounded-lg mx-auto max-w-[80%] my-2">
-  {message.content}
+{/* System message - centered, white bg, subtle shadow */}
+<div className="flex justify-center my-2 px-4">
+  <div className="text-[#9da3aa] text-[12px] text-center bg-white/80 px-3 py-1.5 rounded-lg shadow-sm">
+    {message.content}
+  </div>
 </div>
 ```
 
-**Key classes:**
-- `text-gray-500` — Grey text (not `#6b7280`)
-- `text-sm` — Smaller font
+**Key styling:**
+- `text-[#9da3aa]` — Grey text (WhatsApp style)
+- `text-[12px]` — Small font
 - `text-center` — Centered
-- `bg-gray-100` — Light grey background (not `#f3f4f6`)
+- `bg-white/80` — Semi-transparent white background
 - `rounded-lg` — Consistent with app styling
+- `shadow-sm` — Subtle shadow for depth
 - No avatar for system messages
+
+### Date Separator Styling
+
+**Implemented in `ChatContainer.component.tsx`:**
+
+```tsx
+{/* Date separator - matches incoming bubble styling */}
+<div className="flex justify-center my-3">
+  <div className="bg-white text-gray-900 text-[12px] font-medium px-3 py-1 rounded-lg shadow-sm">
+    {formatDateSeparator(message.createdAt)}
+  </div>
+</div>
+```
+
+**Key styling:**
+- `bg-white` — Fully opaque white (same as incoming bubbles)
+- `text-gray-900` — Same text color as incoming bubble text
+- `shadow-sm` — Subtle shadow to pop against doodle background
+- `my-3` — 12px vertical spacing
+- `font-medium` — Slightly bolder for emphasis
 
 ### System Message Helper Function
 

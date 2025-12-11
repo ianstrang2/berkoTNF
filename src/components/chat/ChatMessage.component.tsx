@@ -178,11 +178,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     : 'flex-row pl-2';          // incoming: 8px left padding
 
   // Bubble styling - simple, consistent
+  // Note: bubbles get a subtle shadow to pop against beige background (WhatsApp style)
   const bubbleColor = message.isDeleted 
-    ? 'bg-gray-100 text-gray-400' 
+    ? 'bg-gray-100 text-gray-400 shadow-sm' 
     : isOwnMessage 
-      ? 'bg-[#A855F7] text-white' 
-      : 'bg-white text-gray-900';
+      ? 'bg-[#A855F7] text-white shadow-sm' 
+      : 'bg-white text-gray-900 shadow-sm';
 
   return (
     <div 
@@ -224,7 +225,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           )}
           
           {/* Message text + timestamp on same line when possible */}
-          <div className="text-[15px]" style={{ lineHeight: '1.35' }}>
+          {/* Slightly looser line-height for multi-line paragraphs */}
+          <div className="text-[15px]" style={{ lineHeight: '1.4' }}>
             <span className="break-words whitespace-pre-wrap">
               {renderContent(message.content)}
             </span>

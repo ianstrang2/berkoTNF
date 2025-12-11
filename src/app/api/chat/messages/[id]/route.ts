@@ -30,10 +30,10 @@ export async function DELETE(
         );
       }
       
-      // Get the current player
+      // Get the current player (include is_admin for club admin check)
       const player = await prisma.players.findFirst({
         where: { auth_user_id: user.id, tenant_id: tenantId },
-        select: { player_id: true }
+        select: { player_id: true, is_admin: true }
       });
       
       if (!player) {
@@ -43,13 +43,19 @@ export async function DELETE(
         );
       }
       
-      // Check if user is admin
-      const adminProfile = await prisma.admin_profiles.findFirst({
-        where: { user_id: user.id, tenant_id: tenantId },
-        select: { user_role: true }
-      });
+      // Check if user is admin - PHONE-ONLY MODEL (v5.0):
+      // Club admins: players.is_admin = true (phone auth)
+      // Superadmin: admin_profiles with user_role = 'superadmin' (email auth - platform level)
+      let isAdmin = player.is_admin === true;
       
-      const isAdmin = adminProfile?.user_role === 'admin' || adminProfile?.user_role === 'superadmin';
+      // Also check for superadmin (email auth)
+      if (!isAdmin) {
+        const adminProfile = await prisma.admin_profiles.findFirst({
+          where: { user_id: user.id, tenant_id: tenantId },
+          select: { user_role: true }
+        });
+        isAdmin = adminProfile?.user_role === 'superadmin';
+      }
       
       // Get the message
       const message = await prisma.chat_messages.findFirst({

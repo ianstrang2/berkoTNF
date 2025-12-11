@@ -16,6 +16,47 @@ interface Player {
 
 const MESSAGES_PER_PAGE = 50;
 
+/**
+ * Format date for WhatsApp-style date separator
+ * - Today: "Today"
+ * - Yesterday: "Yesterday"
+ * - Within last 7 days: Day name (e.g., "Friday")
+ * - Older: Full date (e.g., "Wed, 3 Dec")
+ */
+const formatDateSeparator = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  
+  // Reset times to midnight for date comparison
+  const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  const diffDays = Math.floor((today.getTime() - dateDay.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    return 'Today';
+  } else if (diffDays === 1) {
+    return 'Yesterday';
+  } else if (diffDays < 7) {
+    // Day name for within last week
+    return date.toLocaleDateString('en-GB', { weekday: 'long' });
+  } else {
+    // Full date for older messages
+    return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+};
+
+/**
+ * Check if two dates are on the same calendar day
+ */
+const isSameDay = (date1: string, date2: string): boolean => {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  return d1.getFullYear() === d2.getFullYear() &&
+         d1.getMonth() === d2.getMonth() &&
+         d1.getDate() === d2.getDate();
+};
+
 const ChatContainer: React.FC = () => {
   const { profile } = useAuthContext();
   const queryClient = useQueryClient();
@@ -437,10 +478,19 @@ const ChatContainer: React.FC = () => {
     }
   };
 
-  // Loading state - WhatsApp-like background #ECE5DD
+  // Chat background style - WhatsApp-like doodle pattern
+  // backgroundSize controls tile size - smaller = more tiles
+  const chatBgStyle = {
+    backgroundColor: '#ECE5DD',
+    backgroundImage: 'url(/img/chat-bg.webp)',
+    backgroundRepeat: 'repeat' as const,
+    backgroundSize: '300px 300px'  // Adjust this to change tile density
+  };
+
+  // Loading state - WhatsApp-like background
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#ECE5DD]">
+      <div className="flex-1 flex items-center justify-center" style={chatBgStyle}>
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent" />
           <p className="mt-2 text-gray-500">Loading messages...</p>
@@ -452,7 +502,7 @@ const ChatContainer: React.FC = () => {
   // Error state - WhatsApp-like background
   if (error && messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#ECE5DD] p-6">
+      <div className="flex-1 flex items-center justify-center p-6" style={chatBgStyle}>
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
             <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -475,7 +525,7 @@ const ChatContainer: React.FC = () => {
   // Empty state - WhatsApp-like background
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-[#ECE5DD]">
+      <div className="flex flex-col h-full" style={chatBgStyle}>
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center max-w-sm">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
@@ -498,12 +548,13 @@ const ChatContainer: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#ECE5DD]">
-      {/* Messages list - WhatsApp-like background */}
+    <div className="flex flex-col h-full">
+      {/* Messages list - WhatsApp-like doodle background */}
       <div 
         ref={messagesContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto"
+        style={chatBgStyle}
       >
         {/* Load more indicator */}
         {loadingMore && (
@@ -528,6 +579,9 @@ const ChatContainer: React.FC = () => {
             
             const GROUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
             
+            // Check if we need a date separator (different day from previous message)
+            const showDateSeparator = !prevMessage || !isSameDay(message.createdAt, prevMessage.createdAt);
+            
             const isSameAuthorAsPrev = prevMessage && 
               prevMessage.author?.id === message.author?.id &&
               !prevMessage.isSystemMessage && !message.isSystemMessage &&
@@ -538,23 +592,34 @@ const ChatContainer: React.FC = () => {
               !nextMessage.isSystemMessage && !message.isSystemMessage &&
               (new Date(nextMessage.createdAt).getTime() - new Date(message.createdAt).getTime()) < GROUP_WINDOW_MS;
             
-            const isFirstInGroup = !isSameAuthorAsPrev;
+            // If there's a date separator, this is always first in group
+            const isFirstInGroup = !isSameAuthorAsPrev || showDateSeparator;
             const isLastInGroup = !isSameAuthorAsNext;
             
             return (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                currentPlayerId={currentPlayerId || 0}
-                isAdmin={profile.isAdmin}
-                onReact={handleReact}
-                onDelete={handleDelete}
-                playerMap={playerMap}
-                isFirstInGroup={isFirstInGroup}
-                isLastInGroup={isLastInGroup}
-                showAvatar={isLastInGroup}
-                showName={isFirstInGroup}
-              />
+              <React.Fragment key={message.id}>
+                {/* Date separator - matches incoming bubble styling */}
+                {showDateSeparator && (
+                  <div className="flex justify-center my-3">
+                    <div className="bg-white text-gray-900 text-[12px] font-medium px-3 py-1 rounded-lg shadow-sm">
+                      {formatDateSeparator(message.createdAt)}
+                    </div>
+                  </div>
+                )}
+                
+                <ChatMessage
+                  message={message}
+                  currentPlayerId={currentPlayerId || 0}
+                  isAdmin={profile.isAdmin}
+                  onReact={handleReact}
+                  onDelete={handleDelete}
+                  playerMap={playerMap}
+                  isFirstInGroup={isFirstInGroup}
+                  isLastInGroup={isLastInGroup}
+                  showAvatar={isLastInGroup}
+                  showName={isFirstInGroup}
+                />
+              </React.Fragment>
             );
           })}
         </div>
