@@ -176,6 +176,7 @@ export async function GET(request: NextRequest) {
           is_system_message,
           created_at,
           deleted_at,
+          deleted_by_player_id,
           author_player_id,
           players!chat_messages_author_player_id_fkey (
             player_id,
@@ -246,8 +247,9 @@ export async function GET(request: NextRequest) {
         
         return {
           id: m.id,
-          content: m.deleted_at ? '[This message was deleted]' : m.content,
+          content: m.deleted_at ? '' : m.content, // Empty for deleted, UI handles display text
           isDeleted: !!m.deleted_at,
+          deletedByPlayerId: m.deleted_by_player_id || null,
           isSystemMessage: m.is_system_message,
           author: player ? {
             id: player.player_id,

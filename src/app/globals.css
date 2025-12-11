@@ -135,6 +135,21 @@ html {
   animation: scale-in 0.3s ease-out;
 }
 
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
 /* SweetAlert2 gradient icon styling for modals */
 .swal2-icon.swal2-icon-custom-gradient {
   border-color: transparent !important;

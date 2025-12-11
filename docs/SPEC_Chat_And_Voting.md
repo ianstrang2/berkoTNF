@@ -146,8 +146,14 @@ Single global chat stream for the entire club. Replaces WhatsApp group.
 - Deleted messages (picker disabled)
 
 **Deleted messages:**
-- Existing reactions are hidden (not displayed under "[This message was deleted]")
+- Existing reactions are hidden (not displayed)
 - Reactions are **hard-deleted** in the same transaction as the soft-delete (see Message Deletion section)
+
+**Viewing who reacted (implemented Dec 2025):**
+- Single tap on reaction chips → opens "Who Reacted" bottom sheet modal
+- Shows each emoji with list of player names
+- "You" shown in purple if current user reacted
+- Modal positioned above bottom navigation
 
 ### Message Deletion
 
@@ -157,9 +163,18 @@ Single global chat stream for the entire club. Replaces WhatsApp group.
 | Admin (any message) | ✅ | No limit |
 
 - **No editing** - Prevents trust issues, keeps chat authentic
-- Both player self-delete and admin delete show: "[This message was deleted]"
+- **Personalized text (implemented Dec 2025):**
+  - Self-delete: "You deleted this message"
+  - Others deleted: "This message was deleted"
 - Keeps conversation flow intact (replies still make sense)
 - **Audit trail:** `deleted_by_player_id` tracks who deleted (admin's player_id or self)
+
+**Deleted Message UI (implemented Dec 2025):**
+- Trash icon with purple→pink gradient
+- Italicized grey text
+- Bubble shrinks to fit content (no empty space)
+- No timestamp, sender name, or avatar shown
+- **Consecutive collapse:** 2+ deleted messages in a row → single "[X messages deleted]" entry
 
 **Why 5-minute window?** People make typos or post something they immediately regret. Longer than 5 mins = it's been read, too late to take back.
 
@@ -241,9 +256,12 @@ await prisma.$transaction([
 | Sender name | 15px semibold purple | First message in group only |
 | Message text | 15px, line-height 1.4 | Inline timestamp after text |
 | Timestamp | 11px, 60% opacity | Inline with text, not absolutely positioned |
-| Reactions | 24px tall chip, 3px overlap below bubble | Emoji + count, shadow background |
+| Reactions | 24px tall chip, 3px overlap below bubble | Tap to see who reacted |
+| Reactions modal | Bottom sheet, z-index 10000 | Above bottom nav, slide-up animation |
 | Date separators | `bg-white text-gray-900` pill | Fully opaque, centered, shadow-sm |
 | System messages | `bg-white/80 text-[#9da3aa]` pill | Centered, shadow-sm, no avatar |
+| Deleted messages | `bg-gray-50` shrink-wrap bubble | Gradient trash icon, italic grey text |
+| Collapsed deletes | Centered pill like system message | "X messages deleted" for consecutive |
 
 **Date Separator Format:**
 - Today: "Today"
@@ -255,6 +273,15 @@ await prisma.$transaction([
 - Image: `/public/img/chat-bg.webp` (tileable doodle pattern)
 - Fallback: `#ECE5DD` (beige) if image fails to load
 - Tile size: `300px × 300px` (adjustable for density)
+
+**Interaction Patterns (WhatsApp-style):**
+| Action | Target | Result |
+|--------|--------|--------|
+| Tap | Message bubble | Opens reaction picker (emoji bar) |
+| Long-press | Message bubble | Opens reaction picker (same as tap) |
+| Tap | Reaction chip | Opens "Who Reacted" modal |
+| Tap emoji in picker | Reaction picker | Adds/removes your reaction |
+| Tap delete icon | Reaction picker | Deletes message (if allowed) |
 
 ### Empty State
 

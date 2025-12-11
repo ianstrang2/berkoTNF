@@ -180,12 +180,7 @@ const MatchListPageContent = () => {
 
   const renderActiveList = () => (
     <div className="space-y-4 max-w-3xl">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-slate-800">Active Matches</h2>
-      </div>
-      
-      {/* Existing match list */}
+      {/* Match list */}
       {active.map(match => (
         <div key={match.upcoming_match_id} className="relative block bg-white hover:shadow-lg transition-shadow duration-300 p-4 rounded-xl shadow-soft-xl border">
           <div className="flex justify-between items-center">

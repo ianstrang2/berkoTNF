@@ -57,6 +57,55 @@ const isSameDay = (date1: string, date2: string): boolean => {
          d1.getDate() === d2.getDate();
 };
 
+/**
+ * Represents either a single message or a collapsed group of deleted messages
+ */
+type MessageOrCollapsed = 
+  | { type: 'message'; message: ChatMessageData }
+  | { type: 'collapsed'; count: number; createdAt: string; id: string };
+
+/**
+ * Process messages to collapse consecutive deleted messages
+ * Groups of 2+ consecutive deleted messages become a single "[X messages deleted]" entry
+ */
+const collapseDeletedMessages = (messages: ChatMessageData[]): MessageOrCollapsed[] => {
+  const result: MessageOrCollapsed[] = [];
+  let i = 0;
+  
+  while (i < messages.length) {
+    const current = messages[i];
+    
+    if (current.isDeleted) {
+      // Count consecutive deleted messages
+      let count = 1;
+      while (i + count < messages.length && messages[i + count].isDeleted) {
+        count++;
+      }
+      
+      if (count >= 2) {
+        // Collapse into single entry
+        result.push({
+          type: 'collapsed',
+          count,
+          createdAt: current.createdAt,
+          id: `collapsed-${current.id}`
+        });
+        i += count;
+      } else {
+        // Single deleted message, show normally
+        result.push({ type: 'message', message: current });
+        i++;
+      }
+    } else {
+      // Normal message
+      result.push({ type: 'message', message: current });
+      i++;
+    }
+  }
+  
+  return result;
+};
+
 const ChatContainer: React.FC = () => {
   const { profile } = useAuthContext();
   const queryClient = useQueryClient();
@@ -250,7 +299,8 @@ const ChatContainer: React.FC = () => {
               return {
                 ...m,
                 isDeleted: !!payload.new.deleted_at,
-                content: payload.new.deleted_at ? '[This message was deleted]' : m.content
+                deletedByPlayerId: payload.new.deleted_by_player_id || null,
+                content: payload.new.deleted_at ? '' : m.content
               };
             }
             return m;
@@ -465,10 +515,16 @@ const ChatContainer: React.FC = () => {
         throw new Error(data.error || 'Failed to delete message');
       }
       
-      // Update optimistically
+      // Update optimistically - include deletedByPlayerId for "You deleted" display
       setMessages(prev => prev.map(m => {
         if (m.id === messageId) {
-          return { ...m, isDeleted: true, content: '[This message was deleted]', reactions: [] };
+          return { 
+            ...m, 
+            isDeleted: true, 
+            deletedByPlayerId: currentPlayerId,
+            content: '', 
+            reactions: [] 
+          };
         }
         return m;
       }));
@@ -571,25 +627,79 @@ const ChatContainer: React.FC = () => {
         )}
         
         {/* Messages - tighter vertical padding */}
+        {/* Pre-process to collapse consecutive deleted messages */}
         <div className="py-1">
-          {messages.map((message, index) => {
+          {collapseDeletedMessages(messages).map((item, index, items) => {
+            // Handle collapsed deleted messages
+            if (item.type === 'collapsed') {
+              const prevItem = index > 0 ? items[index - 1] : null;
+              const prevCreatedAt = prevItem?.type === 'message' 
+                ? prevItem.message.createdAt 
+                : prevItem?.createdAt;
+              const showDateSeparator = !prevCreatedAt || !isSameDay(item.createdAt, prevCreatedAt);
+              
+              return (
+                <React.Fragment key={item.id}>
+                  {showDateSeparator && (
+                    <div className="flex justify-center my-3">
+                      <div className="bg-white text-gray-900 text-[12px] font-medium px-3 py-1 rounded-lg shadow-sm">
+                        {formatDateSeparator(item.createdAt)}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-center my-2">
+                    <div className="inline-flex items-center gap-1.5 bg-gray-50 text-gray-400 text-[14px] italic px-3 py-1.5 rounded-xl shadow-sm">
+                      {/* Trash icon with gradient */}
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                        <defs>
+                          <linearGradient id="collapsedDeleteIconGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#7c3aed" />
+                            <stop offset="100%" stopColor="#ec4899" />
+                          </linearGradient>
+                        </defs>
+                        <path 
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                          stroke="url(#collapsedDeleteIconGradient)" 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      {item.count} messages deleted
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            }
+            
+            // Normal message handling
+            const message = item.message;
+            
             // Calculate grouping: messages from same author within 5 minutes
-            const prevMessage = index > 0 ? messages[index - 1] : null;
-            const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+            const prevItem = index > 0 ? items[index - 1] : null;
+            const nextItem = index < items.length - 1 ? items[index + 1] : null;
+            
+            const prevMessage = prevItem?.type === 'message' ? prevItem.message : null;
+            const nextMessage = nextItem?.type === 'message' ? nextItem.message : null;
             
             const GROUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
             
             // Check if we need a date separator (different day from previous message)
-            const showDateSeparator = !prevMessage || !isSameDay(message.createdAt, prevMessage.createdAt);
+            const prevCreatedAt = prevItem?.type === 'message' 
+              ? prevItem.message.createdAt 
+              : prevItem?.createdAt;
+            const showDateSeparator = !prevCreatedAt || !isSameDay(message.createdAt, prevCreatedAt);
             
             const isSameAuthorAsPrev = prevMessage && 
               prevMessage.author?.id === message.author?.id &&
               !prevMessage.isSystemMessage && !message.isSystemMessage &&
+              !prevMessage.isDeleted && !message.isDeleted &&
               (new Date(message.createdAt).getTime() - new Date(prevMessage.createdAt).getTime()) < GROUP_WINDOW_MS;
             
             const isSameAuthorAsNext = nextMessage && 
               nextMessage.author?.id === message.author?.id &&
               !nextMessage.isSystemMessage && !message.isSystemMessage &&
+              !nextMessage.isDeleted && !message.isDeleted &&
               (new Date(nextMessage.createdAt).getTime() - new Date(message.createdAt).getTime()) < GROUP_WINDOW_MS;
             
             // If there's a date separator, this is always first in group
@@ -616,8 +726,8 @@ const ChatContainer: React.FC = () => {
                   playerMap={playerMap}
                   isFirstInGroup={isFirstInGroup}
                   isLastInGroup={isLastInGroup}
-                  showAvatar={isLastInGroup}
-                  showName={isFirstInGroup}
+                  showAvatar={isLastInGroup && !message.isDeleted}
+                  showName={isFirstInGroup && !message.isDeleted}
                 />
               </React.Fragment>
             );
