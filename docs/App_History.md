@@ -1879,9 +1879,80 @@ Modified Files (20+):
 
 ---
 
-**Document Version:** 1.2.0  
-**Last Updated:** December 10, 2025  
-**Status:** Complete development history through Phase 11  
+### Phase 11.1: Voting UI Polish & Award Icons (December 12, 2025)
+
+**Motivation:** Complete voting feature with proper award display and icons
+
+**What We Built:**
+
+**1. VotingResults as Standalone Dashboard Section:**
+- Moved from nested inside MatchReport to standalone card
+- Matches styling of Current Form, Current Standings, Records & Achievements
+- Circular images (56px) with pink→purple gradient border
+- Uses `useVotingResults` shared React Query hook
+
+**2. Award Icons Next to Player Names:**
+Created 5 PNG icons with transparent backgrounds (40×40px):
+- `icon_on_fire.png` - On Fire! status
+- `icon_reaper.png` - Grim Reaper status
+- `icon_mom.png` - Man of the Match award
+- `icon_donkey.png` - Donkey of the Day award
+- `icon_possum.png` - Missing in Action award
+
+**Icons appear in:**
+- ✅ Match Report (team player lists)
+- ✅ Stats tables (half-season and season, points and goals views)
+- ❌ Dashboard sections (Current Form, Current Standings, Records & Achievements) - intentionally excluded
+
+**3. Match Report Copy Text Enhancement:**
+- Added MATCH AWARDS section to copy/share text
+- Appears before CURRENT STANDINGS
+- Lists award winners (no vote counts)
+- Only appears after voting closes with winners
+
+**4. React Query Optimization:**
+- Created `useVotingResults` shared hook
+- Used by VotingResults, MatchReport, CurrentHalfSeason, OverallSeasonPerformance
+- Automatic deduplication: 1 API call shared across all consumers
+- 5-minute cache stale time
+
+**5. Voting Close Bug Fix:**
+- Fixed lazy close not tallying votes properly
+- Created shared `closeSurvey()` function in `src/lib/voting/closeSurvey.ts`
+- Added background job logging for `voting_close` operations
+- Visible in Superadmin System Health panel
+
+**6. VotingBanner Disabled State:**
+- Button becomes gray when voting closes
+- Text changes to "Closed"
+- Prevents clicking after expiry
+
+**Files Created/Modified:**
+```
+New:
+├── src/hooks/queries/useVotingResults.hook.ts
+├── src/lib/voting/closeSurvey.ts
+├── public/img/player-status/icon_*.png (5 icons)
+
+Modified:
+├── src/components/voting/VotingResults.component.tsx (standalone)
+├── src/components/voting/VotingBanner.component.tsx (disabled state)
+├── src/components/voting/VotingModal.component.tsx (circular images)
+├── src/components/dashboard/MatchReport.component.tsx (icons, copy text)
+├── src/components/dashboard/CurrentForm.component.tsx (image styling)
+├── src/components/dashboard/CurrentFormAndStandings.component.tsx (removed icons)
+├── src/components/tables/CurrentHalfSeason.component.tsx (icons)
+├── src/components/tables/OverallSeasonPerformance.component.tsx (icons)
+├── src/app/superadmin/system-health/page.tsx (voting_close display)
+```
+
+**Outcome:** Complete voting feature with polished UI, proper icons, and optimized data fetching
+
+---
+
+**Document Version:** 1.3.0  
+**Last Updated:** December 12, 2025  
+**Status:** Complete development history through Phase 11.1  
 **Next Update:** After RSVP/Billing implementation
 
 ---

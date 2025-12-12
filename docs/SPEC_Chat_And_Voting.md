@@ -1,9 +1,16 @@
 # Chat & Voting Specification
 
-**Version:** 1.2.0  
+**Version:** 1.3.0  
 **Last Updated:** December 12, 2025  
 **Status:** Implemented  
 **Dependencies:** Existing background job worker (Render), Supabase Realtime (enabled)
+
+**Recent Updates (v1.3.0):**
+- Added inline PNG icons for player names (transparent backgrounds)
+- VotingResults as standalone dashboard section
+- Match report copy text includes MATCH AWARDS section
+- Stats tables show icons (half-season, season)
+- Shared `useVotingResults` React Query hook
 
 ---
 
@@ -1533,53 +1540,59 @@ export function useVotingResults(): UseQueryResult<VotingResultsData | null> {
 
 ---
 
-## Appendix: Icon Assets Required
+## Appendix: Icon Assets (COMPLETE ✅)
 
-### Emojis vs SVG Icons (Per SPEC_Modals.md)
+### Icon Strategy
 
-**❌ NEVER use emojis in UI elements** (buttons, modals, badges, icons next to names)
+**Two types of icons:**
+1. **Large circular images** (56px) - For section headers (Match Awards, Current Form Grim Reaper/On Fire)
+2. **Small inline icons** (20px) - Next to player names in lists/tables
 
-**✅ Emojis OK in these contexts:**
-- System messages in chat (e.g., "📊 Match report is live!") — these are chat content
-- Chat reactions (👍 😂 🔥 ❤️ 😮 👎) — user content, not UI chrome
+**Emojis OK in these contexts ONLY:**
+- System messages in chat (e.g., "📊 Match report is live!")
+- Chat reactions (👍 😂 🔥 ❤️ 😮 👎)
+- Copy/share text (💪 🫏 🦝 🔥 💀)
 
-**Must be SVG:**
-- Award icons next to player names (MoM, DoD, MiA)
-- Icons in voting modal category headers
-- Any icon in buttons, badges, or UI chrome
+### Image Assets
 
-### Icon & Image Assets (COMPLETE ✅)
+**Large images (with colored backgrounds) - for section headers:**
 
-| Status | SVG Component | PNG Image | Usage |
-|--------|---------------|-----------|-------|
-| **On Fire** (streak) | `FlameIcon.component.tsx` | `on-fire.png` | Hot streak indicator |
-| **Man of the Match** | `StrongmanIcon.component.tsx` | `mom.png` | MoM award |
-| **Donkey of the Day** | `DonkeyIcon.component.tsx` | `donkey.png` | DoD award |
-| **Missing in Action** | `PossumIcon.component.tsx` | `possum.png` | MiA award |
-| **Grim Reaper** | `GrimReaperIcon.component.tsx` | `reaper.png` | Loss streak (existing) |
+| Image | File | Usage |
+|-------|------|-------|
+| On Fire | `on-fire.png` | Current Form section header |
+| Grim Reaper | `reaper.png` | Current Form section header |
+| Man of the Match | `mom.png` | Match Awards section, Voting Modal |
+| Donkey of the Day | `donkey.png` | Match Awards section, Voting Modal |
+| Missing in Action | `possum.png` | Match Awards section, Voting Modal |
 
-**File Locations:**
-- SVGs: `src/components/icons/`
-- PNGs: `public/img/player-status/`
+**Small icons (transparent backgrounds) - for inline use:**
 
-**SVG ViewBox:** All use `0 0 24 24` (scales to any size, crisp at 16px-48px)
+| Icon | File | Size | Usage |
+|------|------|------|-------|
+| On Fire | `icon_on_fire.png` | 40×40px | Next to player names |
+| Grim Reaper | `icon_reaper.png` | 40×40px | Next to player names |
+| Man of the Match | `icon_mom.png` | 40×40px | Next to player names |
+| Donkey of the Day | `icon_donkey.png` | 40×40px | Next to player names |
+| Missing in Action | `icon_possum.png` | 40×40px | Next to player names |
 
-### Icon Migration Checklist
+**File Location:** All in `public/img/player-status/`
 
-When implementing, migrate from old `FireIcon` (strongman) to new icons:
+### Where Icons Appear
 
-**Replace `FireIcon` imports with `FlameIcon` for "On Fire" streak:**
-- [ ] `MatchReport.component.tsx` - On Fire player display
-- [ ] `UpcomingMatchCard.component.tsx` - Player pool fire indicator
-- [ ] `CurrentForm.component.tsx` - On Fire section
-- [ ] Any other components using `FireIcon` for streak
+**Inline icons (20px, `w-5 h-5`) shown in:**
+- ✅ Match Report team player lists
+- ✅ Half-Season Stats tables (points & goals)
+- ✅ Season Stats tables (points & goals)
 
-**Add new award icons where needed:**
-- [ ] `StrongmanIcon` - For Man of the Match award
-- [ ] `DonkeyIcon` - For Donkey of the Day award
-- [ ] `PossumIcon` - For Missing in Action award
+**Inline icons NOT shown in:**
+- ❌ Current Form section
+- ❌ Current Standings section
+- ❌ Records & Achievements section
 
-**Note:** The old `FireIcon.component.tsx` can be kept as an alias to `FlameIcon` for backward compatibility, or deprecated after migration.
+**Large circular images (56px, `w-14 h-14`) shown in:**
+- ✅ Match Awards section (VotingResults)
+- ✅ Current Form (Grim Reaper/On Fire headers)
+- ✅ Voting Modal category headers
 
 ---
 
