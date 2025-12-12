@@ -599,6 +599,11 @@ export default function SystemHealthPage() {
                                       🎭 Profiles
                                     </span>
                                   )}
+                                  {job.job_type === 'voting_close' && (
+                                    <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded text-xs font-medium" title="Voting survey closed and tallied">
+                                      🗳️ Voting Close
+                                    </span>
+                                  )}
                                 </div>
                                 {job.job_payload.matchId && (
                                   <span className="text-xs text-slate-500">
@@ -684,6 +689,39 @@ export default function SystemHealthPage() {
                                               </div>
                                             )}
                                           </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </details>
+                                ) : job.job_type === 'voting_close' && job.results ? (
+                                  <details className="cursor-pointer">
+                                    <summary className={job.status === 'failed' ? 'text-red-600 hover:text-red-800 font-medium' : 'text-green-600 hover:text-green-800'}>
+                                      {job.results.votes_tallied || 0} votes tallied • {job.results.awards_created || 0} awards
+                                    </summary>
+                                    <div className="mt-2 p-3 bg-slate-50 rounded text-xs space-y-1 max-h-64 overflow-y-auto">
+                                      <div className={`flex items-start gap-2 ${job.results.system_message_posted ? 'text-green-600' : 'text-slate-400'}`}>
+                                        <span className="font-mono font-semibold">{job.results.system_message_posted ? '✓' : '○'}</span>
+                                        <div className="font-medium">System message posted</div>
+                                      </div>
+                                      <div className="text-slate-500">
+                                        Categories: {job.results.categories_processed || 0}
+                                      </div>
+                                      {job.results.results_summary && (
+                                        <div className="mt-2 pt-2 border-t border-slate-200">
+                                          <div className="font-semibold text-pink-700 mb-1">Results Summary</div>
+                                          {Object.entries(job.results.results_summary).map(([category, winners]: [string, any]) => (
+                                            <div key={category} className="text-slate-600">
+                                              <span className="capitalize">{category}:</span> {Array.isArray(winners) && winners.length > 0 ? `Player IDs ${winners.join(', ')}` : 'No winner'}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {job.results.errors && job.results.errors.length > 0 && (
+                                        <div className="mt-2 p-2 bg-red-50 rounded">
+                                          <div className="text-red-700 font-semibold text-xs mb-1">Errors:</div>
+                                          {job.results.errors.map((err: string, errIdx: number) => (
+                                            <div key={errIdx} className="text-red-600 text-xs">• {err}</div>
+                                          ))}
                                         </div>
                                       )}
                                     </div>

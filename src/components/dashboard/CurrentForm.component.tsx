@@ -274,51 +274,73 @@ const CurrentForm: React.FC = () => {
              <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
          <h5 className="mb-0">Current Form</h5>
        </div>
-      <div className="flex-auto p-4">
-        {/* Reaper and On Fire Status */}
+      <div className="flex-auto px-4 pb-4 pt-2">
+        {/* Reaper and On Fire Status - vertically stacked, left-aligned like Match Awards */}
         {((showGrimReaperConfig && milestonesData?.grim_reaper_player_id) || (showOnFireConfig && milestonesData?.on_fire_player_id)) && (
           <div className="mb-6">
-            <div className="flex justify-center gap-8">
+            <div className="space-y-4">
               {showGrimReaperConfig && milestonesData?.grim_reaper_player_id && (
-                <div className="text-center">
-                  <img 
-                    src="/img/player-status/reaper.png" 
-                    alt="The Grim Reaper" 
-                    className="w-24 h-24 mx-auto mb-2 rounded-lg shadow-soft-md"
-                  />
-                  <p className="text-sm text-slate-700">
-                    {allPlayers.find(p => p.id === milestonesData.grim_reaper_player_id) ? (
-                      <Link 
-                        href={`/player/profiles/${milestonesData.grim_reaper_player_id}`} 
-                        className="hover:underline"
-                      >
-                        {allPlayers.find(p => p.id === milestonesData.grim_reaper_player_id)?.name}
-                      </Link>
-                    ) : (
-                      'Unknown Player'
-                    )}
-                  </p>
+                <div className="flex items-start gap-3">
+                  {/* Circular image with gradient border */}
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-purple-700 p-[2px] flex-shrink-0">
+                    <div className="w-full h-full rounded-full overflow-hidden">
+                      <img 
+                        src="/img/player-status/reaper.png" 
+                        alt="Grim Reaper" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <h6 className="font-semibold text-slate-800 text-sm mb-1">Grim Reaper</h6>
+                    <div className="space-y-0.5">
+                      <div className="text-sm text-slate-600">
+                        {allPlayers.find(p => p.id === milestonesData.grim_reaper_player_id) ? (
+                          <Link 
+                            href={`/player/profiles/${milestonesData.grim_reaper_player_id}`} 
+                            className="hover:underline"
+                          >
+                            {allPlayers.find(p => p.id === milestonesData.grim_reaper_player_id)?.name}
+                          </Link>
+                        ) : (
+                          'Unknown Player'
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
               {showOnFireConfig && milestonesData?.on_fire_player_id && (
-                <div className="text-center">
-                  <img 
-                    src="/img/player-status/on-fire.png" 
-                    alt="On Fire" 
-                    className="w-24 h-24 mx-auto mb-2 rounded-lg shadow-soft-md"
-                  />
-                  <p className="text-sm text-slate-700">
-                    {allPlayers.find(p => p.id === milestonesData.on_fire_player_id) ? (
-                      <Link 
-                        href={`/player/profiles/${milestonesData.on_fire_player_id}`} 
-                        className="hover:underline"
-                      >
-                        {allPlayers.find(p => p.id === milestonesData.on_fire_player_id)?.name}
-                      </Link>
-                    ) : (
-                      'Unknown Player'
-                    )}
-                  </p>
+                <div className="flex items-start gap-3">
+                  {/* Circular image with gradient border */}
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-purple-700 p-[2px] flex-shrink-0">
+                    <div className="w-full h-full rounded-full overflow-hidden">
+                      <img 
+                        src="/img/player-status/on-fire.png" 
+                        alt="On Fire!" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <h6 className="font-semibold text-slate-800 text-sm mb-1">On Fire!</h6>
+                    <div className="space-y-0.5">
+                      <div className="text-sm text-slate-600">
+                        {allPlayers.find(p => p.id === milestonesData.on_fire_player_id) ? (
+                          <Link 
+                            href={`/player/profiles/${milestonesData.on_fire_player_id}`} 
+                            className="hover:underline"
+                          >
+                            {allPlayers.find(p => p.id === milestonesData.on_fire_player_id)?.name}
+                          </Link>
+                        ) : (
+                          'Unknown Player'
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -369,7 +391,7 @@ const CurrentForm: React.FC = () => {
                   </h6>
                   <p className="mt-1 mb-1 leading-normal text-sm text-slate-600">{renderContentWithLinks(item.content)}</p>
                   {item.subtext && (
-                    <p className="mb-2 leading-normal text-xs text-slate-500">{item.subtext}</p>
+                    <p className="mb-1 leading-normal text-xs text-slate-500">{item.subtext}</p>
                   )}
                   
                   {/* Colored badges */}

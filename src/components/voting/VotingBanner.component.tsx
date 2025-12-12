@@ -48,6 +48,9 @@ const VotingBanner: React.FC<VotingBannerProps> = ({ onVoteClick }) => {
     return () => clearInterval(timer);
   }, [surveyData?.survey?.votingClosesAt]);
 
+  // Check if voting is closed
+  const isVotingClosed = timeRemaining === 'Closed';
+
   // Don't show if loading, no active survey, or user not eligible
   if (isLoading || !surveyData?.hasActiveSurvey || !surveyData?.isEligible) {
     return null;
@@ -78,12 +81,17 @@ const VotingBanner: React.FC<VotingBannerProps> = ({ onVoteClick }) => {
             </div>
           </button>
           
-          <button
-            onClick={onVoteClick}
-            className="px-4 py-2 bg-gradient-to-br from-pink-500 to-purple-700 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-lg active:scale-95 transition-all"
-          >
-            {hasVoted ? 'Change Vote' : 'Vote Now'}
-          </button>
+        <button
+          onClick={onVoteClick}
+          disabled={isVotingClosed}
+          className={`px-4 py-2 font-semibold text-sm rounded-lg shadow-md transition-all ${
+            isVotingClosed
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-gradient-to-br from-pink-500 to-purple-700 text-white hover:shadow-lg active:scale-95'
+          }`}
+        >
+          {isVotingClosed ? 'Closed' : hasVoted ? 'Change Vote' : 'Vote Now'}
+        </button>
         </div>
       </div>
     </div>

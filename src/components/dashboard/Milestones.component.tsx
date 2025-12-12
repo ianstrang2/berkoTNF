@@ -412,7 +412,7 @@ const Milestones: React.FC = () => {
              <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
          <h5 className="mb-0">Current Standings</h5>
        </div>
-      <div className="flex-auto p-4">
+      <div className="flex-auto px-4 pb-4 pt-2">
         <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
           <div className="w-auto relative before:absolute before:left-4 before:top-0 before:h-full before:border-r-2 before:border-solid before:border-slate-100 before:content-[''] lg:before:-ml-px">
             {timelineItems.map((item, index) => (

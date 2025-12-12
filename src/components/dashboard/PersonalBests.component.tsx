@@ -280,7 +280,7 @@ const RecordsAndAchievements: React.FC = () => {
              <div className="border-black/12.5 dark:border-white/12.5 rounded-t-2xl border-b-0 border-solid p-4">
         <h5 className="mb-0 dark:text-white">Records & Achievements</h5>
       </div>
-      <div className="flex-auto p-4">
+      <div className="flex-auto px-4 pb-4 pt-2">
         <div className="overflow-x-auto px-0 pt-0 pb-2 ps">
           <div className="w-auto relative before:absolute before:left-4 before:top-0 before:h-full before:border-r-2 before:border-solid before:border-slate-100 dark:before:border-slate-700 before:content-[''] lg:before:-ml-px">
             {timelineItems.map((item, index) => (
@@ -340,7 +340,7 @@ const RecordsAndAchievements: React.FC = () => {
                       item.player
                     )}
                   </h6>
-                  <p className="mt-1 mb-2 leading-normal text-sm text-slate-700 dark:text-slate-400">{item.content}</p>
+                  <p className="mt-1 mb-1 leading-normal text-sm text-slate-700 dark:text-slate-400">{item.content}</p>
                   
                   {/* Badge for achievement type */}
                   <span className={`py-1.5 px-3 text-xxs rounded-lg inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white 

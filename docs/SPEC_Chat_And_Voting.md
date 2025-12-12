@@ -1,9 +1,9 @@
 # Chat & Voting Specification
 
-**Version:** 1.1.0  
-**Last Updated:** December 8, 2025  
-**Status:** Ready for Implementation  
-**Dependencies:** Existing background job worker (Render), Supabase Realtime (to be enabled)
+**Version:** 1.2.0  
+**Last Updated:** December 12, 2025  
+**Status:** Implemented  
+**Dependencies:** Existing background job worker (Render), Supabase Realtime (enabled)
 
 ---
 
@@ -26,6 +26,7 @@ Add global team chat and post-match voting to increase player engagement. Chat r
 7. [API Routes](#7-api-routes)
 8. [Admin Configuration](#8-admin-configuration)
 9. [UI Components](#9-ui-components)
+9.5. [React Query Hooks (Voting)](#95-react-query-hooks-voting)
 10. [Implementation Order](#10-implementation-order)
 11. [Acceptance Criteria](#11-acceptance-criteria)
 
@@ -491,7 +492,8 @@ Accessed via "Vote Now" banner on Dashboard/Home.
   - MoM: `mom.png`
   - DoD: `donkey.png` 
   - MiA: `possum.png`
-- Display in circular frame: 80px image with pink→purple gradient border + white inner circle
+- Display in circular frame: 80px (`w-20 h-20`) with pink→purple gradient border (2px)
+- Image fills circle using `object-cover` (no white inner background)
 
 **Player Pills:**
 - 2-column grid (`grid-cols-2 gap-2`)
@@ -561,35 +563,84 @@ When voting is active AND current user is eligible to vote:
 - Text vertically aligned with icon and button using flexbox
 - Positioned: Below match score, above match details on match report
 
-### Awards Section in Match Report
+**Disabled state (after voting closes):**
+- Time text changes to "Closed"
+- Button becomes gray (`bg-gray-300 text-gray-500`) with text "Closed"
+- Both clickable areas are disabled (`disabled={true}`)
+- Banner remains visible briefly until page refresh clears it
 
-After voting closes, display results:
+### Match Awards Section (Standalone Dashboard Component)
+
+After voting closes, display results as a **standalone dashboard section** (not nested inside MatchReport).
+
+**Component:** `VotingResults.component.tsx`
+
+**Location in Dashboard:** After MatchReport, before CurrentForm
+
+**Styling:** Matches Current Standings / Current Form / Records & Achievements pattern:
+- Standard card container (`shadow-soft-xl rounded-2xl`)
+- Header: `<h5 className="mb-0">Match Awards</h5>` (no emoji)
+- Content padding: `px-4 pb-4 pt-2` (reduced header-to-content spacing)
+
+**Layout:**
 
 ```
 ┌─────────────────────────────────────┐
-│ 🏆 Match Awards                     │
+│ Match Awards                        │  ← Standard h5 header
 ├─────────────────────────────────────┤
 │                                     │
-│  💪 Man of the Match                │
-│     Steve (7 votes)                 │
+│ [🏆 IMG]  Man of the Match          │  ← Circular image (56px) with gradient border
+│           Cal McKay         4 votes │  ← Winner name left, vote count right
+│           Greg Dormer       4 votes │
 │                                     │
-│  🫏 Donkey of the Day               │
-│     Dave (5 votes)                  │
-│     Mike (5 votes) ← Co-winner      │
+│ [🫏 IMG]  Donkey of the Day         │
+│           John Graham       3 votes │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
-**Location:** Inside MatchReport component, beneath Milestones, above "Open Chat" button.
+**Category Images:**
+- Use circular images (56px / `w-14 h-14`) with pink→purple gradient border (2px)
+- Images from `/img/player-status/`: `mom.png`, `donkey.png`, `possum.png`
+- Images fill circle using `object-cover` (matches Voting Modal and Current Form styling)
 
-**Visibility:** Only shows after voting closes. Hidden during active voting.
+**Data source:** 
+- Uses shared `useVotingResults` hook (React Query) for automatic caching/deduplication
+- Fetches from `/api/voting/results/{matchId}` 
+- Same data is used by MatchReport for copy text generation
 
-**Data source:** Query `player_awards` table separately (not embedded in `aggregated_match_report`). This avoids needing a second background job when voting closes. Query is trivial (<1ms for ~6 rows with index).
+**Visibility:** Only shows after voting closes AND there are winners. Hidden during active voting.
 
 **No-winner handling:**
 - If a category has zero votes (everyone skipped), **omit that category entirely** from the display
-- If ALL categories have zero votes, hide the entire Awards section (don't show empty block)
+- If ALL categories have zero votes, hide the entire section (component returns `null`)
 - This keeps the UI clean — no awkward "No winner" placeholders
+
+### Match Report Copy Text (Share/Copy Button)
+
+The match report copy text now includes a **MATCH AWARDS** section when voting results are available.
+
+**Section order in copy text:**
+1. Match score and teams
+2. MATCH AWARDS (new - only if voting closed with winners)
+3. CURRENT STANDINGS
+4. CURRENT FORM
+5. RECORDS & ACHIEVEMENTS
+
+**Format:**
+```
+--- MATCH AWARDS ---
+- Man of the Match: Cal McKay, Greg Dormer
+- Donkey of the Day: John Graham
+- Missing in Action: Simon Gill
+```
+
+**Rules:**
+- Only appears if voting is closed and there are winners
+- Categories without winners are omitted
+- Multiple co-winners shown as comma-separated list
+- No vote counts in copy text (clean for sharing)
+- Uses same `useVotingResults` hook as VotingResults component (no duplicate API call)
 
 ---
 
@@ -1285,6 +1336,45 @@ src/app/player/
 
 ---
 
+## 9.5 React Query Hooks (Voting)
+
+### useVotingResults Hook
+
+**File:** `src/hooks/queries/useVotingResults.hook.ts`
+
+Shared hook for fetching voting results. Used by multiple components to avoid duplicate API calls.
+
+**Consumers:**
+1. `VotingResults.component.tsx` - Dashboard section displaying awards
+2. `MatchReport.component.tsx` - For copy text generation
+
+**Benefits:**
+- React Query deduplication - only ONE network request even when multiple components use the hook
+- Automatic caching (5 minute stale time)
+- Shared data between VotingResults display and MatchReport copy text
+
+**Hook signature:**
+```typescript
+export function useVotingResults(): UseQueryResult<VotingResultsData | null> {
+  const { profile } = useAuth();
+  const { data: matchData } = useMatchReport();
+  const matchId = matchData?.matchInfo?.match_id;
+  
+  return useQuery({
+    queryKey: ['votingResults', profile.tenantId, matchId],
+    queryFn: () => fetchVotingResults(matchId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!matchId
+  });
+}
+```
+
+**Performance impact:**
+- Before: 2 network requests to `/voting/results/{matchId}` (VotingResults + MatchReport)
+- After: 1 network request, data shared via React Query cache
+
+---
+
 ## 10. Implementation Order
 
 ### Phase 1: Foundation (Week 1)
@@ -1761,18 +1851,27 @@ export async function GET(request: NextRequest) {
     }
   });
   
-  // 2. Close each — closeSurveyAndTally handles tally + system message
+  // 2. Close each — closeSurvey handles tally + system message + logging
   let closedCount = 0;
   for (const survey of expiredSurveys) {
-    const closed = await closeSurveyAndTally(survey.id, survey.tenant_id);
-    if (closed) closedCount++;
+    const result = await closeSurvey(supabase, survey, now.toISOString());
+    await logBackgroundJob(...); // Log to background_job_status
+    closedCount++;
   }
   
   return NextResponse.json({ closed: closedCount });
 }
 ```
 
-**Note:** `closeSurveyAndTally` is the single source of truth for closing logic. It handles: DB update, tally, awards insertion, AND system message. Both cron and lazy evaluation call it directly.
+**Note:** `closeSurvey` (in `src/lib/voting/closeSurvey.ts`) is the single source of truth for closing logic. It handles: DB update, tally, awards insertion, AND system message. Both cron and lazy evaluation call it directly.
+
+**Background Job Logging:**
+Both cron and lazy close log to `background_job_status` table with:
+- `job_type`: `'voting_close'`
+- `job_payload`: `{ surveyId, matchId, triggeredBy: 'cron' | 'lazy_close' }`
+- `results`: `{ categories_processed, votes_tallied, awards_created, results_summary, system_message_posted, errors }`
+
+This allows visibility in the Superadmin System Health panel alongside other background jobs.
 
 ### Lazy Evaluation (On Access)
 
@@ -1784,7 +1883,8 @@ const survey = await getSurveyForMatch(matchId, tenantId);
 
 if (survey?.is_open && new Date(survey.voting_closes_at) < new Date()) {
   // Survey expired but not yet closed by cron — close it now
-  await closeSurveyAndTally(survey.id, tenantId);
+  await closeSurvey(supabase, survey, now.toISOString());
+  await logBackgroundJob(..., { triggeredBy: 'lazy_close' });
 }
 ```
 
@@ -1792,31 +1892,44 @@ if (survey?.is_open && new Date(survey.voting_closes_at) < new Date()) {
 
 ### Idempotent Closing (CRITICAL)
 
-`closeSurveyAndTally()` is the **single source of truth** for closing surveys. It handles:
-1. DB update (set `is_open = false`)
-2. Vote tallying
-3. Award insertion
-4. System message posting
+`closeSurvey()` (in `src/lib/voting/closeSurvey.ts`) is the **single source of truth** for closing surveys. It handles:
+1. Fetch all votes for the survey
+2. Tally votes per category, determine winners (including co-winners)
+3. Insert `player_awards` records
+4. Update survey: `is_open = false`, `closed_at`, `results` JSON
+5. Post system message to chat
 
 Both cron and lazy evaluation call this function directly.
 
+**File:** `src/lib/voting/closeSurvey.ts`
+
 ```typescript
-async function closeSurveyAndTally(surveyId: string, tenantId: string): Promise<boolean> {
-  // Use WHERE is_open = true to prevent double-processing
-  const result = await prisma.match_surveys.updateMany({
-    where: { id: surveyId, is_open: true },  // Only if still open
-    data: { is_open: false, closed_at: new Date() }
-  });
+export async function closeSurvey(
+  supabase: any,
+  survey: { id: string; tenant_id: string; match_id: number; enabled_categories: string[]; eligible_player_ids: number[] },
+  closedAt: string
+): Promise<VotingCloseResult> {
+  // 1. Fetch all votes for this survey
+  const { data: votes } = await supabase.from('match_votes').select('*').eq('survey_id', survey.id);
   
-  if (result.count === 0) {
-    // Already closed by another process — skip everything
-    return false;
-  }
+  // 2. Tally votes per category
+  const results: Record<string, number[]> = {};
+  // ... tallying logic ...
   
-  // Tally votes and insert awards
-  const hasAwards = await tallyAndInsertAwards(surveyId);
+  // 3. Determine winners (handle ties for co-winners)
+  // ... winner determination ...
   
-  // Post system message (only if we actually closed it)
+  // 4. Insert player_awards records
+  await supabase.from('player_awards').insert(awardsToInsert);
+  
+  // 5. Update survey as closed
+  await supabase.from('match_surveys').update({
+    is_open: false,
+    closed_at: closedAt,
+    results
+  }).eq('id', survey.id);
+  
+  // 6. Post system message
   const message = hasAwards 
     ? '🏆 Voting closed — check the match report for awards!'
     : '🗳️ Voting closed — no awards this week';

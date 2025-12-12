@@ -12,7 +12,8 @@ import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
 import { usePlayers } from '@/hooks/queries/usePlayers.hook';
 import { usePersonalBests } from '@/hooks/queries/usePersonalBests.hook';
 import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
-import { VotingBanner, VotingModal, VotingResults } from '@/components/voting';
+import { VotingBanner, VotingModal } from '@/components/voting';
+import { useVotingResults, VotingResultsData } from '@/hooks/queries/useVotingResults.hook';
 
 interface PersonalBestsData {
   broken_pbs_data: {
@@ -55,11 +56,18 @@ const PB_METRIC_DETAILS_FOR_COPY: { [key: string]: { name: string; unit: string 
   'attendance_streak': { name: 'Attendance Streak', unit: 'games' },
 };
 
+const AWARD_TITLES: Record<string, string> = {
+  mom: 'Man of the Match',
+  dod: 'Donkey of the Day',
+  mia: 'Missing in Action'
+};
+
 const LatestMatch: React.FC = () => {
   const [showVotingModal, setShowVotingModal] = useState(false);
   
   // React Query hooks - automatic caching and deduplication!
   const { data: matchData, isLoading: matchLoading, error: matchError } = useMatchReport();
+  const { data: votingResults } = useVotingResults();
   const { data: allPlayers = [], isLoading: playersLoading } = usePlayers();
   const { data: personalBestsData, isLoading: pbLoading } = usePersonalBests();
   const { data: configData = [], isLoading: configLoading } = useAppConfig({ groups: ['match_report', 'club_team_names'] });
@@ -171,7 +179,8 @@ const LatestMatch: React.FC = () => {
     data: typeof matchData, 
     pbsData: PersonalBestsData | null | undefined,
     showOnFireUi: boolean, 
-    showGrimReaperUi: boolean
+    showGrimReaperUi: boolean,
+    votingData: VotingResultsData | null
   ): string => {
     if (!data || !data.matchInfo) return 'No match data available.';
     const { matchInfo } = data;
@@ -232,6 +241,28 @@ const LatestMatch: React.FC = () => {
         });
         personalBestsContent += `\n`;
       }
+    }
+
+    // MATCH AWARDS SECTION (from voting)
+    let matchAwardsSection = '';
+    if (votingData && votingData.results && votingData.enabledCategories) {
+      const categoriesWithWinners = votingData.enabledCategories.filter(
+        cat => votingData.results[cat]?.winners?.length > 0
+      );
+      
+      if (categoriesWithWinners.length > 0) {
+        matchAwardsSection += `\n--- MATCH AWARDS ---\n`;
+        categoriesWithWinners.forEach(category => {
+          const categoryResults = votingData.results[category];
+          const title = AWARD_TITLES[category] || category.toUpperCase();
+          const winnerNames = categoryResults.winners.map(w => w.playerName).join(', ');
+          matchAwardsSection += `- ${title}: ${winnerNames}\n`;
+        });
+      }
+    }
+    
+    if (matchAwardsSection) {
+      report += matchAwardsSection;
     }
 
     // CURRENT STANDINGS SECTION
@@ -428,7 +459,7 @@ const LatestMatch: React.FC = () => {
 
   // Generate match report text for sharing
   const matchReportText = matchData 
-    ? formatMatchReportForCopy(matchData, personalBestsData, showOnFireConfig, showGrimReaperConfig)
+    ? formatMatchReportForCopy(matchData, personalBestsData, showOnFireConfig, showGrimReaperConfig, votingResults)
     : '';
 
   const renderPlayerName = (playerName: string) => {
@@ -614,13 +645,6 @@ const LatestMatch: React.FC = () => {
           disabled={!matchData || loading}
         />
       </div>
-      
-      {/* Voting Results - shows after voting is closed */}
-      {matchInfo.match_id && (
-        <div className="mt-4">
-          <VotingResults matchId={matchInfo.match_id} />
-        </div>
-      )}
       
       {/* Voting Modal */}
       <VotingModal

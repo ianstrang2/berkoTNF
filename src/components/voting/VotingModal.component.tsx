@@ -221,12 +221,12 @@ const VotingModal: React.FC<VotingModalProps> = ({ isOpen, onClose, onVoteSubmit
             <>
               {/* Category header */}
               <div className="flex flex-col items-center mb-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-purple-700 p-1 shadow-lg">
-                  <div className="w-full h-full rounded-full bg-white p-2 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-purple-700 p-[2px] shadow-lg">
+                  <div className="w-full h-full rounded-full overflow-hidden">
                     <img 
                       src={categoryInfo.imageSrc} 
                       alt={categoryInfo.title}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                     />
                   </div>
                 </div>

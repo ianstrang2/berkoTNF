@@ -58,14 +58,23 @@ export async function GET(request: NextRequest) {
         .single();
       
       if (expiredSurvey) {
-        // Lazy close the expired survey (delegate to close-expired endpoint logic)
-        // For simplicity, just mark as closed here
-        await supabase
+        // Lazy close the expired survey with full tallying logic
+        // Get full survey data for proper close
+        const { data: fullSurvey } = await supabase
           .from('match_surveys')
-          .update({ is_open: false, closed_at: now })
-          .eq('id', expiredSurvey.id);
+          .select('id, tenant_id, match_id, enabled_categories, eligible_player_ids')
+          .eq('id', expiredSurvey.id)
+          .single();
         
-        console.log(`[VOTING] Lazily closed expired survey ${expiredSurvey.id}`);
+        if (fullSurvey) {
+          try {
+            const { closeSurvey } = await import('@/lib/voting/closeSurvey');
+            await closeSurvey(supabase, fullSurvey, now, { trigger: 'lazy' });
+            console.log(`[VOTING] Lazily closed expired survey ${expiredSurvey.id} with full tallying`);
+          } catch (closeError) {
+            console.error(`[VOTING] Failed to lazily close survey ${expiredSurvey.id}:`, closeError);
+          }
+        }
       }
       
       // Find active survey

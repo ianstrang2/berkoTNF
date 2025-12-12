@@ -44,6 +44,7 @@ interface LeaderData {
 }
 
 interface MatchInfo {
+  match_id?: number;
   match_date: string;
   team_a_score: number;
   team_b_score: number;
@@ -434,6 +435,7 @@ async function getMatchReportData(tenantId: string) {
               
             return {
               matchInfo: {
+                match_id: fallbackMatch.match_id,
                 match_date: fallbackMatch.match_date.toISOString(),
                 team_a_score: fallbackMatch.team_a_score,
                 team_b_score: fallbackMatch.team_b_score,
@@ -473,6 +475,7 @@ async function getMatchReportData(tenantId: string) {
         const validatedTeamBScorers = typeof matchReportCache.team_b_scorers === 'string' ? matchReportCache.team_b_scorers : '';
         
         const matchInfo: MatchInfo = {
+          match_id: matchReportCache.match_id,
           match_date: matchReportCache.match_date.toISOString(),
           team_a_score: Number(matchReportCache.team_a_score) || 0,
           team_b_score: Number(matchReportCache.team_b_score) || 0,
@@ -539,6 +542,7 @@ async function getMatchReportData(tenantId: string) {
         console.error('Error processing match report data:', processingError);
         return {
           matchInfo: {
+            match_id: matchReportCache.match_id,
             match_date: matchReportCache.match_date.toISOString(),
             team_a_score: Number(matchReportCache.team_a_score) || 0,
             team_b_score: Number(matchReportCache.team_b_score) || 0,
