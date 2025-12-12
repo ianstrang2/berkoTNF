@@ -2,8 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import ShareMenu from '@/components/ui-kit/ShareMenu.component';
-import FireIcon from '@/components/icons/FireIcon.component';
-import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
+// Using PNG icons from /public/img/player-status/ instead of SVG components
 import { LeaderData, formatLeaderText } from '@/utils/timeline.util';
 import { PlayerProfile } from '@/types/player.types';
 import { FeatBreakingItem, generateFeatContent } from '@/types/feat-breaking.types';
@@ -92,6 +91,18 @@ const LatestMatch: React.FC = () => {
     const config = configData.find(c => c.config_key === 'show_grim_reaper');
     return config?.config_value !== 'false';
   }, [configData]);
+
+  // Extract voting award winner IDs for display next to player names
+  const votingAwardWinnerIds = useMemo(() => {
+    if (!votingResults?.results) {
+      return { mom: [] as number[], dod: [] as number[], mia: [] as number[] };
+    }
+    return {
+      mom: votingResults.results.mom?.winners?.map(w => w.playerId) || [],
+      dod: votingResults.results.dod?.winners?.map(w => w.playerId) || [],
+      mia: votingResults.results.mia?.winners?.map(w => w.playerId) || [],
+    };
+  }, [votingResults]);
 
   // Combined loading state
   const loading = matchLoading || playersLoading || pbLoading || configLoading;
@@ -190,6 +201,11 @@ const LatestMatch: React.FC = () => {
     let report = `⚽️ MATCH REPORT: ${formatDateSafely(matchInfo.match_date)} ⚽️\n\n`;
     report += `FINAL SCORE: ${teamAName} ${matchInfo.team_a_score} - ${matchInfo.team_b_score} ${teamBName}\n\n`;
 
+    // Extract voting award winner IDs for copy text
+    const momWinnerIds = votingData?.results?.mom?.winners?.map(w => w.playerId) || [];
+    const dodWinnerIds = votingData?.results?.dod?.winners?.map(w => w.playerId) || [];
+    const miaWinnerIds = votingData?.results?.mia?.winners?.map(w => w.playerId) || [];
+
     const formatPlayerListForCopy = (playerNames: string[]): string => {
       if (!playerNames || playerNames.length === 0) return '';
       return playerNames.map(playerNameStr => {
@@ -201,6 +217,17 @@ const LatestMatch: React.FC = () => {
           }
           if (showGrimReaperUi && playerId === grimReaperId) {
             nameToDisplay += ' 💀';
+          }
+          // Voting awards - convert string ID to number for comparison
+          const playerIdNum = Number(playerId);
+          if (momWinnerIds.includes(playerIdNum)) {
+            nameToDisplay += ' 💪';
+          }
+          if (dodWinnerIds.includes(playerIdNum)) {
+            nameToDisplay += ' 🫏';
+          }
+          if (miaWinnerIds.includes(playerIdNum)) {
+            nameToDisplay += ' 🦝';
           }
         }
         return nameToDisplay;
@@ -471,11 +498,22 @@ const LatestMatch: React.FC = () => {
     const content = (
       <>
         {playerName}
+        {/* Status icons - using PNG icons with transparent backgrounds */}
         {showOnFireConfig && actualPlayerId && actualPlayerId === matchData?.on_fire_player_id && (
-          <FireIcon className="w-4 h-4 ml-1" />
+          <img src="/img/player-status/icon_on_fire.png" alt="On Fire" title="On Fire!" className="w-5 h-5 ml-1 inline-block" />
         )}
         {showGrimReaperConfig && actualPlayerId && actualPlayerId === matchData?.grim_reaper_player_id && (
-          <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
+          <img src="/img/player-status/icon_reaper.png" alt="Grim Reaper" title="Grim Reaper" className="w-5 h-5 ml-1 inline-block" />
+        )}
+        {/* Voting awards */}
+        {actualPlayerId && votingAwardWinnerIds.mom.includes(Number(actualPlayerId)) && (
+          <img src="/img/player-status/icon_mom.png" alt="MoM" title="Man of the Match" className="w-5 h-5 ml-1 inline-block" />
+        )}
+        {actualPlayerId && votingAwardWinnerIds.dod.includes(Number(actualPlayerId)) && (
+          <img src="/img/player-status/icon_donkey.png" alt="DoD" title="Donkey of the Day" className="w-5 h-5 ml-1 inline-block" />
+        )}
+        {actualPlayerId && votingAwardWinnerIds.mia.includes(Number(actualPlayerId)) && (
+          <img src="/img/player-status/icon_possum.png" alt="MiA" title="Missing in Action" className="w-5 h-5 ml-1 inline-block" />
         )}
       </>
     );

@@ -1,8 +1,6 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import FireIcon from '@/components/icons/FireIcon.component';
-import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import FantasyPointsTooltip from '@/components/ui-kit/FantasyPointsTooltip.component';
 import { getSeasonTitles } from '@/utils/seasonTitles.util';
 import { PlayerWithStats, PlayerWithGoalStats } from '@/types/player.types';
@@ -10,6 +8,7 @@ import { useCurrentStats } from '@/hooks/queries/useCurrentStats.hook';
 import { useSeasons } from '@/hooks/queries/useSeasons.hook';
 import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
 import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
+import { useVotingResults } from '@/hooks/queries/useVotingResults.hook';
 
 interface OverallSeasonPerformanceProps {
   initialView?: 'points' | 'goals';
@@ -29,6 +28,7 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
   const { data: seasons = [], isLoading: seasonsLoading } = useSeasons();
   const { data: matchData, isLoading: matchLoading } = useMatchReport();
   const { data: configData = [], isLoading: configLoading } = useAppConfig({ groups: ['match_report'] });
+  const { data: votingResults } = useVotingResults();
 
   // Extract config values
   const showOnFireConfig = useMemo(() => {
@@ -44,6 +44,18 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
   // Extract player IDs from match data
   const onFirePlayerId = matchData?.on_fire_player_id || null;
   const grimReaperPlayerId = matchData?.grim_reaper_player_id || null;
+
+  // Extract voting award winner IDs
+  const votingAwardWinnerIds = useMemo(() => {
+    if (!votingResults?.results) {
+      return { mom: [] as number[], dod: [] as number[], mia: [] as number[] };
+    }
+    return {
+      mom: votingResults.results.mom?.winners?.map(w => w.playerId) || [],
+      dod: votingResults.results.dod?.winners?.map(w => w.playerId) || [],
+      mia: votingResults.results.mia?.winners?.map(w => w.playerId) || [],
+    };
+  }, [votingResults]);
 
   // Find selected season
   const selectedSeason = useMemo(() => {
@@ -75,16 +87,28 @@ const OverallSeasonPerformance: React.FC<OverallSeasonPerformanceProps> = ({ ini
   const renderPlayerName = (playerId: string, name: string) => {
     const currentYear = new Date().getFullYear();
     const isCurrentYear = selectedYear === currentYear;
+    const playerIdNum = Number(playerId);
 
     return (
       <Link href={`/player/profiles/${playerId}`} className="hover:underline">
         <div className="flex items-center">
           <span>{name}</span>
+          {/* Status icons - only show for current year */}
           {isCurrentYear && showOnFireConfig && playerId === onFirePlayerId && (
-            <FireIcon className="w-4 h-4 ml-1" />
+            <img src="/img/player-status/icon_on_fire.png" alt="On Fire" title="On Fire!" className="w-5 h-5 ml-1" />
           )}
           {isCurrentYear && showGrimReaperConfig && playerId === grimReaperPlayerId && (
-            <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
+            <img src="/img/player-status/icon_reaper.png" alt="Grim Reaper" title="Grim Reaper" className="w-5 h-5 ml-1" />
+          )}
+          {/* Voting awards - only show for current year */}
+          {isCurrentYear && votingAwardWinnerIds.mom.includes(playerIdNum) && (
+            <img src="/img/player-status/icon_mom.png" alt="MoM" title="Man of the Match" className="w-5 h-5 ml-1" />
+          )}
+          {isCurrentYear && votingAwardWinnerIds.dod.includes(playerIdNum) && (
+            <img src="/img/player-status/icon_donkey.png" alt="DoD" title="Donkey of the Day" className="w-5 h-5 ml-1" />
+          )}
+          {isCurrentYear && votingAwardWinnerIds.mia.includes(playerIdNum) && (
+            <img src="/img/player-status/icon_possum.png" alt="MiA" title="Missing in Action" className="w-5 h-5 ml-1" />
           )}
         </div>
       </Link>

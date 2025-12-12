@@ -2,14 +2,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import NavPills from '@/components/ui-kit/NavPills.component';
-import FireIcon from '@/components/icons/FireIcon.component';
-import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
 import FantasyPointsTooltip from '@/components/ui-kit/FantasyPointsTooltip.component';
 import { useSeasonTitles } from '@/hooks/useSeasonTitles.hook';
 import { PlayerWithStats, PlayerWithGoalStats, Club } from '@/types/player.types';
 import { useHalfSeasonStats } from '@/hooks/queries/useHalfSeasonStats.hook';
 import { useMatchReport } from '@/hooks/queries/useMatchReport.hook';
 import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
+import { useVotingResults } from '@/hooks/queries/useVotingResults.hook';
 
 interface HalfSeasonPeriod {
   year: number;
@@ -36,6 +35,7 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   const { data: statsData, isLoading: statsLoading, error: statsError } = useHalfSeasonStats();
   const { data: matchData, isLoading: matchLoading } = useMatchReport();
   const { data: configData = [], isLoading: configLoading } = useAppConfig({ groups: ['match_report'] });
+  const { data: votingResults } = useVotingResults();
 
   // Extract config values
   const showOnFireConfig = useMemo(() => {
@@ -51,6 +51,18 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
   // Extract player IDs from match data
   const onFirePlayerId = matchData?.on_fire_player_id || null;
   const grimReaperPlayerId = matchData?.grim_reaper_player_id || null;
+
+  // Extract voting award winner IDs
+  const votingAwardWinnerIds = useMemo(() => {
+    if (!votingResults?.results) {
+      return { mom: [] as number[], dod: [] as number[], mia: [] as number[] };
+    }
+    return {
+      mom: votingResults.results.mom?.winners?.map(w => w.playerId) || [],
+      dod: votingResults.results.dod?.winners?.map(w => w.playerId) || [],
+      mia: votingResults.results.mia?.winners?.map(w => w.playerId) || [],
+    };
+  }, [votingResults]);
 
   // Combined loading state - ONLY check initial load, not background refetch
   // This allows stale-while-revalidate: show cached data while refetching in background
@@ -81,19 +93,33 @@ const CurrentHalfSeason: React.FC<CurrentHalfSeasonProps> = ({ initialView = 'po
     setActiveTab(initialView === 'goals' ? 'goals' : 'stats');
   }, [initialView]);
 
-  const renderPlayerName = (playerId: string, name: string) => (
-    <Link href={`/player/profiles/${playerId}`} className="hover:underline">
-      <div className="flex items-center">
-        <span>{name}</span>
-        {showOnFireConfig && playerId === onFirePlayerId && (
-          <FireIcon className="w-4 h-4 ml-1" />
-        )}
-        {showGrimReaperConfig && playerId === grimReaperPlayerId && (
-          <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
-        )}
-      </div>
-    </Link>
-  );
+  const renderPlayerName = (playerId: string, name: string) => {
+    const playerIdNum = Number(playerId);
+    return (
+      <Link href={`/player/profiles/${playerId}`} className="hover:underline">
+        <div className="flex items-center">
+          <span>{name}</span>
+          {/* Status icons - using PNG icons */}
+          {showOnFireConfig && playerId === onFirePlayerId && (
+            <img src="/img/player-status/icon_on_fire.png" alt="On Fire" title="On Fire!" className="w-5 h-5 ml-1" />
+          )}
+          {showGrimReaperConfig && playerId === grimReaperPlayerId && (
+            <img src="/img/player-status/icon_reaper.png" alt="Grim Reaper" title="Grim Reaper" className="w-5 h-5 ml-1" />
+          )}
+          {/* Voting awards */}
+          {votingAwardWinnerIds.mom.includes(playerIdNum) && (
+            <img src="/img/player-status/icon_mom.png" alt="MoM" title="Man of the Match" className="w-5 h-5 ml-1" />
+          )}
+          {votingAwardWinnerIds.dod.includes(playerIdNum) && (
+            <img src="/img/player-status/icon_donkey.png" alt="DoD" title="Donkey of the Day" className="w-5 h-5 ml-1" />
+          )}
+          {votingAwardWinnerIds.mia.includes(playerIdNum) && (
+            <img src="/img/player-status/icon_possum.png" alt="MiA" title="Missing in Action" className="w-5 h-5 ml-1" />
+          )}
+        </div>
+      </Link>
+    );
+  };
 
   const renderMainStats = () => (
     <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6 lg:w-fit">

@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui-kit/Button.component';
-import FireIcon from '@/components/icons/FireIcon.component';
-import GrimReaperIcon from '@/components/icons/GrimReaperIcon.component';
+// Icons removed - only shown in MatchReport and Stats tables
 import { LeaderData } from '@/utils/timeline.util';
 import { PlayerProfile } from '@/types/player.types';
 import { apiFetch } from '@/lib/apiConfig';
@@ -159,17 +158,8 @@ const CurrentFormAndStandings: React.FC = () => {
     const actualPlayerId = actualPlayer?.id;
     const isRinger = actualPlayer?.isRinger;
 
-    const content = (
-      <>
-        {playerName}
-        {showOnFireConfig && actualPlayerId && actualPlayerId === matchData?.on_fire_player_id && (
-          <FireIcon className="w-4 h-4 ml-1" />
-        )}
-        {showGrimReaperConfig && actualPlayerId && actualPlayerId === matchData?.grim_reaper_player_id && (
-          <GrimReaperIcon className="w-6 h-6 ml-1 text-black" />
-        )}
-      </>
-    );
+    // No icons in this component - icons are only shown in MatchReport and Stats tables
+    const content = <>{playerName}</>;
 
     if (actualPlayerId && !isRinger) {
       return (
