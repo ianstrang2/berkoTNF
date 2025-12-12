@@ -61,22 +61,38 @@ export async function handlePostMatchActions(
       return result;
     }
 
-    // 4. Check if survey already exists
+    // 4. Get the upcoming_match_id from the match (stable identifier for surveys)
+    const { data: match, error: matchError } = await supabase
+      .from('matches')
+      .select('upcoming_match_id')
+      .eq('match_id', matchId)
+      .eq('tenant_id', tenantId)
+      .single();
+
+    if (matchError || !match?.upcoming_match_id) {
+      console.log(`[${new Date().toISOString()}] ⏭️ Skipping survey: match ${matchId} has no upcoming_match_id (legacy import)`);
+      return result;
+    }
+
+    const upcomingMatchId = match.upcoming_match_id;
+
+    // 5. Check if survey already exists for this FIXTURE (not just this match_id)
+    // This handles the case where admin edits a match (undo + re-complete)
     const { data: existingSurvey } = await supabase
       .from('match_surveys')
       .select('id')
-      .eq('match_id', matchId)
+      .eq('upcoming_match_id', upcomingMatchId)
       .eq('tenant_id', tenantId)
       .maybeSingle();
 
     if (existingSurvey) {
-      console.log(`[${new Date().toISOString()}] ⏭️ Skipping survey creation: survey already exists for match ${matchId}`);
+      console.log(`[${new Date().toISOString()}] ⏭️ Skipping survey creation: survey already exists for upcoming_match ${upcomingMatchId}`);
       return result;
     }
 
-    // 5. Create the survey
+    // 6. Create the survey
     try {
-      const survey = await createSurvey(supabase, matchId, tenantId, votingConfig);
+      const survey = await createSurvey(supabase, matchId, upcomingMatchId, tenantId, votingConfig);
       if (survey) {
         result.surveyCreated = true;
         result.surveyId = survey.id;
@@ -191,6 +207,7 @@ async function getVotingConfig(
 async function createSurvey(
   supabase: SupabaseClient,
   matchId: number,
+  upcomingMatchId: number,
   tenantId: string,
   config: VotingConfig
 ): Promise<{ id: string } | null> {
@@ -227,12 +244,14 @@ async function createSurvey(
   const votingClosesAt = new Date();
   votingClosesAt.setHours(votingClosesAt.getHours() + config.durationHours);
 
-  // Create the survey
+  // Create the survey with both match_id and upcoming_match_id
+  // upcoming_match_id is the stable identifier that survives match edits
   const { data: survey, error: surveyError } = await supabase
     .from('match_surveys')
     .insert({
       tenant_id: tenantId,
       match_id: matchId,
+      upcoming_match_id: upcomingMatchId,
       eligible_player_ids: eligiblePlayerIds,
       enabled_categories: enabledCategories,
       voting_closes_at: votingClosesAt.toISOString(),

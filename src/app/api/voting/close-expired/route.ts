@@ -79,11 +79,14 @@ async function closeExpiredSurveys(trigger: string) {
   const now = new Date().toISOString();
   
   // Find all expired but still open surveys
+  // Note: We include upcoming_match_id for the closeSurvey function
+  // and filter out orphaned surveys (match_id IS NULL = admin is editing match)
   const { data: expiredSurveys, error: findError } = await supabase
     .from('match_surveys')
-    .select('id, tenant_id, match_id, enabled_categories, eligible_player_ids')
+    .select('id, tenant_id, match_id, upcoming_match_id, enabled_categories, eligible_player_ids')
     .eq('is_open', true)
-    .lt('voting_closes_at', now);
+    .lt('voting_closes_at', now)
+    .not('match_id', 'is', null);  // Skip orphaned surveys (admin is editing)
   
   if (findError) {
     console.error('Error finding expired surveys:', findError);

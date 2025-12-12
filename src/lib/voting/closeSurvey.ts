@@ -21,6 +21,7 @@ export interface SurveyToClose {
   id: string;
   tenant_id: string;
   match_id: number;
+  upcoming_match_id?: number;  // Stable identifier for fixture
   enabled_categories: string[];
   eligible_player_ids: number[];
 }
@@ -49,7 +50,7 @@ export async function closeSurvey(
   closedAt: string,
   options?: { trigger?: string }
 ): Promise<CloseSurveyResult> {
-  const { id: surveyId, tenant_id: tenantId, match_id: matchId, enabled_categories: categories } = survey;
+  const { id: surveyId, tenant_id: tenantId, match_id: matchId, upcoming_match_id: upcomingMatchId, enabled_categories: categories } = survey;
   const trigger = options?.trigger || 'cron';
   const errors: string[] = [];
   
@@ -87,6 +88,7 @@ export async function closeSurvey(
     tenant_id: string;
     player_id: number;
     match_id: number;
+    upcoming_match_id?: number;
     survey_id: string;
     award_type: string;
     vote_count: number;
@@ -120,6 +122,7 @@ export async function closeSurvey(
         tenant_id: tenantId,
         player_id: playerId,
         match_id: matchId,
+        upcoming_match_id: upcomingMatchId,  // Stable identifier for fixture
         survey_id: surveyId,
         award_type: category,
         vote_count: categoryVotes[playerId],

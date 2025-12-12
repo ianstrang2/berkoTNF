@@ -80,6 +80,7 @@ Draft → PoolLocked → TeamsBalanced → Completed
 - Soft-deletes `matches` record
 - Soft-deletes `player_matches` records
 - Sets `state = 'TeamsBalanced'`, `is_completed = false`
+- **Voting Preservation (v1.4.0):** Survey and awards are preserved (orphaned with `match_id = NULL`), reconnected on re-complete. See `SPEC_Chat_And_Voting.md` for details.
 
 **Unlock Pool** (any state → `Draft`):
 - Admin can unlock pool from menu

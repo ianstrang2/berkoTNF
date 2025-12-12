@@ -324,6 +324,31 @@ export async function DELETE(request: NextRequest) {
       });
       console.log('2. Player_matches deleted');
       
+      // Delete voting data explicitly (FK is now SET NULL, not CASCADE)
+      // This ensures survey/awards are removed when deleting from History tab
+      console.log('2b. Deleting voting data (player_awards)...');
+      await tx.player_awards.deleteMany({
+        where: { match_id: parsedMatchId }
+      });
+      
+      console.log('2c. Deleting voting data (match_votes via survey)...');
+      // First get the survey ID to delete votes
+      const survey = await tx.match_surveys.findFirst({
+        where: { match_id: parsedMatchId },
+        select: { id: true }
+      });
+      if (survey) {
+        await tx.match_votes.deleteMany({
+          where: { survey_id: survey.id }
+        });
+      }
+      
+      console.log('2d. Deleting voting data (match_surveys)...');
+      await tx.match_surveys.deleteMany({
+        where: { match_id: parsedMatchId }
+      });
+      console.log('2e. Voting data deleted');
+      
       // Delete the historical match
       console.log('3. Deleting match...');
       await tx.matches.delete({

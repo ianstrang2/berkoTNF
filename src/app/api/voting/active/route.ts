@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         // Get full survey data for proper close
         const { data: fullSurvey } = await supabase
           .from('match_surveys')
-          .select('id, tenant_id, match_id, enabled_categories, eligible_player_ids')
+          .select('id, tenant_id, match_id, upcoming_match_id, enabled_categories, eligible_player_ids')
           .eq('id', expiredSurvey.id)
           .single();
         

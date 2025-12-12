@@ -1,11 +1,18 @@
 # Chat & Voting Specification
 
-**Version:** 1.3.0  
+**Version:** 1.4.0  
 **Last Updated:** December 12, 2025  
 **Status:** Implemented  
 **Dependencies:** Existing background job worker (Render), Supabase Realtime (enabled)
 
-**Recent Updates (v1.3.0):**
+**Recent Updates (v1.4.0):**
+- **Score Edit Preservation**: Voting data survives when admin edits match score
+- Added `upcoming_match_id` as stable identifier on surveys and awards
+- Changed `match_id` FK from CASCADE to SET NULL
+- UI confirmation modal when undoing completed match
+- Explicit survey/award deletion when deleting from History tab
+
+**Previous Updates (v1.3.0):**
 - Added inline PNG icons for player names (transparent backgrounds)
 - VotingResults as standalone dashboard section
 - Match report copy text includes MATCH AWARDS section
@@ -408,10 +415,19 @@ Match result entered (latest match only)
 
 **Note:** Eligibility is enforced at the **API layer only**. The database allows any valid `player_id` in `match_votes` (no FK to `eligible_player_ids`). This is intentional for flexibility — the API is the source of truth for eligibility checks.
 
-**Match Deletion Cascade:**
-- When a match is deleted, **cascade delete** its survey, votes, and awards
-- No orphaned records — foreign keys handle cleanup automatically
-- See Appendix: Survey Creation Rules for full cascade details
+**Score Edit Preservation (v1.4.0):**
+When admin edits a match score ("Undo Completion" → re-complete):
+- Survey and awards are **preserved** (not deleted)
+- `match_id` FK is SET NULL when match is deleted (not CASCADE)
+- `upcoming_match_id` is the stable identifier that survives edits
+- Complete route **reconnects** orphaned surveys/awards to new match_id
+- Confirmation modal warns admin about the process
+
+**Match Deletion Behavior:**
+- **Undo Completion** → Survey orphaned (match_id = NULL), preserved for reconnection
+- **Delete from History tab** → Explicit deletion of survey/votes/awards
+- **Delete upcoming_match** → CASCADE delete via upcoming_match_id FK
+- See Appendix: Survey Creation Rules for full details
 
 ### Award Display Duration
 
@@ -908,7 +924,10 @@ CREATE TABLE chat_user_state (
 CREATE TABLE match_surveys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-  match_id INTEGER NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
+  
+  -- Match references (dual-ID pattern for score edit preservation)
+  match_id INTEGER REFERENCES matches(match_id) ON DELETE SET NULL,  -- Can be NULL during edit
+  upcoming_match_id INTEGER NOT NULL REFERENCES upcoming_matches(upcoming_match_id) ON DELETE CASCADE,  -- Stable identifier
   
   -- Snapshotted data (immutable after creation)
   eligible_player_ids INTEGER[] NOT NULL,  -- Players who played
@@ -967,7 +986,11 @@ CREATE TABLE player_awards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
   player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
-  match_id INTEGER NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
+  
+  -- Match references (dual-ID pattern for score edit preservation)
+  match_id INTEGER REFERENCES matches(match_id) ON DELETE SET NULL,  -- Can be NULL during edit
+  upcoming_match_id INTEGER REFERENCES upcoming_matches(upcoming_match_id) ON DELETE CASCADE,  -- Stable identifier
+  
   survey_id UUID NOT NULL REFERENCES match_surveys(id) ON DELETE CASCADE,
   
   award_type TEXT NOT NULL CHECK (award_type IN ('mom', 'dod', 'mia')),
@@ -1790,12 +1813,29 @@ try {
 
 The `UNIQUE(tenant_id, match_id)` constraint prevents duplicate surveys even under concurrent worker execution.
 
-### Match Deletion Cascade Rules
+### Match Edit & Deletion Rules (v1.4.0)
 
-When a match is deleted, **cascade delete all related voting data:**
+**Score Edit Flow (Undo Completion → Re-complete):**
+1. Admin clicks "Undo Completion" → confirmation modal shown
+2. Undo route deletes historical match → `match_id` FK SET NULL (survey/awards preserved)
+3. Admin edits score and clicks Complete
+4. Complete route creates new match → reconnects orphaned surveys/awards
+5. postMatchActions checks `upcoming_match_id` → skips survey creation (already exists)
 
+**Delete from History Tab:**
+Explicit deletion of survey/awards before match deletion:
+```typescript
+await tx.player_awards.deleteMany({ where: { match_id } });
+await tx.match_surveys.deleteMany({ where: { match_id } });
+// Then delete match
+```
+
+**Delete Upcoming Match (Active tab):**
+CASCADE via `upcoming_match_id` FK handles cleanup automatically.
+
+**Legacy Cascade Reference:**
 ```sql
--- Foreign key cascades handle this automatically
+-- Foreign key cascades handle cleanup for upcoming_match deletion
 -- But for clarity, the deletion order is:
 
 1. player_awards (depends on survey_id, match_id)

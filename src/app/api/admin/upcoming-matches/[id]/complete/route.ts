@@ -108,6 +108,37 @@ export async function POST(
           } as any,
         });
 
+        // 1b. Reconnect orphaned survey/awards from previous completion (if admin edited score)
+        // These become orphaned (match_id = NULL) when "Undo Completion" deletes the old match
+        const surveyReconnectResult = await tx.match_surveys.updateMany({
+          where: { 
+            upcoming_match_id: matchId,
+            tenant_id: tenantId,
+            match_id: { equals: null }  // Only reconnect orphaned surveys (Prisma syntax)
+          } as any,
+          data: { match_id: newMatch.match_id }
+        });
+
+        if (surveyReconnectResult.count > 0) {
+          console.log(`[COMPLETE] Reconnected ${surveyReconnectResult.count} survey(s) for upcoming_match ${matchId}`);
+        }
+        if (surveyReconnectResult.count > 1) {
+          console.warn(`[COMPLETE] ⚠️ Multiple surveys found for upcoming_match ${matchId} - data inconsistency!`);
+        }
+
+        const awardsReconnectResult = await tx.player_awards.updateMany({
+          where: { 
+            upcoming_match_id: matchId,
+            tenant_id: tenantId,
+            match_id: { equals: null }  // Only reconnect orphaned awards (Prisma syntax)
+          } as any,
+          data: { match_id: newMatch.match_id }
+        });
+
+        if (awardsReconnectResult.count > 0) {
+          console.log(`[COMPLETE] Reconnected ${awardsReconnectResult.count} award(s) for upcoming_match ${matchId}`);
+        }
+
         // 2. Create player_matches records with calculated result fields
         // Note: player_stats only contains players who actually played (no-shows excluded)
         const playerStatsMap = new Map(player_stats.map((p: any) => [p.player_id, p]));

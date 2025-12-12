@@ -17,6 +17,7 @@ import MatchModal from '@/components/team/modals/MatchModal.component';
 import MatchCompletedModal from '@/components/team/modals/MatchCompletedModal.component';
 import SingleBlockedModal from '@/components/admin/matches/SingleBlockedModal.component';
 import LockPoolWithBalanceModal from '@/components/admin/matches/LockPoolWithBalanceModal.component';
+import SoftUIConfirmationModal from '@/components/ui-kit/SoftUIConfirmationModal.component';
 import { MoreVertical, Lock, Unlock, RotateCcw, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -46,6 +47,10 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
   const [isEditing, setIsEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState(false);
+  
+  // Undo completion confirmation modal
+  const [isUndoConfirmOpen, setIsUndoConfirmOpen] = useState(false);
+  const [isUndoing, setIsUndoing] = useState(false);
   
   // Blocked pool modal state
   const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
@@ -318,7 +323,7 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
                 </a>
               )}
                {can('undoComplete') && (
-                <a href="#" onClick={(e) => { e.preventDefault(); actions.undoComplete(); setIsMenuOpen(false); }} className="text-red-600 hover:bg-red-50 hover:text-red-700 group flex items-center px-4 py-2 text-sm" role="menuitem">
+                <a href="#" onClick={(e) => { e.preventDefault(); setIsUndoConfirmOpen(true); setIsMenuOpen(false); }} className="text-red-600 hover:bg-red-50 hover:text-red-700 group flex items-center px-4 py-2 text-sm" role="menuitem">
                   <RotateCcw className="mr-3 h-5 w-5" aria-hidden="true" />
                   Undo Completion
                 </a>
@@ -470,6 +475,29 @@ const MatchControlCentrePageContent = ({ params }: MatchControlCentrePageProps) 
         poolSize={playerPoolIds.length}
         sizeA={splitSizesFromPool(playerPoolIds.length).a}
         sizeB={splitSizesFromPool(playerPoolIds.length).b}
+      />
+
+      {/* Undo Completion Confirmation Modal */}
+      <SoftUIConfirmationModal
+        isOpen={isUndoConfirmOpen}
+        onConfirm={async () => {
+          setIsUndoing(true);
+          try {
+            await actions.undoComplete();
+            setIsUndoConfirmOpen(false);
+          } catch (err: any) {
+            showToast(err.message || 'Failed to undo completion', 'error');
+          } finally {
+            setIsUndoing(false);
+          }
+        }}
+        onClose={() => setIsUndoConfirmOpen(false)}
+        title="Undo Match Completion"
+        message="Undo will preserve all votes and awards, but voting will be paused until you re-complete the match. The match will return to editable state."
+        confirmText={isUndoing ? 'Undoing...' : 'Undo Completion'}
+        cancelText="Cancel"
+        isConfirming={isUndoing}
+        icon="warning"
       />
     </div>
   );
