@@ -8,11 +8,10 @@ import type { PluginListenerHandle } from '@capacitor/core';
 /**
  * App State Handler
  * 
- * Handles stale bundle issues after deploy:
- * - If app was backgrounded for 60+ seconds, forces a reload on resume
- * - Catches chunk load errors and reloads to get fresh bundles
+ * DIAGNOSTIC MODE: Reload logic disabled to isolate issues.
+ * Logs app state changes to help debug navigation/blank screen issues.
  * 
- * This prevents blank screens and broken navigation after Vercel deploys.
+ * TODO: Re-enable reload logic once root cause is identified.
  */
 export const AppStateHandler = () => {
   const backgroundTimeRef = useRef<number | null>(null);
@@ -41,12 +40,12 @@ export const AppStateHandler = () => {
         const backgroundDuration = Math.round((Date.now() - backgroundTimeRef.current) / 1000);
         console.log(`[APP_STATE] Resumed after ${backgroundDuration}s in background`);
 
-        // If backgrounded for more than 60 seconds, reload to get fresh bundles
-        if (backgroundDuration > 60) {
-          console.log('[APP_STATE] Long background period, reloading to get fresh bundles...');
-          window.location.reload();
-          return;
-        }
+        // DISABLED: Reload logic was potentially causing issues
+        // if (backgroundDuration > 60) {
+        //   console.log('[APP_STATE] Long background period, reloading to get fresh bundles...');
+        //   window.location.reload();
+        //   return;
+        // }
       }
 
       backgroundTimeRef.current = null;
@@ -55,20 +54,19 @@ export const AppStateHandler = () => {
       console.log('[APP_STATE] Listener registered');
     });
 
-    // Safety net: Catch chunk load errors and reload
-    const handleChunkError = (event: ErrorEvent) => {
-      const message = event.message || '';
-      if (
-        message.includes('ChunkLoadError') ||
-        message.includes('Loading chunk') ||
-        message.includes('Failed to fetch dynamically imported module')
-      ) {
-        console.log('[APP_STATE] Chunk load error detected, reloading...');
-        window.location.reload();
-      }
-    };
-
-    window.addEventListener('error', handleChunkError);
+    // DISABLED: ChunkLoadError handler was potentially causing reload loops
+    // const handleChunkError = (event: ErrorEvent) => {
+    //   const message = event.message || '';
+    //   if (
+    //     message.includes('ChunkLoadError') ||
+    //     message.includes('Loading chunk') ||
+    //     message.includes('Failed to fetch dynamically imported module')
+    //   ) {
+    //     console.log('[APP_STATE] Chunk load error detected, reloading...');
+    //     window.location.reload();
+    //   }
+    // };
+    // window.addEventListener('error', handleChunkError);
 
     // Cleanup
     return () => {
@@ -76,7 +74,7 @@ export const AppStateHandler = () => {
         listenerHandle.remove();
         console.log('[APP_STATE] Listener removed');
       }
-      window.removeEventListener('error', handleChunkError);
+      // window.removeEventListener('error', handleChunkError);
     };
   }, []);
 
