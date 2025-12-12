@@ -42,6 +42,13 @@ interface BackgroundJobStatus {
       voting_message: boolean;
       errors: string[];
     };
+    // Voting close results
+    categories_processed?: number;
+    votes_tallied?: number;
+    awards_created?: number;
+    results_summary?: Record<string, number[]>;
+    system_message_posted?: boolean;
+    errors?: string[];
   } | null;
   created_at: string;
   tenant_id?: string | null;

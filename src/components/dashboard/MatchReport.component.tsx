@@ -459,7 +459,7 @@ const LatestMatch: React.FC = () => {
 
   // Generate match report text for sharing
   const matchReportText = matchData 
-    ? formatMatchReportForCopy(matchData, personalBestsData, showOnFireConfig, showGrimReaperConfig, votingResults)
+    ? formatMatchReportForCopy(matchData, personalBestsData, showOnFireConfig, showGrimReaperConfig, votingResults ?? null)
     : '';
 
   const renderPlayerName = (playerName: string) => {
