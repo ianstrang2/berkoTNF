@@ -1,6 +1,12 @@
 # Capo RSVP & Player Invitation System — Consolidated Implementation Specification
 
-**Version 6.0.0 • Updated December 2025**
+**Version 6.1.0 • Updated December 2025**
+
+**UPDATE NOTES (v6.1.0 - Globalisation Integration):**
+- **ADDED** Section 0.2: Globalisation Integration (timezone, phone, currency patterns)
+- **ADDED** Dependency on `SPEC_Globalisation.md`
+- **CLARIFIED** `match_timezone` defaults from `tenant.timezone` at match creation
+- **MANDATORY** Use `normalizeToE164()` for all phone validation
 
 **UPDATE NOTES (v6.0.0 - Three-Mode Architecture + State Simplification):**
 - **NEW** Three operating modes: Manual, RSVP, Auto-pilot (Section 2)
@@ -55,6 +61,7 @@ This specification builds on **fully implemented infrastructure**:
 - `SPEC_auth.md` (v6.6) - Phone authentication, admin privileges, auto-linking, email notifications
 - `SPEC_multi_tenancy.md` (v2.1.0) - Tenant isolation, security patterns
 - `SPEC_match-control-centre.md` - Match lifecycle, uneven teams, no-shows
+- `SPEC_Globalisation.md` - International phone validation, timezone formatting, currency utilities
 - All authentication, match lifecycle, and tenant logic is defined in those specs
 - This spec focuses **only** on RSVP booking logic
 
@@ -101,6 +108,84 @@ const gracePeriodMinutes = parseInt(data.config_value);
 **Multi-tenancy note:** These are **platform-wide settings**, not per-tenant. All tenants share the same RSVP timing configuration. The `superadmin_config` table has RLS that allows:
 - **Read:** All authenticated users (tenants can read config values)
 - **Write:** Superadmin only (via `/superadmin/settings` UI)
+
+---
+
+## **0.2) Globalisation Integration**
+
+**See:** `SPEC_Globalisation.md` for full globalisation architecture
+
+RSVP integrates with Phase 0 globalisation infrastructure:
+
+### Timezone Handling
+
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `tenant.timezone` | Admin settings (Regional) | Default for new matches |
+| `match_timezone` | Per-match (defaults from tenant) | Display times, tier windows |
+
+**Match Creation:**
+```typescript
+// Default match_timezone from tenant settings
+const tenant = await prisma.tenants.findUnique({
+  where: { tenant_id },
+  select: { timezone: true }
+});
+
+await prisma.upcoming_matches.create({
+  data: {
+    // ...
+    match_timezone: tenant.timezone, // Inherits tenant default
+    // Admin can override if venue in different timezone
+  }
+});
+```
+
+**Display Times (use utilities):**
+```typescript
+import { formatMatchTime } from '@/utils/dateFormat.util';
+
+// Display kickoff in match's local timezone
+const displayTime = formatMatchTime(
+  match.match_datetime,
+  match.match_timezone,
+  tenant.locale
+);
+// → "Sun 19 Jan, 7:00 PM" (formatted for locale)
+```
+
+**Tier Window Calculations:**
+All tier open times (`a_open_at`, `b_open_at`, `c_open_at`) are stored in UTC but calculated relative to match kickoff in `match_timezone`. Display should convert to local time.
+
+### Phone Validation
+
+**MANDATORY:** Use international phone validation for all RSVP phone operations:
+
+```typescript
+import { normalizeToE164, isValidPhone } from '@/utils/phoneInternational.util';
+
+// Get tenant's default country
+const tenantCountry = tenant.country || 'GB';
+
+// Validate and normalize phone
+if (!isValidPhone(phone, tenantCountry)) {
+  return { error: 'Invalid phone number' };
+}
+const normalizedPhone = normalizeToE164(phone, tenantCountry);
+```
+
+**Phone operations in RSVP:**
+- Player authentication (OTP)
+- Guest phone capture
+- Waitlist SMS notifications (fallback)
+- Admin contact lookup
+
+### Currency (Future - Paid Bookings)
+
+When implementing paid RSVP bookings:
+- Store amounts in integer minor units (pence/cents)
+- Use `tenant.currency` for display
+- See `SPEC_Globalisation.md` Phase 2 for patterns
 
 ---
 
@@ -478,6 +563,8 @@ ALTER TABLE upcoming_matches
   ADD COLUMN c_open_at TIMESTAMPTZ NULL,
   
   -- Match settings
+  -- Globalisation: Defaults from tenant.timezone at creation (see Section 0.2)
+  -- Override per-match if venue in different timezone
   ADD COLUMN match_timezone TEXT NOT NULL DEFAULT 'Europe/London',
   ADD COLUMN capacity INT NOT NULL DEFAULT 20,
   ADD COLUMN auto_balance_method TEXT NOT NULL DEFAULT 'performance'

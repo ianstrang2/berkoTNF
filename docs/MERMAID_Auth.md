@@ -1,7 +1,24 @@
 # Capo Authentication Flow Diagrams
 
-**Date:** 2025-01-20  
-**Current Implementation:** Phase 6.6 (with phone pre-check + universal entry point)
+**Date:** 2025-01-20 (Updated December 2025)  
+**Current Implementation:** Phase 6.7 (mobile WebView compatibility)
+
+---
+
+## ⚠️ December 2025 Architecture Update
+
+**What Changed:** Route protection moved from server-side (middleware redirects) to client-side (AuthGuard component) to support Capacitor iOS/Android apps.
+
+**Why:** WKWebView (iOS) loses cookies intermittently and opens Safari on HTTP 302 redirects. Client-side `router.push()` keeps navigation within the WebView.
+
+**Impact on Diagrams:** The logical flows below are still accurate. The "Redirect to X" boxes now happen via client-side `router.push()` rather than server HTTP 302, but the user journey is unchanged.
+
+**New Components (not shown in diagrams):**
+- `AuthGuard` - Client-side wrapper for protected routes (player/admin/superadmin layouts)
+- `AppStateHandler` - Proactive token refresh when app resumes from background
+- `DeepLinkHandler` - Session check before routing to protected paths
+
+**For current implementation details, see:** `SPEC_auth.md` (Section: Route Protection)
 
 ---
 
