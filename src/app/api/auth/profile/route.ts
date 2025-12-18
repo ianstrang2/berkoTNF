@@ -39,6 +39,26 @@ export async function GET(request: NextRequest) {
 
     // If superadmin, return superadmin profile
     if (superadminProfile && superadminProfile.user_role === 'superadmin') {
+      // Get effective tenant ID (from switcher or default)
+      const effectiveTenantId = user.app_metadata?.tenant_id || superadminProfile.tenant_id || null;
+      
+      // Fetch tenant details if we have a tenant context
+      let tenantName: string | null = null;
+      let clubCode: string | null = null;
+      
+      if (effectiveTenantId) {
+        const { data: tenantData } = await supabaseAdmin
+          .from('tenants')
+          .select('name, club_code')
+          .eq('tenant_id', effectiveTenantId)
+          .maybeSingle();
+        
+        if (tenantData) {
+          tenantName = tenantData.name;
+          clubCode = tenantData.club_code;
+        }
+      }
+      
       return NextResponse.json({
         user: {
           id: user.id,
@@ -50,9 +70,9 @@ export async function GET(request: NextRequest) {
           isSuperadmin: true,
           adminRole: 'superadmin',
           displayName: superadminProfile.display_name,
-          // Priority 1: Check app_metadata (for tenant switching)
-          // Priority 2: Fall back to superadmin_profiles.tenant_id
-          tenantId: user.app_metadata?.tenant_id || superadminProfile.tenant_id || null,
+          tenantId: effectiveTenantId,
+          tenantName,
+          clubCode,
           linkedPlayerId: superadminProfile.player_id,
           canSwitchRoles: false, // Superadmin uses 3-way view selector instead
         },

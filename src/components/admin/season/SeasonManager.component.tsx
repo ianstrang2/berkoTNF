@@ -232,44 +232,46 @@ const SeasonManager: React.FC = () => {
             </div>
           )}
 
-          {/* No current season warning */}
-          {!currentSeason && (
-            <div className="w-full mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl">
-            <p className="text-yellow-800 font-medium flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              No Current Season
-            </p>
-              <p className="text-yellow-600 text-sm mt-1">
-                Create a season that includes today's date to enable match creation.
-              </p>
-            </div>
-          )}
-
           {/* Seasons Table Card */}
           <div className="break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border">
             <div className="border-black/12.5 rounded-t-2xl border-b-0 border-solid p-4">
               <div className="flex items-center justify-between">
                 <h5 className="mb-0 text-lg font-semibold text-slate-700">Season Manager</h5>
-                <button
-                  onClick={handleCreateSeason}
-                  disabled={!!currentSeason}
-                  className={`inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 bg-gradient-to-tl from-purple-700 to-pink-500 ${
-                    currentSeason 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : 'hover:scale-102 active:opacity-85'
-                  }`}
-                  title={currentSeason ? 'Cannot create new season while one is active' : 'Create new season'}
-                >
-                  Create New
-                </button>
+                {seasons.length > 0 && (
+                  <button
+                    onClick={handleCreateSeason}
+                    disabled={!!currentSeason}
+                    className={`inline-block px-4 py-2 mb-0 text-xs font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 bg-gradient-to-tl from-purple-700 to-pink-500 ${
+                      currentSeason 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:scale-102 active:opacity-85'
+                    }`}
+                    title={currentSeason ? 'Cannot create new season while one is active' : 'Create new season'}
+                  >
+                    Create New
+                  </button>
+                )}
               </div>
             </div>
             <div className="p-4">
               {seasons.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-slate-500">No seasons found.</p>
+                <div className="text-center py-12 px-4">
+                  {/* Calendar icon */}
+                  <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    </svg>
+                  </div>
+                  <h6 className="text-lg font-semibold text-slate-700 mb-2">No Seasons Yet</h6>
+                  <p className="text-sm text-slate-500 mb-6 max-w-xs mx-auto">
+                    Create your first season to start tracking matches and player stats.
+                  </p>
+                  <button
+                    onClick={handleCreateSeason}
+                    className="inline-block px-6 py-2.5 text-sm font-medium text-center text-white uppercase align-middle transition-all border-0 rounded-lg cursor-pointer leading-pro ease-soft-in tracking-tight-soft shadow-soft-md bg-150 bg-x-25 bg-gradient-to-tl from-purple-700 to-pink-500 hover:scale-102 active:opacity-85"
+                  >
+                    Create First Season
+                  </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
