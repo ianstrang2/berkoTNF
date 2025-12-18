@@ -5,12 +5,14 @@
  * Automatically links player based on phone number match or creates join request
  * 
  * PERFORMANCE FIX (Dec 2025): Uses cached auth via getAuthenticatedUser()
+ * GLOBALISATION (Dec 2025): Uses international phone validation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
 import { getAuthenticatedUser } from '@/lib/auth/cachedAuth';
+import { normalizeToE164, phoneNumbersMatch, CountryCode } from '@/utils/phoneInternational.util';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,10 +30,10 @@ export async function POST(request: NextRequest) {
 
     const { tenant, token, phone, displayName, email } = await request.json();
 
-    // Validate invite token
+    // Validate invite token and get tenant country for phone validation
     const tenantRecord = await prisma.tenants.findUnique({
       where: { slug: tenant },
-      select: { tenant_id: true, name: true },
+      select: { tenant_id: true, name: true, country: true },
     });
 
     if (!tenantRecord) {
@@ -57,32 +59,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Normalize phone number for matching (convert to E.164 format)
-    const normalizePhone = (phoneNum: string): string => {
-      // Remove all spaces, dashes, parentheses
-      let cleaned = phoneNum.replace(/[\s\-\(\)]/g, '');
-      
-      // Remove leading + if present
-      if (cleaned.startsWith('+')) {
-        cleaned = cleaned.substring(1);
-      }
-      
-      // Convert 07xxx to 447xxx
-      if (cleaned.startsWith('0')) {
-        cleaned = '44' + cleaned.substring(1);
-      }
-      
-      // Ensure it has 44 prefix
-      if (!cleaned.startsWith('44')) {
-        cleaned = '44' + cleaned;
-      }
-      
-      return '+' + cleaned;
-    };
-
-    const normalizedIncomingPhone = normalizePhone(phone);
+    // Uses tenant's country as default for phone validation
+    const tenantCountry = (tenantRecord.country || 'GB') as CountryCode;
+    
+    let normalizedIncomingPhone: string;
+    try {
+      normalizedIncomingPhone = normalizeToE164(phone, tenantCountry);
+    } catch (error) {
+      console.error('[JOIN] Phone validation error:', error);
+      return NextResponse.json(
+        { success: false, error: 'Invalid phone number format' },
+        { status: 400 }
+      );
+    }
     
     console.log('[JOIN] Incoming phone:', phone);
-    console.log('[JOIN] Normalized incoming:', normalizedIncomingPhone);
+    console.log('[JOIN] Normalized incoming:', normalizedIncomingPhone, '(country:', tenantCountry, ')');
 
     // Find all players in tenant and check phone matches
     const allPlayers = await prisma.players.findMany({
@@ -101,12 +93,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Find player by normalized phone match
+    // Find player by normalized phone match using international phone validation
     const existingPlayer = allPlayers.find(p => {
       if (!p.phone) return false;
-      const normalizedDbPhone = normalizePhone(p.phone);
-      console.log('[JOIN] Checking player:', p.name, '| DB phone:', p.phone, '| Normalized:', normalizedDbPhone, '| Match:', normalizedDbPhone === normalizedIncomingPhone);
-      return normalizedDbPhone === normalizedIncomingPhone;
+      const isMatch = phoneNumbersMatch(p.phone, normalizedIncomingPhone, tenantCountry);
+      console.log('[JOIN] Checking player:', p.name, '| DB phone:', p.phone, '| Match:', isMatch);
+      return isMatch;
     });
     
     console.log('[JOIN] Match found:', existingPlayer ? existingPlayer.name : 'NO MATCH');

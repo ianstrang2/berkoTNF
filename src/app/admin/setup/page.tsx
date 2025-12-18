@@ -41,7 +41,7 @@ function SetupContent() {
     <div className="flex flex-col w-full">
       <div className="min-w-0 max-w-3xl">
         <ErrorBoundary>
-          <AppSetup initialLevel={level as 'standard' | 'advanced'} />
+          <AppSetup initialLevel={level as 'standard' | 'advanced' | 'regional'} />
         </ErrorBoundary>
       </div>
     </div>

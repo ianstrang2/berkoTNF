@@ -621,6 +621,12 @@ model tenants {
   updated_at                       DateTime?                          @default(now()) @db.Timestamptz(6)
   is_active                        Boolean?                           @default(true)
   settings                         Json?                              @default("{}")
+  
+  // Globalisation fields (Phase 0) - see docs/SPEC_Globalisation.md
+  timezone                         String                             @default("Europe/London")  // IANA timezone
+  currency                         String                             @default("GBP")            // ISO 4217
+  locale                           String                             @default("en-GB")          // BCP 47
+  country                          String                             @default("GB")             // ISO 3166-1 alpha-2
   aggregated_all_time_stats        aggregated_all_time_stats[]
   aggregated_half_season_stats     aggregated_half_season_stats[]
   aggregated_hall_of_fame          aggregated_hall_of_fame[]

@@ -1950,12 +1950,104 @@ Modified:
 
 ---
 
-**Document Version:** 1.3.0  
-**Last Updated:** December 12, 2025  
-**Status:** Complete development history through Phase 11.1  
+### Phase 11.2: iOS Auth Architecture Fix (December 18, 2025)
+
+**Motivation:** iOS app intermittently opened Safari for login page instead of staying in WebView
+
+**The Problem:**
+
+After backgrounding the iOS app, users would sometimes experience:
+- Blank white screen on resume
+- Safari opening with `/auth/login` URL
+- Force quit needed to recover
+
+**Root Cause Analysis:**
+
+```
+The Failure Chain:
+1. iOS terminates WKWebView process in background
+2. WKWebView cookie jar becomes corrupted/cleared
+3. User returns to app → loads protected route
+4. Middleware checks cookies → missing
+5. Middleware returns HTTP 302 redirect to /auth/login
+6. WKWebView mishandles 302 → Opens Safari instead
+```
+
+The fundamental issue: Server-side redirects don't work reliably in mobile WebViews.
+
+**The Solution:**
+
+Moved from server-side auth checks to client-side auth guards:
+
+```
+BEFORE (Fragile):
+├── Middleware checks cookies (server-side)
+├── No cookies → NextResponse.redirect('/auth/login')
+└── WKWebView sometimes opens Safari
+
+AFTER (Robust):
+├── Middleware only refreshes cookies (no redirects)
+├── AuthGuard checks localStorage session (client-side)
+├── No session → router.push('/auth/login')
+└── router.push() stays in WebView reliably
+```
+
+**Key Insight:**
+
+In WKWebView, localStorage persists more reliably than cookies. The Supabase browser client was already storing tokens in localStorage - we just needed to stop the middleware from redirecting before the client had a chance to restore the session.
+
+**What We Built:**
+
+1. **AuthGuard Component** - Client-side route protection
+2. **Simplified Middleware** - Cookie refresh only, no redirects
+3. **AppStateHandler Enhancement** - Session refresh on app resume
+4. **DeepLinkHandler Enhancement** - Session check before routing
+5. **Explicit Logout Cleanup** - Defensive localStorage clearing
+
+**Files Changed:**
+```
+New:
+├── src/components/auth/AuthGuard.component.tsx
+
+Modified:
+├── src/middleware.ts (simplified to cookie refresh only)
+├── src/app/player/layout.tsx (AuthGuard wrapper)
+├── src/app/admin/layout.tsx (AuthGuard wrapper)
+├── src/app/superadmin/layout.tsx (AuthGuard wrapper)
+├── src/components/native/AppStateHandler.component.tsx
+├── src/components/native/DeepLinkHandler.component.tsx
+├── src/hooks/useAuth.hook.ts
+├── docs/SPEC_auth.md (v6.6 → v6.7)
+```
+
+**The Vibe Coding Process:**
+
+```
+"My iOS app sometimes opens Safari for login"
+→ Cursor analyzes middleware.ts, auth setup, Capacitor config
+→ Identifies dual-storage problem (cookies vs localStorage)
+→ Proposes client-side auth architecture
+→ Gets second opinion from Grok (edge cases)
+→ Implements AuthGuard, simplifies middleware
+→ Updates specs with new patterns
+```
+
+**Outcome:**
+- No more Safari escapes on iOS
+- Session persists across background/foreground cycles
+- Cleaner separation: middleware for cookies, AuthGuard for routing
+- Web app unchanged (same auth flow, different mechanism)
+
+**Lesson Learned:** Mobile WebViews aren't browsers. What works on web (server-side redirects) can break on mobile. Always use `router.push()` instead of server redirects for navigation in hybrid apps.
+
+---
+
+**Document Version:** 1.4.0  
+**Last Updated:** December 18, 2025  
+**Status:** Complete development history through Phase 11.2  
 **Next Update:** After RSVP/Billing implementation
 
 ---
 
-*This document was itself created through vibe coding, synthesizing 2,500+ lines of specifications, analyzing 500+ files of code, and organizing 11 months of development history into a coherent narrative. And now it includes the story of tidying that very documentation, plus Chat & Voting social features. Meta on meta on meta.* 🚀
+*This document was itself created through vibe coding, synthesizing 2,500+ lines of specifications, analyzing 500+ files of code, and organizing 12 months of development history into a coherent narrative. And now it includes the story of tidying that very documentation, Chat & Voting social features, and debugging mobile WebView auth with AI collaboration. Meta on meta on meta.* 🚀
 

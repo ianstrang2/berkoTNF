@@ -38,6 +38,12 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({ className = '' }
         label: 'Advanced',
         href: '/admin/setup?level=advanced&section=points',
         active: currentLevel === 'advanced'
+      },
+      {
+        key: 'regional',
+        label: 'Regional',
+        href: '/admin/setup?level=regional',
+        active: currentLevel === 'regional'
       }
     ];
 

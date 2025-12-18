@@ -10,6 +10,7 @@
  * bypass RLS for this specific cross-tenant lookup during authentication.
  * 
  * PERFORMANCE FIX (Dec 2025): Uses cached auth via getAuthenticatedUser()
+ * GLOBALISATION (Dec 2025): Uses international phone validation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,6 +18,7 @@ import { createClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
 import { handleTenantError } from '@/lib/api-helpers';
 import { getAuthenticatedUser } from '@/lib/auth/cachedAuth';
+import { normalizeToE164, phoneNumbersMatch, CountryCode } from '@/utils/phoneInternational.util';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,15 +42,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Normalize phone number for matching
-    const normalizePhone = (phoneNum: string): string => {
-      let cleaned = phoneNum.replace(/[\s\-\(\)]/g, '');
-      if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
-      if (cleaned.startsWith('0')) cleaned = '44' + cleaned.substring(1);
-      if (!cleaned.startsWith('44')) cleaned = '44' + cleaned;
-      return '+' + cleaned;
-    };
-
-    const normalizedPhone = normalizePhone(phone);
+    // Default to GB for cross-tenant phone lookup (we don't know tenant yet)
+    // libphonenumber-js can handle most international formats if user includes country code
+    let normalizedPhone: string;
+    try {
+      normalizedPhone = normalizeToE164(phone, 'GB');
+    } catch (error) {
+      console.log('[LINK-BY-PHONE] Phone validation error:', error);
+      return NextResponse.json(
+        { success: false, error: 'Invalid phone number format' },
+        { status: 400 }
+      );
+    }
 
     // Use Supabase admin client to bypass RLS for cross-tenant phone lookup
     // This is a legitimate use case: we need to find which tenant a phone belongs to
@@ -76,10 +81,10 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to search for player');
     }
 
-    // Find matching player
+    // Find matching player using international phone comparison
     const matchingPlayer = allPlayers?.find(p => {
       if (!p.phone) return false;
-      return normalizePhone(p.phone) === normalizedPhone;
+      return phoneNumbersMatch(p.phone, normalizedPhone, 'GB');
     });
 
     if (!matchingPlayer) {

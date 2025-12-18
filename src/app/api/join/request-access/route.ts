@@ -8,11 +8,13 @@
  * Admin approves → Player can login
  * 
  * PERFORMANCE FIX (Dec 2025): Uses cached auth via getAuthenticatedUser()
+ * GLOBALISATION (Dec 2025): Uses international phone validation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth/cachedAuth';
+import { normalizeToE164, CountryCode } from '@/utils/phoneInternational.util';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,13 +42,14 @@ export async function POST(request: NextRequest) {
     // Normalize club code
     const normalizedCode = clubCode.trim().toUpperCase();
 
-    // Look up tenant by club code
+    // Look up tenant by club code (include country for phone validation)
     const tenant = await prisma.tenants.findUnique({
       where: { club_code: normalizedCode },
       select: {
         tenant_id: true,
         name: true,
         is_active: true,
+        country: true,
       },
     });
 
@@ -64,16 +67,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Normalize phone for storage
-    const normalizePhone = (phoneNum: string): string => {
-      let cleaned = phoneNum.replace(/[\s\-\(\)]/g, '');
-      if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
-      if (cleaned.startsWith('0')) cleaned = '44' + cleaned.substring(1);
-      if (!cleaned.startsWith('44')) cleaned = '44' + cleaned;
-      return '+' + cleaned;
-    };
-
-    const normalizedPhone = normalizePhone(phone);
+    // Normalize phone for storage using tenant's country
+    const tenantCountry = (tenant.country || 'GB') as CountryCode;
+    
+    let normalizedPhone: string;
+    try {
+      normalizedPhone = normalizeToE164(phone, tenantCountry);
+    } catch (error) {
+      console.error('[JOIN-REQUEST] Phone validation error:', error);
+      return NextResponse.json(
+        { success: false, error: 'Invalid phone number format' },
+        { status: 400 }
+      );
+    }
 
     // Check if phone already has a pending/approved request for this club
     const existingRequest = await prisma.player_join_requests.findFirst({
