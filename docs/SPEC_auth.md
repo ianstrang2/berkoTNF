@@ -1,7 +1,7 @@
 # Capo Authentication Specification
 
-**Version:** 6.6.0 - Phone-Only Authentication  
-**Last Updated:** November 26, 2025  
+**Version:** 6.7.0 - Phone-Only Auth + Client-Side Route Guards  
+**Last Updated:** December 18, 2025  
 **Status:** ✅ Production Ready (Web + Android + iOS)
 
 **🔄 For Implementation History:** See `ARCHIVE_auth_phases.md` for Phases 1-7 implementation details
@@ -524,80 +524,85 @@ const { data: profile } = await useProfile();
 
 ---
 
-## Middleware & Route Protection
+## Route Protection (UPDATED Dec 2025)
 
-### Route Protection Strategy
+### Two-Layer Protection Strategy
 
-**Public routes** (no auth required):
+**Why two layers:** Mobile WebView (iOS/Android) has unreliable cookie persistence. Server-side redirects can cause Safari to open. Client-side guards using `router.push()` stay in the WebView reliably.
+
+**See:** `docs/fixinng_auth.md` for full architecture decision
+
+### Layer 1: Client-Side AuthGuard (Primary)
+
+**File:** `src/components/auth/AuthGuard.component.tsx`
+
+All protected routes are wrapped with AuthGuard in their layout:
+
+```typescript
+// src/app/player/layout.tsx
+export default function PlayerLayout({ children }) {
+  return (
+    <AuthGuard requiredRole="player">
+      {children}
+    </AuthGuard>
+  );
+}
+
+// src/app/admin/layout.tsx  
+export default function AdminLayout({ children }) {
+  return (
+    <AuthGuard requiredRole="admin">
+      <MainLayout>{children}</MainLayout>
+    </AuthGuard>
+  );
+}
+```
+
+**AuthGuard behavior:**
+- Checks `useAuthContext()` for auth state
+- Not authenticated → `router.push('/auth/login')` (stays in WebView)
+- Wrong role → `router.push('/unauthorized')`
+- Shows loading spinner while checking
+
+**Role matrix:**
+
+| User | `/player/*` | `/admin/*` | `/superadmin/*` |
+|------|-------------|------------|-----------------|
+| Player | ✅ | ❌ | ❌ |
+| Admin | ✅ | ✅ | ❌ |
+| Superadmin | ✅ | ✅ | ✅ |
+
+### Layer 2: Middleware (Cookie Refresh Only)
+
+**File:** `src/middleware.ts`
+
+**IMPORTANT:** Middleware does NOT redirect. It only refreshes session cookies.
+
+```typescript
+export async function middleware(req: NextRequest) {
+  // Skip API routes
+  if (pathname.startsWith('/api/')) return NextResponse.next();
+  
+  // Create Supabase client with cookie handling
+  const supabase = createServerClient(...);
+  
+  // This triggers cookie refresh if session valid
+  await supabase.auth.getUser();
+  
+  // Always pass through - AuthGuard handles auth client-side
+  return response;
+}
+```
+
+**Why no redirects:** WKWebView cookie persistence is unreliable. If cookies are lost after background, a server redirect to `/auth/login` can open Safari instead of staying in the app.
+
+### Public Routes (No Protection)
+
 - `/` - Marketing homepage
 - `/auth/login` - Login page
 - `/auth/no-club` - No club found page
 - `/join/{slug}/{token}` - Join flow
-- `/privacy` - Privacy policy
-- `/terms` - Terms of service
-
-**Protected routes** (auth required):
-- `/admin/*` - Admin dashboard and management
-- `/player/*` - Player dashboard and stats
-- `/api/admin/*` - Admin API endpoints
-- `/api/player/*` - Player API endpoints
-
-### Middleware Implementation
-
-**File:** `src/middleware.ts`
-
-**Pattern (UPDATED Nov 2025):** Now uses `@supabase/ssr` for consistent session management
-
-```typescript
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: { headers: request.headers },
-  });
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options });
-          response.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: '', ...options });
-          response.cookies.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
-
-  // Check session
-  const { data: { session } } = await supabase.auth.getSession();
-
-  // Public routes - allow through
-  if (isPublicRoute(request.nextUrl.pathname)) {
-    return res;
-  }
-
-  // Protected routes - require auth
-  if (!session) {
-    return NextResponse.redirect(new URL('/auth/login', request.url));
-  }
-
-  return res;
-}
-
-export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)']
-};
-```
+- `/privacy`, `/terms` - Legal pages
 
 ### API Route Protection
 

@@ -1,9 +1,11 @@
-# Fixing Auth for Capacitor iOS Remote WebView
+# Auth Architecture for Capacitor iOS Remote WebView
 
 **Created:** December 12, 2025  
 **Updated:** December 18, 2025  
-**Status:** ✅ Implemented (awaiting local testing)  
+**Status:** ✅ Implemented and Deployed  
 **Author:** Claude (analysis) + Ian (implementation)
+
+> **Note:** This document contains the detailed rationale and implementation plan for the client-side auth architecture. For day-to-day reference, see `SPEC_auth.md` → "Route Protection" section.
 
 ---
 
