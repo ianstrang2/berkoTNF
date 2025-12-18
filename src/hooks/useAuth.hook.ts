@@ -84,7 +84,9 @@ export function useAuth() {
   }, [authData]);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Explicit scope: 'local' ensures localStorage is cleared completely
+    // This is the default behavior, but being explicit is defensive for mobile
+    await supabase.auth.signOut({ scope: 'local' });
     localStorage.removeItem('adminAuth');
     localStorage.removeItem('userProfile');
     queryClient.clear(); // Clear all queries on logout

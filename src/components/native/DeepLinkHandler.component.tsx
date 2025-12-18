@@ -4,11 +4,19 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { App } from '@capacitor/app';
 import type { PluginListenerHandle } from '@capacitor/core';
+import { supabase } from '@/lib/supabaseClient';
 
 /**
  * Deep Link Handler
+ * 
  * Listens for deep links (capo://) and universal links (https://capo.app)
- * and navigates to the appropriate page in the app
+ * and navigates to the appropriate page in the app.
+ * 
+ * UPDATED (Dec 2025): Added session check before routing to protected pages
+ * - Prevents redirect loops when deep linking with stale/missing tokens
+ * - Redirects to login with returnUrl if session missing for protected routes
+ * 
+ * See: docs/fixinng_auth.md for architecture decision
  */
 export const DeepLinkHandler = () => {
   const router = useRouter();
@@ -21,33 +29,56 @@ export const DeepLinkHandler = () => {
 
     let listenerHandle: PluginListenerHandle | null = null;
 
-    const handleDeepLink = (data: any) => {
+    const handleDeepLink = async (data: any) => {
       const url = data.url;
       
       if (!url) return;
 
       console.log('[DeepLink] Received:', url);
 
-      // Handle capo:// scheme
+      // Parse path from URL
+      let path = '/';
+      
       if (url.startsWith('capo://')) {
-        const path = url.replace('capo://', '/');
-        console.log('[DeepLink] Navigating to:', path);
-        router.push(path);
-      }
-      // Handle https://capo.app universal links
-      else if (url.includes('capo.app')) {
+        path = url.replace('capo://', '/');
+      } else if (url.includes('capo.app')) {
         const urlObj = new URL(url);
-        const path = urlObj.pathname + urlObj.search;
-        console.log('[DeepLink] Navigating to:', path);
-        router.push(path);
-      }
-      // Handle localhost/development links (any port)
-      else if (url.includes('localhost:') || url.includes('10.0.2.2:') || url.includes('127.0.0.1:')) {
+        path = urlObj.pathname + urlObj.search;
+      } else if (url.includes('localhost:') || url.includes('10.0.2.2:') || url.includes('127.0.0.1:')) {
         const urlObj = new URL(url);
-        const path = urlObj.pathname + urlObj.search;
-        console.log('[DeepLink] Navigating to:', path);
-        router.push(path);
+        path = urlObj.pathname + urlObj.search;
       }
+
+      // Check if this is a protected route
+      const isProtectedRoute = 
+        path.startsWith('/player') || 
+        path.startsWith('/admin') || 
+        path.startsWith('/superadmin');
+
+      if (isProtectedRoute) {
+        // Verify session before routing to protected page
+        console.log('[DeepLink] Protected route, checking session...');
+        
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          
+          if (!sessionData?.session) {
+            console.log('[DeepLink] No session, redirecting to login');
+            router.push(`/auth/login?returnUrl=${encodeURIComponent(path)}`);
+            return;
+          }
+          
+          console.log('[DeepLink] Session valid, navigating to:', path);
+        } catch (err) {
+          console.error('[DeepLink] Session check failed:', err);
+          router.push(`/auth/login?returnUrl=${encodeURIComponent(path)}`);
+          return;
+        }
+      } else {
+        console.log('[DeepLink] Public route, navigating to:', path);
+      }
+
+      router.push(path);
     };
 
     // Add listener and store handle for cleanup
@@ -65,4 +96,3 @@ export const DeepLinkHandler = () => {
 
   return null; // This component doesn't render anything
 };
-
