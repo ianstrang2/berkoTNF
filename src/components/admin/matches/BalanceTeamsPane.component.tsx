@@ -335,6 +335,12 @@ const BalanceTeamsPane = forwardRef<BalanceTeamsPaneHandle, BalanceTeamsPaneProp
   // Extract player status from React Query hook
   const onFirePlayerId = playerStatus?.on_fire_player_id || null;
   const grimReaperPlayerId = playerStatus?.grim_reaper_player_id || null;
+  
+  // Extract current voting award holders
+  const votingAwards = playerStatus?.voting_awards || { mom: [], dod: [], mia: [] };
+  const momPlayerIds = votingAwards.mom.map(a => a.player_id);
+  const dodPlayerIds = votingAwards.dod.map(a => a.player_id);
+  const miaPlayerIds = votingAwards.mia.map(a => a.player_id);
 
   // Track saved state for comparison (what players see)
   const [savedPlayers, setSavedPlayers] = useState(initialPlayers);
@@ -510,11 +516,23 @@ const BalanceTeamsPane = forwardRef<BalanceTeamsPaneHandle, BalanceTeamsPaneProp
         .map(player => {
           let playerName = player.name;
           
+          // System-generated status icons
           if (showOnFireConfig && player.id === onFirePlayerId) {
             playerName += ' 🔥';
           }
           if (showGrimReaperConfig && player.id === grimReaperPlayerId) {
             playerName += ' 💀';
+          }
+          
+          // Voting award icons (current holders from latest completed survey)
+          if (momPlayerIds.includes(player.id)) {
+            playerName += ' 💪';
+          }
+          if (dodPlayerIds.includes(player.id)) {
+            playerName += ' 🫏';
+          }
+          if (miaPlayerIds.includes(player.id)) {
+            playerName += ' 🦝';
           }
           
           return playerName;

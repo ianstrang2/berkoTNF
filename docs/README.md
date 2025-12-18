@@ -1,6 +1,6 @@
 # Capo Documentation Index
 
-**Last Updated:** November 26, 2025  
+**Last Updated:** December 18, 2025  
 **Purpose:** Single source of truth for all documentation  
 **How to use:** Find the doc you need, copy filename, open in Cursor
 
@@ -26,6 +26,8 @@
 | `SPEC_auth.md` | 890 | ✅ TIDIED ✨ | Authentication, authorization, roles | Login, signup, sessions, role management |
 | `SPEC_multi_tenancy.md` | 741 | ✅ TIDIED ✨ | Tenant isolation, RLS, filtering | Multi-tenant features, tenant-scoped queries |
 | `SPEC_match-control-centre.md` | 499 | ✅ TIDIED ✨ | Match lifecycle (Draft→Balanced→Complete) | Match creation, team balancing, match management |
+| `SPEC_Awards.md` | ~400 | ✅ NEW ✨ | All player awards (On Fire, Grim Reaper, MoM, DoD, MiA) | Award icons, voting, config-based display logic |
+| `SPEC_Chat.md` | ~250 | ✅ NEW ✨ | Team chat feature | Chat, reactions, mentions, system messages |
 | `SPEC_background_jobs.md` | 320 | ✅ TIDIED ✨ | Stats update job system | Background processing, workers, job queues |
 | `SPEC_Modals.md` | 255 | ✅ TIDIED ✨ | Modal patterns & standards | Creating any modal/dialog in UI |
 | `SPEC_LLM-player-profile.md` | 221 | ✅ TIDIED ✨ | AI player bio generation | Player profile features, LLM integration |
@@ -137,6 +139,7 @@
 
 **Keep for reference:**
 - `MERMAID_Auth.md` - Auth flow diagrams (still useful)
+- `ARCHIVE_Chat_And_Voting.md` - Original combined spec (2144 lines, split into SPEC_Chat.md + SPEC_Awards.md)
 
 ---
 
@@ -227,12 +230,15 @@ Only if BOTH conditions met:
 | **Match management** | `SPEC_match-control-centre.md` | `SPEC_match-report.md` |
 | **Player ratings** | `SPEC_performance_rating_system.md` | `SPEC_balance_by_performance_algorithm.md` |
 | **Player settings** | `SPEC_PlayerSettings.md` | `SPEC_auth.md` (roles) |
+| **Player awards/icons** | `SPEC_Awards.md` | `SPEC_match-report.md` (display) |
+| **Team chat** | `SPEC_Chat.md` | - |
+| **Post-match voting** | `SPEC_Awards.md` | `SPEC_Chat.md` (system messages) |
 | **Creating modals** | `SPEC_Modals.md` | - |
 | **Background jobs** | `SPEC_background_jobs.md` | - |
 | **International/global** | `SPEC_Globalisation.md` | `SPEC_RSVP.md`, `Billing_Plan.md` |
 | **Mobile development** | `MOBILE_SPEC.md` | `MOBILE_USER_GUIDE.md`, `ios/`, `mobile/` |
 | **TestFlight submission** | `TESTFLIGHT_START_HERE.md` | All `TESTFLIGHT_*.md` files |
-| **Marketing pages** | `SPEC_Marketing.md` | `marketing_spec.md` (older version) |
+| **Marketing pages** | `SPEC_Marketing.md` | - |
 | **Writing article** | `App_History.md` | All specs for technical details |
 
 ### Quick Reference Patterns

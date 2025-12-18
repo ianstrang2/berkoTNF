@@ -35,14 +35,26 @@ const FantasyPointsTooltip: React.FC<FantasyPointsTooltipProps> = ({ isOpen, onC
         throw new Error(result.error || 'Invalid response format');
       }
       
-      // Map the configuration data to our interface
-      const mappedData: FantasyPointsData[] = result.data.map((config: any) => ({
-        config_description: config.config_description || getDefaultDescription(config.config_key),
+      // Map the configuration data to our interface, tracking config_key for sorting
+      const mappedData = result.data.map((config: any) => ({
+        config_description: config.display_name || formatDisplayName(config.config_key),
         config_value: config.config_value,
-        display_name: config.display_name || formatDisplayName(config.config_key)
+        display_name: config.display_name || formatDisplayName(config.config_key),
+        config_key: config.config_key
       }));
       
-      setFantasyPointsData(mappedData);
+      // Sort by points value (highest to lowest), keeping threshold at the bottom
+      const sortedData = mappedData.sort((a, b) => {
+        // Threshold always goes last (it's a margin, not points)
+        const aIsThreshold = a.config_key === 'fantasy_heavy_win_threshold';
+        const bIsThreshold = b.config_key === 'fantasy_heavy_win_threshold';
+        if (aIsThreshold) return 1;
+        if (bIsThreshold) return -1;
+        // Sort by numeric value descending (highest points first)
+        return parseFloat(b.config_value) - parseFloat(a.config_value);
+      });
+      
+      setFantasyPointsData(sortedData);
     } catch (err: any) {
       console.error('Error fetching fantasy points data:', err);
       setError(err.message || 'Failed to load fantasy points data');
@@ -110,7 +122,7 @@ const FantasyPointsTooltip: React.FC<FantasyPointsTooltipProps> = ({ isOpen, onC
         </span>
         
         <div 
-          className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-soft-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+          className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-soft-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}

@@ -53,6 +53,47 @@ export async function GET(
       
       const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
       
+      // Check if voting is enabled in config
+      // If disabled, return empty results (hides Match Awards section)
+      const { data: votingConfigs } = await supabase
+        .from('app_config')
+        .select('config_key, config_value')
+        .eq('tenant_id', tenantId)
+        .in('config_key', ['voting_enabled', 'voting_mom_enabled', 'voting_dod_enabled', 'voting_mia_enabled']);
+      
+      const getConfigValue = (key: string, defaultValue: string): string => {
+        return votingConfigs?.find(c => c.config_key === key)?.config_value ?? defaultValue;
+      };
+      
+      const votingEnabled = getConfigValue('voting_enabled', 'true') !== 'false';
+      const momEnabled = getConfigValue('voting_mom_enabled', 'true') !== 'false';
+      const dodEnabled = getConfigValue('voting_dod_enabled', 'true') !== 'false';
+      const miaEnabled = getConfigValue('voting_mia_enabled', 'false') === 'true'; // Default false
+      
+      // Map of category -> enabled status
+      const categoryEnabledMap: Record<string, boolean> = {
+        mom: momEnabled,
+        dod: dodEnabled,
+        mia: miaEnabled,
+      };
+      
+      if (!votingEnabled) {
+        // Voting is disabled - return no results (this hides the Match Awards section)
+        return NextResponse.json({
+          success: true,
+          hasSurvey: false,
+          hasWinners: false,
+          votingEnabled: false,
+          results: null
+        }, {
+          headers: {
+            'Cache-Control': 'no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Vary': 'Cookie'
+          }
+        });
+      }
+      
       // Get the survey for this match
       const { data: survey, error: surveyError } = await supabase
         .from('match_surveys')
@@ -117,8 +158,12 @@ export async function GET(
       }
       
       // Format results by category
+      // Only include categories that are BOTH in the survey AND currently enabled in config
       const results: Record<string, CategoryResults> = {};
-      const enabledCategories = survey.enabled_categories as string[];
+      const surveyCategories = survey.enabled_categories as string[];
+      
+      // Filter to only categories that are currently enabled in config
+      const enabledCategories = surveyCategories.filter(cat => categoryEnabledMap[cat] === true);
       
       for (const category of enabledCategories) {
         const categoryAwards = awards?.filter(a => a.award_type === category) || [];
@@ -135,7 +180,7 @@ export async function GET(
         };
       }
       
-      // Check if there are any winners at all
+      // Check if there are any winners at all (in currently enabled categories)
       const hasWinners = Object.values(results).some(r => r.winners.length > 0);
       
       return NextResponse.json({

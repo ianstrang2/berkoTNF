@@ -235,12 +235,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   const bubbleDisplay = message.isDeleted ? 'inline-block' : '';
 
   return (
-    <div 
-      className={`${rowGap} ${reactionClearance}`}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onClick={handleClick}
-    >
+    <div className={`relative ${rowGap} ${reactionClearance}`}>
       {/* Row: avatar + bubble */}
       <div className={`flex ${rowLayout} items-end gap-1`}>
         
@@ -265,7 +260,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
         {/* Bubble - max 80% width, leaves 20% for opposite side */}
         {/* Deleted messages shrink to fit with inline-block */}
-        <div className={`relative ${message.isDeleted ? '' : 'max-w-[80%]'} px-3 py-1.5 rounded-xl ${bubbleColor} ${bubbleDisplay}`}>
+        {/* Click/touch handlers on bubble for reaction picker */}
+        <div 
+          className={`relative ${message.isDeleted ? '' : 'max-w-[80%]'} px-3 py-1.5 rounded-xl ${bubbleColor} ${bubbleDisplay} ${!message.isSystemMessage && !message.isDeleted ? 'cursor-pointer' : ''}`}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onClick={handleClick}
+        >
           
           {/* Sender name - only first message in group from others, not for deleted */}
           {showName && isFirstInGroup && !isOwnMessage && !message.isDeleted && (
@@ -415,32 +416,38 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               </button>
             </div>
             
-            {/* Reactions list */}
+            {/* Reactions list - horizontal layout */}
             <div className="px-4 py-3 overflow-y-auto max-h-[calc(50vh-60px)]">
-              {message.reactions.map((reaction) => (
-                <div key={reaction.emoji} className="mb-4 last:mb-0">
-                  {/* Emoji header */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[24px]">{reaction.emoji}</span>
-                    <span className="text-[14px] font-medium text-gray-500">{reaction.count}</span>
+              {/* Emoji tabs in a row */}
+              <div className="flex flex-wrap gap-3 mb-4">
+                {message.reactions.map((reaction) => (
+                  <div 
+                    key={reaction.emoji} 
+                    className="flex flex-col items-center"
+                  >
+                    {/* Emoji with count */}
+                    <div className="flex items-center gap-1 mb-2">
+                      <span className="text-[24px]">{reaction.emoji}</span>
+                      <span className="text-[14px] font-medium text-gray-500">{reaction.count}</span>
+                    </div>
+                    {/* Names as pills below each emoji */}
+                    <div className="flex flex-col gap-1">
+                      {reaction.playerIds.map((playerId) => (
+                        <span
+                          key={playerId}
+                          className={`inline-block px-3 py-1 rounded-full text-[13px] text-center ${
+                            playerId === currentPlayerId
+                              ? 'bg-purple-100 text-purple-700 font-medium'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {playerId === currentPlayerId ? 'You' : getPlayerName(playerId)}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  {/* Names list */}
-                  <div className="flex flex-wrap gap-2">
-                    {reaction.playerIds.map((playerId) => (
-                      <span
-                        key={playerId}
-                        className={`inline-block px-3 py-1.5 rounded-full text-[13px] ${
-                          playerId === currentPlayerId
-                            ? 'bg-purple-100 text-purple-700 font-medium'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {playerId === currentPlayerId ? 'You' : getPlayerName(playerId)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </>

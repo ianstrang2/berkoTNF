@@ -3,17 +3,40 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth.hook';
 import { apiFetch } from '@/lib/apiConfig';
 
-interface LatestPlayerStatus {
+// Individual voting award holder
+export interface VotingAwardHolder {
+  player_id: string;
+  is_co_winner: boolean;
+}
+
+// Voting awards by category
+export interface VotingAwards {
+  mom: VotingAwardHolder[];
+  dod: VotingAwardHolder[];
+  mia: VotingAwardHolder[];
+}
+
+export interface LatestPlayerStatus {
   on_fire_player_id: string | null;
   grim_reaper_player_id: string | null;
+  voting_awards: VotingAwards;
+  voting_enabled: boolean; // Whether voting feature is enabled in config
 }
+
+const EMPTY_VOTING_AWARDS: VotingAwards = {
+  mom: [],
+  dod: [],
+  mia: [],
+};
 
 async function fetchLatestPlayerStatus(tenantId: string | null): Promise<LatestPlayerStatus> {
   // Gracefully handle missing tenantId - return empty data
   if (!tenantId) {
     return {
       on_fire_player_id: null,
-      grim_reaper_player_id: null
+      grim_reaper_player_id: null,
+      voting_awards: EMPTY_VOTING_AWARDS,
+      voting_enabled: false,
     };
   }
   
@@ -24,7 +47,12 @@ async function fetchLatestPlayerStatus(tenantId: string | null): Promise<LatestP
   }
   
   const result = await response.json();
-  return result;
+  // Ensure voting_awards is always present (backwards compatibility)
+  return {
+    ...result,
+    voting_awards: result.voting_awards || EMPTY_VOTING_AWARDS,
+    voting_enabled: result.voting_enabled ?? true, // Default to true for backwards compatibility
+  };
 }
 
 export function useLatestPlayerStatus() {
