@@ -98,9 +98,9 @@ const ForPlayers: React.FC = () => {
             </div>
 
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Graphs & charts that show your rise (or wobble)</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Post-match voting — glory or shame</h3>
               <p className="text-gray-700 leading-relaxed">
-                Clean visuals of your minutes, goals and points-per-game over time. You can literally see your form curve — and everyone else's.
+                After every game, players can vote on what actually happened out there. Man of the Match. Donkey of the Day. Missing in Action.
               </p>
             </div>
 

@@ -7,7 +7,7 @@ const Comparison: React.FC = () => {
       feature: 'Group chat & banter',
       whatsapp: { icon: '✅', text: 'Perfect for chat' },
       spond: { icon: '😐', text: 'Feels a bit corporate' },
-      capo: { icon: '👍', text: 'Keep chat on WhatsApp. We focus on the football.' }
+      capo: { icon: '✅', text: 'Chat built in. Focus on the football.' }
     },
     {
       feature: 'RSVPs & numbers',
@@ -40,6 +40,12 @@ const Comparison: React.FC = () => {
       capo: { icon: '✅', text: 'AI-balanced teams with clear Balance Score' }
     },
     {
+      feature: 'Vote after the match',
+      whatsapp: { icon: '😐', text: 'Could use polls' },
+      spond: { icon: '❌', text: 'None' },
+      capo: { icon: '✅', text: 'Badges of pride or shame' }
+    },
+    {
       feature: 'Vibes / identity',
       whatsapp: { icon: '🔥', text: 'Fun but messy' },
       spond: { icon: '🥶', text: 'Efficient but lifeless' },
@@ -56,7 +62,7 @@ const Comparison: React.FC = () => {
             Why use Capo instead of just WhatsApp or Spond?
           </h2>
           <p className="text-2xl text-purple-600 font-semibold">
-            Keep the chat where it lives. Let Capo run the football.
+            Keep the football where it lives. Chat included.
           </p>
         </div>
 
