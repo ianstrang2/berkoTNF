@@ -549,9 +549,6 @@ const BalanceTeamsPane = forwardRef<BalanceTeamsPaneHandle, BalanceTeamsPaneProp
   const teamsText = generateTeamsText();
 
   const renderPlayer = (player: PlayerInPool) => {
-    // Truncate name to 12 characters max for compact display
-    const displayName = player.name.length > 12 ? player.name.substring(0, 12) : player.name;
-    
     return (
       <div 
         key={player.id} 
@@ -560,9 +557,9 @@ const BalanceTeamsPane = forwardRef<BalanceTeamsPaneHandle, BalanceTeamsPaneProp
         onTouchStart={(e) => handleTouchStart(player, e)}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="inline-flex items-center justify-between bg-white rounded shadow-soft-sm text-slate-700 border border-gray-200 px-2 py-1 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing w-full max-w-[140px] touch-none"
+        className="inline-flex items-center justify-between bg-white rounded shadow-soft-sm text-slate-700 border border-gray-200 px-2 py-1 font-sans transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing w-full max-w-[155px] touch-none"
       >
-          <span className="text-xs font-medium truncate flex-1">{displayName}</span>
+          <span className="text-xs font-medium truncate flex-1">{player.name}</span>
           <GripVertical className="ml-1 text-slate-400 flex-shrink-0" size={14} />
       </div>
     );
@@ -581,7 +578,7 @@ const BalanceTeamsPane = forwardRef<BalanceTeamsPaneHandle, BalanceTeamsPaneProp
         data-slot={actualSlotNumber}
         onDragOver={handleDragOver} 
         onDrop={() => handleDrop(team, actualSlotNumber)}
-        className={`h-[32px] w-full max-w-[140px] flex items-center justify-center rounded transition-all duration-200 ease-in-out mx-auto ${
+        className={`h-[32px] w-full max-w-[155px] flex items-center justify-center rounded transition-all duration-200 ease-in-out mx-auto ${
           playerInSlot 
             ? 'bg-transparent' 
             : 'bg-gray-50 border border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50'

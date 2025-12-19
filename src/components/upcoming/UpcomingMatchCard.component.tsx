@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { PlayerInPool } from '@/types/player.types';
@@ -14,7 +14,7 @@ interface UpcomingMatch {
   match_date: string;
   state: string;
   _count: {
-    players: number;
+    upcoming_match_players: number;
   };
   team_size: number;
   actual_size_a?: number;
@@ -24,10 +24,18 @@ interface UpcomingMatch {
 
 interface UpcomingMatchCardProps {
   match: UpcomingMatch;
+  autoExpand?: boolean;
 }
 
-const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match, autoExpand = false }) => {
+  const [isExpanded, setIsExpanded] = useState(autoExpand);
+  
+  // Update expanded state if autoExpand prop changes
+  useEffect(() => {
+    if (autoExpand) {
+      setIsExpanded(true);
+    }
+  }, [autoExpand]);
 
   // React Query hooks - automatic caching and deduplication!
   // Only fetch match details when expanded
@@ -35,7 +43,7 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
     isExpanded ? match.upcoming_match_id : null
   );
   const { data: playerStatus } = useLatestPlayerStatus();
-  const { data: configData = [] } = useAppConfig({ groups: ['club_team_names'] });
+  const { data: configData = [] } = useAppConfig({ groups: ['club_team_names', 'match_report'] });
 
   // Extract config values
   const teamAName = useMemo(() => {
@@ -48,8 +56,24 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
     return config?.config_value || 'Green';
   }, [configData]);
 
+  const showOnFireConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_on_fire');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
+  const showGrimReaperConfig = useMemo(() => {
+    const config = configData.find(c => c.config_key === 'show_grim_reaper');
+    return config?.config_value !== 'false';
+  }, [configData]);
+
   const onFirePlayerId = playerStatus?.on_fire_player_id || null;
   const grimReaperPlayerId = playerStatus?.grim_reaper_player_id || null;
+  
+  // Extract voting awards (MoM, DoD, MiA)
+  const votingAwards = playerStatus?.voting_awards || { mom: [], dod: [], mia: [] };
+  const momPlayerIds = votingAwards.mom?.map(a => a.player_id) || [];
+  const dodPlayerIds = votingAwards.dod?.map(a => a.player_id) || [];
+  const miaPlayerIds = votingAwards.mia?.map(a => a.player_id) || [];
 
   // Helper function to format state display text
   // For players, show BUILDING until teams are actually saved/visible
@@ -78,19 +102,29 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
   };
 
   const renderPlayerCard = (player: PlayerInPool) => {
-    // Truncate name to 14 characters max
-    const displayName = player.name.length > 14 ? player.name.substring(0, 14) : player.name;
+    // Check for all 5 awards
+    const hasOnFire = showOnFireConfig && onFirePlayerId === player.id;
+    const hasGrimReaper = showGrimReaperConfig && grimReaperPlayerId === player.id;
+    const hasMom = momPlayerIds.includes(player.id);
+    const hasDod = dodPlayerIds.includes(player.id);
+    const hasMia = miaPlayerIds.includes(player.id);
+    const hasAnyAward = hasOnFire || hasGrimReaper || hasMom || hasDod || hasMia;
     
     return (
       <div 
         key={player.id} 
-        className="inline-flex items-center justify-between bg-white rounded-lg shadow-soft-sm text-slate-700 border border-gray-200 px-3 py-2 font-sans w-[170px]"
+        className="inline-flex items-center justify-between bg-white rounded shadow-soft-sm text-slate-700 border border-gray-200 px-2 py-1 font-sans w-full max-w-[155px]"
       >
-        <span className="text-sm font-medium truncate flex-1">{displayName}</span>
-        <div className="ml-2 flex items-center gap-1">
-          {onFirePlayerId === player.id && <span>🔥</span>}
-          {grimReaperPlayerId === player.id && <span>💀</span>}
-        </div>
+        <span className="text-xs font-medium truncate flex-1">{player.name}</span>
+        {hasAnyAward && (
+          <div className="ml-1 flex items-center gap-0.5 flex-shrink-0">
+            {hasOnFire && <span className="text-xs">🔥</span>}
+            {hasGrimReaper && <span className="text-xs">💀</span>}
+            {hasMom && <span className="text-xs">💪</span>}
+            {hasDod && <span className="text-xs">🫏</span>}
+            {hasMia && <span className="text-xs">🦝</span>}
+          </div>
+        )}
       </div>
     );
   };
@@ -100,16 +134,24 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
     
     const unassignedPlayers = expandedMatch.players.filter(p => p.team === 'Unassigned');
     
+    // If no unassigned players (all balanced but not saved), show all players as flat list
+    // This way players still see who's playing, just not which team yet
+    const playersToShow = unassignedPlayers.length > 0 
+      ? unassignedPlayers 
+      : expandedMatch.players;
+    
+    if (playersToShow.length === 0) {
+      return (
+        <p className="text-center text-slate-500 py-4 text-sm">No players yet</p>
+      );
+    }
+    
+    // Sort alphabetically for consistent display
+    const sortedPlayers = [...playersToShow].sort((a, b) => a.name.localeCompare(b.name));
+    
     return (
-      <div>
-        <div className="mb-3">
-          <h2 className="font-bold text-slate-700 text-lg">Player Pool</h2>
-        </div>
-        <div className="flex flex-wrap gap-2 min-h-[120px] content-start">
-          {unassignedPlayers.length > 0 
-            ? unassignedPlayers.map(p => renderPlayerCard(p)) 
-            : <p className="w-full text-center text-slate-500 pt-4 text-sm">All players assigned to teams</p>}
-        </div>
+      <div className="flex flex-wrap gap-1.5 min-h-[80px] content-start">
+        {sortedPlayers.map(p => renderPlayerCard(p))}
       </div>
     );
   };
@@ -125,13 +167,13 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
     // Get formation template for this team size
     const template = deriveTemplate(actualTeamSize);
     const slots = Array.from({ length: actualTeamSize }, (_, i) => i);
-    const { def: defenders, mid: midfielders, att: attackers } = template;
+    const { def: defenders, mid: midfielders } = template;
     
     const displayTeamName = teamName === 'A' ? teamAName : teamBName;
     
     return (
-      <div className="space-y-1">
-        <h3 className="font-bold text-slate-700 text-lg text-center mb-3">
+      <div className="space-y-0.5">
+        <h3 className="font-semibold text-slate-700 text-sm text-center mb-2">
           {displayTeamName}
         </h3>
         {slots.map((slotIndex) => {
@@ -141,16 +183,16 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
           
           return (
             <React.Fragment key={slotIndex}>
-              <div className="h-[44px] w-[170px] flex items-center justify-center rounded-lg mx-auto">
+              <div className="h-[32px] w-full max-w-[155px] flex items-center justify-center rounded mx-auto">
                 {playerInSlot ? renderPlayerCard(playerInSlot) : (
-                  <div className="h-[44px] w-[170px] flex items-center justify-center rounded-lg bg-gray-50 border-2 border-gray-200">
-                    <span className="text-xs text-gray-400 font-medium">Empty slot</span>
+                  <div className="h-[32px] w-full max-w-[155px] flex items-center justify-center rounded bg-gray-50 border border-dashed border-gray-300">
+                    <span className="text-[10px] text-gray-400">Empty slot</span>
                   </div>
                 )}
               </div>
               {showLineAfter && (
-                <div className="py-2 flex items-center justify-center">
-                  <div className="h-0.5 w-24 bg-gradient-to-r from-pink-400 via-purple-500 to-pink-400 rounded-full shadow-sm opacity-75"></div>
+                <div className="py-1 flex items-center justify-center">
+                  <div className="h-0.5 w-16 bg-gradient-to-r from-pink-400 via-purple-500 to-pink-400 rounded-full shadow-sm opacity-75"></div>
                 </div>
               )}
             </React.Fragment>
@@ -184,34 +226,65 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match }) => {
 
     // Check if teams are saved (visible to players)
     const teamsSaved = expandedMatch.teams_saved_at !== null && expandedMatch.teams_saved_at !== undefined;
-    const hasTeamAssignments = expandedMatch.players.some(p => p.team === 'A' || p.team === 'B');
     
-    // If teams exist but not saved yet, show "finalizing" message
-    if (hasTeamAssignments && !teamsSaved) {
+    // Only show teams if they've been saved - otherwise show the pool
+    if (teamsSaved) {
       return (
-        <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
-          <div className="text-center text-amber-700">
-            <p className="font-medium">Teams being finalised...</p>
-            <p className="text-sm mt-1">Check back soon!</p>
-          </div>
+        <div className="mt-4 space-y-4">
+          {renderTeams()}
         </div>
       );
     }
     
+    // Not saved yet - show the pool (unassigned players only)
     return (
       <div className="mt-4 space-y-4">
-        {hasTeamAssignments && teamsSaved ? renderTeams() : renderPlayerPool()}
+        {renderPlayerPool()}
       </div>
     );
   };
 
+  // Determine if teams are visible (saved)
+  const teamsVisible = match.teams_saved_at !== null && match.teams_saved_at !== undefined;
+  
+  // Calculate team sizes for display
+  const teamASizeDisplay = match.actual_size_a || match.team_size;
+  const teamBSizeDisplay = match.actual_size_b || match.team_size;
+  
+  // Generate subtitle text based on state
+  const getSubtitleText = () => {
+    if (teamsVisible) {
+      // Teams are set - show "8 v 7" format
+      return `${teamASizeDisplay} v ${teamBSizeDisplay}`;
+    } else {
+      // Building stage - show player count
+      const playerCount = match._count?.upcoming_match_players ?? 0;
+      return `Players in pool: ${playerCount}`;
+    }
+  };
+  
+  // Handle click on card - expand only (not collapse)
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't expand if clicking on the purple button
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    // Only expand, don't collapse
+    if (!isExpanded) {
+      setIsExpanded(true);
+    }
+  };
+
   return (
-    <div className="block bg-white hover:shadow-lg transition-shadow duration-300 rounded-xl shadow-soft-xl border">
+    <div 
+      className={`block bg-white hover:shadow-lg transition-shadow duration-300 rounded-xl shadow-soft-xl border ${!isExpanded ? 'cursor-pointer' : ''}`}
+      onClick={handleCardClick}
+    >
       <div className="p-4">
         <div className="flex justify-between items-center">
           <div className="flex-1">
             <p className="font-semibold text-slate-700">{format(new Date(match.match_date), 'EEEE, MMMM d, yyyy')}</p>
-            <p className="text-sm text-slate-500">Players in pool: {match._count.players}</p>
+            <p className="text-sm text-slate-500">{getSubtitleText()}</p>
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
             <span className="text-xs font-medium uppercase py-1 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-soft-sm">

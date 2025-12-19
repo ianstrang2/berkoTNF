@@ -8,11 +8,12 @@ interface UpcomingMatch {
   match_date: string;
   state: string;
   _count: {
-    players: number;
+    upcoming_match_players: number;
   };
   team_size: number;
   actual_size_a?: number;
   actual_size_b?: number;
+  teams_saved_at?: string | null;
 }
 
 async function fetchUpcomingMatches(tenantId: string | null): Promise<UpcomingMatch[]> {

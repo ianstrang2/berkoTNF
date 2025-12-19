@@ -38,7 +38,11 @@ export default function UpcomingPage() {
     return (
       <div className="space-y-4 max-w-xl">
         {matches.map(match => (
-          <UpcomingMatchCard key={match.upcoming_match_id} match={match} />
+          <UpcomingMatchCard 
+            key={match.upcoming_match_id} 
+            match={match} 
+            autoExpand={matches.length === 1}
+          />
         ))}
       </div>
     );

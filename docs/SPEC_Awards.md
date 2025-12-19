@@ -1,7 +1,7 @@
 # Awards Specification
 
-**Version:** 1.0.0  
-**Last Updated:** December 18, 2025  
+**Version:** 1.1.0  
+**Last Updated:** December 19, 2025  
 **Status:** Implemented  
 **Split from:** SPEC_Chat_And_Voting.md (v1.4.0)
 
@@ -41,6 +41,7 @@ Icons appear next to player names in these locations:
 | Half-Season Stats table | `CurrentHalfSeason.component.tsx` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Season Stats table | `OverallSeasonPerformance.component.tsx` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Teams Share (MCC) | `BalanceTeamsPane.component.tsx` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Player Upcoming (pool/teams) | `UpcomingMatchCard.component.tsx` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Match Awards section | `VotingResults.component.tsx` | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Current Form section | `CurrentForm.component.tsx` | ✅ | ✅ | ❌ | ❌ | ❌ |
 
