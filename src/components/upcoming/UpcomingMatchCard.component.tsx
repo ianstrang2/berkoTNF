@@ -7,7 +7,7 @@ import { PlayerInPool } from '@/types/player.types';
 import { deriveTemplate } from '@/utils/teamFormation.util';
 import { useUpcomingMatchDetails } from '@/hooks/queries/useUpcomingMatchDetails.hook';
 import { useLatestPlayerStatus } from '@/hooks/queries/useLatestPlayerStatus.hook';
-import { useAppConfig } from '@/hooks/queries/useAppConfig.hook';
+import { usePlayerConfig } from '@/hooks/queries/usePlayerConfig.hook';
 
 interface UpcomingMatch {
   upcoming_match_id: number;
@@ -43,7 +43,7 @@ const UpcomingMatchCard: React.FC<UpcomingMatchCardProps> = ({ match, autoExpand
     isExpanded ? match.upcoming_match_id : null
   );
   const { data: playerStatus } = useLatestPlayerStatus();
-  const { data: configData = [] } = useAppConfig({ groups: ['club_team_names', 'match_report'] });
+  const { data: configData = [] } = usePlayerConfig({ groups: ['club_team_names', 'match_report'] });
 
   // Extract config values
   const teamAName = useMemo(() => {

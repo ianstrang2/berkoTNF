@@ -22,6 +22,10 @@ export const queryKeys = {
   appConfig: (groups?: string[], complexity?: string) => 
     ['appConfig', groups?.join(',') || 'all', complexity || 'all'] as const,
   
+  // Player Config API - lightweight config for player views (skips admin auth)
+  playerConfig: (groups?: string[]) => 
+    ['playerConfig', groups?.join(',') || 'all'] as const,
+  
   // Stats API - used by various components
   stats: (tenantId: string | null) => ['stats', tenantId] as const,
   

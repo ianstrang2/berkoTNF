@@ -40,16 +40,14 @@ export async function GET(request: NextRequest) {
       
       // Query 2: Find the most recent CLOSED survey to get current voting award holders
       // Per spec: "Show awards from the latest match that has a completed survey"
+      // PERF: Order by closed_at instead of match.match_date to avoid JOIN
+      // Surveys are closed in chronological order, so closed_at DESC gives us the latest
       prisma.match_surveys.findFirst({
         where: {
           tenant_id: tenantId,
           is_open: false, // Must be closed
         },
-        orderBy: [
-          // Order by match date (via relation), then survey created_at as tiebreaker
-          { match: { match_date: 'desc' } },
-          { created_at: 'desc' },
-        ],
+        orderBy: { closed_at: 'desc' },
         select: {
           id: true,
         },
