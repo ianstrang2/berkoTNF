@@ -54,6 +54,7 @@ BEGIN
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Step 1: Calculating player_match_stats...';
     
+    DROP TABLE IF EXISTS temp_player_match_stats;
     CREATE TEMP TABLE temp_player_match_stats AS
     SELECT
         p.player_id,
@@ -101,6 +102,7 @@ BEGIN
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Step 2: Calculating player_most_goals_game...';
     
+    DROP TABLE IF EXISTS temp_player_most_goals_game;
     CREATE TEMP TABLE temp_player_most_goals_game AS
     SELECT
         player_id,
@@ -125,6 +127,7 @@ BEGIN
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Step 3: Calculating player_most_goals_season...';
     
+    DROP TABLE IF EXISTS temp_player_most_goals_season;
     CREATE TEMP TABLE temp_player_most_goals_season AS
     SELECT
         player_id,
@@ -150,6 +153,7 @@ BEGIN
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Step 4: Calculating player_streaks...';
     
+    DROP TABLE IF EXISTS temp_player_streaks;
     CREATE TEMP TABLE temp_player_streaks AS
     WITH
     numbered_matches AS (
@@ -204,6 +208,7 @@ BEGIN
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Step 5: Calculating player_scoring_streak...';
     
+    DROP TABLE IF EXISTS temp_player_scoring_streak;
     CREATE TEMP TABLE temp_player_scoring_streak AS
     WITH
     numbered_goal_matches AS (
@@ -250,6 +255,7 @@ BEGIN
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Step 6: Calculating player_attendance_streak...';
     
+    DROP TABLE IF EXISTS temp_player_attendance_streak;
     CREATE TEMP TABLE temp_player_attendance_streak AS
     WITH
     all_matches AS (
@@ -297,6 +303,7 @@ BEGIN
     block_start_time := clock_timestamp();
     RAISE NOTICE 'Step 7: Calculating player_yearly_stats...';
     
+    DROP TABLE IF EXISTS temp_player_yearly_stats;
     CREATE TEMP TABLE temp_player_yearly_stats AS
     SELECT
         player_id,

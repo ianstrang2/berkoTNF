@@ -370,19 +370,24 @@ BEGIN
             ),
             previous_top_leader AS (
                 SELECT name, total_goals FROM previous_season_stats ORDER BY total_goals DESC, name LIMIT 1
+            ),
+            leader_count AS (
+                SELECT COUNT(*) as cnt FROM current_ranked_leaders WHERE rnk = 1
             )
             SELECT jsonb_agg(jsonb_build_object(
                 'new_leader', crl.name, 'new_leader_goals', crl.total_goals,
                 'previous_leader', ptl.name, 'previous_leader_goals', ptl.total_goals,
                 'change_type', CASE
                                 WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
+                                WHEN lc.cnt > 1 THEN 'tied' -- Multiple players currently share first place
                                 WHEN crl.name = ptl.name THEN 'remains'
-                                WHEN crl.total_goals = ptl.total_goals AND crl.name != ptl.name THEN 'tied' -- New person tied with old leader
                                 WHEN crl.name != ptl.name THEN 'overtake'
                                 ELSE 'new_leader'
                             END
             ) ORDER BY crl.name)
-            FROM current_ranked_leaders crl LEFT JOIN previous_top_leader ptl ON TRUE
+            FROM current_ranked_leaders crl 
+            LEFT JOIN previous_top_leader ptl ON TRUE
+            CROSS JOIN leader_count lc
             WHERE crl.rnk = 1
             ),
             '[]'::jsonb
@@ -395,19 +400,24 @@ BEGIN
             ),
             previous_top_leader AS (
                 SELECT name, fantasy_points FROM previous_season_stats ORDER BY fantasy_points DESC, name LIMIT 1
+            ),
+            leader_count AS (
+                SELECT COUNT(*) as cnt FROM current_ranked_leaders WHERE rnk = 1
             )
             SELECT jsonb_agg(jsonb_build_object(
                 'new_leader', crl.name, 'new_leader_points', crl.fantasy_points,
                 'previous_leader', ptl.name, 'previous_leader_points', ptl.fantasy_points,
                 'change_type', CASE
                                 WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
+                                WHEN lc.cnt > 1 THEN 'tied' -- Multiple players currently share first place
                                 WHEN crl.name = ptl.name THEN 'remains'
-                                WHEN COALESCE(crl.fantasy_points, 0) = COALESCE(ptl.fantasy_points, 0) AND crl.name != ptl.name THEN 'tied'
                                 WHEN crl.name != ptl.name THEN 'overtake'
                                 ELSE 'new_leader'
                             END
             ) ORDER BY crl.name)
-            FROM current_ranked_leaders crl LEFT JOIN previous_top_leader ptl ON TRUE
+            FROM current_ranked_leaders crl 
+            LEFT JOIN previous_top_leader ptl ON TRUE
+            CROSS JOIN leader_count lc
             WHERE crl.rnk = 1
             ),
             '[]'::jsonb
@@ -420,19 +430,24 @@ BEGIN
             ),
             previous_top_leader AS (
                 SELECT name, total_goals FROM previous_half_season_stats ORDER BY total_goals DESC, name LIMIT 1
+            ),
+            leader_count AS (
+                SELECT COUNT(*) as cnt FROM current_ranked_leaders WHERE rnk = 1
             )
             SELECT jsonb_agg(jsonb_build_object(
                 'new_leader', crl.name, 'new_leader_goals', crl.total_goals,
                 'previous_leader', ptl.name, 'previous_leader_goals', ptl.total_goals,
                 'change_type', CASE
                                 WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
+                                WHEN lc.cnt > 1 THEN 'tied' -- Multiple players currently share first place
                                 WHEN crl.name = ptl.name THEN 'remains'
-                                WHEN crl.total_goals = ptl.total_goals AND crl.name != ptl.name THEN 'tied'
                                 WHEN crl.name != ptl.name THEN 'overtake'
                                 ELSE 'new_leader'
                             END
             ) ORDER BY crl.name)
-            FROM current_ranked_leaders crl LEFT JOIN previous_top_leader ptl ON TRUE
+            FROM current_ranked_leaders crl 
+            LEFT JOIN previous_top_leader ptl ON TRUE
+            CROSS JOIN leader_count lc
             WHERE crl.rnk = 1
             ),
             '[]'::jsonb
@@ -445,19 +460,24 @@ BEGIN
             ),
             previous_top_leader AS (
                 SELECT name, fantasy_points FROM previous_half_season_stats ORDER BY fantasy_points DESC, name LIMIT 1
+            ),
+            leader_count AS (
+                SELECT COUNT(*) as cnt FROM current_ranked_leaders WHERE rnk = 1
             )
             SELECT jsonb_agg(jsonb_build_object(
                 'new_leader', crl.name, 'new_leader_points', crl.fantasy_points,
                 'previous_leader', ptl.name, 'previous_leader_points', ptl.fantasy_points,
                 'change_type', CASE
                                 WHEN ptl.name IS NULL AND crl.name IS NOT NULL THEN 'new_leader'
+                                WHEN lc.cnt > 1 THEN 'tied' -- Multiple players currently share first place
                                 WHEN crl.name = ptl.name THEN 'remains'
-                                WHEN COALESCE(crl.fantasy_points, 0) = COALESCE(ptl.fantasy_points, 0) AND crl.name != ptl.name THEN 'tied'
                                 WHEN crl.name != ptl.name THEN 'overtake'
                                 ELSE 'new_leader'
                             END
             ) ORDER BY crl.name)
-            FROM current_ranked_leaders crl LEFT JOIN previous_top_leader ptl ON TRUE
+            FROM current_ranked_leaders crl 
+            LEFT JOIN previous_top_leader ptl ON TRUE
+            CROSS JOIN leader_count lc
             WHERE crl.rnk = 1
             ),
             '[]'::jsonb
