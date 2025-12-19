@@ -73,7 +73,7 @@ export const DeepLinkHandler = () => {
           console.error('[DeepLink] Session check failed:', err);
           router.push(`/auth/login?returnUrl=${encodeURIComponent(path)}`);
           return;
-        }
+      }
       } else {
         console.log('[DeepLink] Public route, navigating to:', path);
       }

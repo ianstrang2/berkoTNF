@@ -114,8 +114,8 @@ export async function POST(
           where: { 
             upcoming_match_id: matchId,
             tenant_id: tenantId,
-            match_id: { equals: null }  // Only reconnect orphaned surveys (Prisma syntax)
-          } as any,
+            match_id: null  // Only reconnect orphaned surveys
+          },
           data: { match_id: newMatch.match_id }
         });
 
@@ -130,8 +130,8 @@ export async function POST(
           where: { 
             upcoming_match_id: matchId,
             tenant_id: tenantId,
-            match_id: { equals: null }  // Only reconnect orphaned awards (Prisma syntax)
-          } as any,
+            match_id: null  // Only reconnect orphaned awards
+          },
           data: { match_id: newMatch.match_id }
         });
 

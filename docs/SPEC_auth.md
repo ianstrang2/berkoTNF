@@ -585,13 +585,13 @@ export async function middleware(req: NextRequest) {
   
   // Create Supabase client with cookie handling
   const supabase = createServerClient(...);
-  
+
   // This triggers cookie refresh if session valid
   await supabase.auth.getUser();
-  
+
   // Always pass through - AuthGuard handles auth client-side
   return response;
-}
+  }
 ```
 
 **Why no redirects:** WKWebView cookie persistence is unreliable. If cookies are lost after background, a server redirect to `/auth/login` can open Safari instead of staying in the app.

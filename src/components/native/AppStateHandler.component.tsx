@@ -45,7 +45,7 @@ export const AppStateHandler = () => {
         ? Math.round((Date.now() - backgroundTimeRef.current) / 1000)
         : 0;
       
-      console.log(`[APP_STATE] Resumed after ${backgroundDuration}s in background`);
+        console.log(`[APP_STATE] Resumed after ${backgroundDuration}s in background`);
       backgroundTimeRef.current = null;
 
       // Refresh session from localStorage
